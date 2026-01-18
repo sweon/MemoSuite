@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MemoSuite - All Your Memos in One Place</title>
+    <style>
+        :root {
+            --primary: #ef8e13;
+            --primary-dark: #d37d11;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 90%;
+            padding: 4rem 0;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        header p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-bottom: 3rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(239, 142, 19, 0.3);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card .icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            margin: 0 0 0.75rem 0;
+            font-size: 1.5rem;
+        }
+
+        .card p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        footer {
+            margin-top: auto;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 640px) {
+            header h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>MemoSuite</h1>
+            <p>모든 종류의 메모를 한 곳에서 관리하세요.</p>
+        </header>
+
+        <div class="grid">
+            <a href="./HandMemo/" class="card">
+                <div class="icon">✍️</div>
+                <h2>HandMemo</h2>
+                <p>로컬 퍼스트 노트 테이킹 및 자유로운 드로잉 메모</p>
+            </a>
+            <a href="./BookMemo/" class="card">
+                <div class="icon">📚</div>
+                <h2>BookMemo</h2>
+                <p>독서 기록 및 나만의 책 메모장</p>
+            </a>
+            <a href="./WordMemo/" class="card">
+                <div class="icon">🔤</div>
+                <h2>WordMemo</h2>
+                <p>효율적인 단어 학습 및 관리용 메모</p>
+            </a>
+            <a href="./LLMemo/" class="card">
+                <div class="icon">🤖</div>
+                <h2>LLMemo</h2>
+                <p>LLM과의 대화 기록 및 오프라인 로그 관리</p>
+            </a>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2026 MemoSuite. Built with Passion.
+    </footer>
+</body>
+
+</html>
