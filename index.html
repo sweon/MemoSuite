@@ -80,14 +80,14 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: var(--primary);
+            background: var(--brand, var(--primary));
             opacity: 0;
             transition: opacity 0.3s;
         }
 
         .card:hover {
             transform: translateY(-8px);
-            border-color: rgba(239, 142, 19, 0.3);
+            border-color: var(--brand, var(--primary));
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
         }
 
@@ -96,8 +96,20 @@
         }
 
         .card .icon {
-            font-size: 3rem;
+            width: 80px;
+            height: 80px;
             margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card .icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 1.2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
         }
 
         .card h2 {
@@ -135,23 +147,31 @@
         </header>
 
         <div class="grid">
-            <a href="./HandMemo/" class="card">
-                <div class="icon">✍️</div>
+            <a href="./HandMemo/" class="card" style="--brand: #ef8e13;">
+                <div class="icon">
+                    <img src="./HandMemo/pwa-192x192.png" alt="HandMemo Icon">
+                </div>
                 <h2>HandMemo</h2>
                 <p>로컬 퍼스트 노트 테이킹 및 자유로운 드로잉 메모</p>
             </a>
-            <a href="./BookMemo/" class="card">
-                <div class="icon">📚</div>
+            <a href="./BookMemo/" class="card" style="--brand: #D85C48;">
+                <div class="icon">
+                    <img src="./BookMemo/pwa-192x192.png" alt="BookMemo Icon">
+                </div>
                 <h2>BookMemo</h2>
                 <p>독서 기록 및 나만의 책 메모장</p>
             </a>
-            <a href="./WordMemo/" class="card">
-                <div class="icon">🔤</div>
+            <a href="./WordMemo/" class="card" style="--brand: #ABDF94;">
+                <div class="icon">
+                    <img src="./WordMemo/pwa-192x192.png" alt="WordMemo Icon">
+                </div>
                 <h2>WordMemo</h2>
                 <p>효율적인 단어 학습 및 관리용 메모</p>
             </a>
-            <a href="./LLMemo/" class="card">
-                <div class="icon">🤖</div>
+            <a href="./LLMemo/" class="card" style="--brand: #5995E2;">
+                <div class="icon">
+                    <img src="./LLMemo/pwa-192x192.png" alt="LLMemo Icon">
+                </div>
                 <h2>LLMemo</h2>
                 <p>LLM과의 대화 기록 및 오프라인 로그 관리</p>
             </a>
