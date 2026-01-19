@@ -26,12 +26,13 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            transition: opacity 0.3s ease;
         }
 
         .container {
-            max-width: 1000px;
-            width: 90%;
-            padding: 4rem 0;
+            max-width: 1400px;
+            width: 95%;
+            padding: 2rem 0;
             text-align: center;
         }
 
@@ -53,15 +54,27 @@
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
             width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .card {
             background: var(--card-bg);
-            border-radius: 1.5rem;
-            padding: 2rem;
+            border-radius: 1.2rem;
+            padding: 1.5rem;
             text-decoration: none;
             color: inherit;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -69,8 +82,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             position: relative;
             overflow: hidden;
+            aspect-ratio: 1;
         }
 
         .card::before {
@@ -96,9 +111,9 @@
         }
 
         .card .icon {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 1.5rem;
+            width: 60px;
+            height: 60px;
+            margin-bottom: 1rem;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -113,15 +128,15 @@
         }
 
         .card h2 {
-            margin: 0 0 0.75rem 0;
-            font-size: 1.5rem;
+            margin: 0 0 0.5rem 0;
+            font-size: 1.25rem;
         }
 
         .card p {
             margin: 0;
             color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.5;
+            font-size: 0.9rem;
+            line-height: 1.4;
         }
 
         footer {
@@ -135,15 +150,72 @@
             header h1 {
                 font-size: 2.5rem;
             }
+
+            #lang-toggle {
+                top: 1rem;
+                right: 1rem;
+            }
+        }
+
+        #lang-toggle {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        #lang-toggle:hover {
+            border-color: var(--text-muted);
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .features {
+            margin-top: 5rem;
+            text-align: left;
+            display: inline-block;
+        }
+
+        .features ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .features li {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .features li::before {
+            content: '✓';
+            color: var(--primary);
+            margin-right: 0.75rem;
+            font-weight: bold;
         }
     </style>
 </head>
 
 <body>
+    <button id="lang-toggle" aria-label="Toggle Language">English</button>
     <div class="container">
         <header>
-            <h1>MemoSuite</h1>
-            <p>모든 종류의 메모를 한 곳에서 관리하세요.</p>
+            <h1>메모스위트</h1>
+            <p>서버 없이 자신의 기기에만 저장되는 4가지 용도의 메모앱들.</p>
         </header>
 
         <div class="grid">
@@ -152,7 +224,7 @@
                     <img src="./HandMemo/pwa-192x192.png" alt="HandMemo Icon">
                 </div>
                 <h2>HandMemo</h2>
-                <p>로컬 퍼스트 노트 테이킹 및 자유로운 드로잉 메모</p>
+                <p>범용 노트앱</p>
             </a>
             <a href="./BookMemo/" class="card" style="--brand: #2D6E7E;">
                 <div class="icon">
@@ -166,21 +238,95 @@
                     <img src="./WordMemo/pwa-192x192.png" alt="WordMemo Icon">
                 </div>
                 <h2>WordMemo</h2>
-                <p>효율적인 단어 학습 및 관리용 메모</p>
+                <p>AI를 활용한 단어 공부</p>
             </a>
             <a href="./LLMemo/" class="card" style="--brand: #5995E2;">
                 <div class="icon">
                     <img src="./LLMemo/pwa-192x192.png" alt="LLMemo Icon">
                 </div>
                 <h2>LLMemo</h2>
-                <p>LLM과의 대화 기록 및 오프라인 로그 관리</p>
+                <p>LLM과의 대화 기록</p>
             </a>
+        </div>
+
+        <div class="features">
+            <ul>
+                <li>모든 데이터가 자신의 기기에만 저장됩니다.</li>
+                <li>다른 기기와의 데이터 동기화를 할 때 암호화되어 전송됩니다.</li>
+                <li>데이터를 파일로 저장하고 다시 불러들일 수 있습니다.</li>
+            </ul>
         </div>
     </div>
 
     <footer>
-        &copy; 2026 MemoSuite. Built with Passion.
+        &copy; 2026 Seyeon Weon
     </footer>
+
+    <script>
+        const translations = {
+            ko: {
+                title: "메모스위트",
+                subtitle: "서버 없이 자신의 기기에만 저장되는 4가지 용도의 메모앱들.",
+                handMemo: "범용 노트앱",
+                bookMemo: "독서 기록 및 나만의 책 메모장",
+                wordMemo: "AI를 활용한 단어 공부",
+                llMemo: "LLM과의 대화 기록",
+                features: [
+                    "모든 데이터가 자신의 기기에만 저장됩니다.",
+                    "다른 기기와의 데이터 동기화를 할 때 암호화되어 전송됩니다.",
+                    "데이터를 파일로 저장하고 다시 불러들일 수 있습니다."
+                ],
+                btn: "English"
+            },
+            en: {
+                title: "MemoSuite",
+                subtitle: "4 specialized memo apps explicitly designed for local-only storage.",
+                handMemo: "General-purpose Note App",
+                bookMemo: "Reading Logs & Personal Book Journal",
+                wordMemo: "AI-Powered Vocabulary Study",
+                llMemo: "Log valuable LLM chats",
+                features: [
+                    "All data is stored locally on your device.",
+                    "Data synchronization between devices is fully encrypted.",
+                    "You can export data to a file and import it later."
+                ],
+                btn: "한국어"
+            }
+        };
+
+        const toggleBtn = document.getElementById('lang-toggle');
+        const title = document.querySelector('header h1');
+        const subtitle = document.querySelector('header p');
+        const cards = document.querySelectorAll('.card p'); // Hand, Book, Word, LLMemo in order
+        const featureItems = document.querySelectorAll('.features li');
+
+        let currentLang = 'ko';
+
+        toggleBtn.addEventListener('click', () => {
+            currentLang = currentLang === 'ko' ? 'en' : 'ko';
+            const t = translations[currentLang];
+
+            // Fade out effect
+            document.body.style.opacity = '0';
+
+            setTimeout(() => {
+                title.textContent = t.title;
+                subtitle.textContent = t.subtitle;
+                cards[0].textContent = t.handMemo;
+                cards[1].textContent = t.bookMemo;
+                cards[2].textContent = t.wordMemo;
+                cards[3].textContent = t.llMemo;
+
+                featureItems.forEach((item, index) => {
+                    item.textContent = t.features[index];
+                });
+
+                toggleBtn.textContent = t.btn;
+                document.documentElement.lang = currentLang;
+                document.body.style.opacity = '1';
+            }, 300);
+        });
+    </script>
 </body>
 
 </html>
