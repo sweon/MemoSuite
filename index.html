@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MemoSuite - All Your Memos in One Place</title>
     <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="manifest.json">
     <style>
         :root {
             --primary: #ef8e13;
@@ -144,6 +145,8 @@
             padding: 2rem;
             color: var(--text-muted);
             font-size: 0.875rem;
+            padding-bottom: 5rem;
+            /* Space for install banner */
         }
 
         @media (max-width: 640px) {
@@ -208,6 +211,85 @@
             margin-right: 0.75rem;
             font-weight: bold;
         }
+
+        #install-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(12px);
+            padding: 1rem;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            box-sizing: border-box;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .install-content {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .install-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .install-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .install-text h3 {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+
+        .install-text p {
+            margin: 2px 0 0 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .install-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .btn-install {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .btn-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 
@@ -263,11 +345,74 @@
         </div>
     </div>
 
+    <!-- PWA Install Banner -->
+    <div id="install-banner">
+        <div class="install-content">
+            <div class="install-icon">
+                <img src="./HandMemo/pwa-192x192.png" alt="App Icon">
+            </div>
+            <div class="install-text">
+                <h3 id="install-title">기기에 앱 설치하기</h3>
+                <p id="install-desc">더 빠르고 편리하게 사용하세요</p>
+            </div>
+        </div>
+        <div class="install-actions">
+            <button id="install-btn" class="btn-install">설치</button>
+            <button id="close-banner" class="btn-close">&times;</button>
+        </div>
+    </div>
+
     <footer>
         &copy; 2026 Seyeon Weon
     </footer>
 
     <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => console.log('SW registered: ', registration))
+                    .catch(registrationError => console.log('SW registration failed: ', registrationError));
+            });
+        }
+
+        // PWA Install Logic
+        let deferredPrompt;
+        const installBanner = document.getElementById('install-banner');
+        const installBtn = document.getElementById('install-btn');
+        const closeBannerBtn = document.getElementById('close-banner');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI notify the user they can add to home screen
+            installBanner.style.display = 'flex';
+        });
+
+        installBtn.addEventListener('click', (e) => {
+            // Hide our user interface that shows our A2HS button
+            installBanner.style.display = 'none';
+            // Show the prompt
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the A2HS prompt');
+                    } else {
+                        console.log('User dismissed the A2HS prompt');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        });
+
+        closeBannerBtn.addEventListener('click', () => {
+            installBanner.style.display = 'none';
+        });
+
         const translations = {
             ko: {
                 title: "메모스위트",
@@ -285,7 +430,10 @@
                     "위의 앱 버튼을 클릭하면 해당하는 앱이 실행됩니다.",
                     "주소줄에 나오는 \"Open in App\"을 클릭하면 설치를 할 수 있습니다."
                 ],
-                btn: "English"
+                btn: "English",
+                installTitle: "기기에 앱 설치하기",
+                installDesc: "더 빠르고 편리하게 사용하세요",
+                installBtn: "설치"
             },
             en: {
                 title: "MemoSuite",
@@ -303,7 +451,10 @@
                     "Click the app buttons above to launch each app.",
                     "Click \"Open in App\" in the address bar to install."
                 ],
-                btn: "한국어"
+                btn: "한국어",
+                installTitle: "Install App",
+                installDesc: "For a faster and better experience",
+                installBtn: "Install"
             }
         };
 
@@ -312,6 +463,9 @@
         const subtitle = document.querySelector('header p');
         const cards = document.querySelectorAll('.card p'); // Hand, Book, Word, LLMemo in order
         const featureItems = document.querySelectorAll('.features li');
+        const installTitle = document.getElementById('install-title');
+        const installDesc = document.getElementById('install-desc');
+        const installBtnText = document.getElementById('install-btn');
 
         let currentLang = 'ko';
 
@@ -333,6 +487,10 @@
                 featureItems.forEach((item, index) => {
                     item.textContent = t.features[index];
                 });
+
+                installTitle.textContent = t.installTitle;
+                installDesc.textContent = t.installDesc;
+                installBtnText.textContent = t.installBtn;
 
                 toggleBtn.textContent = t.btn;
                 document.documentElement.lang = currentLang;
