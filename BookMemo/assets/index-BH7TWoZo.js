@@ -1655,12 +1655,12 @@ ${Fe.current.stack}
   border-top: 2px ${({$dash:e})=>e?"dashed":"solid"} #333;
   ${({$dash:e})=>e&&`border-image: repeating-linear-gradient(to right, #333, #333 ${e[0]}px, transparent ${e[0]}px, transparent ${e[0]+e[1]}px) 1;`}
 `,R0=Wt.div`
-height: ${({$size:e})=>e?Math.max(2,Math.min(24,e)):12} px;
+height: ${({$size:e})=>e?Math.max(2,Math.min(24,e)):12}px;
 flex: 1;
 margin-left: 12px;
 border-radius: 2px;
 position: relative;
-background: ${({$type:e,$color:t})=>{if(e==="pen")return t;if(e==="highlighter"){if(t.startsWith("#")){const n=parseInt(t.slice(1,3),16),r=parseInt(t.slice(3,5),16),i=parseInt(t.slice(5,7),16);return`rgba(${n}, ${r}, ${i}, 0.3)`}return t.replace("rgb","rgba").replace(")",", 0.3)")}return e==="carbon"?`radial-gradient(${t}, transparent)`:e==="hatch"?`repeating-linear-gradient(45deg, ${t}, ${t} 1px, transparent 1px, transparent 4px)`:t}};
+background: ${({$type:e,$color:t})=>{if(e==="pen"||e==="laser")return t;if(e==="highlighter"){if(t.startsWith("#")){const n=parseInt(t.slice(1,3),16),r=parseInt(t.slice(3,5),16),i=parseInt(t.slice(5,7),16);return`rgba(${n}, ${r}, ${i}, 0.3)`}return t.replace("rgb","rgba").replace(")",", 0.3)")}return e==="carbon"?`radial-gradient(${t}, transparent)`:e==="hatch"?`repeating-linear-gradient(45deg, ${t}, ${t} 1px, transparent 1px, transparent 4px)`:t}};
 
   ${({$type:e,$color:t})=>e==="glow"&&`
     box-shadow: 0 0 8px ${t};
