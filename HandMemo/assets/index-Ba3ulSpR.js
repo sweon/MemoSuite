@@ -1488,11 +1488,11 @@ gl_FragColor.rgb *= color.a;
   display: flex;
   flex-wrap: wrap; /* Allow wrapping for mobile devices */
   gap: 2px;
-  padding: 4px;
+  padding: 2px 4px;
   background: #f1f3f5;
   border-bottom: 1px solid #e0e0e0;
   align-items: center;
-  min-height: 32px; /* Use min-height to allow expansion when wrapped */
+  min-height: 28px; /* Use min-height to allow expansion when wrapped */
 `,rf=on.button`
   background: ${({$active:e})=>e?"#e9ecef":"transparent"};
   border: 1px solid ${({$active:e})=>e?"#adb5bd":"transparent"};
