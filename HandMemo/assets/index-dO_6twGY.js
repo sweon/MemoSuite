@@ -279,7 +279,7 @@ Please change the parent <Route path="${L}"> to <Route path="${L==="/"?"*":`${L}
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 9999;
 `,WM=sn.div`
     background-color: ${({theme:e})=>e.colors.background};
     border: 1px solid ${({theme:e})=>e.colors.border};
