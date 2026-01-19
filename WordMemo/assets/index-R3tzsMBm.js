@@ -286,56 +286,59 @@ Please change the parent <Route path="${L}"> to <Route path="${L==="/"?"*":`${L}
     border-radius: 20px;
     width: 440px;
     max-width: 95%;
-    max-height: 90vh;
+    max-height: 85vh; /* Reduced max height for mobile safety */
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4);
     color: ${({theme:e})=>e.colors.text};
     overflow: hidden;
 `,hI=Qt.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 24px;
-    background: ${({theme:e})=>e.mode==="dark"?"rgba(255, 255, 255, 0.03)":"rgba(0, 0, 0, 0.02)"};
+    padding: 16px 20px; /* Reduced padding */
     border-bottom: 1px solid ${({theme:e})=>e.colors.border};
-
-        h2 {
-            margin: 0;
-            font-size: 1.25rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: ${({theme:e})=>e.colors.primary};
-            
-            svg:last-child {
-                font-size: 0.9rem;
-                opacity: 0.6;
-            }
-        }
-`,dI=Qt.div`
-    display: flex;
     background: ${({theme:e})=>e.colors.surface};
-    margin: 16px 24px;
+
+    h2 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: ${({theme:e})=>e.colors.primary};
+        
+        svg:last-child {
+            font-size: 0.8rem;
+            opacity: 0.6;
+        }
+    }
+`,dI=Qt.div`
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: ${({theme:e})=>e.colors.surface};
+    margin: 16px 20px 0; /* Reduced margin */
     padding: 4px;
     border-radius: 12px;
     gap: 4px;
+    border: 1px solid ${({theme:e})=>e.colors.border};
 `,x3=Qt.button`
     flex: 1;
-    padding: 10px;
+    padding: 8px 10px;
     background: ${e=>e.$active?e.theme.colors.background:"transparent"};
     border: none;
     border-radius: 8px;
     color: ${e=>e.$active?e.theme.colors.primary:e.theme.colors.textSecondary};
-    font-weight: ${e=>e.$active?"600":"500"};
+    font-weight: ${e=>e.$active?"700":"500"};
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    font-size: 0.95rem;
-    box-shadow: ${e=>e.$active?"0 2px 8px rgba(0,0,0,0.1)":"none"};
+    font-size: 0.9rem;
+    box-shadow: ${e=>e.$active?"0 2px 8px rgba(0,0,0,0.08)":"none"};
 
     &:hover {
         color: ${e=>e.$active?e.theme.colors.primary:e.theme.colors.text};
+        background: ${e=>e.$active?e.theme.colors.background:e.theme.colors.background+"80"};
     }
     
     &:disabled {
@@ -343,21 +346,26 @@ Please change the parent <Route path="${L}"> to <Route path="${L==="/"?"*":`${L}
         cursor: not-allowed;
     }
 `,gI=Qt.div`
-    padding: 8px 24px 24px;
+    padding: 16px 20px 24px; /* Reduced padding */
     overflow-y: auto;
     flex: 1;
-
-    @media (max-width: 480px) {
-        padding: 8px 16px 20px;
+    
+    /* Elegant scrollbar */
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: ${({theme:e})=>e.colors.border};
+        border-radius: 3px;
     }
 `,pI=Qt.div`
     display: flex;
     flex-direction: column;
     width: 100%;
     margin: 0 auto;
-
+    
     @media (max-width: 600px) {
-        max-width: 310px;
+        max-width: 100%;
     }
 `,mI=Qt.button`
     background: none;
@@ -368,56 +376,57 @@ Please change the parent <Route path="${L}"> to <Route path="${L==="/"?"*":`${L}
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4px;
+    padding: 6px;
     border-radius: 50%;
     transition: all 0.2s;
     
     &:hover {
-        background-color: ${({theme:e})=>e.colors.surface};
+        background-color: ${({theme:e})=>e.colors.background};
         color: ${({theme:e})=>e.colors.text};
     }
 `,b3=Qt.label`
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     color: ${({theme:e})=>e.colors.textSecondary};
-    font-size: 0.85rem;
-    font-weight: 500;
+    font-size: 0.8rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    width: 100%;
 `,w3=Qt.div`
     display: flex;
     gap: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     width: 100%;
 `,S3=Qt.input`
     flex: 1;
     min-width: 0;
-    padding: 12px 16px;
-    border-radius: 10px;
-    border: 2px solid ${({theme:e})=>e.colors.border};
-    background-color: ${({theme:e})=>e.colors.surface};
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid ${({theme:e})=>e.colors.border};
+    background-color: ${({theme:e})=>e.colors.background};
     color: ${({theme:e})=>e.colors.text};
-    font-size: 1rem;
-    font-family: inherit;
+    font-size: 0.95rem;
+    font-family: 'JetBrains Mono', monospace; /* Monospace for ID */
+    letter-spacing: 0.05em;
     transition: all 0.2s;
 
     &:focus {
         outline: none;
         border-color: ${({theme:e})=>e.colors.primary};
-        background-color: ${({theme:e})=>e.colors.background};
+        box-shadow: 0 0 0 3px ${({theme:e})=>e.colors.primary}20;
     }
     
     &:disabled {
-        opacity: 0.6;
+        background-color: ${({theme:e})=>e.colors.surface};
+        opacity: 0.7;
         cursor: not-allowed;
     }
 `,Jv=Qt.button`
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     flex-shrink: 0;
-    border-radius: 10px;
-    border: 2px solid ${({theme:e})=>e.colors.border};
+    border-radius: 12px;
+    border: 1px solid ${({theme:e})=>e.colors.border};
     background-color: ${({theme:e})=>e.colors.surface};
     color: ${({theme:e})=>e.colors.textSecondary};
     cursor: pointer;
@@ -427,6 +436,7 @@ Please change the parent <Route path="${L}"> to <Route path="${L==="/"?"*":`${L}
     transition: all 0.2s;
 
     &:hover:not(:disabled) {
+        background-color: ${({theme:e})=>e.colors.background};
         border-color: ${({theme:e})=>e.colors.textSecondary};
         color: ${({theme:e})=>e.colors.text};
     }
@@ -436,27 +446,28 @@ Please change the parent <Route path="${L}"> to <Route path="${L==="/"?"*":`${L}
         cursor: not-allowed;
     }
 `,$v=Qt.button`
-    padding: 14px 24px;
+    padding: 12px 20px;
     border-radius: 12px;
     border: none;
     cursor: pointer;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.95rem;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
     width: ${e=>e.$fullWidth?"100%":"auto"};
     
     background-color: ${e=>e.$variant==="secondary"?e.theme.colors.surface:e.$variant==="danger"?e.theme.colors.danger:e.theme.colors.primary};
     
     color: ${e=>e.$variant==="secondary"?e.theme.colors.text:"#ffffff"};
+    border: 1px solid ${e=>e.$variant==="secondary"?e.theme.colors.border:"transparent"};
 
     &:hover:not(:disabled) {
         filter: brightness(1.1);
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
     &:active:not(:disabled) {
@@ -469,71 +480,56 @@ Please change the parent <Route path="${L}"> to <Route path="${L==="/"?"*":`${L}
     }
 `,e2=Qt.div`
     background: ${({theme:e})=>e.colors.surface};
-    border: 1px solid ${({theme:e})=>e.colors.primary}40;
+    border: 1px solid ${({theme:e})=>e.colors.primary}30;
     border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
+    padding: 12px;
+    margin-bottom: 16px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     animation: fadeIn 0.3s ease;
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
     
     .icon-box {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
         background: ${({theme:e})=>e.colors.primary}15;
         color: ${({theme:e})=>e.colors.primary};
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         flex-shrink: 0;
     }
     
     .content {
         flex: 1;
         min-width: 0;
-        
         h4 {
-            margin: 0 0 4px 0;
-            font-size: 0.9rem;
+            margin: 0 0 2px 0;
+            font-size: 0.85rem;
             color: ${({theme:e})=>e.colors.primary};
             font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
         }
-        
         p {
             margin: 0;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             color: ${({theme:e})=>e.colors.text};
             font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        
-        .sub {
-            font-size: 0.8rem;
-            color: ${({theme:e})=>e.colors.textSecondary};
-            margin-top: 2px;
-        }
     }
 `,vI=Qt.div`
     width: 100%;
-    margin-top: 20px;
+    margin-top: 16px;
 `,yI=Qt.div`
-    height: 6px;
+    height: 4px;
     background: ${({theme:e})=>e.colors.border};
-    border-radius: 3px;
+    border-radius: 2px;
     overflow: hidden;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     position: relative;
 
     &::after {
@@ -547,46 +543,47 @@ Please change the parent <Route path="${L}"> to <Route path="${L==="/"?"*":`${L}
         transition: width 0.3s ease;
     }
 `,xI=Qt.div`
-    padding: 16px;
-    border-radius: 12px;
+    padding: 12px;
+    border-radius: 10px;
     background-color: ${({theme:e})=>e.colors.surface};
     text-align: center;
     font-weight: 500;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    font-size: 0.95rem;
+    gap: 12px;
+    font-size: 0.9rem;
     width: 100%;
-    word-break: break-word;
     
     color: ${({theme:e})=>e.colors.text};
     border: 1px solid ${({theme:e})=>e.colors.border};
 
     .icon-area {
-        font-size: 1.5rem;
-        margin-bottom: 4px;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
         color: ${e=>e.$status==="error"?e.theme.colors.danger:e.$status==="completed"?e.theme.colors.success:e.$status==="ready"||e.$status==="connected"?e.theme.colors.primary:e.$status==="connecting"?"#f59e0b":e.theme.colors.textSecondary};
     }
 `,bI=Qt.div`
     background: white;
-    padding: 24px;
+    padding: 16px; /* Reduced padding */
     border-radius: 16px;
-    margin: 20px auto;
+    margin: 16px auto;
     width: fit-content;
     display: flex;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: 1px solid ${({theme:e})=>e.colors.border};
 `,wI=Qt.div`
     width: 100%;
     aspect-ratio: 1;
-    max-width: 320px;
-    margin: 0 auto 24px;
+    max-width: 280px; /* Reduced max width */
+    margin: 0 auto 16px;
     overflow: hidden;
     border-radius: 16px;
-    border: 2px solid ${({theme:e})=>e.colors.border};
+    border: 1px solid ${({theme:e})=>e.colors.border};
     background: #000;
     position: relative;
 
@@ -594,29 +591,20 @@ Please change the parent <Route path="${L}"> to <Route path="${L==="/"?"*":`${L}
         width: 100% !important;
         border: none !important;
     }
-
-    #reader__scan_region {
-        background: #000 !important;
-    }
-
+    
+    /* Hide some default UI elements of the scanner library if possible via CSS */
     #reader__dashboard_section_csr button {
-        background-color: ${({theme:e})=>e.colors.primary} !important;
-        color: white !important;
-        border: none !important;
-        padding: 8px 16px !important;
-        border-radius: 8px !important;
-        cursor: pointer !important;
-        margin: 10px !important;
-        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        padding: 6px 12px !important;
     }
 `,SI=Qt.div`
     display: flex;
     align-items: center;
     text-align: center;
-    margin: 24px 0;
+    margin: 16px 0;
     color: ${({theme:e})=>e.colors.textSecondary};
-    font-size: 0.8rem;
-    font-weight: 500;
+    font-size: 0.75rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     width: 100%;
@@ -626,15 +614,9 @@ Please change the parent <Route path="${L}"> to <Route path="${L==="/"?"*":`${L}
         flex: 1;
         border-bottom: 1px solid ${({theme:e})=>e.colors.border};
     }
-
-    &::before {
-        margin-right: 16px;
-    }
-
-    &::after {
-        margin-left: 16px;
-    }
-`,R8=({isOpen:e,onClose:t,adapter:n,t:r,language:o,initialItemId:c})=>{const[y,d]=ke.useState("host"),[a,u]=ke.useState(""),[m,f]=ke.useState(""),[g,v]=ke.useState("disconnected"),[S,_]=ke.useState(""),[E,I]=ke.useState(!1),[L,j]=ke.useState(!1),[W,J]=ke.useState(null),[$,ne]=ke.useState(0),fe=ke.useRef(null),Se=ke.useRef(null),Le=ED();ke.useEffect(()=>{e&&(a||u(y3()))},[e]),ke.useEffect(()=>{if(E&&!fe.current){const De=new uI("reader",{fps:10,qrbox:{width:250,height:250}},!1);De.render(oe=>{f(oe),ge(oe)},()=>{}),fe.current=De}return()=>{!E&&fe.current&&(fe.current.clear().catch(De=>console.error("Scanner clear error",De)),fe.current=null)}},[E]);const je=()=>{fe.current&&(fe.current.clear().catch(console.error),fe.current=null),Se.current&&(Se.current.destroy(),Se.current=null),v("disconnected"),_(""),J(null),ne(0),I(!1),t()},Ge=(De,oe)=>{v(De),oe&&_(oe),De==="connecting"?ne(15):De==="connected"?ne(30):De==="syncing"?oe?.toLowerCase().includes("preparing")?ne(10):oe?.toLowerCase().includes("encrypting")?ne(25):oe?.toLowerCase().includes("sending")||oe?.toLowerCase().includes("uploading")?ne(45):oe?.toLowerCase().includes("downloading")?ne(60):oe?.toLowerCase().includes("decrypting")?ne(75):oe?.toLowerCase().includes("merging")?ne(90):oe?.toLowerCase().includes("back")?ne(95):ne(50):De==="completed"?ne(100):(De==="error"||De==="disconnected"||De==="ready")&&ne(0)},mt=()=>(Se.current||(Se.current=new lM({adapter:n,initialDataLogId:c,onStatusChange:Ge,onDataReceived:()=>{v("completed"),_(r.sync?.data_synced_reload||"Sync complete, reloading..."),ne(100),setTimeout(()=>{window.location.reload()},3e3)},onSyncInfo:De=>J(De)})),Se.current),ft=async De=>{const oe=De||a;if(oe.trim())try{await mt().initialize(oe)}catch(ce){console.error(ce)}},ge=async De=>{const oe=De||m;if(!(!oe.trim()||g==="connecting"||g==="connected"||g==="syncing")){E&&(I(!1),fe.current&&(fe.current.clear().catch(console.error),fe.current=null));try{await mt().connect(oe)}catch(ce){console.error("Connect error:",ce),v("error"),_(`Connection failed: ${ce.message||"Unknown error"} `)}}},be=()=>{navigator.clipboard.writeText(a),j(!0),setTimeout(()=>j(!1),2e3)},Fe=()=>{if(g==="syncing"||g==="connected")return;Se.current&&(Se.current.destroy(),Se.current=null);const De=y3();u(De),v("disconnected"),_(""),J(null),ne(0),y==="host"&&ft(De)};if(!e)return null;const pt={title:r.sync?.title||"Sync Data",host_session:r.sync?.host_session||"Host Session",join_session:r.sync?.join_session||"Join Session",your_room_id:r.sync?.your_room_id||"Your Room ID",enter_custom_id:r.sync?.enter_custom_id||"Enter Custom ID",copied:r.sync?.copied||"Copied!",copy_id:r.sync?.copy_id||"Copy ID",regenerate_id:r.sync?.regenerate_id||"Regenerate ID",connecting:r.sync?.connecting||"Connecting...",restart_hosting:r.sync?.restart_hosting||"Restart Hosting",start_host:r.sync?.start_host||"Start Hosting",connected_to_peer:r.sync?.connected_to_peer||"Connected to peer!",scan_hint:r.sync?.scan_hint||"Scan this QR code on another device",stop_scanning:r.sync?.stop_scanning||"Stop Scanning",scan_qr:r.sync?.scan_qr||"Scan QR Code",or:r.sync?.or||"OR",manual_entry:r.sync?.manual_entry||"Manual Entry",enter_room_id:r.sync?.enter_room_id||"Enter Room ID",connect:r.sync?.connect||"Connect",ready_to_share:r.sync?.ready_to_share||"Ready to share!",connected:r.sync?.connected||"Connected!"};return U.jsx(cI,{onClick:je,children:U.jsxs(fI,{onClick:De=>De.stopPropagation(),children:[U.jsxs(hI,{children:[U.jsxs("h2",{children:[U.jsx($w,{})," ",pt.title," ",U.jsx(cM,{style:{fontSize:"0.9rem",opacity:.6},title:"End-to-End Encrypted"})]}),U.jsx(mI,{onClick:je,children:U.jsx(e3,{})})]}),U.jsxs(dI,{children:[U.jsx(x3,{$active:y==="host",onClick:()=>d("host"),disabled:g==="syncing"||g==="connected"&&y==="join",children:pt.host_session}),U.jsx(x3,{$active:y==="join",onClick:()=>d("join"),disabled:g==="syncing"||g==="connected"&&y==="host",children:pt.join_session})]}),U.jsx(gI,{children:U.jsxs(pI,{children:[y==="host"?U.jsxs(U.Fragment,{children:[W&&U.jsxs(e2,{children:[U.jsx("div",{className:"icon-box",children:W.type==="thread"?U.jsx(Qv,{}):W.type==="full"?U.jsx(Zv,{}):U.jsx(qv,{})}),U.jsxs("div",{className:"content",children:[U.jsx("h4",{children:W.type==="thread"?"Sharing Thread":W.type==="full"?"Full Backup":"Sharing Item"}),U.jsx("p",{children:W.label}),U.jsxs("div",{className:"sub",children:[W.count," items"]})]})]}),U.jsx(b3,{children:pt.your_room_id}),U.jsxs(w3,{children:[U.jsx(S3,{value:a,onChange:De=>u(De.target.value),disabled:g==="connected"||g==="connecting"||g==="syncing",placeholder:pt.enter_custom_id}),U.jsx(Jv,{onClick:be,title:L?pt.copied:pt.copy_id,children:L?U.jsx(Kv,{style:{color:Le.colors.success}}):U.jsx(gM,{})}),U.jsx(Jv,{onClick:Fe,disabled:g==="syncing"||g==="connected",title:pt.regenerate_id,children:U.jsx(fM,{})})]}),U.jsx($v,{$fullWidth:!0,onClick:()=>ft(),disabled:g==="syncing"||g==="connected"||g==="connecting",children:g==="connecting"?pt.connecting:g==="ready"?pt.restart_hosting:pt.start_host}),U.jsx(bI,{children:U.jsx(A8,{value:py(a),size:180,level:"H"})}),U.jsx("p",{style:{fontSize:"0.85rem",color:Le.colors.textSecondary,textAlign:"center",marginTop:-8},children:g==="connected"||g==="syncing"?pt.connected_to_peer:pt.scan_hint})]}):U.jsx(U.Fragment,{children:E?U.jsxs(U.Fragment,{children:[U.jsx(wI,{children:U.jsx("div",{id:"reader"})}),W&&U.jsxs(e2,{children:[U.jsx("div",{className:"icon-box",children:W.type==="thread"?U.jsx(Qv,{}):W.type==="full"?U.jsx(Zv,{}):U.jsx(qv,{})}),U.jsxs("div",{className:"content",children:[U.jsx("h4",{children:W.type==="thread"?"Received Thread":W.type==="full"?"Receiving Backup":"Received Item"}),U.jsx("p",{children:W.label}),U.jsxs("div",{className:"sub",children:[W.count," items"]})]})]}),U.jsxs($v,{$fullWidth:!0,$variant:"secondary",onClick:()=>I(!1),children:[U.jsx(dM,{})," ",pt.stop_scanning]})]}):U.jsxs(U.Fragment,{children:[U.jsxs($v,{$fullWidth:!0,onClick:()=>I(!0),disabled:g==="connected",style:{marginBottom:12,marginTop:8},children:[U.jsx(uM,{})," ",pt.scan_qr]}),U.jsx(SI,{children:pt.or}),W&&U.jsxs(e2,{children:[U.jsx("div",{className:"icon-box",children:W.type==="thread"?U.jsx(Qv,{}):W.type==="full"?U.jsx(Zv,{}):U.jsx(qv,{})}),U.jsxs("div",{className:"content",children:[U.jsx("h4",{children:W.type==="thread"?"Received Thread":W.type==="full"?"Receiving Backup":"Received Item"}),U.jsx("p",{children:W.label}),U.jsxs("div",{className:"sub",children:[W.count," items"]})]})]}),U.jsx(b3,{children:pt.manual_entry}),U.jsxs(w3,{children:[U.jsx(S3,{placeholder:pt.enter_room_id,value:m,onChange:De=>f(De.target.value),disabled:g==="connected"}),U.jsx(Jv,{onClick:()=>ge(),disabled:!m||g==="connected"||g==="syncing",title:pt.connect,children:g==="connected"?U.jsx(Kv,{style:{color:Le.colors.success}}):U.jsx(Jw,{})})]})]})}),(S||g!=="disconnected")&&U.jsxs(vI,{children:[$>0&&U.jsx(yI,{$percent:$}),U.jsxs(xI,{$status:g,children:[U.jsx("div",{className:"icon-area",children:g==="connecting"||g==="syncing"?U.jsx($w,{className:"fa-spin"}):g==="completed"?U.jsx(Kv,{}):g==="error"?U.jsx(e3,{}):g==="connected"?U.jsx(Jw,{}):null}),U.jsx("div",{children:S||(g==="ready"?pt.ready_to_share:g==="connected"?pt.connected:"")})]})]}),U.jsxs("div",{style:{marginTop:"24px",padding:"14px",borderRadius:"12px",background:Le.mode==="dark"?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.03)",border:`1px solid ${Le.colors.border} `,fontSize:"0.8rem",color:Le.colors.textSecondary,display:"flex",alignItems:"flex-start",gap:"12px",lineHeight:"1.5"},children:[U.jsx(hM,{style:{fontSize:"1.2rem",color:Le.colors.primary,marginTop:"2px",flexShrink:0}}),U.jsx("span",{children:o==="ko"?"모든 데이터는 기기 내에서 로컬 암호화(AES-256)를 거쳐 안전하게 전송됩니다. 릴레이 서버는 어떠한 데이터도 읽을 수 없습니다.":"Data is end-to-end encrypted locally (AES-256) before sync. The relay server cannot access your content."})]})]})})]})})},N8=ke.createContext(void 0),L8=()=>{const e=ke.useContext(N8);if(!e)throw new Error("useSearch must be used within a SearchProvider");return e},CI=({children:e})=>{const[t,n]=ke.useState("");return U.jsx(N8.Provider,{value:{searchQuery:t,setSearchQuery:n},children:e})},EI={en:{sidebar:{new:"New",search:"Search... (tag: for tags/sources)",decrease_font:"Decrease Font Size",increase_font:"Increase Font Size",sync_data:"Sync Data",install_update:"Install Update",check_updates:"Check for Updates",switch_dark:"Switch to Dark Mode",switch_light:"Switch to Light Mode",settings:"Settings",newest:"Date (Newest)",oldest:"Date (Oldest)",source_newest:"Source (Newest)",source_oldest:"Source (Oldest)",last_commented:"Last Commented",untitled:"Untitled Word",update_found:"Update found! Click again to install.",up_to_date:"You are up to date!",check_failed:"Check failed. Try again.",pwa_not_supported:"PWA not supported",collapse:"Collapse",more_logs:"{count} more",drop_to_extract:"Drop to Extract",study_mode:"Study Mode",study_none:"Standard",study_hide_meanings:"Meanings",study_hide_words:"Words",alphabetical:"Alphabetical",starred_only:"Starred Only",sort_starred:"Starred",press_back_again:"Press back again to exit the app"},settings:{title:"Settings",manage_sources:"Manage Sources (Dictionaries, LLMs)",add_source_placeholder:"Add new source name...",add:"Add",delete_confirm:"Delete this source? Existing entries linked to this source will lose the reference.",data_management:"Data Management",export_backup:"Export / Backup",import_restore:"Import / Restore",import_note:"Data is safely merged with existing entries.",language:"UI Language",english:"English",korean:"Korean",export_data:"Export Data",export_mode:"Export Mode",all_data:"All Data (Default)",select_logs:"Select Logs",filename_optional:"Filename (optional):",enter_filename:"Enter filename...",no_logs_found:"No logs found.",cancel:"Cancel",export:"Export",import_confirm:"Import data? This will merge with existing data.",import_success:"Import successful!",import_failed:"Import failed: ",help:"Help",help_title:"Help & About",help_desc:"WordMemo is designed for fast and efficient studying of words and idioms.",help_core_features:"Core Learning Features",help_level:"4-Level Custom Difficulty: Choose a vocabulary level (Elementary, Beginner, Intermediate, Advanced) that fits your proficiency.",help_hide:"Memorization Test (Hide Mode): Use the 'Meanings' or 'Words' buttons in the sidebar to hide content and test your memory. Hover or touch the hidden area for a quick peek.",help_star:"Focus on Unlearned Words: Mark words you haven't memorized yet with a Star. Use the Star filter to review only those specific words.",help_ai_recommend:"AI-Powered Recommendations: Connect your preferred AI (ChatGPT, Gemini, etc.) to receive word recommendations matching your level and add them instantly.",help_ai_sentence:"AI Sentence Generation: Need to see how a word is used? Use AI to generate natural example sentences and add them to your entry.",help_threads:"Structured Grouping (Threads): Organize related words by dragging and dropping them onto each other. To extract a word from a thread, simply drop it above the thread header.",help_essential_features:"Essential Features",help_theme:"Theme Selection: Choose between eye-friendly Dark Mode and bright Light Mode.",help_sync:"Encrypted Sync: Securely sync data between devices to keep your study flow uninterrupted.",help_backup:"Backup & Import: Export your records as JSON files or import them back at any time.",help_offline:"Offline & PWA: Install as an app to study anywhere, even without an internet connection.",help_serverless:"Serverless Secure Storage: Your data is stored only on your device with no external server, ensuring total privacy.",help_close:"Close",share_app:"Share with Friends",share_desc:"Love WordMemo? Share it with your friends!",share_success:"Link copied to clipboard!",disclaimer_title:"Legal Disclaimer",disclaimer_text:"WordMemo is provided 'as is' without warranty. Data is stored locally on your device; you are responsible for maintaining your own backups. The developers are not liable for any data loss.",factory_reset:"Factory Reset",reset_confirm:"Are you sure? This will delete ALL data including records, settings, and sources. This action CANNOT be undone.",reset_success:"All data has been reset.",editor:"Editor",spellcheck:"Spelling Checker",spellcheck_desc:"Enable spelling checker in the editor.",editor_autosave:"Autosave",editor_autosave_desc:"Automatically save content periodically.",editor_line_numbers:"Line Numbers",editor_line_numbers_desc:"Show line numbers in the editor.",editor_tab_size:"Tab Size",editor_tab_size_desc:"Set the number of spaces for a tab.",editor_large_size:"Large Editor",editor_large_size_desc:"Increase the default height of the editor.",editor_advanced_toolbar:"Advanced Toolbar",editor_advanced_toolbar_desc:"Show more formatting options in the toolbar.",learning:"Learning Level",level:"Vocabulary Level",level_desc:"Set the difficulty level for generated words.",level_0:"Elementary School",level_1:"Beginner",level_2:"Intermediate",level_3:"Advanced",llm_config:"LLM Configuration",llm_provider:"AI Provider",llm_add_provider:"Add AI Service",llm_name_placeholder:"AI Name (e.g. GPT-5)",llm_url_placeholder:"Service URL",llm_delete_confirm:"Delete this AI service?",llm_reorder_hint:"Drag to reorder AI services.",llm_apikey:"API Key",llm_connect:"Connect",llm_connected:"Connected",llm_not_connected:"Not Connected",llm_login_required:"Please connect your AI service in Settings.",color_theme:"Color Theme",color_theme_desc:"Choose your preferred color scheme",light_modes:"Light Modes",dark_modes:"Dark Modes",current_theme:"Current",font_size:"Font Size"},log_detail:{loading:"Loading...",title_placeholder:"Enter a Word or Idiom",tags_placeholder:"Tags (comma separated)",save:"Save",cancel:"Cancel",edit:"Edit",delete:"Delete",delete_confirm:"Are you sure you want to delete this word?",delete_thread_entire:"Delete Entire Thread",delete_log_only:"Delete Only This Word",delete_thread_confirm:"This word is part of a thread. What would you like to delete?",add_thread:"Add Thread",untitled:"Untitled Word",unknown_source:"Unknown Source",share_log:"Share",random_word:"Random Word",fetching_random_word:"AI is choosing a word...",random_word_error:"AI failed to pick a word.",example_button:"Sentence",meaning_button:"Meaning",bulk_add:"Bulk Add",bulk_add_title:"Bulk Add Words",bulk_add_placeholder:`Format:
+    &::before { margin-right: 12px; }
+    &::after { margin-left: 12px; }
+`,R8=({isOpen:e,onClose:t,adapter:n,t:r,language:o,initialItemId:c})=>{const[y,d]=ke.useState("host"),[a,u]=ke.useState(""),[m,f]=ke.useState(""),[g,v]=ke.useState("disconnected"),[S,_]=ke.useState(""),[E,I]=ke.useState(!1),[L,j]=ke.useState(!1),[W,J]=ke.useState(null),[$,ne]=ke.useState(0),fe=ke.useRef(null),Se=ke.useRef(null),Le=ED();ke.useEffect(()=>{e&&(a||u(y3()))},[e]),ke.useEffect(()=>{if(E&&!fe.current){const De=new uI("reader",{fps:10,qrbox:{width:220,height:220}},!1);De.render(oe=>{f(oe),ge(oe)},()=>{}),fe.current=De}return()=>{!E&&fe.current&&(fe.current.clear().catch(De=>console.error("Scanner clear error",De)),fe.current=null)}},[E]);const je=()=>{fe.current&&(fe.current.clear().catch(console.error),fe.current=null),Se.current&&(Se.current.destroy(),Se.current=null),v("disconnected"),_(""),J(null),ne(0),I(!1),t()},Ge=(De,oe)=>{v(De),oe&&_(oe),De==="connecting"?ne(15):De==="connected"?ne(30):De==="syncing"?oe?.toLowerCase().includes("preparing")?ne(10):oe?.toLowerCase().includes("encrypting")?ne(25):oe?.toLowerCase().includes("sending")||oe?.toLowerCase().includes("uploading")?ne(45):oe?.toLowerCase().includes("downloading")?ne(60):oe?.toLowerCase().includes("decrypting")?ne(75):oe?.toLowerCase().includes("merging")?ne(90):oe?.toLowerCase().includes("back")?ne(95):ne(50):De==="completed"?ne(100):(De==="error"||De==="disconnected"||De==="ready")&&ne(0)},mt=()=>(Se.current||(Se.current=new lM({adapter:n,initialDataLogId:c,onStatusChange:Ge,onDataReceived:()=>{v("completed"),_(r.sync?.data_synced_reload||"Sync complete, reloading..."),ne(100),setTimeout(()=>{window.location.reload()},3e3)},onSyncInfo:De=>J(De)})),Se.current),ft=async De=>{const oe=De||a;if(oe.trim())try{await mt().initialize(oe)}catch(ce){console.error(ce)}},ge=async De=>{const oe=De||m;if(!(!oe.trim()||g==="connecting"||g==="connected"||g==="syncing")){E&&(I(!1),fe.current&&(fe.current.clear().catch(console.error),fe.current=null));try{await mt().connect(oe)}catch(ce){console.error("Connect error:",ce),v("error"),_(`Connection failed: ${ce.message||"Unknown error"} `)}}},be=()=>{navigator.clipboard.writeText(a),j(!0),setTimeout(()=>j(!1),2e3)},Fe=()=>{if(g==="syncing"||g==="connected")return;Se.current&&(Se.current.destroy(),Se.current=null);const De=y3();u(De),v("disconnected"),_(""),J(null),ne(0),y==="host"&&ft(De)};if(!e)return null;const pt={title:r.sync?.title||"Sync Data",host_session:r.sync?.host_session||"Host Session",join_session:r.sync?.join_session||"Join Session",your_room_id:r.sync?.your_room_id||"Your Room ID",enter_custom_id:r.sync?.enter_custom_id||"Enter Custom ID",copied:r.sync?.copied||"Copied!",copy_id:r.sync?.copy_id||"Copy ID",regenerate_id:r.sync?.regenerate_id||"Regenerate ID",connecting:r.sync?.connecting||"Connecting...",restart_hosting:r.sync?.restart_hosting||"Restart",start_host:r.sync?.start_host||"Start Hosting",connected_to_peer:r.sync?.connected_to_peer||"Connected!",scan_hint:r.sync?.scan_hint||"Scan on other device",stop_scanning:r.sync?.stop_scanning||"Stop Scanning",scan_qr:r.sync?.scan_qr||"Scan QR Code",or:r.sync?.or||"OR",manual_entry:r.sync?.manual_entry||"Manual Entry",enter_room_id:r.sync?.enter_room_id||"Enter Room ID",connect:r.sync?.connect||"Connect",ready_to_share:r.sync?.ready_to_share||"Ready to share!",connected:r.sync?.connected||"Connected!"};return U.jsx(cI,{onClick:je,children:U.jsxs(fI,{onClick:De=>De.stopPropagation(),children:[U.jsxs(hI,{children:[U.jsxs("h2",{children:[U.jsx($w,{})," ",pt.title," ",U.jsx(cM,{style:{opacity:.5,fontSize:"0.9em"},title:"E2EE"})]}),U.jsx(mI,{onClick:je,children:U.jsx(e3,{})})]}),U.jsxs(dI,{children:[U.jsx(x3,{$active:y==="host",onClick:()=>d("host"),disabled:g==="syncing"||g==="connected"&&y==="join",children:pt.host_session}),U.jsx(x3,{$active:y==="join",onClick:()=>d("join"),disabled:g==="syncing"||g==="connected"&&y==="host",children:pt.join_session})]}),U.jsx(gI,{children:U.jsxs(pI,{children:[y==="host"?U.jsxs(U.Fragment,{children:[W&&U.jsxs(e2,{children:[U.jsx("div",{className:"icon-box",children:W.type==="thread"?U.jsx(Qv,{}):W.type==="full"?U.jsx(Zv,{}):U.jsx(qv,{})}),U.jsxs("div",{className:"content",children:[U.jsx("h4",{children:W.type==="thread"?"Thread":W.type==="full"?"Backup":"Item"}),U.jsx("p",{children:W.label})]})]}),U.jsx(b3,{children:pt.your_room_id}),U.jsxs(w3,{children:[U.jsx(S3,{value:a,onChange:De=>u(De.target.value),disabled:g==="connected"||g==="connecting"||g==="syncing",placeholder:pt.enter_custom_id}),U.jsx(Jv,{onClick:be,title:L?pt.copied:pt.copy_id,children:L?U.jsx(Kv,{style:{color:Le.colors.success}}):U.jsx(gM,{})}),U.jsx(Jv,{onClick:Fe,disabled:g==="syncing"||g==="connected",title:pt.regenerate_id,children:U.jsx(fM,{})})]}),U.jsx($v,{$fullWidth:!0,onClick:()=>ft(),disabled:g==="syncing"||g==="connected"||g==="connecting",children:g==="connecting"?pt.connecting:g==="ready"?pt.restart_hosting:pt.start_host}),U.jsx(bI,{children:U.jsx(A8,{value:py(a),size:140,level:"M"})}),U.jsx("p",{style:{fontSize:"0.8rem",color:Le.colors.textSecondary,textAlign:"center",marginTop:-8,marginBottom:0},children:g==="connected"||g==="syncing"?pt.connected_to_peer:pt.scan_hint})]}):U.jsx(U.Fragment,{children:E?U.jsxs(U.Fragment,{children:[U.jsx(wI,{children:U.jsx("div",{id:"reader"})}),W&&U.jsxs(e2,{children:[U.jsx("div",{className:"icon-box",children:W.type==="thread"?U.jsx(Qv,{}):W.type==="full"?U.jsx(Zv,{}):U.jsx(qv,{})}),U.jsxs("div",{className:"content",children:[U.jsx("h4",{children:"Received"}),U.jsx("p",{children:W.label})]})]}),U.jsxs($v,{$fullWidth:!0,$variant:"secondary",onClick:()=>I(!1),children:[U.jsx(dM,{})," ",pt.stop_scanning]})]}):U.jsxs(U.Fragment,{children:[U.jsxs($v,{$fullWidth:!0,onClick:()=>I(!0),disabled:g==="connected",style:{marginBottom:12},children:[U.jsx(uM,{})," ",pt.scan_qr]}),U.jsx(SI,{children:pt.or}),W&&U.jsxs(e2,{children:[U.jsx("div",{className:"icon-box",children:W.type==="thread"?U.jsx(Qv,{}):W.type==="full"?U.jsx(Zv,{}):U.jsx(qv,{})}),U.jsxs("div",{className:"content",children:[U.jsx("h4",{children:"Received"}),U.jsx("p",{children:W.label})]})]}),U.jsx(b3,{children:pt.manual_entry}),U.jsxs(w3,{children:[U.jsx(S3,{placeholder:pt.enter_room_id,value:m,onChange:De=>f(De.target.value),disabled:g==="connected"}),U.jsx(Jv,{onClick:()=>ge(),disabled:!m||g==="connected"||g==="syncing",title:pt.connect,children:g==="connected"?U.jsx(Kv,{style:{color:Le.colors.success}}):U.jsx(Jw,{})})]})]})}),(S||g!=="disconnected")&&U.jsxs(vI,{children:[$>0&&U.jsx(yI,{$percent:$}),U.jsxs(xI,{$status:g,children:[U.jsx("div",{className:"icon-area",children:g==="connecting"||g==="syncing"?U.jsx($w,{className:"fa-spin"}):g==="completed"?U.jsx(Kv,{}):g==="error"?U.jsx(e3,{}):g==="connected"?U.jsx(Jw,{}):null}),U.jsx("div",{children:S||(g==="ready"?pt.ready_to_share:g==="connected"?pt.connected:"")})]})]}),U.jsxs("div",{style:{marginTop:"20px",padding:"12px",borderRadius:"10px",background:Le.mode==="dark"?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.03)",border:`1px solid ${Le.colors.border}`,fontSize:"0.75rem",color:Le.colors.textSecondary,display:"flex",alignItems:"center",gap:"10px",lineHeight:"1.4"},children:[U.jsx(hM,{style:{fontSize:"1rem",color:Le.colors.primary,flexShrink:0}}),U.jsx("span",{children:o==="ko"?"데이터는 로컬에서 암호화(AES-256)되어 전송됩니다.":"Secured with local AES-256 encryption."})]})]})})]})})},N8=ke.createContext(void 0),L8=()=>{const e=ke.useContext(N8);if(!e)throw new Error("useSearch must be used within a SearchProvider");return e},CI=({children:e})=>{const[t,n]=ke.useState("");return U.jsx(N8.Provider,{value:{searchQuery:t,setSearchQuery:n},children:e})},EI={en:{sidebar:{new:"New",search:"Search... (tag: for tags/sources)",decrease_font:"Decrease Font Size",increase_font:"Increase Font Size",sync_data:"Sync Data",install_update:"Install Update",check_updates:"Check for Updates",switch_dark:"Switch to Dark Mode",switch_light:"Switch to Light Mode",settings:"Settings",newest:"Date (Newest)",oldest:"Date (Oldest)",source_newest:"Source (Newest)",source_oldest:"Source (Oldest)",last_commented:"Last Commented",untitled:"Untitled Word",update_found:"Update found! Click again to install.",up_to_date:"You are up to date!",check_failed:"Check failed. Try again.",pwa_not_supported:"PWA not supported",collapse:"Collapse",more_logs:"{count} more",drop_to_extract:"Drop to Extract",study_mode:"Study Mode",study_none:"Standard",study_hide_meanings:"Meanings",study_hide_words:"Words",alphabetical:"Alphabetical",starred_only:"Starred Only",sort_starred:"Starred",press_back_again:"Press back again to exit the app"},settings:{title:"Settings",manage_sources:"Manage Sources (Dictionaries, LLMs)",add_source_placeholder:"Add new source name...",add:"Add",delete_confirm:"Delete this source? Existing entries linked to this source will lose the reference.",data_management:"Data Management",export_backup:"Export / Backup",import_restore:"Import / Restore",import_note:"Data is safely merged with existing entries.",language:"UI Language",english:"English",korean:"Korean",export_data:"Export Data",export_mode:"Export Mode",all_data:"All Data (Default)",select_logs:"Select Logs",filename_optional:"Filename (optional):",enter_filename:"Enter filename...",no_logs_found:"No logs found.",cancel:"Cancel",export:"Export",import_confirm:"Import data? This will merge with existing data.",import_success:"Import successful!",import_failed:"Import failed: ",help:"Help",help_title:"Help & About",help_desc:"WordMemo is designed for fast and efficient studying of words and idioms.",help_core_features:"Core Learning Features",help_level:"4-Level Custom Difficulty: Choose a vocabulary level (Elementary, Beginner, Intermediate, Advanced) that fits your proficiency.",help_hide:"Memorization Test (Hide Mode): Use the 'Meanings' or 'Words' buttons in the sidebar to hide content and test your memory. Hover or touch the hidden area for a quick peek.",help_star:"Focus on Unlearned Words: Mark words you haven't memorized yet with a Star. Use the Star filter to review only those specific words.",help_ai_recommend:"AI-Powered Recommendations: Connect your preferred AI (ChatGPT, Gemini, etc.) to receive word recommendations matching your level and add them instantly.",help_ai_sentence:"AI Sentence Generation: Need to see how a word is used? Use AI to generate natural example sentences and add them to your entry.",help_threads:"Structured Grouping (Threads): Organize related words by dragging and dropping them onto each other. To extract a word from a thread, simply drop it above the thread header.",help_essential_features:"Essential Features",help_theme:"Theme Selection: Choose between eye-friendly Dark Mode and bright Light Mode.",help_sync:"Encrypted Sync: Securely sync data between devices to keep your study flow uninterrupted.",help_backup:"Backup & Import: Export your records as JSON files or import them back at any time.",help_offline:"Offline & PWA: Install as an app to study anywhere, even without an internet connection.",help_serverless:"Serverless Secure Storage: Your data is stored only on your device with no external server, ensuring total privacy.",help_close:"Close",share_app:"Share with Friends",share_desc:"Love WordMemo? Share it with your friends!",share_success:"Link copied to clipboard!",disclaimer_title:"Legal Disclaimer",disclaimer_text:"WordMemo is provided 'as is' without warranty. Data is stored locally on your device; you are responsible for maintaining your own backups. The developers are not liable for any data loss.",factory_reset:"Factory Reset",reset_confirm:"Are you sure? This will delete ALL data including records, settings, and sources. This action CANNOT be undone.",reset_success:"All data has been reset.",editor:"Editor",spellcheck:"Spelling Checker",spellcheck_desc:"Enable spelling checker in the editor.",editor_autosave:"Autosave",editor_autosave_desc:"Automatically save content periodically.",editor_line_numbers:"Line Numbers",editor_line_numbers_desc:"Show line numbers in the editor.",editor_tab_size:"Tab Size",editor_tab_size_desc:"Set the number of spaces for a tab.",editor_large_size:"Large Editor",editor_large_size_desc:"Increase the default height of the editor.",editor_advanced_toolbar:"Advanced Toolbar",editor_advanced_toolbar_desc:"Show more formatting options in the toolbar.",learning:"Learning Level",level:"Vocabulary Level",level_desc:"Set the difficulty level for generated words.",level_0:"Elementary School",level_1:"Beginner",level_2:"Intermediate",level_3:"Advanced",llm_config:"LLM Configuration",llm_provider:"AI Provider",llm_add_provider:"Add AI Service",llm_name_placeholder:"AI Name (e.g. GPT-5)",llm_url_placeholder:"Service URL",llm_delete_confirm:"Delete this AI service?",llm_reorder_hint:"Drag to reorder AI services.",llm_apikey:"API Key",llm_connect:"Connect",llm_connected:"Connected",llm_not_connected:"Not Connected",llm_login_required:"Please connect your AI service in Settings.",color_theme:"Color Theme",color_theme_desc:"Choose your preferred color scheme",light_modes:"Light Modes",dark_modes:"Dark Modes",current_theme:"Current",font_size:"Font Size"},log_detail:{loading:"Loading...",title_placeholder:"Enter a Word or Idiom",tags_placeholder:"Tags (comma separated)",save:"Save",cancel:"Cancel",edit:"Edit",delete:"Delete",delete_confirm:"Are you sure you want to delete this word?",delete_thread_entire:"Delete Entire Thread",delete_log_only:"Delete Only This Word",delete_thread_confirm:"This word is part of a thread. What would you like to delete?",add_thread:"Add Thread",untitled:"Untitled Word",unknown_source:"Unknown Source",share_log:"Share",random_word:"Random Word",fetching_random_word:"AI is choosing a word...",random_word_error:"AI failed to pick a word.",example_button:"Sentence",meaning_button:"Meaning",bulk_add:"Bulk Add",bulk_add_title:"Bulk Add Words",bulk_add_placeholder:`Format:
 Word: Meaning
 Word: Meaning`,parse_preview:"Preview",add_all:"Add All",upload_file:"Upload File",bulk_add_as_thread:"Create as Thread (First item is header)"},comments:{title:"Comments",add_comment:"Add a comment...",save_comment:"Save Comment",post:"Post",delete_confirm:"Delete this comment?",cancel:"Cancel",add_button:"Add Comment"},sync:{check_failed:"Hosting failed",stop_session:"Stop Session",vault_created:"Vault Created Successfully!",share_id_scan:"Scan QR or enter ID on the other device",check_for_return:"Check for Return",create_vault:"Create Vault",open_vault:"Open Vault",security_passkey:"Security Passkey",passkey_placeholder:"At least 6 characters",upload_data:"Upload Data",download_merge:"Download & Merge",vault_expiry_notice:"Vaults are temporary and expire after 12 hours. The passkey is never sent to the server.",sync_successful:"Sync Successful! Data merged and updated in vault.",updated_data_received:"Updated data received from the vault!",enter_security_code:"Please enter a security code.",enter_id_and_code:"Please enter both Room ID and Security Code.",e2ee_desc:"Seamlessly sync your bookshelf across devices. Your data is encrypted (E2EE) locally and never readable by the server.",scan_qr:"Scan QR Code",copy_id:"Copy ID",copied:"Copied!",scan_hint:"Align the QR code within the frame to automatically sync."},android:{exit_warning:"Press back again to exit."},drawing:{title:"Drawing",insert_drawing:"Insert Drawing",cancel:"Cancel",clear_all:"Clear All",clear_all_confirm:"Are you sure you want to clear all drawings?",download:"Download PNG",undo:"Undo",redo:"Redo",help:"Help",help_title:"Drawing Guide",bg_type:"Background",select_color:"Color",brush_size:"Size",tool_pen:"Pen",tool_select:"Select",tool_line:"Line",tool_arrow:"Arrow",tool_rect:"Rectangle",tool_circle:"Circle",tool_ellipse:"Ellipse",tool_triangle:"Triangle",tool_diamond:"Diamond",tool_pentagon:"Pentagon",tool_hexagon:"Hexagon",tool_octagon:"Octagon",tool_star:"Star",tool_text:"Text",tool_eraser_pixel:"Pixel Eraser",tool_eraser_object:"Object Eraser",tool_palette:"Palette",tool_settings:"Settings",settings_title:"Tool Settings",settings_opacity:"Opacity",settings_line_dash:"Line Style",settings_head_size:"Arrow Head",settings_font_family:"Font",settings_font_weight:"Weight",settings_font_style:"Style"}},ko:{sidebar:{new:"새 단어",search:"검색... (태그/출처는 tag:)",decrease_font:"글자 크기 축소",increase_font:"글자 크기 확대",sync_data:"데이터 동기화",install_update:"업데이트 설치",check_updates:"업데이트 확인",switch_dark:"다크 모드로 전환",switch_light:"라이트 모드로 전환",settings:"설정",newest:"날짜 (최신순)",oldest:"날짜 (오래된순)",source_newest:"출처 (최신순)",source_oldest:"출처 (오래된순)",last_commented:"댓글 최신순",untitled:"제목 없는 단어",update_found:"업데이트가 발견되었습니다! 다시 클릭하여 설치하세요.",up_to_date:"최신 상태입니다!",check_failed:"확인 실패. 다시 시도하세요.",pwa_not_supported:"PWA를 지원하지 않습니다.",collapse:"접기",more_logs:"{count}개 더보기",drop_to_extract:"여기 놓아 추출",study_mode:"학습 모드",study_none:"일반 모드",study_hide_meanings:"뜻",study_hide_words:"단어",alphabetical:"알파벳순",starred_only:"별표한 단어만",sort_starred:"별표순",press_back_again:"한 번 더 누르면 앱이 종료됩니다"},settings:{title:"설정",manage_sources:"단어 출처 관리",add_source_placeholder:"새 출처 이름 추가...",add:"추가",delete_confirm:"이 출처를 삭제하시겠습니까? 이 출처와 연결된 기존 기록의 참조가 사라집니다.",data_management:"데이터 관리",export_backup:"내보내기 / 백업",import_restore:"가져오기 / 복구",import_note:"기존 데이터와 안전하게 병합됩니다.",language:"UI 언어",english:"English",korean:"한국어",export_data:"데이터 내보내기",export_mode:"내보내기 모드",all_data:"전체 데이터 (기본)",select_logs:"로그 선택",filename_optional:"파일명 (선택 사항):",enter_filename:"파일명 입력...",no_logs_found:"로그를 찾을 수 없습니다.",cancel:"취소",export:"내보내기",import_confirm:"데이터를 가져오시겠습니까? 기존 데이터와 병합됩니다.",import_success:"가져오기 성공!",import_failed:"가져오기 실패: ",help:"도움말",help_title:"도움말 및 정보",help_desc:"WordMemo는 단어와 숙어를 빠르고 효율적으로 공부할 수 있도록 설계되었습니다.",help_core_features:"핵심 학습 기능",help_level:"4단계 맞춤형 수준 설정: 초등, 초급, 중급, 고급 중 자신의 실력에 맞는 단어 레벨을 선택하여 학습할 수 있습니다.",help_hide:"확실한 암기 확인 (가리기 모드): 사이드바의 '뜻' 또는 '단어' 버튼을 눌러 내용을 가리고 암기 여부를 테스트하세요. 가려진 부분을 터치하면 내용을 살짝 확인할 수 있습니다.",help_star:"미암기 단어 집중 관리: 아직 외우지 못한 단어는 별표(Star)로 표시하세요. 별표 필터를 사용해 못 외운 단어들만 모아서 복습할 수 있습니다.",help_ai_recommend:"AI 기반 단어 추천: 평소 사용하는 AI(ChatGPT, Gemini 등)를 연동하여, 설정한 레벨에 딱 맞는 새로운 단어를 추천받고 즉시 추가할 수 있습니다.",help_ai_sentence:"AI 예문 자동 생성: 단어의 쓰임새가 궁금할 때 AI를 통해 자연스러운 예문을 즉시 생성하여 기록에 추가할 수 있습니다.",help_threads:"체계적인 그룹화 (스레드): 관련 있는 단어들은 드래그 앤 드롭으로 겹쳐서 하나의 그룹으로 묶어 관리하세요. 스레드에서 단어를 꺼내려면 해당 항목을 스레드 헤더 위쪽 영역으로 드래그하면 됩니다.",help_essential_features:"편리한 기본 기능",help_theme:"테마 선택: 눈이 편안한 다크 모드와 화사한 라이트 모드 중 선택할 수 있습니다.",help_sync:"암호화 동기화: 기기 간 데이터를 안전하게 주고받으며 학습 흐름을 이어가세요.",help_backup:"백업 및 가져오기: 기록한 데이터를 JSON 파일로 내보내거나 다시 불러올 수 있습니다.",help_offline:"오프라인 및 PWA: 인터넷이 없는 환경에서도 앱처럼 설치하여 언제 어디서나 공부할 수 있습니다.",help_serverless:"서버 없는 보안 저장: 모든 데이터는 별도의 서버에 저장되지 않고 오직 사용자의 기기에만 기록되어 사생활이 보호됩니다.",help_close:"닫기",share_app:"친구에게 공유하기",share_desc:"WordMemo가 마음에 드셨나요? 친구들에게도 알려주세요!",share_success:"링크가 클립보드에 복사되었습니다!",disclaimer_title:"법적 고지",disclaimer_text:"WordMemo는 보증 없이 '있는 그대로' 제공됩니다. 모든 데이터는 사용자 기기에 로컬로 저장되며, 데이터의 백업 및 관리에 대한 책임은 사용자에게 있습니다. 개발자는 데이터 손실이나 오류에 대해 책임을 지지 않습니다.",factory_reset:"전체 데이터 초기화",reset_confirm:"정말로 모든 데이터를 삭제하시겠습니까? 기록, 설정, 출처 등 모든 정보가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",reset_success:"모든 데이터가 초기화되었습니다.",editor:"에디터",spellcheck:"맞춤법 검사",spellcheck_desc:"에디터에서 맞춤법 검사 기능을 활성화합니다.",editor_autosave:"자동 저장",editor_autosave_desc:"작성 중인 내용을 주기적으로 자동 저장합니다.",editor_line_numbers:"줄 번호 표시",editor_line_numbers_desc:"에디터 왼쪽에 줄 번호를 표시합니다.",editor_tab_size:"탭 크기",editor_tab_size_desc:"탭 키 입력 시 공백 개수를 설정합니다.",editor_large_size:"에디터 크기 확대",editor_large_size_desc:"에디터의 기본 높이를 더 크게 설정합니다.",editor_advanced_toolbar:"확장 툴바",editor_advanced_toolbar_desc:"표(Table) 등 더 많은 도구를 툴바에 표시합니다.",learning:"학습 수준",level:"어휘 수준",level_desc:"랜덤으로 생성되는 단어의 난이도를 설정합니다.",level_0:"초등학생",level_1:"초급",level_2:"중급",level_3:"고급",llm_config:"LLM 설정",llm_provider:"AI 제공자",llm_add_provider:"AI 서비스 추가",llm_name_placeholder:"AI 이름 (예: GPT-5)",llm_url_placeholder:"서비스 URL",llm_delete_confirm:"이 AI 서비스를 삭제하시겠습니까?",llm_reorder_hint:"드래그하여 AI 서비스 순서를 변경할 수 있습니다.",llm_apikey:"API 키",llm_connect:"연결하기",llm_connected:"연결됨",llm_not_connected:"연결 안 됨",llm_login_required:"설정에서 AI 서비스를 먼저 연결해주세요.",color_theme:"색상 테마",color_theme_desc:"원하는 색상 테마를 선택하세요",light_modes:"라이트 모드",dark_modes:"다크 모드",current_theme:"현재",font_size:"글자 크기"},log_detail:{loading:"로딩 중...",title_placeholder:"단어나 숙어 입력",tags_placeholder:"태그 (쉼표로 구분)",save:"저장",cancel:"취소",edit:"편집",delete:"삭제",delete_confirm:"이 단어를 삭제하시겠습니까?",delete_thread_entire:"전체 스레드 삭제",delete_log_only:"이 단어만 삭제",delete_thread_confirm:"이 단어는 스레드의 일부입니다. 어떻게 삭제하시겠습니까?",add_thread:"이어서 추가",untitled:"제목 없는 단어",unknown_source:"출처 미지정",share_log:"공유",random_word:"랜덤 단어",fetching_random_word:"AI가 단어를 고르고 있습니다...",random_word_error:"AI 단어 추천에 실패했습니다.",example_button:"예문",meaning_button:"뜻",bulk_add:"일괄 추가",bulk_add_title:"단어 일괄 추가",bulk_add_placeholder:`형식:
 단어: 뜻
