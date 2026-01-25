@@ -100,14 +100,14 @@
         .grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
+            gap: clamp(0.5rem, 2vw, 1.5rem);
             width: 100%;
         }
 
         .card {
             background: var(--card-bg);
             border-radius: var(--radius-lg);
-            padding: 2rem 1.5rem;
+            padding: clamp(0.5rem, 1.5vw, 1.5rem);
             text-decoration: none;
             color: inherit;
             transition: var(--transition);
@@ -119,7 +119,7 @@
             position: relative;
             overflow: hidden;
             backdrop-filter: blur(8px);
-            min-height: 240px;
+            aspect-ratio: 1 / 1;
         }
 
         .card::after {
@@ -149,9 +149,9 @@
         }
 
         .card .icon {
-            width: 72px;
-            height: 72px;
-            margin-bottom: 1.5rem;
+            width: clamp(40px, 10vw, 72px);
+            height: clamp(40px, 10vw, 72px);
+            margin-bottom: clamp(0.5rem, 2vw, 1.5rem);
             transition: var(--transition);
         }
 
@@ -168,8 +168,8 @@
         }
 
         .card h2 {
-            margin: 0 0 0.5rem 0;
-            font-size: 1.25rem;
+            margin: 0 0 0.25rem 0;
+            font-size: clamp(0.8rem, 2.5vw, 1.25rem);
             font-weight: 800;
             letter-spacing: -0.02em;
         }
@@ -177,8 +177,8 @@
         .card p {
             margin: 0;
             color: var(--text-muted);
-            font-size: 0.9rem;
-            line-height: 1.4;
+            font-size: clamp(0.7rem, 2vw, 0.9rem);
+            line-height: 1.2;
             font-weight: 500;
         }
 
@@ -399,7 +399,7 @@
     <div class="container">
         <header>
             <h1>메모스위트</h1>
-            <p>서버 없이 자신의 기기에만 저장되는 4가지 용도의 메모앱들.</p>
+            <p>서버 없이 자신의 기기에만 저장되는 메모앱들</p>
         </header>
 
         <div class="grid">
@@ -415,7 +415,7 @@
                     <img src="./BookMemo/pwa-192x192.png" alt="BookMemo Icon">
                 </div>
                 <h2>BookMemo</h2>
-                <p>독서 기록 및 나만의 책 메모장</p>
+                <p>독서 기록 및 책 메모장</p>
             </a>
             <a href="./WordMemo/" class="card" style="--brand: #ABDF94;">
                 <div class="icon">
@@ -520,9 +520,9 @@
         const translations = {
             ko: {
                 title: "메모스위트",
-                subtitle: "서버 없이 자신의 기기에만 저장되는 4가지 용도의 메모앱들.",
+                subtitle: "서버 없이 자신의 기기에만 저장되는 메모앱들",
                 handMemo: "범용 노트앱",
-                bookMemo: "독서 기록 및 나만의 책 메모장",
+                bookMemo: "독서 기록 및 책 메모장",
                 wordMemo: "AI를 활용한 단어 공부",
                 llMemo: "LLM과의 대화 기록",
                 features: [
