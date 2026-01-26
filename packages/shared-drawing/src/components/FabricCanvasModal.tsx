@@ -4580,7 +4580,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         evented: false,
                         isPixelEraser: true, // Mark as eraser to avoid interaction
                         excludeFromExport: true
-                    });
+                    } as any);
 
                     virtualCursorRef.current = circle;
                     canvas.add(circle);
