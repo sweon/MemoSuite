@@ -2257,6 +2257,77 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         fabricCanvasRef.current = canvas;
 
+        const checkIsInside = (ptr: { x: number, y: number }) => {
+            const activeTool = activeToolRef.current;
+            if (activeTool === 'select') return true;
+            const w = pageWidthRef.current;
+            const h = pageHeightRef.current;
+            // Return true if inside (0-w, 0-h)
+            return ptr.x >= 0 && ptr.x <= w && ptr.y >= 0 && ptr.y <= h;
+        };
+
+        const updateClipPath = () => {
+            const w = pageWidthRef.current;
+            const h = pageHeightRef.current;
+            if (w && h) {
+                canvas.clipPath = new fabric.Rect({
+                    left: 0,
+                    top: 0,
+                    width: w,
+                    height: h,
+                    absolutePositioned: true, // IMPORTANT: clips brush trail correctly
+                    selectable: false,
+                    evented: false,
+                    fill: 'transparent'
+                });
+            }
+        };
+
+        // 1. Block Start in Backdrop
+        canvas.on('mouse:down', (opt) => {
+            const ptr = canvas.getPointer(opt.e);
+            if (!checkIsInside(ptr)) {
+                opt.e.stopImmediatePropagation();
+                (canvas as any)._isMouseDown = false;
+                (canvas as any)._boundaryBlocked = true;
+                return;
+            }
+            (canvas as any)._boundaryBlocked = false;
+        });
+
+        // 2. Terminate on Exit
+        canvas.on('mouse:move', (opt) => {
+            if (activeToolRef.current === 'select') return;
+            if ((canvas as any)._boundaryBlocked) return;
+
+            const isInteracting = (canvas as any)._isCurrentlyDrawing || (canvas as any)._isMouseDown;
+            if (!isInteracting) return;
+
+            const ptr = canvas.getPointer(opt.e);
+            if (!checkIsInside(ptr)) {
+                // Kill the interaction immediately (treat as pen release)
+                (canvas as any)._onMouseUp(opt.e);
+
+                // CRITICAL: Clean up internal brush state to prevent connecting lines
+                const brush = canvas.freeDrawingBrush as any;
+                if (brush && brush._points) {
+                    brush._points = [];
+                    if (brush._reset) brush._reset();
+                }
+                (canvas as any)._isCurrentlyDrawing = false;
+                (canvas as any)._isMouseDown = false;
+                (canvas as any)._boundaryBlocked = true; // Lock until next real mousedown
+
+                canvas.requestRenderAll();
+            }
+        });
+
+        canvas.on('mouse:up', () => {
+            (canvas as any)._boundaryBlocked = false;
+        });
+
+        updateClipPath();
+
         // Auto-resize canvas when CanvasWrapper resizes
         const resizeObserver = new ResizeObserver((entries) => {
             const entry = entries[0];
@@ -2294,6 +2365,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 if (pageRectRef.current) {
                     pageRectRef.current.set('height', newHeight).setCoords();
                 }
+                updateClipPath();
             }
 
             if (Math.abs(pageWidthRef.current - newWidth) > 5) {
@@ -2302,6 +2374,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 if (pageRectRef.current) {
                     pageRectRef.current.set('width', newWidth).setCoords();
                 }
+                updateClipPath();
             }
 
             if (changed) {
