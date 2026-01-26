@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -178,6 +178,37 @@ export const LogDetail: React.FC = () => {
     const isNew = id === undefined;
 
     const [isEditing, setIsEditing] = useState(isNew);
+
+    // Track Sidebar interactions via t parameter to ensure stable modal opening
+    const tParam = searchParams.get('t');
+    const prevTParam = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (tParam && tParam !== prevTParam.current) {
+            prevTParam.current = tParam;
+
+            // Reset editing states for fresh requests
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
+            setEditingSpreadsheetRaw(undefined);
+
+            if (isNew) {
+                setContent('');
+                setTitle('');
+                setTags('');
+                setModelId(undefined);
+            }
+
+            // Re-trigger modal if URL state indicates it should be open
+            if (searchParams.get('drawing') === 'true') {
+                setIsFabricModalOpen(true);
+            }
+            if (searchParams.get('spreadsheet') === 'true') {
+                setIsSpreadsheetModalOpen(true);
+            }
+        }
+    }, [tParam, searchParams, isNew]);
+
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [tags, setTags] = useState(''); // Comma separated for editing
@@ -190,6 +221,12 @@ export const LogDetail: React.FC = () => {
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [editingSpreadsheetRaw, setEditingSpreadsheetRaw] = useState<string | undefined>(undefined);
+
+    // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
+    const contentDrawingData = React.useMemo(() => {
+        const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
+        return match ? match[1] : undefined;
+    }, [content]);
 
     const log = useLiveQuery(
         () => (id ? db.logs.get(Number(id)) : undefined),
@@ -214,8 +251,15 @@ export const LogDetail: React.FC = () => {
             setTitle('');
             setContent('');
             setTags('');
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
+            setEditingSpreadsheetRaw(undefined);
             setModelId(undefined);
             setIsEditing(true);
+
+            if (searchParams.get('drawing') === 'true') {
+                setIsFabricModalOpen(true);
+            }
         }
     }, [log, isNew, id, searchParams]);
 
@@ -489,8 +533,9 @@ export const LogDetail: React.FC = () => {
             )}
             {isFabricModalOpen && (
                 <FabricCanvasModal
+                    key={tParam || 'default'} // Force re-mount on new requests
                     language={language}
-                    initialData={editingDrawingData}
+                    initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
                     onSave={async (json: string) => {
                         const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
                         let found = false;

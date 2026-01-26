@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -203,6 +203,36 @@ export const LogDetail: React.FC = () => {
     const { confirm } = useConfirm();
     const isNew = id === undefined;
 
+    // Track Sidebar interactions via t parameter to ensure stable modal opening
+    const tParam = searchParams.get('t');
+    const prevTParam = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (tParam && tParam !== prevTParam.current) {
+            prevTParam.current = tParam;
+
+            // Reset editing states for fresh requests
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
+            setEditingSpreadsheetRaw(undefined);
+
+            if (isNew) {
+                setContent('');
+                setTitle('');
+                setTags('');
+                setSourceId(undefined);
+            }
+
+            // Re-trigger modal if URL state indicates it should be open
+            if (searchParams.get('drawing') === 'true') {
+                setIsFabricModalOpen(true);
+            }
+            if (searchParams.get('spreadsheet') === 'true') {
+                setIsSpreadsheetModalOpen(true);
+            }
+        }
+    }, [tParam, searchParams, isNew]);
+
     const [isEditing, setIsEditing] = useState(isNew);
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
@@ -216,6 +246,12 @@ export const LogDetail: React.FC = () => {
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [editingSpreadsheetRaw, setEditingSpreadsheetRaw] = useState<string | undefined>(undefined);
+
+    // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
+    const contentDrawingData = React.useMemo(() => {
+        const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
+        return match ? match[1] : undefined;
+    }, [content]);
     const { studyMode } = useStudyMode();
 
     const log = useLiveQuery(
@@ -300,8 +336,15 @@ export const LogDetail: React.FC = () => {
             setTitle('');
             setContent('');
             setTags('');
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
+            setEditingSpreadsheetRaw(undefined);
             setSourceId(undefined);
             setIsEditing(true);
+
+            if (searchParams.get('drawing') === 'true') {
+                setIsFabricModalOpen(true);
+            }
         }
     }, [log, isNew, id, searchParams]);
 
@@ -744,8 +787,9 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
             {isFabricModalOpen && (
                 <FabricCanvasModal
+                    key={tParam || 'default'} // Force re-mount on new requests
                     language={language}
-                    initialData={editingDrawingData}
+                    initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
                     onSave={async (json: string) => {
                         const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
                         let found = false;

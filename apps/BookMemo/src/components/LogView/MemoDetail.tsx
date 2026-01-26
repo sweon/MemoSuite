@@ -260,7 +260,6 @@ export const MemoDetail: React.FC = () => {
     const lastBackPress = useRef(0);
     const isClosingRef = useRef(false);
 
-    // Internal editing state
     const [isEditingInternal, setIsEditingInternal] = useState(isNew);
 
     const startEditing = () => {
@@ -272,6 +271,37 @@ export const MemoDetail: React.FC = () => {
         isClosingRef.current = true;
         window.history.back(); // Trigger guard -> allow
     };
+
+    // Track Sidebar interactions via t parameter to ensure stable modal opening
+    const tParam = searchParams.get('t');
+    const prevTParam = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (tParam && tParam !== prevTParam.current) {
+            prevTParam.current = tParam;
+
+            // Reset editing states for fresh requests
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
+            setEditingSpreadsheetRaw(undefined);
+
+            if (isNew) {
+                setContent('');
+                setTitle('');
+                setTags('');
+                setQuote('');
+                setPageNumber('');
+            }
+
+            // Re-trigger modal if URL state indicates it should be open
+            if (searchParams.get('drawing') === 'true') {
+                setIsFabricModalOpen(true);
+            }
+            if (searchParams.get('spreadsheet') === 'true') {
+                setIsSpreadsheetModalOpen(true);
+            }
+        }
+    }, [tParam, searchParams, isNew]);
 
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -325,6 +355,12 @@ export const MemoDetail: React.FC = () => {
     const [pageNumber, setPageNumber] = useState('');
     const [quote, setQuote] = useState('');
 
+    // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
+    const contentDrawingData = React.useMemo(() => {
+        const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
+        return match ? match[1] : undefined;
+    }, [content]);
+
 
     const memo = useLiveQuery(
         () => (id ? db.memos.get(Number(id)) : undefined),
@@ -354,6 +390,9 @@ export const MemoDetail: React.FC = () => {
             const p = searchParams.get('page');
             setPageNumber(p || '');
             setQuote('');
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
+            setEditingSpreadsheetRaw(undefined);
             setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
             setIsEditing(true);
 
@@ -728,11 +767,9 @@ export const MemoDetail: React.FC = () => {
 
             {isFabricModalOpen && (
                 <FabricCanvasModal
+                    key={tParam || 'default'} // Force re-mount on new requests
                     language={language}
-                    initialData={editingDrawingData || (() => {
-                        const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
-                        return match ? match[1] : undefined;
-                    })()}
+                    initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
                     onSave={async (json) => {
                         let newContent = content;
                         const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;

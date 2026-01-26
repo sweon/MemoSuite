@@ -253,6 +253,18 @@ export const MemoDetail: React.FC = () => {
     useEffect(() => {
         if (tParam && tParam !== prevTParam.current) {
             prevTParam.current = tParam;
+
+            // Reset editing states for fresh requests
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
+            setEditingSpreadsheetRaw(undefined);
+
+            if (isNew) {
+                setContent('');
+                setTitle('');
+                setTags('');
+            }
+
             // Re-trigger modal if URL state indicates it should be open
             if (searchParams.get('drawing') === 'true') {
                 setIsFabricModalOpen(true);
@@ -261,7 +273,7 @@ export const MemoDetail: React.FC = () => {
                 setIsSpreadsheetModalOpen(true);
             }
         }
-    }, [tParam, searchParams]);
+    }, [tParam, searchParams, isNew]);
 
     useEffect(() => {
         if (isEditingInternal) {
@@ -334,6 +346,9 @@ export const MemoDetail: React.FC = () => {
             setTitle('');
             setContent('');
             setTags('');
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
+            setEditingSpreadsheetRaw(undefined);
 
             const isInitialDrawing = searchParams.get('drawing') === 'true';
             const isInitialSheet = searchParams.get('spreadsheet') === 'true';
@@ -633,7 +648,7 @@ export const MemoDetail: React.FC = () => {
                 <FabricCanvasModal
                     key={tParam || 'default'} // Force re-mount on new requests
                     language={language}
-                    initialData={editingDrawingData || contentDrawingData}
+                    initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
                     onSave={async (json: string) => {
                         const isInitialDrawing = searchParams.get('drawing') === 'true';
 
