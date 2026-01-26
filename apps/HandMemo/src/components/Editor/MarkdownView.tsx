@@ -149,7 +149,6 @@ const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: (
               // 2. Draw Fabric Drawing on top (with its transparent eraser holes)
               ctx.drawImage(staticCanvas.getElement(), 0, 0);
 
-              const multiplier = w > 1000 ? 1000 / w : 1;
               const base64 = exportCanvas.toDataURL('image/png', 0.5);
 
               PREVIEW_CACHE.set(json, base64);
