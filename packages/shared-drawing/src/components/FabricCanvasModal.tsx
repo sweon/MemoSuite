@@ -4336,8 +4336,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 });
             }
         });
-
-
+        // Cleanup touch-specific eraser layer if it exists
+        if ((canvas as any)._touchEraserCleanup) {
+            (canvas as any)._touchEraserCleanup();
+            delete (canvas as any)._touchEraserCleanup;
+        }
 
         // Cleanup DOM cursor if exists
         if (domCursorRef.current) {
@@ -4514,15 +4517,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     const baseSize = brushSize * 4;
                     const scaledSize = Math.round(baseSize * zoom);
                     const radius = scaledSize / 2;
-                    const visualRadius = Math.max(1, radius * 0.5);
+                    // Match the actual erasing area (100% radius)
+                    const visualRadius = radius;
 
                     const svg = `
                         <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
-                            <circle cx="${radius}" cy="${radius}" r="${visualRadius}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
+                            <circle cx="${radius}" cy="${radius}" r="${visualRadius - 0.2}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
                         </svg>
                     `.trim().replace(/\s+/g, ' ');
 
-                    fCanvas.freeDrawingCursor = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, crosshair`;
+                    fCanvas.freeDrawingCursor = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, none`;
                 };
 
                 updateEraserCursor();
@@ -4576,7 +4580,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         const y = e.clientY - rect.top;
 
                         const zoom = canvas.getZoom();
-                        const visualRadius = ((brushSize * 4) / 2) * zoom * 0.5;
+                        // Match the actual erasing area (100% radius)
+                        const visualRadius = ((brushSize * 4) / 2) * zoom;
                         const diameter = Math.ceil(visualRadius * 2) + 2; // Add padding
 
                         // Match Mac style perfectly
@@ -4584,7 +4589,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         indicator.setAttribute('height', diameter.toString());
                         circle.setAttribute('cx', (diameter / 2).toString());
                         circle.setAttribute('cy', (diameter / 2).toString());
-                        circle.setAttribute('r', visualRadius.toString());
+                        circle.setAttribute('r', (visualRadius - 0.2).toString());
 
                         indicator.style.left = `${x - diameter / 2}px`;
                         indicator.style.top = `${y - diameter / 2}px`;
