@@ -59,6 +59,7 @@ const EditorWrapper = styled.div`
     .editor-preview {
       background: ${({ theme }) => theme.colors.background};
       color: ${({ theme }) => theme.colors.text};
+      overscroll-behavior: none;
       
       /* Markdown Styles */
       blockquote {
