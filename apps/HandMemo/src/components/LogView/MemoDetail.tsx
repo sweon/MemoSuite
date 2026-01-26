@@ -246,6 +246,23 @@ export const MemoDetail: React.FC = () => {
         window.history.back(); // Trigger guard -> allow
     };
 
+    // Track Sidebar interactions via t parameter to ensure stable modal opening
+    const tParam = searchParams.get('t');
+    const prevTParam = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (tParam && tParam !== prevTParam.current) {
+            prevTParam.current = tParam;
+            // Re-trigger modal if URL state indicates it should be open
+            if (searchParams.get('drawing') === 'true') {
+                setIsFabricModalOpen(true);
+            }
+            if (searchParams.get('spreadsheet') === 'true') {
+                setIsSpreadsheetModalOpen(true);
+            }
+        }
+    }, [tParam, searchParams]);
+
     useEffect(() => {
         if (isEditingInternal) {
             const guardId = 'memo-edit-guard';
@@ -287,6 +304,12 @@ export const MemoDetail: React.FC = () => {
     const [content, setContent] = useState('');
     const [tags, setTags] = useState('');
     const [date, setDate] = useState('');
+
+    // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
+    const contentDrawingData = React.useMemo(() => {
+        const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
+        return match ? match[1] : undefined;
+    }, [content]);
 
 
 
@@ -608,11 +631,9 @@ export const MemoDetail: React.FC = () => {
 
             {isFabricModalOpen && (
                 <FabricCanvasModal
+                    key={tParam || 'default'} // Force re-mount on new requests
                     language={language}
-                    initialData={editingDrawingData || (() => {
-                        const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
-                        return match ? match[1] : undefined;
-                    })()}
+                    initialData={editingDrawingData || contentDrawingData}
                     onSave={async (json: string) => {
                         const isInitialDrawing = searchParams.get('drawing') === 'true';
 

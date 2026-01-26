@@ -2309,6 +2309,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // Forced initial render to prevent 'black screen' when renderOnAddRemove is false
         canvas.renderAll();
 
+        // Extra render pass for unusual layout transitions (like Galaxy Fold)
+        setTimeout(() => {
+            canvas.renderAll();
+        }, 100);
+
         // 🚀 GLOBAL PERFORMANCE OVERRIDE: Strict Viewport Culling
         // This stops Fabric from even THINKING about objects that are not visible.
         const originalRenderObjects = (canvas as any)._renderObjects.bind(canvas);
