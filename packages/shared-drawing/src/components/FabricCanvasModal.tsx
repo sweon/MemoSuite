@@ -4369,18 +4369,17 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 canvas.isDrawingMode = false;
                 canvas.selection = true;
                 canvas.defaultCursor = 'default';
+                canvas.hoverCursor = 'default';
                 canvas.forEachObject((obj) => {
-                    if ((obj as any).isPixelEraser) {
-                        obj.set({
-                            selectable: false,
-                            evented: false,
-                            hoverCursor: 'default'
-                        });
+                    const isProtected = (obj as any).isPixelEraser || (obj as any).isPageBackground;
+                    if (isProtected) {
+                        obj.set({ selectable: false, evented: false, hoverCursor: 'default', perPixelTargetFind: false });
                     } else {
                         obj.set({
                             selectable: true,
                             evented: true,
-                            hoverCursor: 'move'
+                            hoverCursor: 'move',
+                            perPixelTargetFind: false
                         });
                     }
                 });
@@ -4830,10 +4829,25 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             case 'text':
                 canvas.isDrawingMode = false;
+                canvas.selection = true;
                 canvas.defaultCursor = 'text';
+                canvas.hoverCursor = 'text';
+
+                // Set objects to be interactive so they can be selected/edited
+                canvas.forEachObject((obj) => {
+                    const isProtected = (obj as any).isPixelEraser || (obj as any).isPageBackground;
+                    if (!isProtected) {
+                        obj.set({ selectable: true, evented: true, perPixelTargetFind: false });
+                    }
+                });
+
                 canvas.on('mouse:down', (opt) => {
-                    // Only add text if clicking on empty area
-                    if (opt.target) return;
+                    // Logic: Only add text if clicking on empty area or on background
+                    // We must ignore background/eraser marks when checking for collision
+                    const hitTarget = opt.target;
+                    const isRealObject = hitTarget && !((hitTarget as any).isPixelEraser || (hitTarget as any).isPageBackground);
+
+                    if (isRealObject) return;
 
                     const pointer = canvas.getPointer(opt.e);
                     const text = new fabric.IText('Type here...', {
@@ -4853,7 +4867,26 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     text.enterEditing();
                     text.selectAll();
                     canvas.requestRenderAll();
+                    if (saveHistory) saveHistory();
                 });
+                break;
+
+            case 'laser':
+                canvas.isDrawingMode = true;
+                canvas.selection = false;
+                const laserBrush = new fabric.PencilBrush(canvas);
+                (laserBrush as any).isLaser = true;
+                laserBrush.color = color;
+                laserBrush.width = brushSize;
+                laserBrush.shadow = new fabric.Shadow({
+                    blur: 10,
+                    offsetX: 0,
+                    offsetY: 0,
+                    color: color
+                });
+                canvas.freeDrawingBrush = laserBrush;
+                canvas.defaultCursor = 'crosshair';
+                canvas.hoverCursor = 'crosshair';
                 break;
 
             case 'line':
@@ -4875,7 +4908,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 break;
         }
 
-    }, [activeTool, color, brushSize, shapeStyles, brushType, fontFamily, fontWeight, fontStyle, handleShapeMouseDown, handleShapeMouseMove, handleShapeMouseUp, background, backgroundColor, currentBackgroundColor, lineOpacity, backgroundSize, backgroundBundleGap, backgroundImage, backgroundImageOpacity]);
+    }, [activeTool, color, brushSize, shapeStyles, brushType, fontFamily, fontWeight, fontStyle, handleShapeMouseDown, handleShapeMouseMove, handleShapeMouseUp, background, backgroundColor, currentBackgroundColor, lineOpacity, backgroundSize, backgroundBundleGap, backgroundImage, backgroundImageOpacity, saveHistory]);
 
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
