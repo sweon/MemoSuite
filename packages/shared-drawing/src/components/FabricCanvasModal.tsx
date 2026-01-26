@@ -326,7 +326,7 @@ const CanvasWrapper = styled.div<{ $bgColor?: string; $side: 'left' | 'right' }>
   flex: 1;
   width: 100%;
   height: 100%;
-  background: #ffffff; /* Use white as base to match paper */
+  background: #f0f0f0; /* Backdrop color */
   background-attachment: local;
   overflow-y: auto;
   overflow-x: auto;
@@ -4969,7 +4969,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // 1. Sync CSS background color for the canvas element (eliminates black leaks)
         const canvasEl = canvas.getElement();
         if (canvasEl) {
-            canvasEl.style.backgroundColor = currentBackgroundColor;
+            canvasEl.style.backgroundColor = '#f0f0f0'; // Backdrop color
         }
 
         // 2. Prepare Persistent Background Pattern (includes paper color, grid, image)
