@@ -10,6 +10,7 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
 
 const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
   line-height: 1.6;
@@ -118,7 +119,7 @@ const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: (
             skipTargetFind: true
           });
 
-          staticCanvas.loadFromJSON(data, () => {
+          const finishRendering = () => {
             if (!isMountedRef.current) {
               staticCanvas.dispose();
               return;
@@ -137,6 +138,51 @@ const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: (
             setImgSrc(base64);
             setLoading(false);
             staticCanvas.dispose();
+          };
+
+          staticCanvas.loadFromJSON(data, () => {
+            if (!isMountedRef.current) {
+              staticCanvas.dispose();
+              return;
+            }
+
+            // Sync canvas dimensions
+            const w = data.width || 800;
+            const h = data.height || 600;
+            staticCanvas.setDimensions({ width: w, height: h });
+
+            // Handle Background config if exists
+            if (data.backgroundConfig) {
+              const cfg = data.backgroundConfig;
+              const bgColor = calculateBackgroundColor(cfg.colorType, cfg.intensity);
+
+              if (cfg.type === 'image' && cfg.imageData) {
+                const img = new Image();
+                img.onload = () => {
+                  if (!isMountedRef.current) return;
+                  const pat = createBackgroundPattern(
+                    cfg.type, bgColor, cfg.opacity, cfg.size, false, cfg.bundleGap, img, cfg.imageOpacity, staticCanvas.getWidth()
+                  );
+                  staticCanvas.setBackgroundColor(pat, () => {
+                    staticCanvas.renderAll();
+                    finishRendering();
+                  });
+                };
+                img.src = cfg.imageData;
+                return; // Wait for image load
+              } else {
+                const pat = createBackgroundPattern(
+                  cfg.type, bgColor, cfg.opacity, cfg.size, false, cfg.bundleGap, undefined, cfg.imageOpacity, staticCanvas.getWidth()
+                );
+                staticCanvas.setBackgroundColor(pat, () => {
+                  staticCanvas.renderAll();
+                  finishRendering();
+                });
+                return;
+              }
+            }
+
+            finishRendering();
           });
         } catch (e) {
           console.error('Fabric load fail', e);

@@ -10,6 +10,7 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
 
 const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
   line-height: 1.6;
@@ -98,92 +99,119 @@ const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
 `;
 
 
-const FabricPreview = ({ json, onClick }: { json: string; onClick?: () => void }) => {
-  const canvasRef = React.useRef<HTMLCanvasElement>(null);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const fabricCanvasRef = React.useRef<fabric.StaticCanvas | null>(null);
+const PREVIEW_CACHE = new Map<string, string>();
 
-  React.useLayoutEffect(() => {
-    if (!canvasRef.current || !containerRef.current) return;
+const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: () => void }) => {
+  const [imgSrc, setImgSrc] = React.useState<string | null>(PREVIEW_CACHE.get(json) || null);
+  const [loading, setLoading] = React.useState(!imgSrc);
+  const isMountedRef = React.useRef(true);
 
-    const canvas = new fabric.StaticCanvas(canvasRef.current);
-    fabricCanvasRef.current = canvas;
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    if (imgSrc) return;
 
-    try {
-      const data = JSON.parse(json);
-      canvas.loadFromJSON(data, () => {
-        // Determine original dimensions
-        // If data.width/height is missing (old data), calculate from objects
-        let originalWidth = data.width;
-        let originalHeight = data.height;
+    const timer = setTimeout(() => {
+      if (!isMountedRef.current) return;
 
-        if (!originalWidth || !originalHeight) {
-          const objects = canvas.getObjects();
-          if (objects.length > 0) {
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            objects.forEach(obj => {
-              const bounds = obj.getBoundingRect();
-              minX = Math.min(minX, bounds.left);
-              minY = Math.min(minY, bounds.top);
-              maxX = Math.max(maxX, bounds.left + bounds.width);
-              maxY = Math.max(maxY, bounds.top + bounds.height);
-            });
-            // Add some padding
-            originalWidth = Math.max(800, maxX + 20);
-            originalHeight = Math.max(600, maxY + 20);
-          } else {
-            originalWidth = 800;
-            originalHeight = 600;
-          }
-        }
+      const runDrawing = () => {
+        if (!isMountedRef.current) return;
+        try {
+          const pureJson = json.split('\n<!--SVG_PREVIEW_START-->')[0];
+          const data = JSON.parse(pureJson);
 
-        const resizeCanvas = () => {
-          if (!containerRef.current || !fabricCanvasRef.current) return;
-
-          const containerWidth = containerRef.current.clientWidth;
-          if (containerWidth === 0) return;
-
-          // Use full container width
-          const maxAllowedWidth = containerWidth;
-          const scale = Math.min(1, maxAllowedWidth / originalWidth);
-
-          fabricCanvasRef.current.setDimensions({
-            width: originalWidth * scale,
-            height: originalHeight * scale
+          const offscreen = document.createElement('canvas');
+          const staticCanvas = new fabric.StaticCanvas(offscreen, {
+            enableRetinaScaling: false,
+            renderOnAddRemove: false,
+            skipTargetFind: true
           });
 
-          fabricCanvasRef.current.setZoom(scale);
-          fabricCanvasRef.current.renderAll();
-        };
+          const finishRendering = () => {
+            if (!isMountedRef.current) {
+              staticCanvas.dispose();
+              return;
+            }
 
-        // Initial resize
-        resizeCanvas();
+            const w = data.width || 800;
+            const multiplier = w > 1000 ? 1000 / w : 1;
 
-        // Observe container size changes
-        const resizeObserver = new ResizeObserver(() => {
-          resizeCanvas();
-        });
-        if (containerRef.current) {
-          resizeObserver.observe(containerRef.current);
+            const base64 = staticCanvas.toDataURL({
+              format: 'png',
+              quality: 0.5,
+              multiplier
+            });
+
+            PREVIEW_CACHE.set(json, base64);
+            setImgSrc(base64);
+            setLoading(false);
+            staticCanvas.dispose();
+          };
+
+          staticCanvas.loadFromJSON(data, () => {
+            if (!isMountedRef.current) {
+              staticCanvas.dispose();
+              return;
+            }
+
+            // Sync canvas dimensions
+            const w = data.width || 800;
+            const h = data.height || 600;
+            staticCanvas.setDimensions({ width: w, height: h });
+
+            // Handle Background config if exists
+            if (data.backgroundConfig) {
+              const cfg = data.backgroundConfig;
+              const bgColor = calculateBackgroundColor(cfg.colorType, cfg.intensity);
+
+              if (cfg.type === 'image' && cfg.imageData) {
+                const img = new Image();
+                img.onload = () => {
+                  if (!isMountedRef.current) return;
+                  const pat = createBackgroundPattern(
+                    cfg.type, bgColor, cfg.opacity, cfg.size, false, cfg.bundleGap, img, cfg.imageOpacity, staticCanvas.getWidth()
+                  );
+                  staticCanvas.setBackgroundColor(pat, () => {
+                    staticCanvas.renderAll();
+                    finishRendering();
+                  });
+                };
+                img.src = cfg.imageData;
+                return;
+              } else {
+                const pat = createBackgroundPattern(
+                  cfg.type, bgColor, cfg.opacity, cfg.size, false, cfg.bundleGap, undefined, cfg.imageOpacity, staticCanvas.getWidth()
+                );
+                staticCanvas.setBackgroundColor(pat, () => {
+                  staticCanvas.renderAll();
+                  finishRendering();
+                });
+                return;
+              }
+            }
+
+            finishRendering();
+          });
+        } catch (e) {
+          console.error('Fabric load fail', e);
+          if (isMountedRef.current) setLoading(false);
         }
+      };
 
-        return () => {
-          resizeObserver.disconnect();
-        };
-      });
-    } catch (e) {
-      console.error('Fabric load error:', e);
-    }
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(runDrawing, { timeout: 1500 });
+      } else {
+        runDrawing();
+      }
+    }, 400);
 
     return () => {
-      canvas.dispose();
-      fabricCanvasRef.current = null;
+      isMountedRef.current = false;
+      clearTimeout(timer);
     };
-  }, [json]);
+  }, [json, imgSrc]);
 
   return (
     <div
-      ref={containerRef}
       onClick={(e) => {
         e.stopPropagation();
         onClick?.();
@@ -192,18 +220,28 @@ const FabricPreview = ({ json, onClick }: { json: string; onClick?: () => void }
         overflow: 'hidden',
         background: '#fff',
         display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
         justifyContent: 'center',
         cursor: onClick ? 'pointer' : 'default',
         border: onClick ? '1px solid #eee' : 'none',
         borderRadius: onClick ? '4px' : '0',
-        margin: onClick ? '8px 0' : '0'
+        margin: onClick ? '8px 0' : '0',
+        minHeight: imgSrc ? 'auto' : '120px',
+        width: '100%',
+        position: 'relative'
       }}
-      title={onClick ? "Click to edit drawing" : undefined}
     >
-      <canvas ref={canvasRef} />
+      {loading ? (
+        <div style={{ padding: '20px', color: '#adb5bd', fontSize: '0.8rem', fontStyle: 'italic' }}>
+          Loading drawing...
+        </div>
+      ) : imgSrc ? (
+        <img src={imgSrc} alt="Drawing" style={{ maxWidth: '100%', height: 'auto', display: 'block' }} />
+      ) : null}
     </div>
   );
-};
+});
 
 const SpreadsheetPreview = ({ json, onClick }: { json: string; onClick?: () => void }) => {
   const { language } = useLanguage();
