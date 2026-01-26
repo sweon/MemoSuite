@@ -4550,8 +4550,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
                     circle.setAttribute('fill', 'none');
-                    circle.setAttribute('stroke', 'rgba(0,0,0,0.6)');
-                    circle.setAttribute('stroke-width', '1');
+                    circle.setAttribute('stroke', 'black');
+                    circle.setAttribute('stroke-width', '0.4');
+                    circle.setAttribute('stroke-opacity', '0.8');
                     indicator.appendChild(circle);
 
                     const wrapper = upperCanvasEl.parentElement;
@@ -4563,6 +4564,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                         if (e.type === 'pointerup' || e.type === 'pointerleave' || e.type === 'pointercancel') {
                             indicator.style.display = 'none';
+                            canvas.requestRenderAll(); // Finish final projection
                             return;
                         }
 
@@ -4580,6 +4582,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         indicator.style.left = `${x - 50}px`;
                         indicator.style.top = `${y - 50}px`;
                         indicator.style.display = 'block';
+
+                        // CRITICAL: Force re-render for real-time erasing on touch
+                        if (canvas.isDrawingMode) {
+                            canvas.requestRenderAll();
+                        }
                     };
 
                     upperCanvasEl.addEventListener('pointerdown', handlePointer);
@@ -4599,7 +4606,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
 
                 canvas.on('mouse:move', (opt) => {
-                    if (canvas.isDrawingMode && opt.e.buttons === 1) {
+                    const e = opt.e as any;
+                    // Support both physical mouse button (buttons === 1) and Touch events (buttons === 0 on some devices)
+                    if (canvas.isDrawingMode && (e.buttons === 1 || e.type === 'touchmove' || e.pointerType === 'touch')) {
                         canvas.requestRenderAll();
                     }
                 });
