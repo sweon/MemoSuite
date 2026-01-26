@@ -184,7 +184,7 @@ const ModalOverlay = styled.div`
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  touch-action: none !important;
+  /* touch-action: none !important; removed */
   overscroll-behavior: none !important;
 `;
 
@@ -2658,45 +2658,42 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         };
 
         const filterPointerDown = (e: any) => {
-            if (!palmRejectionRef.current) return;
-
             const id = e.pointerId;
             if (id === undefined) return;
 
+            // 1. Stylus handling (Palm Rejection)
             if (isPenEvent(e)) {
-                penPointerId = id;
-                lastPenTime = Date.now();
-                blockedPointerIds = [];
+                if (palmRejectionRef.current) {
+                    penPointerId = id;
+                    lastPenTime = Date.now();
+                    blockedPointerIds = [];
 
-                // CRITICAL: If a pen is used, clear any existing multi-touch state to prevent 
-                // "stuck" gestures from blocking the pen.
-                if (isMultiTouching || activePointers.size > 0) {
-                    activePointers.clear();
-                    isMultiTouching = false;
-                    const isSketchTool = ['pen', 'carbon', 'hatch', 'highlighter', 'glow', 'circle', 'laser', 'eraser_pixel'].indexOf(activeToolRef.current) !== -1;
-                    if (isSketchTool) {
-                        canvas.isDrawingMode = true;
+                    // CRITICAL: If a pen is used, clear any existing multi-touch state to prevent 
+                    // "stuck" gestures from blocking the pen.
+                    if (isMultiTouching || activePointers.size > 0) {
+                        activePointers.clear();
+                        isMultiTouching = false;
+                        const isSketchTool = ['pen', 'carbon', 'hatch', 'highlighter', 'glow', 'circle', 'laser', 'eraser_pixel'].indexOf(activeToolRef.current) !== -1;
+                        if (isSketchTool) {
+                            canvas.isDrawingMode = true;
+                        }
+                    }
+
+                    // GHOST LINE FIX: Reset brush state
+                    const brush = canvas.freeDrawingBrush as any;
+                    if (brush) {
+                        if (brush._reset) brush._reset();
+                        if (brush._points) brush._points = [];
+                        (canvas as any)._isCurrentlyDrawing = false;
                     }
                 }
-
-                // GHOST LINE FIX: When pen touches, cancel any ongoing brush stroke that
-                // was started by a touch event. This prevents the "long line" from the 
-                // palm touch point to the pen touch point.
-                const brush = canvas.freeDrawingBrush as any;
-                if (brush) {
-                    // Reset brush internal state to cancel any in-progress stroke
-                    if (brush._reset) brush._reset();
-                    if (brush._points) brush._points = [];
-                    // Also reset Fabric's internal mouse down tracking
-                    (canvas as any)._isCurrentlyDrawing = false;
-                }
-
                 return;
             }
 
-            // Track touches for multi-touch gestures
+            // 2. Touch handling (Always track for multi-touch gestures like scrolling/zooming)
             if (e.pointerType === 'touch') {
-                if (shouldBlockNonPen()) {
+                // If palm rejection is active and we should block touches
+                if (palmRejectionRef.current && shouldBlockNonPen()) {
                     if (e.cancelable) e.preventDefault();
                     e.stopPropagation();
                     if (blockedPointerIds.indexOf(id) === -1) blockedPointerIds.push(id);
@@ -2704,7 +2701,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
 
                 activePointers.set(id, getEvtPos(e));
-                if (e.cancelable) e.preventDefault();
+
+                // On mobile, we MUST call setPointerCapture to ensure we get pointermove even if the finger leaves the element
                 try { e.target.setPointerCapture(id); } catch (ex) { }
 
                 if (activePointers.size >= 2) {
@@ -2719,6 +2717,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         y: (points[0].y + points[1].y) / 2 - rect.top
                     };
 
+                    // Switch to pan mode (disable drawing)
                     if (canvas.isDrawingMode) {
                         canvas.isDrawingMode = false;
                         const brush = canvas.freeDrawingBrush as any;
@@ -2726,12 +2725,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         if (brush && brush._points) brush._points = [];
                     }
 
+                    if (e.cancelable) e.preventDefault();
                     e.stopPropagation();
                     return;
                 }
             }
 
-            if (activePointers.size < 2 && shouldBlockNonPen()) {
+            // Fallback for palm rejection blocking
+            if (palmRejectionRef.current && activePointers.size < 2 && shouldBlockNonPen()) {
                 if (blockedPointerIds.indexOf(id) === -1) blockedPointerIds.push(id);
                 e.stopPropagation();
                 return;
@@ -2739,15 +2740,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         };
 
         const filterPointerMove = (e: any) => {
-
-
-            if (!palmRejectionRef.current) return;
-
             const id = e.pointerId;
+
+            // ALWAYS update active pointer positions regardless of palm rejection
             if (activePointers.has(id)) {
                 activePointers.set(id, getEvtPos(e));
             }
 
+            // 1. Two-finger gesture handling (Scrolling/Zooming)
             if (activePointers.size >= 2) {
                 if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
@@ -2761,7 +2761,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     y: (points[0].y + points[1].y) / 2 - rect.top
                 };
 
-                // 1. Zoom (only if unlocked)
+                // Zoom (only if unlocked)
                 if (!isZoomLockedRef.current && initialPinchDistance > 10) {
                     const zoomRatio = newDistance / initialPinchDistance;
                     const newZoom = Math.min(Math.max(initialPinchZoom * zoomRatio, 0.1), 10);
@@ -2769,7 +2769,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     setCanvasScale(newZoom);
                 }
 
-                // 2. Pan
+                // Pan (Scroll)
                 const deltaX = newCenter.x - lastPinchCenter.x;
                 const deltaY = newCenter.y - lastPinchCenter.y;
                 canvas.relativePan(new fabric.Point(deltaX, deltaY));
@@ -2801,6 +2801,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 return;
             }
 
+            if (!palmRejectionRef.current) return;
+
+            // 2. Palm Rejection logic below...
             if (id === penPointerId) {
                 lastPenTime = Date.now();
                 return;
@@ -2814,17 +2817,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
 
             if (isPenEvent(e)) {
-                // Do NOT set penPointerId here. It should only be set on pointerdown.
-
-                // GHOST LINE FIX: Always update lastPenTime when pen is hovering/moving.
-                // This ensures that palm rejection is active when the pen is near the screen,
-                // even if the pen hasn't touched yet. This prevents the scenario where:
-                // 1. Pen hovers over screen
-                // 2. Palm touches screen (previously would start a stroke)
-                // 3. Pen touches screen (previously would draw a long line from palm to pen)
-                // 
-                // Note: This means finger drawing is blocked when pen is detected.
-                // Users who want to draw with fingers should keep the pen away from screen.
                 lastPenTime = Date.now();
                 return;
             }
@@ -2841,11 +2833,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             const id = e.pointerId;
             activePointers.delete(id);
 
+            // Clean up captured pointers
+            try { e.target.releasePointerCapture(id); } catch (ex) { }
+
             if (activePointers.size < 2 && isMultiTouching) {
                 isMultiTouching = false;
                 const isSketchTool = ['pen', 'carbon', 'hatch', 'highlighter', 'glow', 'circle', 'laser', 'eraser_pixel'].indexOf(activeToolRef.current) !== -1;
                 if (isSketchTool) {
                     canvas.isDrawingMode = true;
+                    // Reset internal state to avoid starting a stroke immediately on the remaining finger
+                    (canvas as any)._isCurrentlyDrawing = false;
                 }
             }
 
