@@ -175,7 +175,7 @@ export const translations = {
             add_thread: "Add Thread",
             untitled: "Untitled",
             share_memo: "Share",
-            empty_state_title: "Create a new memo from sidebar",
+            empty_state_title: "Select a memo or create a new one",
             title_prompt: "Enter memo title"
         },
 
