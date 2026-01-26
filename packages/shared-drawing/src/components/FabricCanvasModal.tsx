@@ -1973,10 +1973,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     throw importErr;
                 }
 
-                // CRITICAL: Version 5+ uses .mjs for worker, Version 4 uses .js
+                // CRITICAL: Version 4+ uses .mjs for worker, older versions use .js
                 const version = pdfjs.version || '4.10.38';
-                const isV5 = version.startsWith('5.');
-                const extension = isV5 ? 'mjs' : 'js';
+                const majorVersion = parseInt(version.split('.')[0]);
+                const extension = majorVersion >= 4 ? 'mjs' : 'js';
 
                 // UNPKG is more reliable for V5 as it contains the required .mjs files 
                 // which are often missing or misconfigured on other CDNs like cdnjs.
