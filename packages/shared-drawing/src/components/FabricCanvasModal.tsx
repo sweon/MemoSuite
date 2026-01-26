@@ -1459,6 +1459,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     });
     const [backgroundImageOpacity, setBackgroundImageOpacity] = useState(savedBg.imageOpacity !== undefined ? savedBg.imageOpacity : 1.0);
     const bgFileInputRef = useRef<HTMLInputElement>(null);
+    const virtualCursorRef = useRef<fabric.Circle | null>(null);
 
     const prevBackgroundStateRef = useRef<{ type: BackgroundType; color: string; opacity: number; size: number; intensity: number; colorType: 'gray' | 'beige' | 'blue'; bundleGap: number; image?: HTMLImageElement | HTMLCanvasElement; imageOpacity: number } | null>(null);
 
@@ -4335,6 +4336,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
         });
 
+
+        // Cleanup virtual cursor if exists
+        if (virtualCursorRef.current) {
+            canvas.remove(virtualCursorRef.current);
+            virtualCursorRef.current = null;
+        }
+
         // Remove object erasing listener if present (we'll re-add if needed)
         canvas.off('mouse:down');
         canvas.off('mouse:move');
@@ -4531,15 +4539,74 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 // CRITICAL: Force re-render on move to show real-time erasing effect
                 // We use canvas event instead of brush override to be safer
                 canvas.on('mouse:move', (opt) => {
+                    // Update virtual cursor position for mobile/touch
+                    if (virtualCursorRef.current) {
+                        const pointer = canvas.getPointer(opt.e);
+                        virtualCursorRef.current.set({
+                            left: pointer.x,
+                            top: pointer.y,
+                            opacity: 1 // Make visible on move
+                        });
+                        virtualCursorRef.current.setCoords();
+                    }
+
                     // Only re-render if we are actually drawing (mouse is down)
                     if (canvas.isDrawingMode && opt.e.buttons === 1) {
+                        canvas.requestRenderAll();
+                    } else if (virtualCursorRef.current) {
+                        // Also re-render just for cursor movement if hovering/touching without pressing
                         canvas.requestRenderAll();
                     }
                 });
 
+                // Init virtual cursor for mobile
+                const initVirtualCursor = () => {
+                    if (virtualCursorRef.current) canvas.remove(virtualCursorRef.current);
+
+                    const baseSize = brushSize * 4;
+                    // Visual radius should match the desktop cursor logic (50% of physically erased area)
+                    const visualRadius = Math.max(1, (baseSize / 2) * 0.5);
+
+                    const circle = new fabric.Circle({
+                        left: -100, top: -100, // Hide initially
+                        radius: visualRadius,
+                        fill: 'transparent',
+                        stroke: 'black',
+                        strokeWidth: 0.4 / canvas.getZoom(), // Counter-scale stroke to keep it thin
+                        opacity: 0, // Hidden until move
+                        originX: 'center',
+                        originY: 'center',
+                        selectable: false,
+                        evented: false,
+                        isPixelEraser: true, // Mark as eraser to avoid interaction
+                        excludeFromExport: true
+                    });
+
+                    virtualCursorRef.current = circle;
+                    canvas.add(circle);
+                };
+                initVirtualCursor();
+
                 // Re-update cursor if zoom changes during the session
                 const handleZoomCursorUpdate = () => {
-                    if (activeToolRef.current === 'eraser_pixel') updateEraserCursor();
+                    if (activeToolRef.current === 'eraser_pixel') {
+                        updateEraserCursor();
+                        // Also update virtual cursor radius/stroke
+                        if (virtualCursorRef.current) {
+                            const zoom = canvas.getZoom();
+                            const baseSize = brushSize * 4;
+                            // Visual radius logic: 50% of physical radius
+                            const visualRadius = Math.max(1, (baseSize / 2) * 0.5);
+
+                            virtualCursorRef.current.set({
+                                radius: visualRadius, // Fabric objects scale automatically with zoom, but we want fixed visual size? 
+                                // Actually, we want it to behave like the Brush cursor which scales with zoom.
+                                // Fabric circles scale with the canvas zoom automatically.
+                                // We just need to ensure stroke width stays thin.
+                                strokeWidth: 0.4 / zoom
+                            });
+                        }
+                    }
                 };
                 canvas.on('mouse:wheel', handleZoomCursorUpdate);
                 canvas.on('touch:gesture', handleZoomCursorUpdate);
