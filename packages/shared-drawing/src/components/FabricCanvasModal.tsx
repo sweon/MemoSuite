@@ -4489,19 +4489,50 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 canvas.off('mouse:up');
 
+                canvas.freeDrawingCursor = 'crosshair';
                 canvas.defaultCursor = 'crosshair';
                 break;
 
             case 'eraser_pixel': {
+                const updateEraserCursor = () => {
+                    const fCanvas = fabricCanvasRef.current;
+                    if (!fCanvas) return;
+
+                    const zoom = fCanvas.getZoom();
+                    const baseSize = brushSize * 4;
+                    const scaledSize = Math.round(baseSize * zoom);
+                    const radius = scaledSize / 2;
+                    // Significantly smaller visual circle (50% of physical brush) 
+                    // This creates a "safety margin" so it erases immediately on touch.
+                    const visualRadius = Math.max(1, radius * 0.5);
+
+                    const svg = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
+                            <circle cx="${radius}" cy="${radius}" r="${visualRadius}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
+                        </svg>
+                    `.trim().replace(/\s+/g, ' ');
+
+                    fCanvas.freeDrawingCursor = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, crosshair`;
+                };
+
+                updateEraserCursor();
+
                 canvas.isDrawingMode = true;
                 const brush = new fabric.PencilBrush(canvas);
                 brush.width = brushSize * 4;
-                // Use solid color for masking; the upper canvas itself is hidden (opacity 0.01)
+                // Use solid color for masking; the upper canvas itself is hidden (opacity 0)
                 // but its pixels are used in renderHook to "punch holes" in the lower canvas.
                 brush.color = 'black';
                 // @ts-ignore
                 brush.globalCompositeOperation = 'source-over';
                 canvas.freeDrawingBrush = brush;
+
+                // Re-update cursor if zoom changes during the session
+                const handleZoomCursorUpdate = () => {
+                    if (activeToolRef.current === 'eraser_pixel') updateEraserCursor();
+                };
+                canvas.on('mouse:wheel', handleZoomCursorUpdate);
+                canvas.on('touch:gesture', handleZoomCursorUpdate);
                 break;
             }
 
