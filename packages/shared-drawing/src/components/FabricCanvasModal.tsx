@@ -1446,7 +1446,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const [backgroundBundleGap, setBackgroundBundleGap] = useState(savedBg.bundleGap || 1);
     const [backgroundColor, setBackgroundColor] = useState('#ffffff');
     const [backgroundColorIntensity, setBackgroundColorIntensity] = useState(savedBg.intensity !== undefined ? savedBg.intensity : 0);
-    const [backgroundColorType, setBackgroundColorType] = useState<'gray' | 'beige' | 'blue'>(savedBg.colorType || 'gray');
+    const [backgroundColorType, setBackgroundColorType] = useState<BackgroundColorType>(savedBg.colorType || 'gray');
     const [lineOpacity, setLineOpacity] = useState(savedBg.opacity !== undefined ? savedBg.opacity : 0.1);
     const [isBgPickerOpen, setIsBgPickerOpen] = useState(false);
     const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | HTMLCanvasElement | null>(() => {
