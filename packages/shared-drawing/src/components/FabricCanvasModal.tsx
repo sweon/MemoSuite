@@ -4667,12 +4667,25 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const renderHook = () => {
             const ctx = canvas.getContext();
             const pattern = persistentBackgroundPatternRef.current;
-            if (ctx && pattern) {
+            if (ctx && pattern && canvas.viewportTransform) {
                 ctx.save();
                 ctx.globalCompositeOperation = 'destination-over';
-                (pattern as any).toLive(ctx); // Ensure loaded
-                ctx.fillStyle = (pattern as any).toLive(ctx);
-                ctx.fillRect(0, 0, canvas.getWidth() || 0, canvas.getHeight() || 0);
+
+                // Synchronize background rendering with current zoom and scroll
+                const vpt = canvas.viewportTransform;
+                ctx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+
+                // Draw background in world space to enable scrolling.
+                // We use logical page dimensions to cover entire surface.
+                const w = pageWidthRef.current || canvas.getWidth() || 5000;
+                const h = pageHeightRef.current || canvas.getHeight() || 10000;
+
+                const livePattern = (pattern as any).toLive(ctx);
+                if (livePattern) {
+                    ctx.fillStyle = livePattern;
+                    ctx.fillRect(0, 0, w, h);
+                }
+
                 ctx.restore();
             }
         };
