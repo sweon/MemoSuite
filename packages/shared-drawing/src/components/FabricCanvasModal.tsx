@@ -4538,25 +4538,45 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 // CRITICAL: Force re-render on move to show real-time erasing effect
                 // We use canvas event instead of brush override to be safer
-                canvas.on('mouse:move', (opt) => {
-                    // Update virtual cursor position for mobile/touch
+
+                const updateVirtualCursor = (opt: any) => {
                     if (virtualCursorRef.current) {
+                        // Ensure it's always on top
+                        if (canvas.getObjects().indexOf(virtualCursorRef.current) !== canvas.getObjects().length - 1) {
+                            virtualCursorRef.current.bringToFront();
+                        }
+
                         const pointer = canvas.getPointer(opt.e);
                         virtualCursorRef.current.set({
                             left: pointer.x,
                             top: pointer.y,
-                            opacity: 1 // Make visible on move
+                            opacity: 1 // Make visible immediately
                         });
                         virtualCursorRef.current.setCoords();
                     }
+                };
+
+                canvas.on('mouse:down', (opt) => {
+                    updateVirtualCursor(opt);
+                    canvas.requestRenderAll();
+                });
+
+                canvas.on('mouse:move', (opt) => {
+                    updateVirtualCursor(opt);
 
                     // Only re-render if we are actually drawing (mouse is down)
                     if (canvas.isDrawingMode && opt.e.buttons === 1) {
                         canvas.requestRenderAll();
                     } else if (virtualCursorRef.current) {
-                        // Also re-render just for cursor movement if hovering/touching without pressing
+                        // Re-render for cursor movement
                         canvas.requestRenderAll();
                     }
+                });
+
+                // Explicitly handle touch drag for better mobile responsiveness
+                canvas.on('touch:drag', (opt) => {
+                    updateVirtualCursor(opt);
+                    canvas.requestRenderAll();
                 });
 
                 // Init virtual cursor for mobile
