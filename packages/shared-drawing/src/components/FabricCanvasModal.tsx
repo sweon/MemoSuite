@@ -4639,40 +4639,165 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     if (activeToolRef.current === 'eraser_pixel') updateEraserCursor();
                 };
                 canvas.on('mouse:wheel', handleZoomCursorUpdate);
+                canvas.on('mouse:wheel', handleZoomCursorUpdate);
                 canvas.on('touch:gesture', handleZoomCursorUpdate);
                 break;
             }
 
             case 'eraser_object': {
+                const updateObjectEraserCursor = () => {
+                    const fCanvas = fabricCanvasRef.current;
+                    if (!fCanvas) return;
+
+                    const zoom = fCanvas.getZoom();
+                    const baseSize = brushSize * 4;
+                    const scaledSize = Math.round(baseSize * zoom);
+                    const radius = scaledSize / 2;
+                    const visualRadius = Math.max(1, radius * 0.5);
+
+                    const svg = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
+                            <circle cx="${radius}" cy="${radius}" r="${visualRadius - 0.2}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
+                        </svg>
+                    `.trim().replace(/\s+/g, ' ');
+
+                    fCanvas.defaultCursor = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, none`;
+                    fCanvas.hoverCursor = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, none`;
+                };
+
+                updateObjectEraserCursor();
+
                 canvas.isDrawingMode = false;
-                canvas.defaultCursor = 'pointer';
-                canvas.hoverCursor = 'not-allowed';
+
+                // Create Touch overlay for Object Eraser too
+                const upperCanvasEl = (canvas as any).upperCanvasEl as HTMLCanvasElement;
+                if (upperCanvasEl) {
+                    const indicator = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    indicator.style.position = 'absolute';
+                    indicator.style.pointerEvents = 'none';
+                    indicator.style.zIndex = '10000';
+                    indicator.style.display = 'none';
+                    indicator.style.overflow = 'visible';
+
+                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    circle.setAttribute('fill', 'none');
+                    circle.setAttribute('stroke', 'black');
+                    circle.setAttribute('stroke-width', '0.4');
+                    circle.setAttribute('stroke-opacity', '0.8');
+                    indicator.appendChild(circle);
+
+                    const wrapper = upperCanvasEl.parentElement;
+                    if (wrapper) wrapper.appendChild(indicator);
+                    touchEraserCursorRef.current = indicator;
+
+                    const handlePointer = (e: PointerEvent) => {
+                        if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+
+                        if (e.type === 'pointerup' || e.type === 'pointerleave' || e.type === 'pointercancel') {
+                            indicator.style.display = 'none';
+                            const fCanvas = fabricCanvasRef.current;
+                            if (fCanvas) {
+                                fCanvas.defaultCursor = (canvas as any)._lastEraserCursor || 'pointer';
+                                fCanvas.hoverCursor = (canvas as any)._lastEraserCursor || 'not-allowed';
+                            }
+                            return;
+                        }
+
+                        const rect = upperCanvasEl.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+
+                        const zoom = canvas.getZoom();
+                        const visualRadius = ((brushSize * 4) / 2) * zoom;
+                        const diameter = Math.ceil(visualRadius * 2) + 2;
+
+                        indicator.setAttribute('width', diameter.toString());
+                        indicator.setAttribute('height', diameter.toString());
+                        circle.setAttribute('cx', (diameter / 2).toString());
+                        circle.setAttribute('cy', (diameter / 2).toString());
+                        circle.setAttribute('r', (visualRadius - 0.2).toString());
+
+                        indicator.style.left = `${x - diameter / 2}px`;
+                        indicator.style.top = `${y - diameter / 2}px`;
+                        indicator.style.display = 'block';
+
+                        if (canvas.defaultCursor !== 'none') {
+                            (canvas as any)._lastEraserCursor = canvas.defaultCursor;
+                            canvas.defaultCursor = 'none';
+                            canvas.hoverCursor = 'none';
+                        }
+                    };
+
+                    upperCanvasEl.addEventListener('pointerdown', handlePointer);
+                    upperCanvasEl.addEventListener('pointermove', handlePointer, { passive: true });
+                    upperCanvasEl.addEventListener('pointerup', handlePointer);
+                    upperCanvasEl.addEventListener('pointerleave', handlePointer);
+                    upperCanvasEl.addEventListener('pointercancel', handlePointer);
+
+                    (canvas as any)._touchEraserCleanup = () => {
+                        upperCanvasEl.removeEventListener('pointerdown', handlePointer);
+                        upperCanvasEl.removeEventListener('pointermove', handlePointer);
+                        upperCanvasEl.removeEventListener('pointerup', handlePointer);
+                        upperCanvasEl.removeEventListener('pointerleave', handlePointer);
+                        upperCanvasEl.removeEventListener('pointercancel', handlePointer);
+                        if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
+                        touchEraserCursorRef.current = null;
+                    };
+                }
 
                 canvas.forEachObject((obj) => {
                     const isProtected = (obj as any).isPixelEraser || (obj as any).isPageBackground;
                     if (isProtected) {
-                        obj.set({ selectable: false, evented: false, hoverCursor: 'default' });
+                        obj.set({ selectable: false, evented: false });
                     } else {
-                        obj.set({ selectable: false, evented: true, hoverCursor: 'not-allowed' });
+                        // Keep objects evented but not selectable for removal logic
+                        obj.set({ selectable: false, evented: true });
                     }
                 });
                 canvas.requestRenderAll();
 
                 let isErasingDragging = false;
+
+                const removeIntersectingObjects = (opt: any) => {
+                    const pointer = canvas.getPointer(opt.e);
+                    const eraserRadius = (brushSize * 4) / 2;
+
+                    // PERFORMANCE: Use findTarget if pointer size is 0, but here we want to check intersection
+                    // We can use a small selection area logic
+                    const objects = canvas.getObjects();
+                    // Detect collision with the eraser circle area
+                    // For efficiency, we check objects that are within eraserRadius of the pointer
+                    for (let i = objects.length - 1; i >= 0; i--) {
+                        const obj = objects[i];
+                        if ((obj as any).isPixelEraser || (obj as any).isPageBackground) continue;
+
+                        // Fabric intersection check
+                        if (obj.intersectsWithRect(
+                            new fabric.Point(pointer.x - eraserRadius / 2, pointer.y - eraserRadius / 2),
+                            new fabric.Point(pointer.x + eraserRadius / 2, pointer.y + eraserRadius / 2)
+                        ) || obj.containsPoint(new fabric.Point(pointer.x, pointer.y))) {
+                            canvas.remove(obj);
+                        }
+                    }
+                    canvas.requestRenderAll();
+                };
+
                 canvas.on('mouse:down', (opt) => {
                     isErasingDragging = true;
-                    if (opt.target) {
-                        canvas.remove(opt.target);
-                        canvas.requestRenderAll();
-                    }
+                    removeIntersectingObjects(opt);
                 });
                 canvas.on('mouse:move', (opt) => {
-                    if (isErasingDragging && opt.target) {
-                        canvas.remove(opt.target);
-                        canvas.requestRenderAll();
+                    if (isErasingDragging) {
+                        removeIntersectingObjects(opt);
                     }
                 });
                 canvas.on('mouse:up', () => { isErasingDragging = false; });
+
+                const handleZoomCursorUpdate = () => {
+                    if (activeToolRef.current === 'eraser_object') updateObjectEraserCursor();
+                };
+                canvas.on('mouse:wheel', handleZoomCursorUpdate);
+                canvas.on('touch:gesture', handleZoomCursorUpdate);
                 break;
             }
 
