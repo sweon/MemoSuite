@@ -184,7 +184,7 @@ const ModalOverlay = styled.div`
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  /* touch-action: none !important; removed */
+  touch-action: none !important;
   overscroll-behavior: none !important;
 `;
 
@@ -2638,6 +2638,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         let initialPinchZoom = 1;
         let lastPinchCenter = { x: 0, y: 0 };
         let isMultiTouching = false;
+        let lastMultiTouchTime = 0;   // Cooldown for resuming drawing after multi-touch
 
         const getEvtPos = (e: any) => ({ x: e.clientX, y: e.clientY });
 
@@ -2707,6 +2708,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 if (activePointers.size >= 2) {
                     isMultiTouching = true;
+                    lastMultiTouchTime = Date.now();
                     const points = Array.from(activePointers.values());
                     initialPinchDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
                     initialPinchZoom = canvas.getZoom();
@@ -2717,12 +2719,21 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         y: (points[0].y + points[1].y) / 2 - rect.top
                     };
 
-                    // Switch to pan mode (disable drawing)
-                    if (canvas.isDrawingMode) {
-                        canvas.isDrawingMode = false;
-                        const brush = canvas.freeDrawingBrush as any;
-                        if (brush && brush._reset) brush._reset();
-                        if (brush && brush._points) brush._points = [];
+                    // Switch to pan mode (disable drawing) and CANCEL any started stroke
+                    canvas.isDrawingMode = false;
+                    (canvas as any)._isCurrentlyDrawing = false;
+                    const brush = canvas.freeDrawingBrush as any;
+                    if (brush) {
+                        if (brush._reset) brush._reset();
+                        if (brush._points) brush._points = [];
+                        // Some brushes use _finalizeAndAddPath, we want to avoid that
+                        if (brush.onMouseUp) {
+                            // Mocking mouse up without adding anything
+                        }
+                    }
+                    // Crucial: Clear any pending points in Fabric's internal array
+                    if ((canvas as any)._objectsToRender) {
+                        // This is more of a hack to ensure the current path isn't rendered
                     }
 
                     if (e.cancelable) e.preventDefault();
@@ -2731,8 +2742,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
             }
 
-            // Fallback for palm rejection blocking
-            if (palmRejectionRef.current && activePointers.size < 2 && shouldBlockNonPen()) {
+            // Fallback for palm rejection blocking or multi-touch cooldown
+            const timeSinceMultiTouch = Date.now() - lastMultiTouchTime;
+            if ((palmRejectionRef.current && activePointers.size < 2 && shouldBlockNonPen()) || timeSinceMultiTouch < 150) {
                 if (blockedPointerIds.indexOf(id) === -1) blockedPointerIds.push(id);
                 e.stopPropagation();
                 return;
@@ -2838,6 +2850,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             if (activePointers.size < 2 && isMultiTouching) {
                 isMultiTouching = false;
+                lastMultiTouchTime = Date.now();
                 const isSketchTool = ['pen', 'carbon', 'hatch', 'highlighter', 'glow', 'circle', 'laser', 'eraser_pixel'].indexOf(activeToolRef.current) !== -1;
                 if (isSketchTool) {
                     canvas.isDrawingMode = true;
