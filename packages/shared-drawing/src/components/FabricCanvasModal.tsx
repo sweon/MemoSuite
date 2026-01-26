@@ -4564,7 +4564,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                         if (e.type === 'pointerup' || e.type === 'pointerleave' || e.type === 'pointercancel') {
                             indicator.style.display = 'none';
-                            canvas.requestRenderAll(); // Finish final projection
+                            // Restore standard cursor if it was hidden
+                            const fCanvas = fabricCanvasRef.current;
+                            if (fCanvas) fCanvas.freeDrawingCursor = (canvas as any)._lastEraserCursor || 'crosshair';
+                            canvas.requestRenderAll();
                             return;
                         }
 
@@ -4574,23 +4577,33 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                         const zoom = canvas.getZoom();
                         const visualRadius = ((brushSize * 4) / 2) * zoom * 0.5;
+                        const diameter = Math.ceil(visualRadius * 2) + 2; // Add padding
 
-                        circle.setAttribute('cx', '50');
-                        circle.setAttribute('cy', '50');
+                        // Match Mac style perfectly
+                        indicator.setAttribute('width', diameter.toString());
+                        indicator.setAttribute('height', diameter.toString());
+                        circle.setAttribute('cx', (diameter / 2).toString());
+                        circle.setAttribute('cy', (diameter / 2).toString());
                         circle.setAttribute('r', visualRadius.toString());
 
-                        indicator.style.left = `${x - 50}px`;
-                        indicator.style.top = `${y - 50}px`;
+                        indicator.style.left = `${x - diameter / 2}px`;
+                        indicator.style.top = `${y - diameter / 2}px`;
                         indicator.style.display = 'block';
 
-                        // CRITICAL: Force re-render for real-time erasing on touch
+                        // CRITICAL: Only one cursor! Hide the system cursor if touch is active
+                        if (canvas.freeDrawingCursor !== 'none') {
+                            (canvas as any)._lastEraserCursor = canvas.freeDrawingCursor;
+                            canvas.freeDrawingCursor = 'none';
+                        }
+
+                        // CRITICAL: Force re-render for real-time erasing feedback
                         if (canvas.isDrawingMode) {
                             canvas.requestRenderAll();
                         }
                     };
 
                     upperCanvasEl.addEventListener('pointerdown', handlePointer);
-                    upperCanvasEl.addEventListener('pointermove', handlePointer);
+                    upperCanvasEl.addEventListener('pointermove', handlePointer, { passive: true });
                     upperCanvasEl.addEventListener('pointerup', handlePointer);
                     upperCanvasEl.addEventListener('pointerleave', handlePointer);
                     upperCanvasEl.addEventListener('pointercancel', handlePointer);
@@ -4602,13 +4615,17 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         upperCanvasEl.removeEventListener('pointerleave', handlePointer);
                         upperCanvasEl.removeEventListener('pointercancel', handlePointer);
                         if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
+                        touchEraserCursorRef.current = null;
+                        if ((canvas as any)._lastEraserCursor) {
+                            canvas.freeDrawingCursor = (canvas as any)._lastEraserCursor;
+                        }
                     };
                 }
 
                 canvas.on('mouse:move', (opt) => {
-                    const e = opt.e as any;
-                    // Support both physical mouse button (buttons === 1) and Touch events (buttons === 0 on some devices)
-                    if (canvas.isDrawingMode && (e.buttons === 1 || e.type === 'touchmove' || e.pointerType === 'touch')) {
+                    // Force re-render on any move while in eraser mode to ensure
+                    // the "destination-out" projection follows the brush in real-time.
+                    if (canvas.isDrawingMode) {
                         canvas.requestRenderAll();
                     }
                 });
