@@ -4517,8 +4517,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     const baseSize = brushSize * 4;
                     const scaledSize = Math.round(baseSize * zoom);
                     const radius = scaledSize / 2;
-                    // Match the actual erasing area (100% radius)
-                    const visualRadius = radius;
+                    // visualRadius calculation for the CSS cursor (Desktop)
+                    const visualRadius = Math.max(1, radius * 0.5);
 
                     const svg = `
                         <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
