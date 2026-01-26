@@ -4759,44 +4759,54 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 let isErasingDragging = false;
 
                 const removeIntersectingObjects = (opt: any) => {
+                    const canvas = fabricCanvasRef.current;
+                    if (!canvas) return;
+
                     const pointer = canvas.getPointer(opt.e);
 
                     // Hitbox logic: Use the exact visual radius used for the cursor
-                    // Mobile is 1:1, Mac is 0.5:1
                     const isTouch = (opt.e as any).pointerType === 'touch' || (opt.e as any).pointerType === 'pen' || (opt.e as any).type?.startsWith('touch');
                     const visualRadiusScale = isTouch ? 1.0 : 0.5;
                     const visualRadius = ((brushSize * 4) / 2) * visualRadiusScale;
 
-                    // 1. Direct hit check (highest priority, uses Fabric's perPixel logic)
+                    // 1. Center point check (Fabric already did this and put it in opt.target)
+                    // Since perPixelTargetFind is true, opt.target is already pixel-perfect.
                     if (opt.target && !((opt.target as any).isPixelEraser || (opt.target as any).isPageBackground)) {
                         canvas.remove(opt.target);
                         canvas.requestRenderAll();
                         return;
                     }
 
-                    // 2. Proximity check (for edges of the eraser circle)
-                    // We check center and 4 corners of a slightly smaller inner box to simulate a circle
-                    const checkRadius = visualRadius * 0.8;
-                    const pointsToCheck = [
-                        new fabric.Point(pointer.x, pointer.y),
+                    // 2. High-precision proximity check
+                    // We sample points around the eraser circle to catch edges.
+                    // We use the internal _searchPossibleTargets to honor perPixelTargetFind for each point.
+                    const checkRadius = visualRadius * 0.9;
+                    const samplePoints = [
                         new fabric.Point(pointer.x - checkRadius, pointer.y),
                         new fabric.Point(pointer.x + checkRadius, pointer.y),
                         new fabric.Point(pointer.x, pointer.y - checkRadius),
-                        new fabric.Point(pointer.x, pointer.y + checkRadius)
+                        new fabric.Point(pointer.x, pointer.y + checkRadius),
+                        // Diagonal points for better circle approximation
+                        new fabric.Point(pointer.x - checkRadius * 0.707, pointer.y - checkRadius * 0.707),
+                        new fabric.Point(pointer.x + checkRadius * 0.707, pointer.y - checkRadius * 0.707),
+                        new fabric.Point(pointer.x - checkRadius * 0.707, pointer.y + checkRadius * 0.707),
+                        new fabric.Point(pointer.x + checkRadius * 0.707, pointer.y + checkRadius * 0.707)
                     ];
 
                     const objects = canvas.getObjects();
-                    for (let i = objects.length - 1; i >= 0; i--) {
-                        const obj = objects[i];
-                        if ((obj as any).isPixelEraser || (obj as any).isPageBackground) continue;
+                    for (const p of samplePoints) {
+                        // findTarget at this point
+                        // We use a helper to verify if a specific point hits any object pixel-perfectly
+                        // @ts-ignore - reaching into internals for precision
+                        const target = (canvas as any)._searchPossibleTargets(objects, p);
 
-                        // Check if any of our precision points are inside the object's actual pixels/geometry
-                        const isHit = pointsToCheck.some(p => obj.containsPoint(p));
-                        if (isHit) {
-                            canvas.remove(obj);
+                        if (target && !((target as any).isPixelEraser || (target as any).isPageBackground)) {
+                            canvas.remove(target);
+                            canvas.requestRenderAll();
+                            // If we found one, we continue checking other points in case we are dragging fast
+                            // but usually one at a time is fine for a single event loop.
                         }
                     }
-                    canvas.requestRenderAll();
                 };
 
                 canvas.on('mouse:down', (opt) => {
