@@ -1431,7 +1431,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const mountTimeRef = useRef(Date.now());
 
     const handleActualClose = useRef(propsOnClose);
-    const lastUndoRedoTimeRef = useRef(0);
     const lastAddedObjectRef = useRef<fabric.Object | null>(null);
     const lastAddedObjectTimeRef = useRef(0);
     handleActualClose.current = propsOnClose;
@@ -2646,8 +2645,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         let lastPinchCenter = { x: 0, y: 0 };
         let isMultiTouching = false;
         let lastMultiTouchTime = 0;   // Cooldown for resuming drawing after multi-touch
-        let lastAddedObject: fabric.Object | null = null;
-        let lastAddedObjectTime = 0;
 
         const getEvtPos = (e: any) => ({ x: e.clientX, y: e.clientY });
 
