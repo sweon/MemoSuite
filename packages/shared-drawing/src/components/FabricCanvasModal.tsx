@@ -4342,6 +4342,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         // Re-attach standard listeners if needed (none strictly for now unless shape)
 
+        // Stealth Eraser UI: Hide the brush trail on upper canvas while drawing
+        // We'll project it manually in renderHook to avoid white streaks.
+        const upperCanvas = (canvas as any).upperCanvasEl;
+        if (upperCanvas) {
+            upperCanvas.style.opacity = activeTool === 'eraser_pixel' ? '0' : '1';
+        }
+
         switch (activeTool) {
             case 'select':
                 canvas.isDrawingMode = false;
@@ -4489,9 +4496,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 canvas.isDrawingMode = true;
                 const brush = new fabric.PencilBrush(canvas);
                 brush.width = brushSize * 4;
-                // Use paper color with source-over for a visible "white" trail while drawing.
-                // The logical erase (to transparency) happens when the path is finalized.
-                brush.color = currentBackgroundColor;
+                // Use solid color for masking; the upper canvas itself is hidden (opacity 0.01)
+                // but its pixels are used in renderHook to "punch holes" in the lower canvas.
+                brush.color = 'black';
                 // @ts-ignore
                 brush.globalCompositeOperation = 'source-over';
                 canvas.freeDrawingBrush = brush;
@@ -4668,6 +4675,22 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             const ctx = canvas.getContext();
             const pattern = persistentBackgroundPatternRef.current;
             if (ctx && pattern && canvas.viewportTransform) {
+                // A. LIVE ERASE PROJECTION
+                // If user is currently erasing, subtract the upper-canvas (brush trail) 
+                // from the lower-canvas (final objects) in real-time.
+                if (activeToolRef.current === 'eraser_pixel' && canvas.isDrawingMode) {
+                    const upperCanvas = (canvas as any).upperCanvasEl;
+                    if (upperCanvas) {
+                        ctx.save();
+                        ctx.globalCompositeOperation = 'destination-out';
+                        // Match pixel-for-pixel; upperCanvas and lowerCanvas are always synced
+                        ctx.setTransform(1, 0, 0, 1, 0, 0);
+                        ctx.drawImage(upperCanvas, 0, 0);
+                        ctx.restore();
+                    }
+                }
+
+                // B. BACKGROUND FILL (Fill finalized holes & live projected holes)
                 ctx.save();
                 ctx.globalCompositeOperation = 'destination-over';
 

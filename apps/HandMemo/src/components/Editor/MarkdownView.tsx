@@ -119,23 +119,43 @@ const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: (
             skipTargetFind: true
           });
 
-          const finishRendering = () => {
+          const finishRendering = (bgPattern?: fabric.Pattern) => {
             if (!isMountedRef.current) {
               staticCanvas.dispose();
               return;
             }
 
-            const w = data.width || 800;
-            const multiplier = w > 1000 ? 1000 / w : 1;
+            const w = staticCanvas.getWidth() || 800;
+            const h = staticCanvas.getHeight() || 600;
 
-            const base64 = staticCanvas.toDataURL({
-              format: 'png',
-              quality: 0.5,
-              multiplier
-            });
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = w;
+            exportCanvas.height = h;
+            const ctx = exportCanvas.getContext('2d');
 
-            PREVIEW_CACHE.set(json, base64);
-            setImgSrc(base64);
+            if (ctx) {
+              // 1. Draw Background Pattern
+              if (bgPattern) {
+                const src = (bgPattern as any).source;
+                if (src) {
+                  const pat = ctx.createPattern(src, bgPattern.repeat || 'repeat');
+                  if (pat) {
+                    ctx.fillStyle = pat;
+                    ctx.fillRect(0, 0, w, h);
+                  }
+                }
+              }
+
+              // 2. Draw Fabric Drawing on top (with its transparent eraser holes)
+              ctx.drawImage(staticCanvas.getElement(), 0, 0);
+
+              const multiplier = w > 1000 ? 1000 / w : 1;
+              const base64 = exportCanvas.toDataURL('image/png', 0.5);
+
+              PREVIEW_CACHE.set(json, base64);
+              setImgSrc(base64);
+            }
+
             setLoading(false);
             staticCanvas.dispose();
           };
@@ -151,33 +171,26 @@ const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: (
             const h = data.height || 600;
             staticCanvas.setDimensions({ width: w, height: h });
 
-            // Handle Background config if exists
             if (data.backgroundConfig) {
               const cfg = data.backgroundConfig;
               const bgColor = calculateBackgroundColor(cfg.colorType, cfg.intensity);
 
+              const renderWithPattern = (img?: HTMLImageElement) => {
+                if (!isMountedRef.current) return;
+                const pat = createBackgroundPattern(
+                  cfg.type, bgColor, cfg.opacity, cfg.size, false, cfg.bundleGap, img, cfg.imageOpacity, staticCanvas.getWidth()
+                );
+                staticCanvas.renderAll();
+                finishRendering(pat as fabric.Pattern);
+              };
+
               if (cfg.type === 'image' && cfg.imageData) {
                 const img = new Image();
-                img.onload = () => {
-                  if (!isMountedRef.current) return;
-                  const pat = createBackgroundPattern(
-                    cfg.type, bgColor, cfg.opacity, cfg.size, false, cfg.bundleGap, img, cfg.imageOpacity, staticCanvas.getWidth()
-                  );
-                  staticCanvas.setBackgroundColor(pat, () => {
-                    staticCanvas.renderAll();
-                    finishRendering();
-                  });
-                };
+                img.onload = () => renderWithPattern(img);
                 img.src = cfg.imageData;
-                return; // Wait for image load
+                return;
               } else {
-                const pat = createBackgroundPattern(
-                  cfg.type, bgColor, cfg.opacity, cfg.size, false, cfg.bundleGap, undefined, cfg.imageOpacity, staticCanvas.getWidth()
-                );
-                staticCanvas.setBackgroundColor(pat, () => {
-                  staticCanvas.renderAll();
-                  finishRendering();
-                });
+                renderWithPattern();
                 return;
               }
             }
