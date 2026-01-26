@@ -4750,8 +4750,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     if (isProtected) {
                         obj.set({ selectable: false, evented: false });
                     } else {
-                        // Keep objects evented but not selectable for removal logic
-                        obj.set({ selectable: false, evented: true });
+                        // CRITICAL: Enable pixel-perfect detection for precision erasing
+                        obj.set({ selectable: false, evented: true, perPixelTargetFind: true });
                     }
                 });
                 canvas.requestRenderAll();
@@ -4760,22 +4760,39 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 const removeIntersectingObjects = (opt: any) => {
                     const pointer = canvas.getPointer(opt.e);
-                    const eraserRadius = (brushSize * 4) / 2;
 
-                    // PERFORMANCE: Use findTarget if pointer size is 0, but here we want to check intersection
-                    // We can use a small selection area logic
+                    // Hitbox logic: Use the exact visual radius used for the cursor
+                    // Mobile is 1:1, Mac is 0.5:1
+                    const isTouch = (opt.e as any).pointerType === 'touch' || (opt.e as any).pointerType === 'pen' || (opt.e as any).type?.startsWith('touch');
+                    const visualRadiusScale = isTouch ? 1.0 : 0.5;
+                    const visualRadius = ((brushSize * 4) / 2) * visualRadiusScale;
+
+                    // 1. Direct hit check (highest priority, uses Fabric's perPixel logic)
+                    if (opt.target && !((opt.target as any).isPixelEraser || (opt.target as any).isPageBackground)) {
+                        canvas.remove(opt.target);
+                        canvas.requestRenderAll();
+                        return;
+                    }
+
+                    // 2. Proximity check (for edges of the eraser circle)
+                    // We check center and 4 corners of a slightly smaller inner box to simulate a circle
+                    const checkRadius = visualRadius * 0.8;
+                    const pointsToCheck = [
+                        new fabric.Point(pointer.x, pointer.y),
+                        new fabric.Point(pointer.x - checkRadius, pointer.y),
+                        new fabric.Point(pointer.x + checkRadius, pointer.y),
+                        new fabric.Point(pointer.x, pointer.y - checkRadius),
+                        new fabric.Point(pointer.x, pointer.y + checkRadius)
+                    ];
+
                     const objects = canvas.getObjects();
-                    // Detect collision with the eraser circle area
-                    // For efficiency, we check objects that are within eraserRadius of the pointer
                     for (let i = objects.length - 1; i >= 0; i--) {
                         const obj = objects[i];
                         if ((obj as any).isPixelEraser || (obj as any).isPageBackground) continue;
 
-                        // Fabric intersection check
-                        if (obj.intersectsWithRect(
-                            new fabric.Point(pointer.x - eraserRadius / 2, pointer.y - eraserRadius / 2),
-                            new fabric.Point(pointer.x + eraserRadius / 2, pointer.y + eraserRadius / 2)
-                        ) || obj.containsPoint(new fabric.Point(pointer.x, pointer.y))) {
+                        // Check if any of our precision points are inside the object's actual pixels/geometry
+                        const isHit = pointsToCheck.some(p => obj.containsPoint(p));
+                        if (isHit) {
                             canvas.remove(obj);
                         }
                     }
