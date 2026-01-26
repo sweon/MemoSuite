@@ -1431,6 +1431,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const mountTimeRef = useRef(Date.now());
 
     const handleActualClose = useRef(propsOnClose);
+    const lastUndoRedoTimeRef = useRef(0);
+    const lastAddedObjectRef = useRef<fabric.Object | null>(null);
+    const lastAddedObjectTimeRef = useRef(0);
     handleActualClose.current = propsOnClose;
 
     const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
@@ -2209,6 +2212,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const obj = e.target;
         if (!obj) return;
 
+        // Track last added object for ghost line suppression
+        lastAddedObjectRef.current = obj;
+        lastAddedObjectTimeRef.current = Date.now();
+
         const id = getObjectId(obj);
         // Serialize just this one object
         const objectJson = JSON.stringify(obj.toJSON());
@@ -2639,6 +2646,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         let lastPinchCenter = { x: 0, y: 0 };
         let isMultiTouching = false;
         let lastMultiTouchTime = 0;   // Cooldown for resuming drawing after multi-touch
+        let lastAddedObject: fabric.Object | null = null;
+        let lastAddedObjectTime = 0;
 
         const getEvtPos = (e: any) => ({ x: e.clientX, y: e.clientY });
 
@@ -2708,7 +2717,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 if (activePointers.size >= 2) {
                     isMultiTouching = true;
-                    lastMultiTouchTime = Date.now();
+                    const now = Date.now();
+                    lastMultiTouchTime = now;
                     const points = Array.from(activePointers.values());
                     initialPinchDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
                     initialPinchZoom = canvas.getZoom();
@@ -2736,6 +2746,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         // This is more of a hack to ensure the current path isn't rendered
                     }
 
+                    // GHOST STROKE CLEANUP: If the first finger started a line just before the second finger touched, remove it.
+                    if (lastAddedObjectRef.current && (now - lastAddedObjectTimeRef.current < 200)) {
+                        canvas.remove(lastAddedObjectRef.current);
+                        lastAddedObjectRef.current = null;
+                        canvas.requestRenderAll();
+                    }
+
                     if (e.cancelable) e.preventDefault();
                     e.stopPropagation();
                     return;
@@ -2744,7 +2761,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             // Fallback for palm rejection blocking or multi-touch cooldown
             const timeSinceMultiTouch = Date.now() - lastMultiTouchTime;
-            if ((palmRejectionRef.current && activePointers.size < 2 && shouldBlockNonPen()) || timeSinceMultiTouch < 150) {
+            if ((palmRejectionRef.current && activePointers.size < 2 && shouldBlockNonPen()) || timeSinceMultiTouch < 250) {
                 if (blockedPointerIds.indexOf(id) === -1) blockedPointerIds.push(id);
                 e.stopPropagation();
                 return;
@@ -2867,11 +2884,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         };
 
         const filterMouse = (e: any) => {
-            if (!palmRejectionRef.current) return;
-            if (penPointerId !== -1) {
+            const timeSinceMultiTouch = Date.now() - lastMultiTouchTime;
+            const isBlockedByMultiTouch = isMultiTouching || timeSinceMultiTouch < 250;
+
+            if ((palmRejectionRef.current && penPointerId !== -1) || isBlockedByMultiTouch) {
                 if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
-                e.stopImmediatePropagation();
+                if (e.stopImmediatePropagation) e.stopImmediatePropagation();
             }
         };
 
