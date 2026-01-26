@@ -1,0 +1,736 @@
+import React, { useState, useEffect, useRef } from 'react';
+import styled from 'styled-components';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, type Memo } from '../../db';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiArrowUpCircle, FiPenTool, FiPlus, FiMinus } from 'react-icons/fi';
+import { BsKeyboard } from 'react-icons/bs';
+import { RiTable2 } from 'react-icons/ri';
+import { useRegisterSW } from 'virtual:pwa-register/react';
+import { Tooltip } from '../UI/Tooltip';
+import { SyncModal, useColorTheme, ThreadableList } from '@memosuite/shared';
+import { Toast } from '../UI/Toast';
+
+import { useSearch } from '../../contexts/SearchContext';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { SidebarMemoItem } from './SidebarMemoItem';
+import { handMemoSyncAdapter } from '../../utils/backupAdapter';
+import type { DropResult } from '@hello-pangea/dnd';
+
+import { v4 as uuidv4 } from 'uuid';
+import { format } from 'date-fns';
+import { ConfirmModal } from '../UI/ConfirmModal';
+import pkg from '../../../package.json';
+
+const SidebarContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: ${({ theme }) => theme.colors.surface};
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+`;
+
+const Header = styled.div`
+  padding: ${({ theme }) => theme.spacing.md};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+const SearchInputWrapper = styled.div`
+  position: relative;
+  margin-bottom: ${({ theme }) => theme.spacing.sm};
+`;
+
+const SearchIcon = styled(FiSearch)`
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: ${({ theme }) => theme.colors.textSecondary};
+  opacity: 0.7;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  border-radius: ${({ theme }) => theme.radius.medium};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 0.9rem;
+  transition: ${({ theme }) => theme.effects.transition};
+  
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.primary};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.primary}22;
+    background: ${({ theme }) => theme.colors.surface};
+  }
+`;
+
+const ClearButton = styled.button`
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: ${({ theme }) => theme.radius.full};
+  transition: ${({ theme }) => theme.effects.transition};
+  
+  &:hover {
+    color: ${({ theme }) => theme.colors.text};
+    background-color: ${({ theme }) => theme.colors.border};
+  }
+`;
+
+const Button = styled.button<{ $color?: string }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: ${({ theme }) => theme.radius.small};
+  border: none;
+  cursor: pointer;
+  background: ${({ theme, $color }) => $color || theme.colors.primary};
+  color: white;
+  flex-shrink: 0;
+  transition: ${({ theme }) => theme.effects.transition};
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: ${({ theme }) => theme.shadows.small};
+    filter: brightness(1.1);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const TopActions = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+`;
+
+const IconButton = styled.button`
+  background: transparent;
+  border: none;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  padding: 4px;
+  border-radius: ${({ theme }) => theme.radius.medium};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: ${({ theme }) => theme.effects.transition};
+  
+  &:hover {
+    background: ${({ theme }) => theme.colors.background};
+    color: ${({ theme }) => theme.colors.text};
+    transform: scale(1.1);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+const BrandHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg} 0`};
+`;
+
+const AppTitle = styled.div`
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary})`};
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+`;
+
+const AppVersion = styled.span`
+  font-size: 0.55rem;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: ${({ theme }) => theme.colors.background};
+  padding: 2px 6px;
+  border-radius: ${({ theme }) => theme.radius.small};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+interface SidebarProps {
+  onCloseMobile: (skipHistory?: boolean) => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
+  const { searchQuery, setSearchQuery } = useSearch();
+  const { t, language } = useLanguage();
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-edited' | 'last-commented'>(() => {
+    return (localStorage.getItem('sidebar_sortBy') as any) || 'last-edited';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebar_sortBy', sortBy);
+  }, [sortBy]);
+
+  const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateCheckedManually, setUpdateCheckedManually] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, message: '', onConfirm: () => { } });
+  const [collapsedThreads, setCollapsedThreads] = useState<Set<string>>(new Set());
+
+  const toggleThread = (id: string) => {
+    setCollapsedThreads(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const needRefreshRef = useRef(false);
+
+  const handleSafeNavigation = (action: () => void) => {
+    // With memo-first approach, we rarely need confirmation to switch unless we are in complex state.
+    // Logic for unsaved changes is mostly in MemoDetail/Layout guard.
+    // So we can simplify this or keep generic check.
+    action();
+  };
+
+  const {
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    immediate: false,
+    onRegistered() {
+      console.log('SW Registered');
+    },
+    onRegisterError(error) {
+      console.log('SW registration error', error);
+    },
+  });
+
+  useEffect(() => {
+    needRefreshRef.current = needRefresh;
+  }, [needRefresh]);
+
+  const handleUpdateCheck = async () => {
+    if (!updateCheckedManually) {
+      setUpdateCheckedManually(true);
+      setIsCheckingUpdate(true);
+      if (needRefresh) {
+        setIsCheckingUpdate(false);
+        setToastMessage(t.sidebar.update_found);
+        return;
+      }
+    }
+
+    if (needRefresh) {
+      setToastMessage(t.sidebar.install_update);
+      setTimeout(() => {
+        updateServiceWorker(true);
+        setTimeout(() => window.location.reload(), 3000);
+      }, 500);
+      return;
+    }
+
+    if (isCheckingUpdate && updateCheckedManually) return;
+
+    setIsCheckingUpdate(true);
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          await registration.update();
+
+          // Small delay to let the hook catch up
+          await new Promise(resolve => setTimeout(resolve, 1500));
+
+          if (registration.waiting || needRefreshRef.current) {
+            setToastMessage(t.sidebar.update_found);
+          } else {
+            setToastMessage(t.sidebar.up_to_date);
+          }
+        } else {
+          setToastMessage(t.sidebar.check_failed);
+        }
+        setIsCheckingUpdate(false);
+        setUpdateCheckedManually(true);
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+        setIsCheckingUpdate(false);
+        setToastMessage(t.sidebar.check_failed);
+      }
+    } else {
+      setIsCheckingUpdate(false);
+      setToastMessage(t.sidebar.pwa_not_supported);
+    }
+  };
+
+  const allMemos = useLiveQuery(() => db.memos.toArray());
+  const allComments = useLiveQuery(() => db.comments.toArray());
+
+  const lastCommentMap = React.useMemo(() => {
+    const map: Record<number, number> = {};
+    if (!allComments) return map;
+    allComments.forEach(c => {
+      const time = c.updatedAt?.getTime() || c.createdAt.getTime();
+      if (!map[c.memoId] || time > map[c.memoId]) {
+        map[c.memoId] = time;
+      }
+    });
+    return map;
+  }, [allComments]);
+
+  const sortedMemos = React.useMemo(() => {
+    if (!allMemos) return [];
+    let memos = [...allMemos];
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (q.startsWith('tag:')) {
+        const tagToSearch = q.slice(4).trim();
+        if (tagToSearch) {
+          memos = memos.filter(m =>
+            m.tags && m.tags.some(t => t.toLowerCase().includes(tagToSearch))
+          );
+        }
+      } else {
+        memos = memos.filter(m =>
+          m.title.toLowerCase().includes(q) ||
+          m.content.toLowerCase().includes(q) ||
+          (m.tags && m.tags.some(t => t.toLowerCase().includes(q)))
+        );
+      }
+    }
+
+    return memos.sort((a, b) => {
+      if (sortBy === 'date-desc') return b.createdAt.getTime() - a.createdAt.getTime();
+      if (sortBy === 'date-asc') return a.createdAt.getTime() - b.createdAt.getTime();
+      if (sortBy === 'title-asc') return (a.title || '').localeCompare(b.title || '');
+      if (sortBy === 'last-edited') return b.updatedAt.getTime() - a.updatedAt.getTime();
+      if (sortBy === 'last-commented') {
+        const aLast = lastCommentMap[a.id!] || 0;
+        const bLast = lastCommentMap[b.id!] || 0;
+        if (aLast !== bLast) return bLast - aLast;
+        return b.updatedAt.getTime() - a.updatedAt.getTime();
+      }
+      return b.updatedAt.getTime() - a.updatedAt.getTime();
+    });
+  }, [allMemos, searchQuery, sortBy]);
+
+  const groupedItems = React.useMemo(() => {
+    if (!sortedMemos || !allMemos) return [];
+
+    const items: Array<{
+      type: 'memo';
+      memo: Memo;
+      isThreadHead?: boolean;
+      isThreadChild?: boolean;
+      threadId?: string;
+      childCount?: number;
+    }> = [];
+    const processedMemos = new Set<number>();
+
+    sortedMemos.forEach(memo => {
+      if (processedMemos.has(memo.id!)) return;
+
+      if (memo.threadId) {
+        // Find all memos in this thread
+        const threadMemos = allMemos.filter(m => m.threadId === memo.threadId)
+          .sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0));
+
+        if (threadMemos.length > 1) {
+          const isCollapsed = collapsedThreads.has(memo.threadId);
+          // Header
+          items.push({
+            type: 'memo',
+            memo: threadMemos[0],
+            isThreadHead: true,
+            threadId: memo.threadId,
+            childCount: threadMemos.length - 1
+          });
+          processedMemos.add(threadMemos[0].id!);
+
+          if (!isCollapsed) {
+            // Children
+            for (let i = 1; i < threadMemos.length; i++) {
+              items.push({
+                type: 'memo',
+                memo: threadMemos[i],
+                isThreadChild: true,
+                threadId: memo.threadId
+              });
+              processedMemos.add(threadMemos[i].id!);
+            }
+          } else {
+            // Skip children in processed set so we don't render them separately
+            threadMemos.slice(1).forEach(tm => processedMemos.add(tm.id!));
+          }
+        } else {
+          items.push({ type: 'memo', memo });
+          processedMemos.add(memo.id!);
+        }
+      } else {
+        items.push({ type: 'memo', memo });
+        processedMemos.add(memo.id!);
+      }
+    });
+
+    return items;
+  }, [sortedMemos, allMemos, collapsedThreads]);
+
+  const onDragEnd = async (result: DropResult) => {
+    const { combine, draggableId, destination } = result;
+
+    // Handle Combining (Joining Threads)
+    if (combine) {
+      const sourceId = parseInt(draggableId);
+      const targetId = parseInt(combine.draggableId);
+
+      if (isNaN(sourceId) || isNaN(targetId)) return;
+      if (sourceId === targetId) return;
+
+      const sourceMemo = await db.memos.get(sourceId);
+      const targetMemo = await db.memos.get(targetId);
+
+      if (!sourceMemo || !targetMemo) return;
+
+      const newThreadId = targetMemo.threadId || uuidv4();
+
+      if (!targetMemo.threadId) {
+        await db.memos.update(targetId, {
+          threadId: newThreadId,
+          threadOrder: 0
+        });
+      }
+
+      if (sourceMemo.threadId && sourceMemo.threadId !== newThreadId) {
+        const sourceThreadMemos = await db.memos.where('threadId').equals(sourceMemo.threadId).toArray();
+        const targetThreadMemos = await db.memos.where('threadId').equals(newThreadId).toArray();
+        let maxOrder = Math.max(...targetThreadMemos.map(m => m.threadOrder || 0), -1);
+
+        for (const sm of sourceThreadMemos) {
+          maxOrder++;
+          await db.memos.update(sm.id!, {
+            threadId: newThreadId,
+            threadOrder: maxOrder
+          });
+        }
+      } else {
+        const targetThreadMemos = await db.memos.where('threadId').equals(newThreadId).toArray();
+        const maxOrder = Math.max(...targetThreadMemos.map(m => m.threadOrder || 0), -1);
+        await db.memos.update(sourceId, {
+          threadId: newThreadId,
+          threadOrder: maxOrder + 1
+        });
+      }
+      return;
+    }
+
+    // Handle Reordering / Extraction
+    if (!destination) return;
+
+    const sourceMemoId = parseInt(draggableId);
+    if (isNaN(sourceMemoId)) return;
+
+    const sourceMemo = await db.memos.get(sourceMemoId);
+    if (!sourceMemo) return;
+
+    const sourceIndex = result.source.index;
+    const destIndex = destination.index;
+    if (sourceIndex === destIndex) return;
+
+    const items = groupedItems;
+    const targetItem = items[destIndex];
+    if (!targetItem) return;
+
+    // Generic "Sort Reordering" using updatedAt calculation
+    let newTime: number;
+    if (destIndex === 0) {
+      newTime = items[0].memo.updatedAt.getTime() + 60000; // 1 min later
+    } else if (destIndex === items.length - 1) {
+      newTime = items[items.length - 1].memo.updatedAt.getTime() - 60000;
+    } else {
+      const beforeIndex = destIndex < sourceIndex ? destIndex - 1 : destIndex;
+      const afterIndex = destIndex < sourceIndex ? destIndex : destIndex + 1;
+
+      const t1 = items[beforeIndex].memo.updatedAt.getTime();
+      const t2 = items[afterIndex].memo.updatedAt.getTime();
+      newTime = (t1 + t2) / 2;
+    }
+
+    // Pattern: Drag child and drop ABOVE its own header or BELOW its own thread block -> Extract
+    if (sourceMemo.threadId) {
+      const headerItem = items.find(it => it.isThreadHead && it.threadId === sourceMemo.threadId);
+      if (headerItem) {
+        const headerIdx = items.indexOf(headerItem);
+        // If moved above the header, extract
+        if (destIndex <= headerIdx) {
+          await db.memos.update(sourceMemoId, {
+            threadId: undefined,
+            threadOrder: undefined,
+            updatedAt: new Date(newTime)
+          });
+          return;
+        }
+
+        // If moved far below the thread (past all siblings), extract
+        const threadMemos = items.filter(it => it.threadId === sourceMemo.threadId);
+        const lastThreadIdx = items.indexOf(threadMemos[threadMemos.length - 1]);
+        if (destIndex > lastThreadIdx) {
+          await db.memos.update(sourceMemoId, {
+            threadId: undefined,
+            threadOrder: undefined,
+            updatedAt: new Date(newTime)
+          });
+          return;
+        }
+      }
+    }
+
+    await db.memos.update(sourceMemoId, { updatedAt: new Date(newTime) });
+  };
+
+  const showUpdateIndicator = needRefresh && updateCheckedManually;
+
+  return (
+    <SidebarContainer>
+      <BrandHeader>
+        <AppTitle>HandMemo</AppTitle>
+        <AppVersion>v{pkg.version}</AppVersion>
+      </BrandHeader>
+      <Header>
+        <TopActions>
+          <div style={{ display: 'flex', gap: '0.25rem' }}>
+            <Tooltip content={t.sidebar.text_memo || "Text"}>
+              <Button
+                $color="#0072B2"
+                onClick={() => {
+                  handleSafeNavigation(() => {
+                    navigate(`/memo/new?t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                    onCloseMobile(true);
+                  });
+                }}>
+                <BsKeyboard />
+              </Button>
+            </Tooltip>
+            <Tooltip content={t.sidebar.drawing_memo || "Drawing"}>
+              <Button
+                $color="#D55E00"
+                onClick={() => {
+                  handleSafeNavigation(() => {
+                    navigate(`/memo/new?drawing=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                    onCloseMobile(true);
+                  });
+                }}>
+                <FiPenTool />
+              </Button>
+            </Tooltip>
+            <Tooltip content={t.sidebar.sheet_memo || "Sheet"}>
+              <Button
+                $color="#009E73"
+                onClick={() => {
+                  handleSafeNavigation(() => {
+                    navigate(`/memo/new?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                    onCloseMobile(true);
+                  });
+                }}>
+                <RiTable2 />
+              </Button>
+            </Tooltip>
+          </div>
+          <div style={{ display: 'flex', gap: '0rem', alignItems: 'center', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}>
+
+            <Tooltip content={t.sidebar.decrease_font}>
+              <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
+                <FiMinus size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.increase_font}>
+              <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
+                <FiPlus size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.sync_data}>
+              <IconButton onClick={() => {
+                setIsSyncModalOpen(true);
+                onCloseMobile(true);
+              }}>
+                <FiRefreshCw size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={showUpdateIndicator ? t.sidebar.install_update : t.sidebar.check_updates}>
+              <IconButton
+                onClick={handleUpdateCheck}
+                style={{ position: 'relative' }}
+              >
+                <FiArrowUpCircle size={18} className={isCheckingUpdate ? 'spin' : ''} />
+                {showUpdateIndicator && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ef4444',
+                    border: '1px solid white'
+                  }} />
+                )}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
+              <IconButton onClick={toggleTheme}>
+                {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.settings}>
+              <IconButton onClick={() => {
+                handleSafeNavigation(() => {
+                  navigate('/settings', { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                });
+              }}>
+                <FiSettings size={18} />
+              </IconButton>
+            </Tooltip>
+          </div>
+        </TopActions>
+
+        <SearchInputWrapper>
+          <SearchIcon size={16} />
+          <SearchInput
+            placeholder={t.sidebar.search}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <ClearButton onClick={() => setSearchQuery('')}>
+              <FiX size={14} />
+            </ClearButton>
+          )}
+        </SearchInputWrapper>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            style={{
+              flex: 1,
+              padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
+              fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
+              borderRadius: '6px',
+              border: `1px solid ${theme.colors.border}`,
+              background: theme.colors.surface,
+              color: theme.colors.text
+            }}
+          >
+            <option value="last-edited">{t.sidebar.last_memoed}</option>
+            <option value="last-commented">{t.sidebar.last_commented}</option>
+            <option value="date-desc">{t.sidebar.newest}</option>
+            <option value="date-asc">{t.sidebar.oldest}</option>
+            <option value="title-asc">{t.sidebar.title_asc}</option>
+          </select>
+        </div>
+      </Header>
+
+      <ThreadableList
+        items={groupedItems}
+        droppableId="sidebar-memos"
+        onDragEnd={onDragEnd}
+        getItemId={(item) => item.memo.id!}
+        renderItem={(item, _index, isCombineTarget) => (
+
+          <SidebarMemoItem
+            key={item.memo.id}
+            memo={item.memo}
+            isActive={location.pathname.includes(`/memo/${item.memo.id}`)}
+            onClick={onCloseMobile}
+            formatDate={(date) => format(date, language === 'ko' ? 'yyyy.MM.dd' : 'MMM d, yyyy')}
+            untitledText={t.sidebar.untitled}
+            inThread={item.isThreadChild}
+            isThreadHead={item.isThreadHead}
+            childCount={item.childCount}
+            collapsed={collapsedThreads.has(item.threadId || '')}
+            onToggle={toggleThread}
+            threadId={item.threadId}
+            collapseText={t.sidebar.collapse}
+            moreText={t.sidebar.more_memos}
+            isCombineTarget={isCombineTarget}
+          />
+        )}
+
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '0.5rem'
+        }}
+      />
+
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
+      <SyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        adapter={handMemoSyncAdapter}
+        t={t}
+        language={language}
+      />
+      {
+        toastMessage && (
+          <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+        )
+      }
+
+    </SidebarContainer >
+  );
+};

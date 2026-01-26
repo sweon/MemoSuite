@@ -1,0 +1,69 @@
+name: Multi-Repo Deploy
+
+on:
+  push:
+    branches:
+      - main # 또는 배포를 트리거할 메인 브랜치 이름
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Monorepo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build All Apps
+        run: pnpm run build
+
+      - name: Prepare Deployment Directory
+        run: |
+          mkdir -p deploy_dist
+          cp index.html deploy_dist/
+          mkdir -p deploy_dist/HandMemo
+          cp -r apps/HandMemo/dist/* deploy_dist/HandMemo/
+          mkdir -p deploy_dist/BookMemo
+          cp -r apps/BookMemo/dist/* deploy_dist/BookMemo/
+          mkdir -p deploy_dist/WordMemo
+          cp -r apps/WordMemo/dist/* deploy_dist/WordMemo/
+          mkdir -p deploy_dist/LLMemo
+          cp -r apps/LLMemo/dist/* deploy_dist/LLMemo/
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deploy_dist
+          publish_branch: gh-pages
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"

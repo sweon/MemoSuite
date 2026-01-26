@@ -1,0 +1,743 @@
+import React, { useState, useEffect, useRef } from 'react';
+import styled from 'styled-components';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../db';
+import type { Log } from '../../db';
+import { useNavigate, useParams, useLocation } from 'react-router-dom'; // Ensure react-router-dom is installed
+import { FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiArrowUpCircle, FiPlus, FiMinus } from 'react-icons/fi';
+
+import { useRegisterSW } from 'virtual:pwa-register/react';
+import { Tooltip } from '../UI/Tooltip';
+import { SyncModal, useColorTheme, ThreadableList } from '@memosuite/shared';
+import type { DropResult, DragUpdate } from '@hello-pangea/dnd';
+
+import { Toast } from '../UI/Toast';
+import { llmemoSyncAdapter } from '../../utils/backupAdapter';
+import { useSearch } from '../../contexts/SearchContext';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { format } from 'date-fns';
+import { SidebarLogItem } from './SidebarLogItem';
+import { SidebarThreadItem } from './SidebarThreadItem';
+import pkg from '../../../package.json';
+
+const SidebarContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: ${({ theme }) => theme.colors.surface};
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+`;
+
+const Header = styled.div`
+  padding: ${({ theme }) => theme.spacing.md};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+const BrandHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg} 0`};
+`;
+
+const AppTitle = styled.div`
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary})`};
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+`;
+
+const AppVersion = styled.span`
+  font-size: 0.55rem;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: ${({ theme }) => theme.colors.background};
+  padding: 2px 6px;
+  border-radius: ${({ theme }) => theme.radius.small};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+
+const SearchInputWrapper = styled.div`
+  position: relative;
+  margin-bottom: ${({ theme }) => theme.spacing.sm};
+`;
+
+const SearchIcon = styled(FiSearch)`
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: ${({ theme }) => theme.colors.textSecondary};
+  opacity: 0.7;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 10px 12px 10px 36px;
+  border-radius: ${({ theme }) => theme.radius.medium};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 0.9rem;
+  transition: ${({ theme }) => theme.effects.transition};
+  
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.primary};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.primary}22;
+    background: ${({ theme }) => theme.colors.surface};
+  }
+`;
+
+const ClearButton = styled.button`
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: ${({ theme }) => theme.radius.full};
+  transition: ${({ theme }) => theme.effects.transition};
+  
+  &:hover {
+    color: ${({ theme }) => theme.colors.text};
+    background-color: ${({ theme }) => theme.colors.border};
+  }
+`;
+
+
+const Button = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: ${({ theme }) => theme.radius.medium};
+  border: none;
+  cursor: pointer;
+  background: #0072B2;
+  color: white;
+  flex-shrink: 0;
+  transition: ${({ theme }) => theme.effects.transition};
+  box-shadow: ${({ theme }) => theme.shadows.small};
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: ${({ theme }) => theme.shadows.medium};
+    filter: brightness(1.1);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const TopActions = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+`;
+
+const IconButton = styled.button`
+  background: transparent;
+  border: none;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  padding: 6px;
+  border-radius: ${({ theme }) => theme.radius.medium};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: ${({ theme }) => theme.effects.transition};
+  
+  &:hover {
+    background: ${({ theme }) => theme.colors.background};
+    color: ${({ theme }) => theme.colors.text};
+    transform: scale(1.1);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+  }
+`;
+
+interface SidebarProps {
+  onCloseMobile: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
+  const { searchQuery, setSearchQuery } = useSearch();
+  const { t } = useLanguage();
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'model-desc' | 'model-asc' | 'comment-desc'>('date-desc');
+
+  // Expansion state (now collapsed by default)
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+
+
+  const toggleThread = (threadId: string) => {
+    const newSet = new Set(expandedThreads);
+    if (newSet.has(threadId)) newSet.delete(threadId);
+    else newSet.add(threadId);
+    setExpandedThreads(newSet);
+  };
+  const { theme, mode, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams<{ id: string }>();
+
+  // Decide whether to replace history or push.
+  // We only replace if we are already in a sub-page (log detail or settings).
+  // If we are at root (/), we MUST push so that back button can return to root.
+  const isAtSubPage = !!id || location.pathname.includes('/settings');
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateCheckedManually, setUpdateCheckedManually] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const needRefreshRef = useRef(false);
+
+  const {
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    // Do NOT check for updates automatically on load or periodically
+    // Updates will ONLY be checked when user manually clicks the update button
+    immediate: false,
+    onRegistered(r) {
+      console.log('SW Registered: ' + r)
+      // No automatic update checks here
+    },
+    onRegisterError(error) {
+      console.log('SW registration error', error)
+    },
+  });
+
+  // Keep ref in sync for use in async handlers
+  useEffect(() => {
+    needRefreshRef.current = needRefresh;
+  }, [needRefresh]);
+
+  const handleUpdateCheck = async () => {
+    if (!updateCheckedManually) {
+      setUpdateCheckedManually(true);
+      setIsCheckingUpdate(true);
+      if (needRefresh) {
+        setIsCheckingUpdate(false);
+        setToastMessage(t.sidebar.update_found);
+        return;
+      }
+    }
+
+    if (needRefresh) {
+      setToastMessage(t.sidebar.install_update);
+      setTimeout(() => {
+        updateServiceWorker(true);
+        setTimeout(() => window.location.reload(), 3000);
+      }, 500);
+      return;
+    }
+
+    if (isCheckingUpdate && updateCheckedManually) return;
+
+    setIsCheckingUpdate(true);
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          await registration.update();
+
+          // Small delay to let the hook catch up
+          await new Promise(resolve => setTimeout(resolve, 1500));
+
+          if (registration.waiting || needRefreshRef.current) {
+            setToastMessage(t.sidebar.update_found);
+          } else {
+            setToastMessage(t.sidebar.up_to_date);
+          }
+        } else {
+          setToastMessage(t.sidebar.check_failed);
+        }
+        setIsCheckingUpdate(false);
+        setUpdateCheckedManually(true);
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+        setIsCheckingUpdate(false);
+        setToastMessage(t.sidebar.check_failed);
+      }
+    } else {
+      setIsCheckingUpdate(false);
+      setToastMessage(t.sidebar.pwa_not_supported);
+    }
+  };
+
+  // Fetch raw data reactively
+  const allLogs = useLiveQuery(() => db.logs.toArray());
+  const allModels = useLiveQuery(() => db.models.toArray());
+  const allComments = useLiveQuery(() => db.comments.toArray());
+
+  const modelNameMap = React.useMemo(() => {
+    const map = new Map<number, string>();
+    allModels?.forEach(m => map.set(m.id!, m.name));
+    return map;
+  }, [allModels]);
+
+  type FlatItem =
+    | { type: 'single', log: Log }
+    | { type: 'thread-header', log: Log, threadId: string, threadLogs: Log[] }
+    | { type: 'thread-child', log: Log, threadId: string };
+
+  const flatItems: FlatItem[] = React.useMemo(() => {
+    if (!allLogs || !allModels) return [];
+
+    let filtered = [...allLogs];
+
+    // Filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+
+      // Check if searching for a tag or model
+      if (q.startsWith('tag:')) {
+        const tagQuery = q.substring(4).trim();
+        filtered = filtered.filter(l =>
+          l.tags.some(t => t.toLowerCase().includes(tagQuery)) ||
+          (l.modelId && allModels.find(m => m.id === l.modelId)?.name.toLowerCase().includes(tagQuery))
+        );
+      } else {
+        // Regular search in title and tags
+        filtered = filtered.filter(l =>
+          l.title.toLowerCase().includes(q) ||
+          l.tags.some(t => t.toLowerCase().includes(q))
+        );
+      }
+    }
+
+    // Sort models
+    const modelOrderMap = new Map<number, number>();
+    allModels.forEach(m => modelOrderMap.set(m.id!, m.order ?? 999));
+
+    // Grouping
+    const groups = new Map<string, Log[]>();
+    const singles: Log[] = [];
+
+    filtered.forEach(l => {
+      if (l.threadId) {
+        if (!groups.has(l.threadId)) groups.set(l.threadId, []);
+        groups.get(l.threadId)!.push(l);
+      } else {
+        singles.push(l);
+      }
+    });
+
+    groups.forEach(g => g.sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0)));
+
+    type SortableGroup = {
+      type: 'single', log: Log, lastDate: Date
+    } | {
+      type: 'thread', logs: Log[], threadId: string, lastDate: Date
+    };
+
+    const sortableGroups: SortableGroup[] = [
+      ...singles.map(l => ({ type: 'single' as const, log: l, lastDate: l.createdAt })),
+      ...Array.from(groups.entries()).map(([tid, g]) => {
+        const latest = g.reduce((p, c) => (new Date(p.createdAt) > new Date(c.createdAt) ? p : c), g[0]);
+        return { type: 'thread' as const, logs: g, threadId: tid, lastDate: latest.createdAt };
+      })
+    ];
+
+    sortableGroups.sort((a, b) => {
+      if (sortBy === 'date-desc') return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
+      if (sortBy === 'date-asc') return new Date(a.lastDate).getTime() - new Date(b.lastDate).getTime();
+
+      if (sortBy === 'model-desc' || sortBy === 'model-asc') {
+        const aLog = a.type === 'single' ? a.log : a.logs[0];
+        const bLog = b.type === 'single' ? b.log : b.logs[0];
+        const aModelOrder = aLog.modelId ? (modelOrderMap.get(aLog.modelId) ?? 999) : 999;
+        const bModelOrder = bLog.modelId ? (modelOrderMap.get(bLog.modelId) ?? 999) : 999;
+
+        if (sortBy === 'model-desc') {
+          // Lower order number = higher priority = show first
+          if (aModelOrder !== bModelOrder) return aModelOrder - bModelOrder;
+          // Same model order: sort by date (newest first)
+          return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
+        } else {
+          // model-asc: Higher order = show first
+          if (aModelOrder !== bModelOrder) return bModelOrder - aModelOrder;
+          // Same model order: sort by date (newest first)
+          return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
+        }
+      }
+
+      return 0;
+    });
+
+    const flat: FlatItem[] = [];
+    sortableGroups.forEach(g => {
+      if (g.type === 'single') {
+        flat.push({ type: 'single', log: g.log });
+      } else {
+        const header = g.logs[0];
+        flat.push({ type: 'thread-header', log: header, threadId: g.threadId, threadLogs: g.logs });
+        if (expandedThreads.has(g.threadId)) {
+          g.logs.slice(1).forEach(child => {
+            flat.push({ type: 'thread-child', log: child, threadId: g.threadId });
+          });
+        }
+      }
+    });
+
+    return flat;
+  }, [allLogs, allModels, allComments, searchQuery, sortBy, expandedThreads]);
+
+  const onDragUpdate = (update: DragUpdate) => {
+    onDragUpdate?.(update);
+  };
+
+
+  const onDragEnd = async (result: DropResult) => {
+    const { source, destination, combine, draggableId } = result;
+
+
+    const parseLogId = (dId: string) => {
+      if (dId.startsWith('thread-header-')) return Number(dId.replace('thread-header-', ''));
+      if (dId.startsWith('thread-child-')) return Number(dId.replace('thread-child-', ''));
+      return Number(dId);
+    };
+
+    const updateThreadOrder = async (threadId: string, logIds: number[]) => {
+      await db.transaction('rw', db.logs, async () => {
+        for (let i = 0; i < logIds.length; i++) {
+          await db.logs.update(logIds[i], { threadId, threadOrder: i });
+        }
+      });
+    };
+
+    if (combine) {
+      const sourceId = parseLogId(draggableId);
+      const targetId = parseLogId(combine.draggableId);
+      if (sourceId === targetId) {
+        return;
+      }
+
+      const [sourceLog, targetLog] = await Promise.all([
+        db.logs.get(sourceId),
+        db.logs.get(targetId)
+      ]);
+
+      if (!sourceLog || !targetLog) {
+        return;
+      }
+
+      // If dropped on its own thread member (header or child), treat as extraction
+      if (sourceLog.threadId && sourceLog.threadId === targetLog.threadId) {
+        await db.logs.update(sourceId, { threadId: undefined, threadOrder: undefined });
+        return;
+      }
+
+      if (targetLog.threadId) {
+        const tid = targetLog.threadId;
+        const members = await db.logs.where('threadId').equals(tid).sortBy('threadOrder');
+        const newIds = members.filter(m => m.id !== sourceId).map(m => m.id!);
+        newIds.push(sourceId);
+        await updateThreadOrder(tid, newIds);
+      } else {
+        const newThreadId = crypto.randomUUID();
+        await updateThreadOrder(newThreadId, [targetId, sourceId]);
+      }
+      return;
+    }
+
+    if (!destination) {
+      return;
+    }
+    if (source.index === destination.index) {
+      return;
+    }
+
+    const movedFlatItem = flatItems[source.index];
+    if (!movedFlatItem) {
+      return;
+    }
+
+    const logId = movedFlatItem.log.id!;
+    const nextList = [...flatItems];
+    const [removed] = nextList.splice(source.index, 1);
+    nextList.splice(destination.index, 0, removed);
+
+    const prevItem = nextList[destination.index - 1];
+
+    // Determine if the dropped position should join a thread
+    let targetThreadId: string | undefined = undefined;
+
+    // SMART JOIN LOGIC:
+    // 1. If dropped after a thread header: 
+    //    - If we are a single log or a child from another thread, join this thread.
+    //    - If we are already a header, we stay standalone (don't merge via reorder).
+    // 2. If dropped after a thread child: 
+    //    - Only join if we were ALREADY in that thread (reordering within thread).
+    //    - If we move a child to another thread's children, it extracts.
+    // This makes extraction much easier: just drag a child log away from its thread items.
+    if (prevItem && (prevItem.type === 'thread-header' || prevItem.type === 'thread-child')) {
+      const isSameThread = movedFlatItem.log.threadId === prevItem.threadId;
+
+      if (isSameThread) {
+        targetThreadId = prevItem.threadId;
+      }
+    }
+    // Otherwise: targetThreadId remains undefined → extract from thread (or stay standalone)
+
+    if (targetThreadId) {
+      // Update the log to join the thread
+      await db.logs.update(logId, { threadId: targetThreadId });
+
+      // Get all thread members from the simulated nextList in their new order
+      // Filter by log ID instead of type/threadId to catch the dragged item
+      const threadLogIds = new Set<number>();
+
+      // First, get all existing thread members
+      const existingMembers = await db.logs.where('threadId').equals(targetThreadId).toArray();
+      existingMembers.forEach(log => threadLogIds.add(log.id!));
+
+      // Add the dragged item
+      threadLogIds.add(logId);
+
+      // Now extract IDs in the order they appear in nextList
+      const ids: number[] = [];
+      nextList.forEach(item => {
+        if (item.type !== 'single' && item.type !== 'thread-header' && item.type !== 'thread-child') return;
+        const itemLogId = item.log.id!;
+        if (threadLogIds.has(itemLogId) && !ids.includes(itemLogId)) {
+          ids.push(itemLogId);
+        }
+      });
+
+      // Update all thread members with their new order
+      await updateThreadOrder(targetThreadId, ids);
+    } else {
+      await db.logs.update(logId, { threadId: undefined, threadOrder: undefined });
+    }
+  };
+
+  const showUpdateIndicator = needRefresh && updateCheckedManually;
+
+  return (
+    <SidebarContainer>
+      <BrandHeader>
+        <AppTitle>LLMemo</AppTitle>
+        <AppVersion>v{pkg.version}</AppVersion>
+      </BrandHeader>
+      <Header>
+        <TopActions>
+          <Tooltip content={t.sidebar.new}>
+            <Button onClick={() => {
+              navigate('/new');
+              onCloseMobile();
+            }}>
+              <FiPlus />
+            </Button>
+          </Tooltip>
+          <div style={{ display: 'flex', gap: '0rem', alignItems: 'center', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}>
+
+            <Tooltip content={t.sidebar.decrease_font}>
+              <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
+                <FiMinus size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.increase_font}>
+              <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
+                <FiPlus size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.sync_data}>
+              <IconButton onClick={() => setIsSyncModalOpen(true)}>
+                <FiRefreshCw size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={showUpdateIndicator ? t.sidebar.install_update : t.sidebar.check_updates}>
+              <IconButton
+                onClick={handleUpdateCheck}
+                style={{ position: 'relative' }}
+              >
+                <FiArrowUpCircle size={18} className={isCheckingUpdate ? 'spin' : ''} />
+                {showUpdateIndicator && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ef4444',
+                    border: '1px solid white'
+                  }} />
+                )}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
+              <IconButton onClick={toggleTheme}>
+                {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.settings}>
+              <IconButton onClick={() => {
+                navigate('/settings', { replace: isAtSubPage });
+                onCloseMobile();
+              }}>
+                <FiSettings size={18} />
+              </IconButton>
+            </Tooltip>
+          </div>
+        </TopActions>
+
+        <SearchInputWrapper>
+          <SearchIcon size={16} />
+          <SearchInput
+            placeholder={t.sidebar.search}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <ClearButton onClick={() => setSearchQuery('')}>
+              <FiX size={14} />
+            </ClearButton>
+          )}
+        </SearchInputWrapper>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            style={{
+              flex: 1,
+              padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
+              fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
+              borderRadius: '6px',
+              border: `1px solid ${theme.colors.border}`,
+              background: theme.colors.surface,
+              color: theme.colors.text
+            }}
+          >
+            <option value="date-desc">{t.sidebar.newest}</option>
+            <option value="date-asc">{t.sidebar.oldest}</option>
+            <option value="model-desc">{t.sidebar.model_newest}</option>
+            <option value="model-asc">{t.sidebar.model_oldest}</option>
+            <option value="comment-desc">{t.sidebar.last_commented}</option>
+          </select>
+        </div>
+      </Header>
+
+      <ThreadableList
+        items={flatItems}
+        droppableId="root"
+        type="LOG_LIST"
+        onDragEnd={onDragEnd}
+        // onDragUpdate is handled by ThreadableList but we can pass it if we need extra logic
+        getItemId={(item) => {
+          if (item.type === 'single') return item.log.id!;
+          if (item.type === 'thread-header') return `thread-header-${item.log.id}`;
+          if (item.type === 'thread-child') return `thread-child-${item.log.id}`;
+          return '';
+        }}
+        renderItem={(item, _index, isCombineTarget) => {
+          if (item.type === 'single') {
+            const logId = item.log.id!;
+            return (
+              <SidebarLogItem
+                key={logId}
+                log={item.log}
+                isActive={Number(id) === logId}
+                onClick={onCloseMobile}
+                modelName={modelNameMap.get(item.log.modelId!)}
+                formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
+                untitledText={t.sidebar.untitled}
+                isCombineTarget={isCombineTarget}
+                replace={isAtSubPage}
+              />
+            );
+          } else if (item.type === 'thread-header') {
+            return (
+              <SidebarThreadItem
+                key={`header-${item.threadId}`}
+                threadId={item.threadId}
+                logs={item.threadLogs}
+                index={_index}
+                collapsed={!expandedThreads.has(item.threadId)}
+                onToggle={toggleThread}
+                activeLogId={Number(id)}
+                modelMap={modelNameMap}
+                formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
+                untitledText={t.sidebar.untitled}
+                onLogClick={onCloseMobile}
+                isCombineTarget={isCombineTarget}
+                t={t}
+                replace={isAtSubPage}
+              />
+            );
+          } else if (item.type === 'thread-child') {
+            return (
+              <SidebarLogItem
+                key={item.log.id!}
+                log={item.log}
+                isActive={Number(id) === item.log.id!}
+                onClick={onCloseMobile}
+                modelName={modelNameMap.get(item.log.modelId!)}
+                formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
+                untitledText={t.sidebar.untitled}
+                inThread={true}
+                isCombineTarget={isCombineTarget}
+                replace={isAtSubPage}
+              />
+            );
+          }
+          return null;
+        }}
+
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '0.5rem',
+          minHeight: '200px'
+        }}
+      />
+
+
+
+      <SyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        adapter={llmemoSyncAdapter}
+        t={t}
+        language={useLanguage().language}
+      />
+      {
+        toastMessage && (
+          <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+        )
+      }
+    </SidebarContainer >
+  );
+};

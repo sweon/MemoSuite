@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "lib": [
+            "DOM",
+            "DOM.Iterable",
+            "ESNext"
+        ],
+        "moduleResolution": "bundler",
+        "jsx": "react-jsx",
+        "strict": true,
+        "skipLibCheck": true,
+        "baseUrl": ".",
+        "paths": {
+            "@memosuite/shared": [
+                "src/index.ts"
+            ]
+        }
+    },
+    "include": [
+        "src",
+        "src/styled.d.ts"
+    ]
+}
