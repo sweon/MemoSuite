@@ -4346,7 +4346,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // We'll project it manually in renderHook to avoid white streaks.
         const upperCanvas = (canvas as any).upperCanvasEl;
         if (upperCanvas) {
-            upperCanvas.style.opacity = activeTool === 'eraser_pixel' ? '0' : '1';
+            // Use 0.01 instead of 0 to ensure the browser continues to update the canvas content 
+            // even if hidden, while still being invisible to the user.
+            upperCanvas.style.opacity = activeTool === 'eraser_pixel' ? '0.01' : '1';
         }
 
         switch (activeTool) {
@@ -4520,12 +4522,20 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 canvas.isDrawingMode = true;
                 const brush = new fabric.PencilBrush(canvas);
                 brush.width = brushSize * 4;
-                // Use solid color for masking; the upper canvas itself is hidden (opacity 0)
-                // but its pixels are used in renderHook to "punch holes" in the lower canvas.
                 brush.color = 'black';
                 // @ts-ignore
                 brush.globalCompositeOperation = 'source-over';
                 canvas.freeDrawingBrush = brush;
+                (brush as any).decimate = 0.5; // Smoother tracking
+
+                // CRITICAL: Force re-render on move to show real-time erasing effect
+                // We use canvas event instead of brush override to be safer
+                canvas.on('mouse:move', (opt) => {
+                    // Only re-render if we are actually drawing (mouse is down)
+                    if (canvas.isDrawingMode && opt.e.buttons === 1) {
+                        canvas.requestRenderAll();
+                    }
+                });
 
                 // Re-update cursor if zoom changes during the session
                 const handleZoomCursorUpdate = () => {
