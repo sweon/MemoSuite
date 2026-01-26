@@ -5,6 +5,7 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
   html {
     font-size: ${({ theme }) => theme.fontSize}px;
     scroll-behavior: smooth;
+    overscroll-behavior: none;
   }
 
   body {
@@ -16,6 +17,7 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
     transition: ${({ theme }) => theme.effects.transition};
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
     
     --background: ${({ theme }) => theme.colors.background};
     --surface: ${({ theme }) => theme.colors.surface};
