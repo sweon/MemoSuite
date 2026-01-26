@@ -4622,7 +4622,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     };
                 }
 
-                canvas.on('mouse:move', (opt) => {
+                canvas.on('mouse:move', () => {
                     // Force re-render on any move while in eraser mode to ensure
                     // the "destination-out" projection follows the brush in real-time.
                     if (canvas.isDrawingMode) {
