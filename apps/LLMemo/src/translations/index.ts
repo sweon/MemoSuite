@@ -181,7 +181,8 @@ export const translations = {
             add_thread: "Add Thread",
             untitled: "Untitled",
             unknown_model: "Unknown",
-            share_log: "Share"
+            share_log: "Share",
+            empty_state_title: "Select a log or create a new one"
         },
         comments: {
             title: "Comments",
@@ -455,7 +456,8 @@ export const translations = {
             add_thread: "이어서 추가",
             untitled: "제목 없음",
             unknown_model: "알 수 없음",
-            share_log: "공유"
+            share_log: "공유",
+            empty_state_title: "로그를 선택하거나 새로 만드세요"
         },
         comments: {
             title: "댓글",

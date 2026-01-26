@@ -125,12 +125,7 @@ const MIN_WIDTH = 280;
 const MAX_WIDTH = 600;
 
 export const MainLayout: React.FC = () => {
-  const [isSidebarOpen, setSidebarOpen] = useState(() => {
-    const saved = localStorage.getItem('wm_sidebar_open');
-    if (saved !== null) return saved === 'true';
-    // Default to open on Android
-    return /Android/i.test(navigator.userAgent);
-  });
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     localStorage.setItem('wm_sidebar_open', String(isSidebarOpen));

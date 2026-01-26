@@ -1,3 +1,4 @@
+import React, { useLayoutEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ColorThemeProvider, GlobalStyle, InstallPrompt, AuthProvider, LockScreen, useAuth, ModalProvider } from '@memosuite/shared';
 import { SearchProvider } from './contexts/SearchContext';
@@ -15,6 +16,13 @@ import { AndroidExitHandler } from './components/AndroidExitHandler';
 function AppContent() {
   const { t } = useLanguage();
   const { isLocked, isLoading } = useAuth();
+
+  // Reset to home on initial startup or update refresh
+  useLayoutEffect(() => {
+    if (window.location.hash !== '' && window.location.hash !== '#/') {
+      window.location.hash = '#/';
+    }
+  }, []);
 
   if (isLoading) return null;
   if (isLocked) return <LockScreen appName="BookMemo" />;

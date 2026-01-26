@@ -239,7 +239,8 @@ export const translations = {
             parse_preview: "Preview",
             add_all: "Add All",
             upload_file: "Upload File",
-            bulk_add_as_thread: "Create as Thread (First item is header)"
+            bulk_add_as_thread: "Create as Thread (First item is header)",
+            empty_state_title: "Select a word or add a new one"
         },
         comments: {
             title: "Comments",
@@ -561,7 +562,8 @@ export const translations = {
             parse_preview: "미리보기",
             add_all: "모두 추가",
             upload_file: "파일 업로드",
-            bulk_add_as_thread: "스레드로 생성 (첫 번째 항목이 헤더)"
+            bulk_add_as_thread: "스레드로 생성 (첫 번째 항목이 헤더)",
+            empty_state_title: "단어를 선택하거나 새로 추가하세요"
         },
         comments: {
             title: "댓글",

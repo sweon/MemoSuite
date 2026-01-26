@@ -530,7 +530,7 @@ export const translations = {
             add_thread: "이어서 추가",
             untitled: "제목 없음",
             share_memo: "공유",
-            empty_state_title: "사이드바에서 새 메모를 만드세요",
+            empty_state_title: "메모를 선택하거나 새로 만드세요",
             title_prompt: "제목을 입력하세요"
         },
 

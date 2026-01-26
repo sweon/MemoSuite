@@ -2,6 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { FiFileText } from 'react-icons/fi';
 
+import { useLanguage } from '../../contexts/LanguageContext';
 const Container = styled.div`
   display: flex;
   flex-direction: column;
@@ -19,12 +20,14 @@ const IconWrapper = styled.div`
 `;
 
 export const EmptyState: React.FC = () => {
+  const { t } = useLanguage();
   return (
     <Container>
       <IconWrapper>
         <FiFileText size={48} />
       </IconWrapper>
-      <h2>Select a word or add a new one.</h2>
+      <h2>{t.log_detail.empty_state_title}</h2>
     </Container>
   );
 };
+

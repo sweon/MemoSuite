@@ -128,7 +128,7 @@ const MIN_WIDTH_MOBILE = 280;
 const MAX_WIDTH_MOBILE = Math.min(450, window.innerWidth * 0.95);
 
 export const MainLayout: React.FC = () => {
-  const [isSidebarOpen, setSidebarOpen] = useState(() => /Android/i.test(navigator.userAgent));
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     const isMobileInitial = window.innerWidth <= 768;
