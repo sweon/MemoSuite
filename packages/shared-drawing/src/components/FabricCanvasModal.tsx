@@ -1810,11 +1810,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     setColor(defaultHighlighter);
                     setBrushSize(defaultSize);
                     setToolSettings(prev => ({ ...prev, [key]: { color: defaultHighlighter, size: defaultSize } }));
-                } else if (activeTool === 'pen') {
-                    // For standard pen, try to match last used or default
-                    // If no settings, maybe just keep current or set to black?
-                    // Let's keep current behavior for pen to allow continuity if switching types
-                    setToolSettings(prev => ({ ...prev, [key]: { color, size: brushSize } }));
+                } else if (activeTool === 'pen' || activeTool === 'eraser_pixel' || activeTool === 'eraser_object') {
+                    // Initialize with current state to start independent tracking for pens and erasers
+                    // Erasers always use black for their internal toolSetting color representation
+                    const initialColor = activeTool.startsWith('eraser') ? 'black' : color;
+                    setToolSettings(prev => ({ ...prev, [key]: { color: initialColor, size: brushSize } }));
                 }
             }
         }
