@@ -1305,6 +1305,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const handleActualClose = useRef(propsOnClose);
     const lastAddedObjectRef = useRef<fabric.Object | null>(null);
     const lastAddedObjectTimeRef = useRef(0);
+    const touchEraserCursorRef = useRef<SVGSVGElement | null>(null);
     handleActualClose.current = propsOnClose;
 
     const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
@@ -4337,1945 +4338,1910 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         });
 
 
-    });
 
-    // Cleanup DOM cursor if exists
-    if (domCursorRef.current) {
-        domCursorRef.current.remove();
-        domCursorRef.current = null;
-    }
+        // Cleanup DOM cursor if exists
+        if (domCursorRef.current) {
+            domCursorRef.current.remove();
+            domCursorRef.current = null;
+        }
 
-    // Remove object erasing listener if present (we'll re-add if needed)
-    canvas.off('mouse:down');
-    canvas.off('mouse:move');
-    canvas.off('mouse:up');
+        // Remove object erasing listener if present (we'll re-add if needed)
+        canvas.off('mouse:down');
+        canvas.off('mouse:move');
+        canvas.off('mouse:up');
 
-    // Re-attach standard listeners if needed (none strictly for now unless shape)
+        // Re-attach standard listeners if needed (none strictly for now unless shape)
 
-    // Stealth Eraser UI: Hide the brush trail on upper canvas while drawing
-    // We'll project it manually in renderHook to avoid white streaks.
-    const upperCanvas = (canvas as any).upperCanvasEl;
-    if (upperCanvas) {
-        // Use 0.01 instead of 0 to ensure the browser continues to update the canvas content 
-        // even if hidden, while still being invisible to the user.
-        upperCanvas.style.opacity = activeTool === 'eraser_pixel' ? '0.01' : '1';
-    }
+        // Stealth Eraser UI: Hide the brush trail on upper canvas while drawing
+        // We'll project it manually in renderHook to avoid white streaks.
+        const upperCanvas = (canvas as any).upperCanvasEl;
+        if (upperCanvas) {
+            // Use 0.01 instead of 0 to ensure the browser continues to update the canvas content 
+            // even if hidden, while still being invisible to the user.
+            upperCanvas.style.opacity = activeTool === 'eraser_pixel' ? '0.01' : '1';
+        }
 
-    switch (activeTool) {
-        case 'select':
-            canvas.isDrawingMode = false;
-            canvas.selection = true;
-            canvas.defaultCursor = 'default';
-            canvas.forEachObject((obj) => {
-                if ((obj as any).isPixelEraser) {
-                    obj.set({
-                        selectable: false,
-                        evented: false,
-                        hoverCursor: 'default'
-                    });
-                } else {
-                    obj.set({
-                        selectable: true,
-                        evented: true,
-                        hoverCursor: 'move'
-                    });
-                }
-            });
-            canvas.requestRenderAll();
-            break;
+        switch (activeTool) {
+            case 'select':
+                canvas.isDrawingMode = false;
+                canvas.selection = true;
+                canvas.defaultCursor = 'default';
+                canvas.forEachObject((obj) => {
+                    if ((obj as any).isPixelEraser) {
+                        obj.set({
+                            selectable: false,
+                            evented: false,
+                            hoverCursor: 'default'
+                        });
+                    } else {
+                        obj.set({
+                            selectable: true,
+                            evented: true,
+                            hoverCursor: 'move'
+                        });
+                    }
+                });
+                canvas.requestRenderAll();
+                break;
 
-        case 'pen':
-            canvas.isDrawingMode = true;
-            if (brushType === 'circle') {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                canvas.freeDrawingBrush = new (fabric as any).CircleBrush(canvas);
-            } else if (brushType === 'highlighter') {
-                canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (canvas.freeDrawingBrush as any).strokeLinecap = 'butt';
-            } else if (brushType === 'carbon') {
-                // Charcoal/Carbon: Heavy noise
-                const patternCanvas = document.createElement('canvas');
-                const size = 32;
-                patternCanvas.width = size;
-                patternCanvas.height = size;
-                const ctx = patternCanvas.getContext('2d');
-                if (ctx) {
-                    const imgData = ctx.createImageData(size, size);
-                    const tc = new fabric.Color(color).getSource();
-                    if (tc) {
-                        for (let i = 0; i < imgData.data.length; i += 4) {
-                            // Increased density: 0.3 -> 0.15 (85% filled)
-                            if (Math.random() > 0.15) {
-                                imgData.data[i] = tc[0];
-                                imgData.data[i + 1] = tc[1];
-                                imgData.data[i + 2] = tc[2];
-                                // Increased alpha for darker look: 0~255 -> 120~255
-                                imgData.data[i + 3] = 120 + Math.floor(Math.random() * 135);
+            case 'pen':
+                canvas.isDrawingMode = true;
+                if (brushType === 'circle') {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    canvas.freeDrawingBrush = new (fabric as any).CircleBrush(canvas);
+                } else if (brushType === 'highlighter') {
+                    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (canvas.freeDrawingBrush as any).strokeLinecap = 'butt';
+                } else if (brushType === 'carbon') {
+                    // Charcoal/Carbon: Heavy noise
+                    const patternCanvas = document.createElement('canvas');
+                    const size = 32;
+                    patternCanvas.width = size;
+                    patternCanvas.height = size;
+                    const ctx = patternCanvas.getContext('2d');
+                    if (ctx) {
+                        const imgData = ctx.createImageData(size, size);
+                        const tc = new fabric.Color(color).getSource();
+                        if (tc) {
+                            for (let i = 0; i < imgData.data.length; i += 4) {
+                                // Increased density: 0.3 -> 0.15 (85% filled)
+                                if (Math.random() > 0.15) {
+                                    imgData.data[i] = tc[0];
+                                    imgData.data[i + 1] = tc[1];
+                                    imgData.data[i + 2] = tc[2];
+                                    // Increased alpha for darker look: 0~255 -> 120~255
+                                    imgData.data[i + 3] = 120 + Math.floor(Math.random() * 135);
+                                }
                             }
                         }
+                        ctx.putImageData(imgData, 0, 0);
                     }
-                    ctx.putImageData(imgData, 0, 0);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    canvas.freeDrawingBrush = new (fabric as any).PatternBrush(canvas);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (canvas.freeDrawingBrush as any).source = patternCanvas;
+                } else if (brushType === 'hatch') {
+                    // Hatch: Criss Cross
+                    const patternCanvas = document.createElement('canvas');
+                    const size = 16;
+                    patternCanvas.width = size;
+                    patternCanvas.height = size;
+                    const ctx = patternCanvas.getContext('2d');
+                    if (ctx) {
+                        const tc = new fabric.Color(color).getSource();
+                        if (tc) {
+                            ctx.strokeStyle = `rgba(${tc[0]}, ${tc[1]}, ${tc[2]}, 1)`;
+                            ctx.lineWidth = 1;
+                            ctx.beginPath();
+                            ctx.moveTo(0, 0); ctx.lineTo(size, size);
+                            ctx.moveTo(size, 0); ctx.lineTo(0, size);
+                            ctx.stroke();
+                        }
+                    }
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    canvas.freeDrawingBrush = new (fabric as any).PatternBrush(canvas);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (canvas.freeDrawingBrush as any).source = patternCanvas;
+                } else if (brushType === 'glow') {
+                    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+                    canvas.freeDrawingBrush.shadow = new fabric.Shadow({
+                        blur: 15,
+                        offsetX: 0,
+                        offsetY: 0,
+                        color: color
+                    });
+                } else if (brushType === 'laser') {
+                    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (canvas.freeDrawingBrush as any).isLaser = true;
+                    canvas.freeDrawingBrush.color = color;
+                    canvas.freeDrawingBrush.shadow = new fabric.Shadow({
+                        blur: 10,
+                        offsetX: 0,
+                        offsetY: 0,
+                        color: color
+                    });
+
+                } else if (brushType === 'pen') {
+                    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+                } else {
+                    canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
                 }
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                canvas.freeDrawingBrush = new (fabric as any).PatternBrush(canvas);
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (canvas.freeDrawingBrush as any).source = patternCanvas;
-            } else if (brushType === 'hatch') {
-                // Hatch: Criss Cross
-                const patternCanvas = document.createElement('canvas');
-                const size = 16;
-                patternCanvas.width = size;
-                patternCanvas.height = size;
-                const ctx = patternCanvas.getContext('2d');
-                if (ctx) {
-                    const tc = new fabric.Color(color).getSource();
-                    if (tc) {
-                        ctx.strokeStyle = `rgba(${tc[0]}, ${tc[1]}, ${tc[2]}, 1)`;
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(0, 0); ctx.lineTo(size, size);
-                        ctx.moveTo(size, 0); ctx.lineTo(0, size);
-                        ctx.stroke();
+
+                canvas.freeDrawingBrush.color = (brushType === 'highlighter')
+                    ? color.replace(')', ', 0.3)').replace('rgb', 'rgba').replace('#', color) // Basic alpha support
+                    : color;
+
+                // Better highlighter color handling
+                if (brushType === 'highlighter') {
+                    if (color.startsWith('#')) {
+                        const r = parseInt(color.slice(1, 3), 16);
+                        const g = parseInt(color.slice(3, 5), 16);
+                        const b = parseInt(color.slice(5, 7), 16);
+                        canvas.freeDrawingBrush.color = `rgba(${r}, ${g}, ${b}, 0.3)`;
                     }
                 }
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                canvas.freeDrawingBrush = new (fabric as any).PatternBrush(canvas);
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (canvas.freeDrawingBrush as any).source = patternCanvas;
-            } else if (brushType === 'glow') {
-                canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-                canvas.freeDrawingBrush.shadow = new fabric.Shadow({
-                    blur: 15,
-                    offsetX: 0,
-                    offsetY: 0,
-                    color: color
-                });
-            } else if (brushType === 'laser') {
-                canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (canvas.freeDrawingBrush as any).isLaser = true;
-                canvas.freeDrawingBrush.color = color;
-                canvas.freeDrawingBrush.shadow = new fabric.Shadow({
-                    blur: 10,
-                    offsetX: 0,
-                    offsetY: 0,
-                    color: color
-                });
 
-            } else if (brushType === 'pen') {
-                canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-            } else {
-                canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-            }
-
-            canvas.freeDrawingBrush.color = (brushType === 'highlighter')
-                ? color.replace(')', ', 0.3)').replace('rgb', 'rgba').replace('#', color) // Basic alpha support
-                : color;
-
-            // Better highlighter color handling
-            if (brushType === 'highlighter') {
-                if (color.startsWith('#')) {
-                    const r = parseInt(color.slice(1, 3), 16);
-                    const g = parseInt(color.slice(3, 5), 16);
-                    const b = parseInt(color.slice(5, 7), 16);
-                    canvas.freeDrawingBrush.color = `rgba(${r}, ${g}, ${b}, 0.3)`;
+                canvas.freeDrawingBrush.width = (brushType === 'highlighter')
+                    ? brushSize * 2 : brushSize;
+                // Reduce path simplification for more accurate pen following
+                if (canvas.freeDrawingBrush instanceof fabric.PencilBrush) {
+                    (canvas.freeDrawingBrush as any).decimate = 0.5;
                 }
-            }
 
-            canvas.freeDrawingBrush.width = (brushType === 'highlighter')
-                ? brushSize * 2 : brushSize;
-            // Reduce path simplification for more accurate pen following
-            if (canvas.freeDrawingBrush instanceof fabric.PencilBrush) {
-                (canvas.freeDrawingBrush as any).decimate = 0.5;
-            }
+                // PERFORMANCE BOOST: Disable events on all objects and state tracking
+                const allObjects = canvas.getObjects();
+                for (let i = 0, len = allObjects.length; i < len; i++) {
+                    const obj = allObjects[i];
+                    obj.selectable = false;
+                    obj.evented = false;
+                    obj.statefullCache = false;
+                }
 
-            // PERFORMANCE BOOST: Disable events on all objects and state tracking
-            const allObjects = canvas.getObjects();
-            for (let i = 0, len = allObjects.length; i < len; i++) {
-                const obj = allObjects[i];
-                obj.selectable = false;
-                obj.evented = false;
-                obj.statefullCache = false;
-            }
+                canvas.off('mouse:up');
 
-            canvas.off('mouse:up');
+                canvas.freeDrawingCursor = 'crosshair';
+                canvas.defaultCursor = 'crosshair';
+                break;
 
-            canvas.freeDrawingCursor = 'crosshair';
-            canvas.defaultCursor = 'crosshair';
-            break;
+            case 'eraser_pixel': {
+                const updateEraserCursor = () => {
+                    const fCanvas = fabricCanvasRef.current;
+                    if (!fCanvas) return;
 
-        case 'eraser_pixel': {
-            const updateEraserCursor = () => {
-                const fCanvas = fabricCanvasRef.current;
-                if (!fCanvas) return;
+                    const zoom = fCanvas.getZoom();
+                    const baseSize = brushSize * 4;
+                    const scaledSize = Math.round(baseSize * zoom);
+                    const radius = scaledSize / 2;
+                    const visualRadius = Math.max(1, radius * 0.5);
 
-                const zoom = fCanvas.getZoom();
-                const baseSize = brushSize * 4;
-                const scaledSize = Math.round(baseSize * zoom);
-                const radius = scaledSize / 2;
-                // Significantly smaller visual circle (50% of physical brush) 
-                // This creates a "safety margin" so it erases immediately on touch.
-                const visualRadius = Math.max(1, radius * 0.5);
-
-                const svg = `
+                    const svg = `
                         <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
                             <circle cx="${radius}" cy="${radius}" r="${visualRadius}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
                         </svg>
                     `.trim().replace(/\s+/g, ' ');
 
-                fCanvas.freeDrawingCursor = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, crosshair`;
-            };
+                    fCanvas.freeDrawingCursor = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, crosshair`;
+                };
 
-            updateEraserCursor();
+                updateEraserCursor();
 
-            canvas.isDrawingMode = true;
-            const brush = new fabric.PencilBrush(canvas);
-            brush.width = brushSize * 4;
-            brush.color = 'black';
-            // @ts-ignore
-            brush.globalCompositeOperation = 'source-over';
-            canvas.freeDrawingBrush = brush;
-            (brush as any).decimate = 0.5; // Smoother tracking
+                canvas.isDrawingMode = true;
+                const brush = new fabric.PencilBrush(canvas);
+                brush.width = brushSize * 4;
+                brush.color = 'black';
+                // @ts-ignore
+                brush.globalCompositeOperation = 'source-over';
+                canvas.freeDrawingBrush = brush;
+                (brush as any).decimate = 0.5;
 
-            // CRITICAL: Force re-render on move to show real-time erasing effect
-            // We use canvas event instead of brush override to be safer
+                // --- TOUCH-ONLY COMPATIBILITY LAYER ---
+                const upperCanvasEl = (canvas as any).upperCanvasEl as HTMLCanvasElement;
+                if (upperCanvasEl) {
+                    const indicator = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    indicator.style.position = 'absolute';
+                    indicator.style.pointerEvents = 'none';
+                    indicator.style.zIndex = '10000';
+                    indicator.style.display = 'none';
+                    indicator.style.overflow = 'visible';
+                    indicator.setAttribute('width', '100');
+                    indicator.setAttribute('height', '100');
 
-            const updateDomCursor = (opt: any) => {
-                if (domCursorRef.current) {
-                    const pointer = canvas.getPointer(opt.e);
-                    // Center the cursor div
-                    const el = domCursorRef.current;
-                    const radius = parseFloat(el.getAttribute('data-radius') || '0');
-                    el.style.transform = `translate(${pointer.x - radius}px, ${pointer.y - radius}px)`;
-                    el.style.display = 'block'; // Show on move
-                }
-            };
+                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    circle.setAttribute('fill', 'none');
+                    circle.setAttribute('stroke', 'rgba(0,0,0,0.6)');
+                    circle.setAttribute('stroke-width', '1');
+                    indicator.appendChild(circle);
 
-            canvas.on('mouse:down', (opt) => {
-                updateDomCursor(opt);
-                canvas.requestRenderAll();
-            });
+                    const wrapper = upperCanvasEl.parentElement;
+                    if (wrapper) wrapper.appendChild(indicator);
+                    touchEraserCursorRef.current = indicator;
 
-            canvas.on('mouse:move', (opt) => {
-                updateDomCursor(opt);
+                    const handlePointer = (e: PointerEvent) => {
+                        if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
 
-                // Only re-render if we are actually drawing (mouse is down)
-                if (canvas.isDrawingMode && opt.e.buttons === 1) {
-                    canvas.requestRenderAll();
-                }
-            });
+                        if (e.type === 'pointerup' || e.type === 'pointerleave' || e.type === 'pointercancel') {
+                            indicator.style.display = 'none';
+                            return;
+                        }
 
-            // Explicitly handle touch drag for better mobile responsiveness
-            canvas.on('touch:drag', (opt) => {
-                updateDomCursor(opt);
-                canvas.requestRenderAll();
-            });
+                        const rect = upperCanvasEl.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
 
-            // Init DOM cursor for mobile
-            const initDomCursor = () => {
-                const canvasEl = canvas.getElement();
-                // Fabric wraps canvas in a wrapper (.canvas-container). We appeal to that.
-                const wrapper = canvasEl.parentElement;
-                if (!wrapper) return;
-
-                if (domCursorRef.current) domCursorRef.current.remove();
-
-                const baseSize = brushSize * 4;
-                // Visual radius logic: 50% of physical radius
-                const visualRadius = Math.max(1, (baseSize / 2) * 0.5);
-                const visualSize = visualRadius * 2;
-
-                const div = document.createElement('div');
-                div.style.position = 'absolute';
-                div.style.pointerEvents = 'none';
-                div.style.width = `${visualSize}px`;
-                div.style.height = `${visualSize}px`;
-                div.style.border = '1px solid rgba(0,0,0,0.8)'; // Make it visible
-                div.style.borderRadius = '50%';
-                div.style.zIndex = '9999'; // On top of everything
-                div.style.left = '0';
-                div.style.top = '0';
-                div.style.display = 'none'; // Hidden until move
-                div.style.boxSizing = 'border-box';
-                // Store radius for centering logic
-                div.setAttribute('data-radius', visualRadius.toString());
-
-                wrapper.appendChild(div);
-                domCursorRef.current = div;
-            };
-            initDomCursor();
-
-            // Re-update cursor if zoom changes during the session
-            const handleZoomCursorUpdate = () => {
-                if (activeToolRef.current === 'eraser_pixel') {
-                    updateEraserCursor();
-                    // Update DOM cursor size if exists
-                    if (domCursorRef.current) {
                         const zoom = canvas.getZoom();
-                        const baseSize = brushSize * 4;
+                        const visualRadius = ((brushSize * 4) / 2) * zoom * 0.5;
 
-                        const scaledSize = baseSize * zoom;
-                        const visualRadius = Math.max(1, (scaledSize / 2) * 0.5);
-                        const visualSize = visualRadius * 2;
+                        circle.setAttribute('cx', '50');
+                        circle.setAttribute('cy', '50');
+                        circle.setAttribute('r', visualRadius.toString());
 
-                        domCursorRef.current.style.width = `${visualSize}px`;
-                        domCursorRef.current.style.height = `${visualSize}px`;
-                        domCursorRef.current.setAttribute('data-radius', visualRadius.toString());
-                    }
+                        indicator.style.left = `${x - 50}px`;
+                        indicator.style.top = `${y - 50}px`;
+                        indicator.style.display = 'block';
+                    };
+
+                    upperCanvasEl.addEventListener('pointerdown', handlePointer);
+                    upperCanvasEl.addEventListener('pointermove', handlePointer);
+                    upperCanvasEl.addEventListener('pointerup', handlePointer);
+                    upperCanvasEl.addEventListener('pointerleave', handlePointer);
+                    upperCanvasEl.addEventListener('pointercancel', handlePointer);
+
+                    (canvas as any)._touchEraserCleanup = () => {
+                        upperCanvasEl.removeEventListener('pointerdown', handlePointer);
+                        upperCanvasEl.removeEventListener('pointermove', handlePointer);
+                        upperCanvasEl.removeEventListener('pointerup', handlePointer);
+                        upperCanvasEl.removeEventListener('pointerleave', handlePointer);
+                        upperCanvasEl.removeEventListener('pointercancel', handlePointer);
+                        if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
+                    };
                 }
-            }
-        };
-            canvas.on('mouse:wheel', handleZoomCursorUpdate);
-            canvas.on('touch:gesture', handleZoomCursorUpdate);
-            break;
-    }
 
-    case 'eraser_object': {
-    canvas.isDrawingMode = false;
-    canvas.defaultCursor = 'pointer';
-    canvas.hoverCursor = 'not-allowed';
-
-    // Enable events on all objects so they can be detected
-    // But exclude pixel eraser marks AND the page background
-    canvas.forEachObject((obj) => {
-        const isProtected = (obj as any).isPixelEraser || (obj as any).isPageBackground;
-        if (isProtected) {
-            obj.set({
-                selectable: false,
-                evented: false,
-                hoverCursor: 'default'
-            });
-        } else {
-            obj.set({
-                selectable: false,
-                evented: true,
-                hoverCursor: 'not-allowed'
-            });
-        }
-    });
-    canvas.requestRenderAll();
-
-    let isErasingDragging = false;
-
-    canvas.on('mouse:down', (opt) => {
-        isErasingDragging = true;
-        if (opt.target) {
-            canvas.remove(opt.target);
-            canvas.requestRenderAll();
-        }
-    });
-
-    canvas.on('mouse:move', (opt) => {
-        if (isErasingDragging && opt.target) {
-            canvas.remove(opt.target);
-            canvas.requestRenderAll();
-        }
-    });
-
-    canvas.on('mouse:up', () => {
-        isErasingDragging = false;
-    });
-    break;
-}
-
-    case 'text':
-canvas.isDrawingMode = false;
-canvas.defaultCursor = 'text';
-canvas.on('mouse:down', (opt) => {
-    // Only add text if clicking on empty area
-    if (opt.target) return;
-
-    const pointer = canvas.getPointer(opt.e);
-    const text = new fabric.IText('Type here...', {
-        left: pointer.x,
-        top: pointer.y,
-        fontFamily: fontFamily,
-        fontWeight: fontWeight,
-        fontStyle: fontStyle,
-        fontSize: Math.max(16, brushSize * 4),
-        fill: color,
-        editable: true,
-        selectable: true,
-        evented: true,
-    });
-    canvas.add(text);
-    canvas.setActiveObject(text);
-    text.enterEditing();
-    text.selectAll();
-    canvas.requestRenderAll();
-});
-break;
-
-    case 'line':
-    case 'arrow':
-    case 'rect':
-    case 'circle':
-    case 'triangle':
-    case 'ellipse':
-    case 'diamond':
-    case 'pentagon':
-    case 'hexagon':
-    case 'octagon':
-    case 'star':
-canvas.defaultCursor = 'crosshair';
-// Attach shape drawing handlers
-canvas.on('mouse:down', handleShapeMouseDown);
-canvas.on('mouse:move', handleShapeMouseMove);
-canvas.on('mouse:up', handleShapeMouseUp);
-break;
-}
-
-}, [activeTool, color, brushSize, shapeStyles, brushType, fontFamily, fontWeight, fontStyle, handleShapeMouseDown, handleShapeMouseMove, handleShapeMouseUp, background, backgroundColor, currentBackgroundColor, lineOpacity, backgroundSize, backgroundBundleGap, backgroundImage, backgroundImageOpacity]);
-
-useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
-    const activeObjects = canvas.getActiveObjects();
-    if (activeObjects.length > 0) {
-        activeObjects.forEach((obj) => {
-            if ((obj as any).isArrow && obj.type === 'group') {
-                const group = obj as fabric.Group;
-                group.getObjects().forEach((child, index) => {
-                    child.set({ stroke: color, strokeWidth: brushSize });
-                    // child 0 is the line, keep its dash if applicable
-                    // child 1 is the head, always solid
-                    if (index === 0) {
-                        const currentStyle = shapeStyles['arrow'] || DEFAULT_SHAPE_STYLE;
-                        child.set({ strokeDashArray: currentStyle.dashArray });
-                    } else {
-                        child.set({ strokeDashArray: undefined });
+                canvas.on('mouse:move', (opt) => {
+                    if (canvas.isDrawingMode && opt.e.buttons === 1) {
+                        canvas.requestRenderAll();
                     }
                 });
-            } else if (obj.type === 'i-text' || obj.type === 'text') {
-                (obj as fabric.IText).set({ fill: color, fontFamily: fontFamily });
-            } else {
-                obj.set({ stroke: color, strokeWidth: brushSize });
+
+                const handleZoomCursorUpdate = () => {
+                    if (activeToolRef.current === 'eraser_pixel') updateEraserCursor();
+                };
+                canvas.on('mouse:wheel', handleZoomCursorUpdate);
+                canvas.on('touch:gesture', handleZoomCursorUpdate);
+                break;
             }
 
-            // Also update toolSettings for this object type
-            const objType = (obj as any).isArrow ? 'arrow' :
-                (obj as any).isDiamond ? 'diamond' :
-                    (obj.type === 'i-text' || obj.type === 'text') ? 'text' :
-                        obj.type === 'path' ? 'pen' :
-                            obj.type === 'rect' ? 'rect' :
-                                obj.type === 'circle' ? 'circle' :
-                                    obj.type === 'triangle' ? 'triangle' :
-                                        obj.type === 'ellipse' ? 'ellipse' :
-                                            obj.type;
+            case 'eraser_object': {
+                canvas.isDrawingMode = false;
+                canvas.defaultCursor = 'pointer';
+                canvas.hoverCursor = 'not-allowed';
 
-            // Special case for pen types if we can detect them, but 'pen' is default
-            let targetKey = objType as string;
-            if (targetKey === 'path') targetKey = brushType; // Fallback to current brush type if it's a path
+                canvas.forEachObject((obj) => {
+                    const isProtected = (obj as any).isPixelEraser || (obj as any).isPageBackground;
+                    if (isProtected) {
+                        obj.set({ selectable: false, evented: false, hoverCursor: 'default' });
+                    } else {
+                        obj.set({ selectable: false, evented: true, hoverCursor: 'not-allowed' });
+                    }
+                });
+                canvas.requestRenderAll();
 
-            setToolSettings(prev => ({
-                ...prev,
-                [targetKey]: { color, size: brushSize }
-            }));
-        });
-        canvas.requestRenderAll();
-        saveHistory();
-    }
-}, [color, brushSize, brushType, shapeStyles, fontFamily, saveHistory]);
-
-// Unified Background Update and rendering hook isolation
-useEffect(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
-    // 1. Sync CSS background color for the canvas element (eliminates black leaks)
-    const canvasEl = canvas.getElement();
-    if (canvasEl) {
-        canvasEl.style.backgroundColor = currentBackgroundColor;
-    }
-
-    // 2. Prepare Persistent Background Pattern (includes paper color, grid, image)
-    const pat = createBackgroundPattern(background, currentBackgroundColor, lineOpacity, backgroundSize, false, backgroundBundleGap, backgroundImage || undefined, backgroundImageOpacity, canvas.getWidth());
-
-    persistentBackgroundPatternRef.current = pat as fabric.Pattern;
-
-    // 3. Attach Hole-Filling Rendering Hook
-    // This draws the background ONLY where pixels are transparent (erased area)
-    const renderHook = () => {
-        const ctx = canvas.getContext();
-        const pattern = persistentBackgroundPatternRef.current;
-        if (ctx && pattern && canvas.viewportTransform) {
-            // A. LIVE ERASE PROJECTION
-            // If user is currently erasing, subtract the upper-canvas (brush trail) 
-            // from the lower-canvas (final objects) in real-time.
-            if (activeToolRef.current === 'eraser_pixel' && canvas.isDrawingMode) {
-                const upperCanvas = (canvas as any).upperCanvasEl;
-                if (upperCanvas) {
-                    ctx.save();
-                    ctx.globalCompositeOperation = 'destination-out';
-                    // Match pixel-for-pixel; upperCanvas and lowerCanvas are always synced
-                    ctx.setTransform(1, 0, 0, 1, 0, 0);
-                    ctx.drawImage(upperCanvas, 0, 0);
-                    ctx.restore();
-                }
+                let isErasingDragging = false;
+                canvas.on('mouse:down', (opt) => {
+                    isErasingDragging = true;
+                    if (opt.target) {
+                        canvas.remove(opt.target);
+                        canvas.requestRenderAll();
+                    }
+                });
+                canvas.on('mouse:move', (opt) => {
+                    if (isErasingDragging && opt.target) {
+                        canvas.remove(opt.target);
+                        canvas.requestRenderAll();
+                    }
+                });
+                canvas.on('mouse:up', () => { isErasingDragging = false; });
+                break;
             }
 
-            // B. BACKGROUND FILL (Fill finalized holes & live projected holes)
-            ctx.save();
-            ctx.globalCompositeOperation = 'destination-over';
+            case 'text':
+                canvas.isDrawingMode = false;
+                canvas.defaultCursor = 'text';
+                canvas.on('mouse:down', (opt) => {
+                    // Only add text if clicking on empty area
+                    if (opt.target) return;
 
-            // Synchronize background rendering with current zoom and scroll
-            const vpt = canvas.viewportTransform;
-            ctx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+                    const pointer = canvas.getPointer(opt.e);
+                    const text = new fabric.IText('Type here...', {
+                        left: pointer.x,
+                        top: pointer.y,
+                        fontFamily: fontFamily,
+                        fontWeight: fontWeight,
+                        fontStyle: fontStyle,
+                        fontSize: Math.max(16, brushSize * 4),
+                        fill: color,
+                        editable: true,
+                        selectable: true,
+                        evented: true,
+                    });
+                    canvas.add(text);
+                    canvas.setActiveObject(text);
+                    text.enterEditing();
+                    text.selectAll();
+                    canvas.requestRenderAll();
+                });
+                break;
 
-            // Draw background in world space to enable scrolling.
-            // We use logical page dimensions to cover entire surface.
-            const w = pageWidthRef.current || canvas.getWidth() || 5000;
-            const h = pageHeightRef.current || canvas.getHeight() || 10000;
-
-            const livePattern = (pattern as any).toLive(ctx);
-            if (livePattern) {
-                ctx.fillStyle = livePattern;
-                ctx.fillRect(0, 0, w, h);
-            }
-
-            ctx.restore();
+            case 'line':
+            case 'arrow':
+            case 'rect':
+            case 'circle':
+            case 'triangle':
+            case 'ellipse':
+            case 'diamond':
+            case 'pentagon':
+            case 'hexagon':
+            case 'octagon':
+            case 'star':
+                canvas.defaultCursor = 'crosshair';
+                // Attach shape drawing handlers
+                canvas.on('mouse:down', handleShapeMouseDown);
+                canvas.on('mouse:move', handleShapeMouseMove);
+                canvas.on('mouse:up', handleShapeMouseUp);
+                break;
         }
-    };
 
-    canvas.off('after:render', (canvas as any).afterRenderHandler); // Prevent duplicates
-    (canvas as any).afterRenderHandler = renderHook;
-    canvas.on('after:render', renderHook);
+    }, [activeTool, color, brushSize, shapeStyles, brushType, fontFamily, fontWeight, fontStyle, handleShapeMouseDown, handleShapeMouseMove, handleShapeMouseUp, background, backgroundColor, currentBackgroundColor, lineOpacity, backgroundSize, backgroundBundleGap, backgroundImage, backgroundImageOpacity]);
 
-    // 4. Reset pageRect to transparent (it's now just a logical boundary)
-    if (pageRectRef.current && pageRectRef.current.canvas === canvas) {
-        const updates: any = {
-            fill: 'transparent',
-            width: pageWidthRef.current || canvas.getWidth(),
-            height: pageHeightRef.current || canvas.getHeight()
+    useEffect(() => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const activeObjects = canvas.getActiveObjects();
+        if (activeObjects.length > 0) {
+            activeObjects.forEach((obj) => {
+                if ((obj as any).isArrow && obj.type === 'group') {
+                    const group = obj as fabric.Group;
+                    group.getObjects().forEach((child, index) => {
+                        child.set({ stroke: color, strokeWidth: brushSize });
+                        // child 0 is the line, keep its dash if applicable
+                        // child 1 is the head, always solid
+                        if (index === 0) {
+                            const currentStyle = shapeStyles['arrow'] || DEFAULT_SHAPE_STYLE;
+                            child.set({ strokeDashArray: currentStyle.dashArray });
+                        } else {
+                            child.set({ strokeDashArray: undefined });
+                        }
+                    });
+                } else if (obj.type === 'i-text' || obj.type === 'text') {
+                    (obj as fabric.IText).set({ fill: color, fontFamily: fontFamily });
+                } else {
+                    obj.set({ stroke: color, strokeWidth: brushSize });
+                }
+
+                // Also update toolSettings for this object type
+                const objType = (obj as any).isArrow ? 'arrow' :
+                    (obj as any).isDiamond ? 'diamond' :
+                        (obj.type === 'i-text' || obj.type === 'text') ? 'text' :
+                            obj.type === 'path' ? 'pen' :
+                                obj.type === 'rect' ? 'rect' :
+                                    obj.type === 'circle' ? 'circle' :
+                                        obj.type === 'triangle' ? 'triangle' :
+                                            obj.type === 'ellipse' ? 'ellipse' :
+                                                obj.type;
+
+                // Special case for pen types if we can detect them, but 'pen' is default
+                let targetKey = objType as string;
+                if (targetKey === 'path') targetKey = brushType; // Fallback to current brush type if it's a path
+
+                setToolSettings(prev => ({
+                    ...prev,
+                    [targetKey]: { color, size: brushSize }
+                }));
+            });
+            canvas.requestRenderAll();
+            saveHistory();
+        }
+    }, [color, brushSize, brushType, shapeStyles, fontFamily, saveHistory]);
+
+    // Unified Background Update and rendering hook isolation
+    useEffect(() => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        // 1. Sync CSS background color for the canvas element (eliminates black leaks)
+        const canvasEl = canvas.getElement();
+        if (canvasEl) {
+            canvasEl.style.backgroundColor = currentBackgroundColor;
+        }
+
+        // 2. Prepare Persistent Background Pattern (includes paper color, grid, image)
+        const pat = createBackgroundPattern(background, currentBackgroundColor, lineOpacity, backgroundSize, false, backgroundBundleGap, backgroundImage || undefined, backgroundImageOpacity, canvas.getWidth());
+
+        persistentBackgroundPatternRef.current = pat as fabric.Pattern;
+
+        // 3. Attach Hole-Filling Rendering Hook
+        // This draws the background ONLY where pixels are transparent (erased area)
+        const renderHook = () => {
+            const ctx = canvas.getContext();
+            const pattern = persistentBackgroundPatternRef.current;
+            if (ctx && pattern && canvas.viewportTransform) {
+                // A. LIVE ERASE PROJECTION
+                // If user is currently erasing, subtract the upper-canvas (brush trail) 
+                // from the lower-canvas (final objects) in real-time.
+                if (activeToolRef.current === 'eraser_pixel' && canvas.isDrawingMode) {
+                    const upperCanvas = (canvas as any).upperCanvasEl;
+                    if (upperCanvas) {
+                        ctx.save();
+                        ctx.globalCompositeOperation = 'destination-out';
+                        // Match pixel-for-pixel; upperCanvas and lowerCanvas are always synced
+                        ctx.setTransform(1, 0, 0, 1, 0, 0);
+                        ctx.drawImage(upperCanvas, 0, 0);
+                        ctx.restore();
+                    }
+                }
+
+                // B. BACKGROUND FILL (Fill finalized holes & live projected holes)
+                ctx.save();
+                ctx.globalCompositeOperation = 'destination-over';
+
+                // Synchronize background rendering with current zoom and scroll
+                const vpt = canvas.viewportTransform;
+                ctx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+
+                // Draw background in world space to enable scrolling.
+                // We use logical page dimensions to cover entire surface.
+                const w = pageWidthRef.current || canvas.getWidth() || 5000;
+                const h = pageHeightRef.current || canvas.getHeight() || 10000;
+
+                const livePattern = (pattern as any).toLive(ctx);
+                if (livePattern) {
+                    ctx.fillStyle = livePattern;
+                    ctx.fillRect(0, 0, w, h);
+                }
+
+                ctx.restore();
+            }
         };
 
-        if (background === 'image' && backgroundImage) {
-            const imgWidth = (backgroundImage as any).width || 0;
-            const imgHeight = (backgroundImage as any).height || 0;
-            if (imgWidth > 0 && imgHeight > 0) {
-                const viewportW = canvas.getWidth() || 800;
-                const scale = viewportW / imgWidth;
-                const aspectHeight = imgHeight * scale;
-                updates.width = viewportW;
-                updates.height = aspectHeight;
-                pageWidthRef.current = viewportW;
-                pageHeightRef.current = aspectHeight;
+        canvas.off('after:render', (canvas as any).afterRenderHandler); // Prevent duplicates
+        (canvas as any).afterRenderHandler = renderHook;
+        canvas.on('after:render', renderHook);
 
-                isSyncingScrollRef.current = true;
-                setPageWidthState(viewportW);
-                setPageHeightState(aspectHeight);
-                setTotalPages(1);
-                setCurrentPage(1);
-                setTimeout(() => { isSyncingScrollRef.current = false; }, 150);
+        // 4. Reset pageRect to transparent (it's now just a logical boundary)
+        if (pageRectRef.current && pageRectRef.current.canvas === canvas) {
+            const updates: any = {
+                fill: 'transparent',
+                width: pageWidthRef.current || canvas.getWidth(),
+                height: pageHeightRef.current || canvas.getHeight()
+            };
+
+            if (background === 'image' && backgroundImage) {
+                const imgWidth = (backgroundImage as any).width || 0;
+                const imgHeight = (backgroundImage as any).height || 0;
+                if (imgWidth > 0 && imgHeight > 0) {
+                    const viewportW = canvas.getWidth() || 800;
+                    const scale = viewportW / imgWidth;
+                    const aspectHeight = imgHeight * scale;
+                    updates.width = viewportW;
+                    updates.height = aspectHeight;
+                    pageWidthRef.current = viewportW;
+                    pageHeightRef.current = aspectHeight;
+
+                    isSyncingScrollRef.current = true;
+                    setPageWidthState(viewportW);
+                    setPageHeightState(aspectHeight);
+                    setTotalPages(1);
+                    setCurrentPage(1);
+                    setTimeout(() => { isSyncingScrollRef.current = false; }, 150);
+                }
             }
+
+            pageRectRef.current.set(updates);
+            pageRectRef.current.setCoords();
+            canvas.requestRenderAll();
+        } else {
+            const pageRect = new fabric.Rect({
+                left: 0,
+                top: 0,
+                width: pageWidthRef.current || canvas.getWidth(),
+                height: pageHeightRef.current || canvas.getHeight(),
+                fill: 'transparent',
+                selectable: false,
+                evented: false,
+                isPageBackground: true
+            } as any);
+
+            canvas.insertAt(pageRect, 0, false);
+            pageRectRef.current = pageRect;
+            canvas.renderAll();
         }
 
-        pageRectRef.current.set(updates);
-        pageRectRef.current.setCoords();
-        canvas.requestRenderAll();
-    } else {
-        const pageRect = new fabric.Rect({
-            left: 0,
-            top: 0,
-            width: pageWidthRef.current || canvas.getWidth(),
-            height: pageHeightRef.current || canvas.getHeight(),
-            fill: 'transparent',
-            selectable: false,
-            evented: false,
-            isPageBackground: true
-        } as any);
+        return () => {
+            canvas.off('after:render', (canvas as any).afterRenderHandler);
+        };
+    }, [background, currentBackgroundColor, lineOpacity, backgroundSize, backgroundBundleGap, pageHeightState, pageWidthState, backgroundImage, backgroundImageOpacity, brushSize]);
 
-        canvas.insertAt(pageRect, 0, false);
-        pageRectRef.current = pageRect;
-        canvas.renderAll();
-    }
+    const handleVerticalScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        if (isInternalScrollRef.current) return;
 
-    return () => {
-        canvas.off('after:render', (canvas as any).afterRenderHandler);
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+
+        const target = e.currentTarget;
+        const vpt = canvas.viewportTransform;
+        if (vpt) {
+            const zoom = canvas.getZoom();
+            const viewportHeight = target.clientHeight; // Use scrollbar container's visible height
+            const canvasLogicalHeight = pageHeightRef.current * zoom;
+            const centeringOffset = Math.max(0, (viewportHeight - canvasLogicalHeight) / 2);
+
+            vpt[5] = centeringOffset - target.scrollTop;
+            canvas.requestRenderAll();
+        }
     };
-}, [background, currentBackgroundColor, lineOpacity, backgroundSize, backgroundBundleGap, pageHeightState, pageWidthState, backgroundImage, backgroundImageOpacity]);
 
-const handleVerticalScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (isInternalScrollRef.current) return;
+    const handleHorizontalScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        if (isInternalScrollRef.current) return;
 
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
 
-    const target = e.currentTarget;
-    const vpt = canvas.viewportTransform;
-    if (vpt) {
-        const zoom = canvas.getZoom();
-        const viewportHeight = target.clientHeight; // Use scrollbar container's visible height
-        const canvasLogicalHeight = pageHeightRef.current * zoom;
-        const centeringOffset = Math.max(0, (viewportHeight - canvasLogicalHeight) / 2);
+        const target = e.currentTarget;
+        const vpt = canvas.viewportTransform;
+        if (vpt && !isZoomLocked) {
+            const zoom = canvas.getZoom();
+            const viewportWidth = target.clientWidth; // Use scrollbar container's visible width
+            const logicalWidth = pageWidthRef.current * zoom;
+            const centeringOffset = Math.max(0, (viewportWidth - logicalWidth) / 2);
 
-        vpt[5] = centeringOffset - target.scrollTop;
-        canvas.requestRenderAll();
-    }
-};
+            // The absolute position vpt[4] = centeringPadding - scrolledAmount
+            vpt[4] = centeringOffset - target.scrollLeft;
 
-const handleHorizontalScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (isInternalScrollRef.current) return;
+            canvas.requestRenderAll();
+        }
+    };
 
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
-    const target = e.currentTarget;
-    const vpt = canvas.viewportTransform;
-    if (vpt && !isZoomLocked) {
-        const zoom = canvas.getZoom();
-        const viewportWidth = target.clientWidth; // Use scrollbar container's visible width
-        const logicalWidth = pageWidthRef.current * zoom;
-        const centeringOffset = Math.max(0, (viewportWidth - logicalWidth) / 2);
-
-        // The absolute position vpt[4] = centeringPadding - scrolledAmount
-        vpt[4] = centeringOffset - target.scrollLeft;
-
-        canvas.requestRenderAll();
-    }
-};
-
-return (
-    <ModalOverlay onClick={(e) => {
-        if (e.target === e.currentTarget) {
-            // If any settings modal is open (Level 1)
-            if (isPalettePickerOpen || isSizeEditOpen || isShapeSettingsOpen || isPenEditOpen || isFontEditOpen || isBgPickerOpen) {
-                // If we just interacted with an input (like the native color picker),
-                // ignore the first backdrop click so the user stays in the sub-modal.
-                if (Date.now() - lastInteractionTimeRef.current > 500) {
-                    handlePalettePickerClose();
-                    handleSizeOk();
-                    handleShapeSettingsOk();
-                    handlePenOk();
-                    handleFontOk();
-                    handleBgOk();
-                }
-            } else {
-                // Only close the main modal (Level 0) if no settings are open
-                // and some time has passed since the last interaction
-                if (Date.now() - lastInteractionTimeRef.current > 300) {
-                    handleCancelWrapped();
+    return (
+        <ModalOverlay onClick={(e) => {
+            if (e.target === e.currentTarget) {
+                // If any settings modal is open (Level 1)
+                if (isPalettePickerOpen || isSizeEditOpen || isShapeSettingsOpen || isPenEditOpen || isFontEditOpen || isBgPickerOpen) {
+                    // If we just interacted with an input (like the native color picker),
+                    // ignore the first backdrop click so the user stays in the sub-modal.
+                    if (Date.now() - lastInteractionTimeRef.current > 500) {
+                        handlePalettePickerClose();
+                        handleSizeOk();
+                        handleShapeSettingsOk();
+                        handlePenOk();
+                        handleFontOk();
+                        handleBgOk();
+                    }
+                } else {
+                    // Only close the main modal (Level 0) if no settings are open
+                    // and some time has passed since the last interaction
+                    if (Date.now() - lastInteractionTimeRef.current > 300) {
+                        handleCancelWrapped();
+                    }
                 }
             }
-        }
-    }}>
-        <ModalContainer ref={containerRef} onClick={(e) => e.stopPropagation()}>
-            <Toolbar>
-                <ToolGroup style={{ flex: 1 }}>
-                    {toolbarItems.map((item) => renderToolbarItem(item))}
-                    <div style={{ flex: 1 }} /> {/* Spacer to push buttons to right */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        color: '#444',
-                        padding: '2px 4px',
-                        background: '#f5f5f5',
-                        borderRadius: '4px',
-                        marginLeft: '2px',
-                        marginRight: '2px',
-                        fontFamily: 'monospace',
-                        cursor: 'pointer',
-                        minWidth: '22px',
-                        justifyContent: 'center'
-                    }}
-                        onClick={() => {
-                            if (!isPageEditing) {
-                                setPageInput(currentPage.toString());
-                                setIsPageEditing(true);
-                            }
+        }}>
+            <ModalContainer ref={containerRef} onClick={(e) => e.stopPropagation()}>
+                <Toolbar>
+                    <ToolGroup style={{ flex: 1 }}>
+                        {toolbarItems.map((item) => renderToolbarItem(item))}
+                        <div style={{ flex: 1 }} /> {/* Spacer to push buttons to right */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            color: '#444',
+                            padding: '2px 4px',
+                            background: '#f5f5f5',
+                            borderRadius: '4px',
+                            marginLeft: '2px',
+                            marginRight: '2px',
+                            fontFamily: 'monospace',
+                            cursor: 'pointer',
+                            minWidth: '22px',
+                            justifyContent: 'center'
                         }}
-                    >
-                        {isPageEditing ? (
-                            <input
-                                type="number"
-                                value={pageInput}
-                                onChange={(e) => setPageInput(e.target.value)}
-                                onBlur={handlePageJump}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handlePageJump();
-                                    if (e.key === 'Escape') setIsPageEditing(false);
-                                }}
-                                autoFocus
-                                style={{
-                                    width: '40px',
-                                    border: 'none',
-                                    background: 'white',
-                                    fontSize: '14px',
-                                    fontWeight: 'bold',
-                                    padding: '0 2px',
-                                    textAlign: 'center',
-                                    outline: 'none',
-                                    borderRadius: '2px'
-                                }}
-                                min={1}
-                                max={totalPages}
-                            />
-                        ) : (
-                            currentPage
-                        )}
-                        /{totalPages}
-                    </div>
-                    <ToolButton
-                        onClick={() => setIsHelpOpen(true)}
-                        style={{ border: 'none', background: 'transparent' }}
-                        title={t.drawing?.help || 'Help'}
-                    >
-                        <FiHelpCircle size={18} />
-                    </ToolButton>
-                    <ToolButton
-                        onClick={() => setIsConfigOpen(true)}
-                        style={{ border: 'none', background: 'transparent' }}
-                        title={t.drawing?.customize || 'Settings'}
-                    >
-                        <FiSettings size={18} />
-                    </ToolButton>
-                    <ToolButton
-                        onClick={toggleFullscreen}
-                        style={{ border: 'none', background: 'transparent' }}
-                        title={isFullscreen ? (t.drawing?.exit_fullscreen || 'Exit Fullscreen') : (t.drawing?.enter_fullscreen || 'Fullscreen')}
-                    >
-                        {isFullscreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
-                    </ToolButton>
-                    <ToolButton
-                        onClick={handleResetZoom}
-                        style={{ border: 'none', background: 'transparent' }}
-                        title={t.drawing?.zoom_reset || 'Reset Zoom'}
-                    >
-                        <ZoomOneIcon size={18} />
-                    </ToolButton>
-                    <StatusToggleButton
-                        $active={isZoomLocked}
-                        onClick={() => setIsZoomLocked(!isZoomLocked)}
-                        title={isZoomLocked ? t.drawing?.zoom_unlock : t.drawing?.zoom_lock}
-                    >
-                        {isZoomLocked ? <FiLock size={18} /> : <FiUnlock size={18} />}
-                    </StatusToggleButton>
-                    <div style={{ width: '4px', height: '16px', borderLeft: '1px solid #dee2e6', margin: '0 4px' }} />
-                    <CompactActionButton onClick={handleCancelWrapped} title={t.drawing?.cancel || 'Cancel'}>
-                        <FiX size={12} />
-                    </CompactActionButton>
-                    <CompactActionButton
-                        $primary
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        title={isSaving ? t.drawing?.saving : (t.drawing?.insert || 'Insert')}
-                    >
-                        {isSaving ? (
-                            <div style={{ width: '12px', height: '12px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                        ) : (
-                            <FiCheck size={12} />
-                        )}
-                        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-                    </CompactActionButton>
-                </ToolGroup>
-            </Toolbar>
-
-            {isSizeEditOpen && (
-                <Backdrop
-                    $centered={!settingsAnchor}
-                    onClick={(e) => {
-                        const now = Date.now();
-                        if (now - openedTimeRef.current < 400) return; // Ignore ghost clicks
-                        if (e.target === e.currentTarget) handleSizeOk();
-                    }}>
-                    <CompactModal
-                        $anchor={settingsAnchor || undefined}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <ColorInputWrapper>
-                            <CustomRangeInput
-                                type="range"
-                                min="1"
-                                max="100"
-                                $size={tempSize}
-                                value={tempSize}
-                                onChange={(e) => setTempSize(parseInt(e.target.value))}
-                            />
-                            <CustomNumberInput
-                                type="number"
-                                min="1"
-                                max="500"
-                                value={tempSize}
-                                onChange={(e) => setTempSize(parseInt(e.target.value) || 1)}
-                            />
-                        </ColorInputWrapper>
-                        <CompactModalFooter>
-                            <CompactModalButton onClick={handleSizeReset}>
-                                {t.drawing?.reset || 'Reset'}
-                            </CompactModalButton>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <CompactModalButton onClick={handleSizeCancel}>
-                                    {t.drawing?.cancel || 'Cancel'}
-                                </CompactModalButton>
-                                <CompactModalButton onClick={handleSizeOk} $variant="primary">
-                                    {t.drawing?.ok || 'OK'}
-                                </CompactModalButton>
-                            </div>
-                        </CompactModalFooter>
-                    </CompactModal>
-                </Backdrop>
-            )}
-            {isShapeSettingsOpen && (
-                <Backdrop
-                    $centered={!settingsAnchor}
-                    onClick={(e) => {
-                        const now = Date.now();
-                        if (now - openedTimeRef.current < 400) return; // Ignore ghost clicks
-                        if (e.target === e.currentTarget) handleShapeSettingsOk();
-                    }}>
-                    <CompactModal
-                        $anchor={settingsAnchor || undefined}
-                        onClick={e => e.stopPropagation()}
-                        style={{ minWidth: '240px', maxWidth: '95vw', maxHeight: '80vh' }}
-                    >
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '4px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '8px' }}>
-                            {(['line', 'arrow', 'rect', 'ellipse', 'triangle', 'circle', 'diamond', 'pentagon', 'hexagon', 'octagon', 'star'] as ToolType[]).map((tool) => (
-                                <ToolButton
-                                    key={tool}
-                                    $active={activeTool === tool}
-                                    onClick={() => {
-                                        setActiveTool(tool);
-                                        lastInteractionTimeRef.current = Date.now();
-                                    }}
-                                    onDoubleClick={() => {
-                                        setActiveTool(tool);
-                                        handleShapeSettingsOk();
-                                    }}
-                                    style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '4px',
-                                        background: activeTool === tool ? '#333' : 'transparent',
-                                        color: activeTool === tool ? 'white' : '#555',
-                                        border: '1px solid',
-                                        borderColor: activeTool === tool ? '#333' : '#e9ecef',
-                                    }}
-                                >
-                                    {tool === 'line' && <FiMinus size={16} style={{ transform: 'rotate(-45deg)' }} />}
-                                    {tool === 'arrow' && <FiArrowDown size={14} style={{ transform: 'rotate(-135deg)' }} />}
-                                    {tool === 'rect' && <FiSquare size={14} />}
-                                    {tool === 'circle' && <FiCircle size={14} />}
-                                    {tool === 'ellipse' && <EllipseIcon size={14} />}
-                                    {tool === 'triangle' && <FiTriangle size={14} />}
-                                    {tool === 'diamond' && <DiamondIcon size={14} />}
-                                    {tool === 'pentagon' && <PentagonIcon size={14} />}
-                                    {tool === 'hexagon' && <HexagonIcon size={14} />}
-                                    {tool === 'octagon' && <OctagonIcon size={14} />}
-                                    {tool === 'star' && <StarIcon size={14} />}
-                                </ToolButton>
-                            ))}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            {DASH_OPTIONS.map((dash, index) => (
-                                <DashOption
-                                    key={index}
-                                    $active={tempDashIndex === index}
-                                    onClick={() => setTempDashIndex(index)}
-                                >
-                                    <DashPreview $dash={dash || null} />
-                                </DashOption>
-                            ))}
-                        </div>
-                        <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }}></div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 4px' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 600, minWidth: '35px' }}>
-                                {t.drawing?.opacity || 'Opacity'}
-                            </div>
-                            <CustomRangeInput
-                                type="range"
-                                min="10"
-                                max="100"
-                                $size={6}
-                                $opacityValue={tempShapeOpacity}
-                                value={tempShapeOpacity}
-                                onChange={(e) => setTempShapeOpacity(parseInt(e.target.value))}
-                                style={{ margin: 0, flex: 1 }}
-                            />
-                            <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 500, minWidth: '30px', textAlign: 'right' }}>
-                                {tempShapeOpacity}%
-                            </div>
-                        </div>
-
-                        {activeTool === 'arrow' && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px', borderTop: '1px solid #eee' }}>
-                                <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 600, minWidth: '35px' }}>
-                                    {t.drawing?.head_size || 'Head'}
-                                </div>
-                                <CustomRangeInput
-                                    type="range"
-                                    min="5"
-                                    max="100"
-                                    $size={6}
-                                    value={tempHeadSize}
-                                    onChange={(e) => setTempHeadSize(parseInt(e.target.value))}
-                                    style={{ margin: 0, flex: 1 }}
-                                />
-                                <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 500, minWidth: '30px', textAlign: 'right' }}>
-                                    {tempHeadSize}px
-                                </div>
-                            </div>
-                        )}
-
-                        <CompactModalFooter>
-                            <CompactModalButton onClick={handleShapeSettingsReset}>
-                                {t.drawing?.reset || 'Reset'}
-                            </CompactModalButton>
-                            <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                <CompactModalButton onClick={handleShapeSettingsCancel}>
-                                    {t.drawing?.cancel || 'Cancel'}
-                                </CompactModalButton>
-                                <CompactModalButton onClick={handleShapeSettingsOk} $variant="primary">
-                                    {t.drawing?.ok || 'OK'}
-                                </CompactModalButton>
-                            </div>
-                        </CompactModalFooter>
-                    </CompactModal>
-                </Backdrop>
-            )}
-
-            {isPenEditOpen && (
-                <Backdrop
-                    $centered={!settingsAnchor}
-                    onClick={(e) => {
-                        const now = Date.now();
-                        if (now - openedTimeRef.current < 400) return; // Ignore ghost clicks
-                        if (e.target === e.currentTarget) handlePenOk();
-                    }}>
-                    <CompactModal
-                        $anchor={settingsAnchor || undefined}
-                        onClick={e => e.stopPropagation()}
-                        style={{ minWidth: '200px', maxWidth: '95vw', maxHeight: '80vh', overflowY: 'auto', padding: '12px', paddingBottom: '24px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                    >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            <DashOption
-                                $active={tempBrushType === 'pen'}
-                                onClick={() => setTempBrushType('pen')}
-                                onDoubleClick={() => {
-                                    setTempBrushType('pen');
-                                    handlePenOk();
-                                }}
-                                style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
-                            >
-                                <PenIcon />
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_pen}</span>
-                                <BrushSample
-                                    $type="pen"
-                                    $color={toolSettings['pen']?.color || color}
-                                    $size={toolSettings['pen']?.size || brushSize}
-                                />
-                            </DashOption>
-                            <DashOption
-                                $active={tempBrushType === 'carbon'}
-                                onClick={() => setTempBrushType('carbon')}
-                                onDoubleClick={() => {
-                                    setTempBrushType('carbon');
-                                    handlePenOk();
-                                }}
-                                style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
-                            >
-                                <PencilIcon />
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_carbon}</span>
-                                <BrushSample
-                                    $type="carbon"
-                                    $color={toolSettings['carbon']?.color || color}
-                                    $size={toolSettings['carbon']?.size || brushSize}
-                                />
-                            </DashOption>
-
-                            <DashOption
-                                $active={tempBrushType === 'highlighter'}
-                                onClick={() => setTempBrushType('highlighter')}
-                                onDoubleClick={() => {
-                                    setTempBrushType('highlighter');
-                                    handlePenOk();
-                                }}
-                                style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
-                            >
-                                <HighlighterIcon />
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_highlighter}</span>
-                                <BrushSample
-                                    $type="highlighter"
-                                    $color={toolSettings['highlighter']?.color || color}
-                                    $size={(toolSettings['highlighter']?.size || brushSize) * 2}
-                                />
-                            </DashOption>
-
-                            <DashOption
-                                $active={tempBrushType === 'laser'}
-                                onClick={() => setTempBrushType('laser')}
-                                onDoubleClick={() => {
-                                    setTempBrushType('laser');
-                                    handlePenOk();
-                                }}
-                                style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
-                            >
-                                <LaserIcon />
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_laser}</span>
-                                <BrushSample
-                                    $type="laser"
-                                    $color={toolSettings['laser']?.color || color}
-                                    $size={toolSettings['laser']?.size || brushSize}
-                                />
-                            </DashOption>
-                            <DashOption
-                                $active={tempBrushType === 'glow'}
-                                onClick={() => setTempBrushType('glow')}
-                                onDoubleClick={() => {
-                                    setTempBrushType('glow');
-                                    handlePenOk();
-                                }}
-                                style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
-                            >
-                                <GlowIcon />
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_glow}</span>
-                                <BrushSample
-                                    $type="glow"
-                                    $color={toolSettings['glow']?.color || color}
-                                    $size={toolSettings['glow']?.size || brushSize}
-                                />
-                            </DashOption>
-
-                            <DashOption
-                                $active={tempBrushType === 'circle'}
-                                onClick={() => setTempBrushType('circle')}
-                                onDoubleClick={() => {
-                                    setTempBrushType('circle');
-                                    handlePenOk();
-                                }}
-                                style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
-                            >
-                                <CircleBrushIcon />
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_circle}</span>
-                                <BrushSample
-                                    $type="circle"
-                                    $color={toolSettings['circle']?.color || color}
-                                    $size={toolSettings['circle']?.size || brushSize}
-                                />
-                            </DashOption>
-                            <DashOption
-                                $active={tempBrushType === 'hatch'}
-                                onClick={() => setTempBrushType('hatch')}
-                                onDoubleClick={() => {
-                                    setTempBrushType('hatch');
-                                    handlePenOk();
-                                }}
-                                style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
-                            >
-                                <HatchIcon />
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_hatch}</span>
-                                <BrushSample
-                                    $type="hatch"
-                                    $color={toolSettings['hatch']?.color || color}
-                                    $size={toolSettings['hatch']?.size || brushSize}
-                                />
-                            </DashOption>
-
-                            {activePenSlot === 'pen_1' && (
-                                <>
-                                    <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }}></div>
-
-                                    <DashOption
-                                        $active={tempPalmRejection}
-                                        onClick={() => setTempPalmRejection(!tempPalmRejection)}
-                                        style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
-                                    >
-                                        <div style={{
-                                            width: '18px',
-                                            height: '18px',
-                                            borderRadius: '4px',
-                                            border: '2px solid #333',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            background: tempPalmRejection ? '#333' : 'transparent'
-                                        }}>
-                                            {tempPalmRejection && <div style={{ width: '8px', height: '8px', background: 'white', borderRadius: '1px' }} />}
-                                        </div>
-                                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                        <span style={{ fontSize: '0.85rem' }}>{(t.drawing as any)?.palm_rejection || 'Palm Rejection'}</span>
-                                    </DashOption>
-                                </>
-                            )}
-                        </div>
-                        <CompactModalFooter>
-                            <CompactModalButton onClick={handlePenReset}>
-                                {t.drawing?.reset || 'Reset'}
-                            </CompactModalButton>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <CompactModalButton onClick={handlePenCancel}>
-                                    {t.drawing?.cancel || 'Cancel'}
-                                </CompactModalButton>
-                                <CompactModalButton onClick={handlePenOk} $variant="primary">
-                                    {t.drawing?.ok || 'OK'}
-                                </CompactModalButton>
-                            </div>
-                        </CompactModalFooter>
-                    </CompactModal>
-                </Backdrop>
-            )}
-
-            {isFontEditOpen && (
-                <Backdrop
-                    $centered={!settingsAnchor}
-                    onClick={(e) => {
-                        const now = Date.now();
-                        if (now - openedTimeRef.current < 400) return; // Ignore ghost clicks
-                        if (e.target === e.currentTarget) handleFontOk();
-                    }}>
-                    <CompactModal
-                        $anchor={settingsAnchor || undefined}
-                        onClick={e => e.stopPropagation()}
-                        style={{ minWidth: '160px', maxWidth: '95vw', maxHeight: '80vh' }}
-                    >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto' }}>
-
-                            {availableFonts.map((font) => (
-                                <DashOption
-                                    key={font}
-                                    $active={tempFontFamily === font}
-                                    onClick={() => setTempFontFamily(font)}
-                                    onDoubleClick={() => {
-                                        setTempFontFamily(font);
-                                        setFontFamily(font);
-                                        setSettingsAnchor(null);
-                                        setIsFontEditOpen(false);
-                                        lastInteractionTimeRef.current = Date.now();
-                                    }}
-                                    onTouchStart={(e) => {
-                                        setTempFontFamily(font);
-                                        handleDoubleTap(e, `font - ${font} `, () => {
-                                            setFontFamily(font);
-                                            setSettingsAnchor(null);
-                                            setIsFontEditOpen(false);
-                                            lastInteractionTimeRef.current = Date.now();
-                                        });
-                                    }}
-                                    style={{ fontFamily: font, height: '32px', justifyContent: 'flex-start', padding: '0 12px' }}
-                                >
-                                    {font}
-                                </DashOption>
-                            ))}
-                        </div>
-                        <div style={{ display: 'flex', gap: '4px', padding: '8px 12px', borderTop: '1px solid #eee' }}>
-                            {[
-                                { label: t.drawing?.font_thin || 'Thin', value: 100 },
-                                { label: t.drawing?.font_normal || 'Normal', value: 'normal' },
-                                { label: t.drawing?.font_bold || 'Bold', value: 'bold' }
-                            ].map((w) => (
-                                <CompactModalButton
-                                    key={typeof w.value === 'string' ? w.value : w.value.toString()}
-                                    $variant={tempFontWeight == w.value ? 'primary' : undefined}
-                                    onClick={() => setTempFontWeight(w.value)}
-                                    style={{ flex: 1, fontSize: '0.8rem', padding: '4px' }}
-                                >
-                                    {w.label}
-                                </CompactModalButton>
-                            ))}
-                        </div>
-                        <div style={{ display: 'flex', padding: '0 12px 8px 12px' }}>
-                            <CompactModalButton
-                                $variant={tempFontStyle === 'italic' ? 'primary' : undefined}
-                                onClick={() => setTempFontStyle(prev => prev === 'italic' ? 'normal' : 'italic')}
-                                style={{ flex: 1, fontSize: '0.8rem', padding: '4px', fontStyle: 'italic' }}
-                            >
-                                {t.drawing?.font_italic || 'Italic'}
-                            </CompactModalButton>
-                        </div>
-                        <CompactModalFooter>
-                            <div />
-                            <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                <CompactModalButton onClick={handleFontCancel}>
-                                    {t.drawing?.cancel || 'Cancel'}
-                                </CompactModalButton>
-                                <CompactModalButton onClick={handleFontOk} $variant="primary">
-                                    {t.drawing?.ok || 'OK'}
-                                </CompactModalButton>
-                            </div>
-                        </CompactModalFooter>
-                    </CompactModal>
-                </Backdrop>
-            )}
-
-            {isPalettePickerOpen && (
-                <Backdrop onClick={handlePalettePickerClose}>
-                    <CompactModal onClick={e => e.stopPropagation()} style={{ width: '90vw', maxWidth: '350px', maxHeight: '80vh', overflowY: 'auto', padding: '0 16px 16px 16px' }}>
-                        {editingPaletteIndex === null ? (
-                            <>
-                                <div style={{ position: 'relative', height: '14px', marginBottom: '4px' }}>
-                                    <FiX style={{ position: 'absolute', top: '-4px', right: '-4px', padding: '10px', cursor: 'pointer', color: '#888' }} onClick={handlePalettePickerClose} />
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {palettes.map((p, idx) => (
-                                        <div
-                                            key={idx}
-                                            onClick={() => handlePaletteSelect(idx)}
-                                            onDoubleClick={() => handlePaletteDoubleTap_Local(idx)}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                padding: '8px',
-                                                borderRadius: '8px',
-                                                border: '2px solid',
-                                                borderColor: selectedPaletteIndex === idx ? '#333' : '#e9ecef',
-                                                background: selectedPaletteIndex === idx ? '#f8f9fa' : 'white',
-                                                transition: 'all 0.2s',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <div style={{ flex: 1, display: 'flex', gap: '6px' }}>
-                                                {p.map((c, cIdx) => (
-                                                    <div key={cIdx} style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: '1px solid rgba(0,0,0,0.1)' }} />
-                                                ))}
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '4px', marginLeft: '12px' }}>
-                                                <button
-                                                    onClick={(e) => handlePaletteEditStart(e, idx)}
-                                                    title={t.drawing?.palette_edit || 'Edit colors'}
-                                                    style={{ border: 'none', background: '#f1f3f5', borderRadius: '4px', cursor: 'pointer', padding: '6px', color: '#495057', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                >
-                                                    <FiEdit2 size={14} />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); setPaletteResetIndex(idx); setIsPaletteResetConfirmOpen(true); }}
-                                                    title={t.drawing?.palette_reset || 'Reset to default'}
-                                                    style={{ border: 'none', background: '#f1f3f5', borderRadius: '4px', cursor: 'pointer', padding: '6px', color: '#495057', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                >
-                                                    <FiRotateCcw size={14} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <CompactModalFooter style={{ marginTop: '20px' }}>
-                                    <CompactModalButton onClick={handlePalettePickerClose}>{t.drawing?.cancel || 'Cancel'}</CompactModalButton>
-                                    <CompactModalButton $variant="primary" onClick={handlePaletteOk} style={{ minWidth: '80px' }}>{t.drawing?.ok || 'OK'}</CompactModalButton>
-                                </CompactModalFooter>
-                            </>
-                        ) : (
-                            <>
-                                <div style={{ position: 'relative', height: '14px', marginBottom: '4px' }}>
-                                    <FiX style={{ position: 'absolute', top: '-4px', right: '-4px', padding: '10px', cursor: 'pointer', color: '#888' }} onClick={handlePaletteEditCancel} />
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 'max-content' }}>
-                                    <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '8px', justifyContent: 'space-between', padding: '4px', background: '#f8f9fa', borderRadius: '8px' }}>
-                                        {paletteTempColors.map((c, idx) => (
-                                            <div
-                                                key={idx}
-                                                onClick={() => setPaletteEditingColorIndex(idx)}
-                                                style={{
-                                                    width: '38px',
-                                                    height: '38px',
-                                                    borderRadius: '50%',
-                                                    background: c,
-                                                    border: paletteEditingColorIndex === idx ? '3px solid #333' : '2px solid white',
-                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                                    cursor: 'pointer',
-                                                    transition: 'transform 0.1s'
-                                                }}
-                                            />
-                                        ))}
-                                    </div>
-                                    {paletteEditingColorIndex !== null && (
-                                        <div style={{ padding: '8px', background: 'white', borderRadius: '8px', border: '1px solid #dee2e6' }}>
-                                            <HexColorPicker
-                                                color={paletteTempColors[paletteEditingColorIndex]}
-                                                onChange={(newColor) => {
-                                                    const next = [...paletteTempColors];
-                                                    next[paletteEditingColorIndex] = newColor;
-                                                    setPaletteTempColors(next);
-                                                }}
-                                                style={{ width: '100%', height: '150px' }}
-                                            />
-                                            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 4px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span style={{ fontSize: '0.75rem', color: '#888', fontWeight: 600, width: '30px', flexShrink: 0 }}>HEX</span>
-                                                    <div style={{ display: 'flex', flex: 1 }}>
-                                                        <input
-                                                            value={paletteTempColors[paletteEditingColorIndex].toUpperCase()}
-                                                            readOnly
-                                                            style={{
-                                                                width: '100%',
-                                                                padding: '6px 10px',
-                                                                fontSize: '1rem',
-                                                                fontFamily: 'inherit',
-                                                                border: '1px solid #ced4da',
-                                                                borderRadius: '4px',
-                                                                background: '#f1f3f5',
-                                                                cursor: 'default',
-                                                                color: '#495057',
-                                                                textAlign: 'left',
-                                                                height: '40px'
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span style={{ fontSize: '0.75rem', color: '#888', fontWeight: 600, width: '30px', flexShrink: 0 }}>RGB</span>
-                                                    <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
-                                                        {['r', 'g', 'b'].map((key) => {
-                                                            const rgb = hexToRgb(paletteTempColors[paletteEditingColorIndex!]);
-                                                            return (
-                                                                <input
-                                                                    key={key}
-                                                                    type="number"
-                                                                    min="0"
-                                                                    max="255"
-                                                                    value={rgb[key as keyof typeof rgb]}
-                                                                    onChange={(e) => {
-                                                                        const val = parseInt(e.target.value) || 0;
-                                                                        const newRgb = { ...rgb, [key]: val };
-                                                                        const next = [...paletteTempColors];
-                                                                        next[paletteEditingColorIndex!] = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
-                                                                        setPaletteTempColors(next);
-                                                                    }}
-                                                                    style={{
-                                                                        flex: 1,
-                                                                        width: 0, // Allow flex to control width
-                                                                        padding: '6px 2px',
-                                                                        border: '1px solid #ced4da',
-                                                                        borderRadius: '4px',
-                                                                        fontSize: '1rem',
-                                                                        textAlign: 'center',
-                                                                        background: 'white',
-                                                                        height: '40px'
-                                                                    }}
-                                                                />
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <CompactModalFooter style={{ marginTop: '20px' }}>
-                                    <CompactModalButton onClick={handlePaletteEditCancel}>{t.drawing?.cancel || 'Cancel'}</CompactModalButton>
-                                    <CompactModalButton $variant="primary" onClick={handlePaletteEditSave} style={{ minWidth: '100px' }}>{t.drawing?.save_palette || 'Save Palette'}</CompactModalButton>
-                                </CompactModalFooter>
-                            </>
-                        )}
-                    </CompactModal>
-                </Backdrop>
-            )}
-
-            {isBgPickerOpen && (
-                <Backdrop
-                    $centered={!settingsAnchor}
-                    onClick={(e) => {
-                        const now = Date.now();
-                        if (now - openedTimeRef.current < 400) return;
-                        if (e.target === e.currentTarget) handleBgOk();
-                    }}>
-                    <CompactModal
-                        $anchor={settingsAnchor || undefined}
-                        onClick={e => e.stopPropagation()}
-                        style={{ minWidth: '200px', maxWidth: '95vw', maxHeight: '80vh', overflowY: 'auto', padding: '12px', paddingBottom: '24px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                    >
-                        <div style={{ fontWeight: 600, fontSize: '0.75rem', color: '#495057', marginBottom: '6px' }}>{t.drawing.bg_settings}</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', marginBottom: '8px' }}>
-                            <BackgroundOptionButton
-                                $active={background === 'none'}
-                                onClick={() => setBackground('none')}
-                            >
-                                {t.drawing.bg_none}
-                            </BackgroundOptionButton>
-                            <BackgroundOptionButton
-                                $active={background === 'lines'}
-                                onClick={() => setBackground('lines')}
-                            >
-                                {t.drawing.bg_lines}
-                            </BackgroundOptionButton>
-                            <BackgroundOptionButton
-                                $active={background === 'grid'}
-                                onClick={() => setBackground('grid')}
-                            >
-                                {t.drawing.bg_grid}
-                            </BackgroundOptionButton>
-                            <BackgroundOptionButton
-                                $active={background === 'dots'}
-                                onClick={() => setBackground('dots')}
-                            >
-                                {t.drawing.bg_dots}
-                            </BackgroundOptionButton>
-                            <BackgroundOptionButton
-                                $active={background === 'english'}
-                                onClick={() => setBackground('english')}
-                            >
-                                {t.drawing.bg_english}
-                            </BackgroundOptionButton>
-                            <BackgroundOptionButton
-                                $active={background === 'music'}
-                                onClick={() => setBackground('music')}
-                            >
-                                {t.drawing.bg_music}
-                            </BackgroundOptionButton>
-                        </div>
-
-                        <input
-                            type="file"
-                            ref={bgFileInputRef}
-                            style={{ display: 'none' }}
-                            accept="image/*,.pdf"
-                            onChange={handleBackgroundFileChange}
-                        />
-
-                        <BackgroundOptionButton
-                            $active={background === 'image'}
                             onClick={() => {
-                                if (backgroundImage) {
-                                    setBackground('image');
-                                } else {
-                                    bgFileInputRef.current?.click();
+                                if (!isPageEditing) {
+                                    setPageInput(currentPage.toString());
+                                    setIsPageEditing(true);
                                 }
                             }}
-                            style={{ width: '100%', marginBottom: '8px', minHeight: '36px' }}
                         >
-                            {backgroundImage ? t.drawing.selected_file : t.drawing.upload_file}
-                        </BackgroundOptionButton>
+                            {isPageEditing ? (
+                                <input
+                                    type="number"
+                                    value={pageInput}
+                                    onChange={(e) => setPageInput(e.target.value)}
+                                    onBlur={handlePageJump}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handlePageJump();
+                                        if (e.key === 'Escape') setIsPageEditing(false);
+                                    }}
+                                    autoFocus
+                                    style={{
+                                        width: '40px',
+                                        border: 'none',
+                                        background: 'white',
+                                        fontSize: '14px',
+                                        fontWeight: 'bold',
+                                        padding: '0 2px',
+                                        textAlign: 'center',
+                                        outline: 'none',
+                                        borderRadius: '2px'
+                                    }}
+                                    min={1}
+                                    max={totalPages}
+                                />
+                            ) : (
+                                currentPage
+                            )}
+                            /{totalPages}
+                        </div>
+                        <ToolButton
+                            onClick={() => setIsHelpOpen(true)}
+                            style={{ border: 'none', background: 'transparent' }}
+                            title={t.drawing?.help || 'Help'}
+                        >
+                            <FiHelpCircle size={18} />
+                        </ToolButton>
+                        <ToolButton
+                            onClick={() => setIsConfigOpen(true)}
+                            style={{ border: 'none', background: 'transparent' }}
+                            title={t.drawing?.customize || 'Settings'}
+                        >
+                            <FiSettings size={18} />
+                        </ToolButton>
+                        <ToolButton
+                            onClick={toggleFullscreen}
+                            style={{ border: 'none', background: 'transparent' }}
+                            title={isFullscreen ? (t.drawing?.exit_fullscreen || 'Exit Fullscreen') : (t.drawing?.enter_fullscreen || 'Fullscreen')}
+                        >
+                            {isFullscreen ? <FiMinimize size={18} /> : <FiMaximize size={18} />}
+                        </ToolButton>
+                        <ToolButton
+                            onClick={handleResetZoom}
+                            style={{ border: 'none', background: 'transparent' }}
+                            title={t.drawing?.zoom_reset || 'Reset Zoom'}
+                        >
+                            <ZoomOneIcon size={18} />
+                        </ToolButton>
+                        <StatusToggleButton
+                            $active={isZoomLocked}
+                            onClick={() => setIsZoomLocked(!isZoomLocked)}
+                            title={isZoomLocked ? t.drawing?.zoom_unlock : t.drawing?.zoom_lock}
+                        >
+                            {isZoomLocked ? <FiLock size={18} /> : <FiUnlock size={18} />}
+                        </StatusToggleButton>
+                        <div style={{ width: '4px', height: '16px', borderLeft: '1px solid #dee2e6', margin: '0 4px' }} />
+                        <CompactActionButton onClick={handleCancelWrapped} title={t.drawing?.cancel || 'Cancel'}>
+                            <FiX size={12} />
+                        </CompactActionButton>
+                        <CompactActionButton
+                            $primary
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            title={isSaving ? t.drawing?.saving : (t.drawing?.insert || 'Insert')}
+                        >
+                            {isSaving ? (
+                                <div style={{ width: '12px', height: '12px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                            ) : (
+                                <FiCheck size={12} />
+                            )}
+                            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+                        </CompactActionButton>
+                    </ToolGroup>
+                </Toolbar>
 
-                        {backgroundImage && (
-                            <div style={{
-                                padding: '8px',
-                                background: '#f8f9fa',
-                                borderRadius: '8px',
-                                border: '1px solid #e9ecef',
-                                marginBottom: '4px'
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <FiTrash2
-                                            size={18}
-                                            style={{ cursor: 'pointer', color: '#ef4444' }}
-                                            onClick={() => {
-                                                setBackgroundImage(null);
-                                                setBackground('none');
-                                            }}
-                                            title={t.drawing.clear || 'Remove Background'}
-                                        />
-                                        <div style={{ fontSize: '0.75rem', color: '#495057', fontWeight: 600 }}>{t.drawing.bg_image_intensity}</div>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                        <input
-                                            type="number"
-                                            value={Math.round(backgroundImageOpacity * 100)}
-                                            onChange={(e) => setBackgroundImageOpacity((parseInt(e.target.value) || 0) / 100)}
-                                            style={{
-                                                width: '58px',
-                                                border: '1px solid transparent',
-                                                background: 'transparent',
-                                                fontSize: '0.7rem',
-                                                color: '#333',
-                                                fontWeight: 600,
-                                                textAlign: 'right',
-                                                padding: 0
-                                            }}
-                                            onFocus={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#ddd'; }}
-                                            onBlur={(e) => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'transparent'; }}
-                                        />
-                                        <span style={{ fontSize: '0.7rem', color: '#333', fontWeight: 600 }}>%</span>
-                                    </div>
-                                </div>
+                {isSizeEditOpen && (
+                    <Backdrop
+                        $centered={!settingsAnchor}
+                        onClick={(e) => {
+                            const now = Date.now();
+                            if (now - openedTimeRef.current < 400) return; // Ignore ghost clicks
+                            if (e.target === e.currentTarget) handleSizeOk();
+                        }}>
+                        <CompactModal
+                            $anchor={settingsAnchor || undefined}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <ColorInputWrapper>
                                 <CustomRangeInput
                                     type="range"
                                     min="1"
                                     max="100"
-                                    $size={6}
-                                    $thumbColor={`rgb(${255 - (255 - 51) * backgroundImageOpacity}, ${255 - (255 - 51) * backgroundImageOpacity}, ${255 - (255 - 51) * backgroundImageOpacity})`}
-                                    value={backgroundImageOpacity * 100}
-                                    onChange={(e) => setBackgroundImageOpacity(parseInt(e.target.value) / 100)}
-                                    style={{ margin: '4px 0' }}
+                                    $size={tempSize}
+                                    value={tempSize}
+                                    onChange={(e) => setTempSize(parseInt(e.target.value))}
                                 />
+                                <CustomNumberInput
+                                    type="number"
+                                    min="1"
+                                    max="500"
+                                    value={tempSize}
+                                    onChange={(e) => setTempSize(parseInt(e.target.value) || 1)}
+                                />
+                            </ColorInputWrapper>
+                            <CompactModalFooter>
+                                <CompactModalButton onClick={handleSizeReset}>
+                                    {t.drawing?.reset || 'Reset'}
+                                </CompactModalButton>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <CompactModalButton onClick={handleSizeCancel}>
+                                        {t.drawing?.cancel || 'Cancel'}
+                                    </CompactModalButton>
+                                    <CompactModalButton onClick={handleSizeOk} $variant="primary">
+                                        {t.drawing?.ok || 'OK'}
+                                    </CompactModalButton>
+                                </div>
+                            </CompactModalFooter>
+                        </CompactModal>
+                    </Backdrop>
+                )}
+                {isShapeSettingsOpen && (
+                    <Backdrop
+                        $centered={!settingsAnchor}
+                        onClick={(e) => {
+                            const now = Date.now();
+                            if (now - openedTimeRef.current < 400) return; // Ignore ghost clicks
+                            if (e.target === e.currentTarget) handleShapeSettingsOk();
+                        }}>
+                        <CompactModal
+                            $anchor={settingsAnchor || undefined}
+                            onClick={e => e.stopPropagation()}
+                            style={{ minWidth: '240px', maxWidth: '95vw', maxHeight: '80vh' }}
+                        >
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '4px', background: '#f8f9fa', borderRadius: '8px', marginBottom: '8px' }}>
+                                {(['line', 'arrow', 'rect', 'ellipse', 'triangle', 'circle', 'diamond', 'pentagon', 'hexagon', 'octagon', 'star'] as ToolType[]).map((tool) => (
+                                    <ToolButton
+                                        key={tool}
+                                        $active={activeTool === tool}
+                                        onClick={() => {
+                                            setActiveTool(tool);
+                                            lastInteractionTimeRef.current = Date.now();
+                                        }}
+                                        onDoubleClick={() => {
+                                            setActiveTool(tool);
+                                            handleShapeSettingsOk();
+                                        }}
+                                        style={{
+                                            width: '32px',
+                                            height: '32px',
+                                            borderRadius: '4px',
+                                            background: activeTool === tool ? '#333' : 'transparent',
+                                            color: activeTool === tool ? 'white' : '#555',
+                                            border: '1px solid',
+                                            borderColor: activeTool === tool ? '#333' : '#e9ecef',
+                                        }}
+                                    >
+                                        {tool === 'line' && <FiMinus size={16} style={{ transform: 'rotate(-45deg)' }} />}
+                                        {tool === 'arrow' && <FiArrowDown size={14} style={{ transform: 'rotate(-135deg)' }} />}
+                                        {tool === 'rect' && <FiSquare size={14} />}
+                                        {tool === 'circle' && <FiCircle size={14} />}
+                                        {tool === 'ellipse' && <EllipseIcon size={14} />}
+                                        {tool === 'triangle' && <FiTriangle size={14} />}
+                                        {tool === 'diamond' && <DiamondIcon size={14} />}
+                                        {tool === 'pentagon' && <PentagonIcon size={14} />}
+                                        {tool === 'hexagon' && <HexagonIcon size={14} />}
+                                        {tool === 'octagon' && <OctagonIcon size={14} />}
+                                        {tool === 'star' && <StarIcon size={14} />}
+                                    </ToolButton>
+                                ))}
                             </div>
-                        )}
-
-                        {background !== 'none' && background !== 'image' && (
-                            <>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                                    <div style={{ fontSize: '0.75rem', color: '#333', fontWeight: 500 }}>{t.drawing.bg_size}</div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                        <input
-                                            type="number"
-                                            value={backgroundSize}
-                                            onChange={(e) => setBackgroundSize(parseInt(e.target.value) || 0)}
-                                            style={{
-                                                width: '58px',
-                                                border: '1px solid transparent',
-                                                background: 'transparent',
-                                                fontSize: '0.7rem',
-                                                color: '#333',
-                                                fontWeight: 500,
-                                                textAlign: 'right',
-                                                padding: 0
-                                            }}
-                                            onFocus={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#ddd'; }}
-                                            onBlur={(e) => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'transparent'; }}
-                                        />
-                                        <span style={{ fontSize: '0.7rem', color: '#333', fontWeight: 500 }}>px</span>
-                                    </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {DASH_OPTIONS.map((dash, index) => (
+                                    <DashOption
+                                        key={index}
+                                        $active={tempDashIndex === index}
+                                        onClick={() => setTempDashIndex(index)}
+                                    >
+                                        <DashPreview $dash={dash || null} />
+                                    </DashOption>
+                                ))}
+                            </div>
+                            <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }}></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 4px' }}>
+                                <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 600, minWidth: '35px' }}>
+                                    {t.drawing?.opacity || 'Opacity'}
                                 </div>
                                 <CustomRangeInput
                                     type="range"
                                     min="10"
-                                    max="300"
+                                    max="100"
                                     $size={6}
-                                    value={backgroundSize}
-                                    onChange={(e) => setBackgroundSize(parseInt(e.target.value))}
-                                    style={{ margin: '8px 0' }}
+                                    $opacityValue={tempShapeOpacity}
+                                    value={tempShapeOpacity}
+                                    onChange={(e) => setTempShapeOpacity(parseInt(e.target.value))}
+                                    style={{ margin: 0, flex: 1 }}
                                 />
+                                <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 500, minWidth: '30px', textAlign: 'right' }}>
+                                    {tempShapeOpacity}%
+                                </div>
+                            </div>
 
-                                {(background === 'english' || background === 'music') && (
-                                    <div style={{ marginTop: '4px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', color: '#333', fontWeight: 500 }}>{t.drawing.bg_bundle_gap}</div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-                                                    <span style={{ fontSize: '0.65rem', color: '#333', fontWeight: 500 }}>x</span>
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        value={backgroundBundleGap.toFixed(1)}
-                                                        onChange={(e) => setBackgroundBundleGap(parseFloat(e.target.value) || 1)}
-                                                        style={{
-                                                            width: '58px',
-                                                            border: '1px solid transparent',
-                                                            background: 'transparent',
-                                                            fontSize: '0.65rem',
-                                                            color: '#333',
-                                                            fontWeight: 500,
-                                                            textAlign: 'right',
-                                                            padding: 0
-                                                        }}
-                                                        onFocus={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#ddd'; }}
-                                                        onBlur={(e) => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'transparent'; }}
+                            {activeTool === 'arrow' && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px', borderTop: '1px solid #eee' }}>
+                                    <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 600, minWidth: '35px' }}>
+                                        {t.drawing?.head_size || 'Head'}
+                                    </div>
+                                    <CustomRangeInput
+                                        type="range"
+                                        min="5"
+                                        max="100"
+                                        $size={6}
+                                        value={tempHeadSize}
+                                        onChange={(e) => setTempHeadSize(parseInt(e.target.value))}
+                                        style={{ margin: 0, flex: 1 }}
+                                    />
+                                    <div style={{ fontSize: '0.7rem', color: '#666', fontWeight: 500, minWidth: '30px', textAlign: 'right' }}>
+                                        {tempHeadSize}px
+                                    </div>
+                                </div>
+                            )}
+
+                            <CompactModalFooter>
+                                <CompactModalButton onClick={handleShapeSettingsReset}>
+                                    {t.drawing?.reset || 'Reset'}
+                                </CompactModalButton>
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    <CompactModalButton onClick={handleShapeSettingsCancel}>
+                                        {t.drawing?.cancel || 'Cancel'}
+                                    </CompactModalButton>
+                                    <CompactModalButton onClick={handleShapeSettingsOk} $variant="primary">
+                                        {t.drawing?.ok || 'OK'}
+                                    </CompactModalButton>
+                                </div>
+                            </CompactModalFooter>
+                        </CompactModal>
+                    </Backdrop>
+                )}
+
+                {isPenEditOpen && (
+                    <Backdrop
+                        $centered={!settingsAnchor}
+                        onClick={(e) => {
+                            const now = Date.now();
+                            if (now - openedTimeRef.current < 400) return; // Ignore ghost clicks
+                            if (e.target === e.currentTarget) handlePenOk();
+                        }}>
+                        <CompactModal
+                            $anchor={settingsAnchor || undefined}
+                            onClick={e => e.stopPropagation()}
+                            style={{ minWidth: '200px', maxWidth: '95vw', maxHeight: '80vh', overflowY: 'auto', padding: '12px', paddingBottom: '24px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <DashOption
+                                    $active={tempBrushType === 'pen'}
+                                    onClick={() => setTempBrushType('pen')}
+                                    onDoubleClick={() => {
+                                        setTempBrushType('pen');
+                                        handlePenOk();
+                                    }}
+                                    style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
+                                >
+                                    <PenIcon />
+                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                    <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_pen}</span>
+                                    <BrushSample
+                                        $type="pen"
+                                        $color={toolSettings['pen']?.color || color}
+                                        $size={toolSettings['pen']?.size || brushSize}
+                                    />
+                                </DashOption>
+                                <DashOption
+                                    $active={tempBrushType === 'carbon'}
+                                    onClick={() => setTempBrushType('carbon')}
+                                    onDoubleClick={() => {
+                                        setTempBrushType('carbon');
+                                        handlePenOk();
+                                    }}
+                                    style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
+                                >
+                                    <PencilIcon />
+                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                    <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_carbon}</span>
+                                    <BrushSample
+                                        $type="carbon"
+                                        $color={toolSettings['carbon']?.color || color}
+                                        $size={toolSettings['carbon']?.size || brushSize}
+                                    />
+                                </DashOption>
+
+                                <DashOption
+                                    $active={tempBrushType === 'highlighter'}
+                                    onClick={() => setTempBrushType('highlighter')}
+                                    onDoubleClick={() => {
+                                        setTempBrushType('highlighter');
+                                        handlePenOk();
+                                    }}
+                                    style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
+                                >
+                                    <HighlighterIcon />
+                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                    <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_highlighter}</span>
+                                    <BrushSample
+                                        $type="highlighter"
+                                        $color={toolSettings['highlighter']?.color || color}
+                                        $size={(toolSettings['highlighter']?.size || brushSize) * 2}
+                                    />
+                                </DashOption>
+
+                                <DashOption
+                                    $active={tempBrushType === 'laser'}
+                                    onClick={() => setTempBrushType('laser')}
+                                    onDoubleClick={() => {
+                                        setTempBrushType('laser');
+                                        handlePenOk();
+                                    }}
+                                    style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
+                                >
+                                    <LaserIcon />
+                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                    <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_laser}</span>
+                                    <BrushSample
+                                        $type="laser"
+                                        $color={toolSettings['laser']?.color || color}
+                                        $size={toolSettings['laser']?.size || brushSize}
+                                    />
+                                </DashOption>
+                                <DashOption
+                                    $active={tempBrushType === 'glow'}
+                                    onClick={() => setTempBrushType('glow')}
+                                    onDoubleClick={() => {
+                                        setTempBrushType('glow');
+                                        handlePenOk();
+                                    }}
+                                    style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
+                                >
+                                    <GlowIcon />
+                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                    <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_glow}</span>
+                                    <BrushSample
+                                        $type="glow"
+                                        $color={toolSettings['glow']?.color || color}
+                                        $size={toolSettings['glow']?.size || brushSize}
+                                    />
+                                </DashOption>
+
+                                <DashOption
+                                    $active={tempBrushType === 'circle'}
+                                    onClick={() => setTempBrushType('circle')}
+                                    onDoubleClick={() => {
+                                        setTempBrushType('circle');
+                                        handlePenOk();
+                                    }}
+                                    style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
+                                >
+                                    <CircleBrushIcon />
+                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                    <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_circle}</span>
+                                    <BrushSample
+                                        $type="circle"
+                                        $color={toolSettings['circle']?.color || color}
+                                        $size={toolSettings['circle']?.size || brushSize}
+                                    />
+                                </DashOption>
+                                <DashOption
+                                    $active={tempBrushType === 'hatch'}
+                                    onClick={() => setTempBrushType('hatch')}
+                                    onDoubleClick={() => {
+                                        setTempBrushType('hatch');
+                                        handlePenOk();
+                                    }}
+                                    style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
+                                >
+                                    <HatchIcon />
+                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                    <span style={{ fontSize: '0.85rem', minWidth: '70px' }}>{t.drawing.pen_hatch}</span>
+                                    <BrushSample
+                                        $type="hatch"
+                                        $color={toolSettings['hatch']?.color || color}
+                                        $size={toolSettings['hatch']?.size || brushSize}
+                                    />
+                                </DashOption>
+
+                                {activePenSlot === 'pen_1' && (
+                                    <>
+                                        <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }}></div>
+
+                                        <DashOption
+                                            $active={tempPalmRejection}
+                                            onClick={() => setTempPalmRejection(!tempPalmRejection)}
+                                            style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
+                                        >
+                                            <div style={{
+                                                width: '18px',
+                                                height: '18px',
+                                                borderRadius: '4px',
+                                                border: '2px solid #333',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                background: tempPalmRejection ? '#333' : 'transparent'
+                                            }}>
+                                                {tempPalmRejection && <div style={{ width: '8px', height: '8px', background: 'white', borderRadius: '1px' }} />}
+                                            </div>
+                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                            <span style={{ fontSize: '0.85rem' }}>{(t.drawing as any)?.palm_rejection || 'Palm Rejection'}</span>
+                                        </DashOption>
+                                    </>
+                                )}
+                            </div>
+                            <CompactModalFooter>
+                                <CompactModalButton onClick={handlePenReset}>
+                                    {t.drawing?.reset || 'Reset'}
+                                </CompactModalButton>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <CompactModalButton onClick={handlePenCancel}>
+                                        {t.drawing?.cancel || 'Cancel'}
+                                    </CompactModalButton>
+                                    <CompactModalButton onClick={handlePenOk} $variant="primary">
+                                        {t.drawing?.ok || 'OK'}
+                                    </CompactModalButton>
+                                </div>
+                            </CompactModalFooter>
+                        </CompactModal>
+                    </Backdrop>
+                )}
+
+                {isFontEditOpen && (
+                    <Backdrop
+                        $centered={!settingsAnchor}
+                        onClick={(e) => {
+                            const now = Date.now();
+                            if (now - openedTimeRef.current < 400) return; // Ignore ghost clicks
+                            if (e.target === e.currentTarget) handleFontOk();
+                        }}>
+                        <CompactModal
+                            $anchor={settingsAnchor || undefined}
+                            onClick={e => e.stopPropagation()}
+                            style={{ minWidth: '160px', maxWidth: '95vw', maxHeight: '80vh' }}
+                        >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '300px', overflowY: 'auto' }}>
+
+                                {availableFonts.map((font) => (
+                                    <DashOption
+                                        key={font}
+                                        $active={tempFontFamily === font}
+                                        onClick={() => setTempFontFamily(font)}
+                                        onDoubleClick={() => {
+                                            setTempFontFamily(font);
+                                            setFontFamily(font);
+                                            setSettingsAnchor(null);
+                                            setIsFontEditOpen(false);
+                                            lastInteractionTimeRef.current = Date.now();
+                                        }}
+                                        onTouchStart={(e) => {
+                                            setTempFontFamily(font);
+                                            handleDoubleTap(e, `font - ${font} `, () => {
+                                                setFontFamily(font);
+                                                setSettingsAnchor(null);
+                                                setIsFontEditOpen(false);
+                                                lastInteractionTimeRef.current = Date.now();
+                                            });
+                                        }}
+                                        style={{ fontFamily: font, height: '32px', justifyContent: 'flex-start', padding: '0 12px' }}
+                                    >
+                                        {font}
+                                    </DashOption>
+                                ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: '4px', padding: '8px 12px', borderTop: '1px solid #eee' }}>
+                                {[
+                                    { label: t.drawing?.font_thin || 'Thin', value: 100 },
+                                    { label: t.drawing?.font_normal || 'Normal', value: 'normal' },
+                                    { label: t.drawing?.font_bold || 'Bold', value: 'bold' }
+                                ].map((w) => (
+                                    <CompactModalButton
+                                        key={typeof w.value === 'string' ? w.value : w.value.toString()}
+                                        $variant={tempFontWeight == w.value ? 'primary' : undefined}
+                                        onClick={() => setTempFontWeight(w.value)}
+                                        style={{ flex: 1, fontSize: '0.8rem', padding: '4px' }}
+                                    >
+                                        {w.label}
+                                    </CompactModalButton>
+                                ))}
+                            </div>
+                            <div style={{ display: 'flex', padding: '0 12px 8px 12px' }}>
+                                <CompactModalButton
+                                    $variant={tempFontStyle === 'italic' ? 'primary' : undefined}
+                                    onClick={() => setTempFontStyle(prev => prev === 'italic' ? 'normal' : 'italic')}
+                                    style={{ flex: 1, fontSize: '0.8rem', padding: '4px', fontStyle: 'italic' }}
+                                >
+                                    {t.drawing?.font_italic || 'Italic'}
+                                </CompactModalButton>
+                            </div>
+                            <CompactModalFooter>
+                                <div />
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    <CompactModalButton onClick={handleFontCancel}>
+                                        {t.drawing?.cancel || 'Cancel'}
+                                    </CompactModalButton>
+                                    <CompactModalButton onClick={handleFontOk} $variant="primary">
+                                        {t.drawing?.ok || 'OK'}
+                                    </CompactModalButton>
+                                </div>
+                            </CompactModalFooter>
+                        </CompactModal>
+                    </Backdrop>
+                )}
+
+                {isPalettePickerOpen && (
+                    <Backdrop onClick={handlePalettePickerClose}>
+                        <CompactModal onClick={e => e.stopPropagation()} style={{ width: '90vw', maxWidth: '350px', maxHeight: '80vh', overflowY: 'auto', padding: '0 16px 16px 16px' }}>
+                            {editingPaletteIndex === null ? (
+                                <>
+                                    <div style={{ position: 'relative', height: '14px', marginBottom: '4px' }}>
+                                        <FiX style={{ position: 'absolute', top: '-4px', right: '-4px', padding: '10px', cursor: 'pointer', color: '#888' }} onClick={handlePalettePickerClose} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {palettes.map((p, idx) => (
+                                            <div
+                                                key={idx}
+                                                onClick={() => handlePaletteSelect(idx)}
+                                                onDoubleClick={() => handlePaletteDoubleTap_Local(idx)}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    padding: '8px',
+                                                    borderRadius: '8px',
+                                                    border: '2px solid',
+                                                    borderColor: selectedPaletteIndex === idx ? '#333' : '#e9ecef',
+                                                    background: selectedPaletteIndex === idx ? '#f8f9fa' : 'white',
+                                                    transition: 'all 0.2s',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <div style={{ flex: 1, display: 'flex', gap: '6px' }}>
+                                                    {p.map((c, cIdx) => (
+                                                        <div key={cIdx} style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, border: '1px solid rgba(0,0,0,0.1)' }} />
+                                                    ))}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '4px', marginLeft: '12px' }}>
+                                                    <button
+                                                        onClick={(e) => handlePaletteEditStart(e, idx)}
+                                                        title={t.drawing?.palette_edit || 'Edit colors'}
+                                                        style={{ border: 'none', background: '#f1f3f5', borderRadius: '4px', cursor: 'pointer', padding: '6px', color: '#495057', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                    >
+                                                        <FiEdit2 size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setPaletteResetIndex(idx); setIsPaletteResetConfirmOpen(true); }}
+                                                        title={t.drawing?.palette_reset || 'Reset to default'}
+                                                        style={{ border: 'none', background: '#f1f3f5', borderRadius: '4px', cursor: 'pointer', padding: '6px', color: '#495057', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                    >
+                                                        <FiRotateCcw size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <CompactModalFooter style={{ marginTop: '20px' }}>
+                                        <CompactModalButton onClick={handlePalettePickerClose}>{t.drawing?.cancel || 'Cancel'}</CompactModalButton>
+                                        <CompactModalButton $variant="primary" onClick={handlePaletteOk} style={{ minWidth: '80px' }}>{t.drawing?.ok || 'OK'}</CompactModalButton>
+                                    </CompactModalFooter>
+                                </>
+                            ) : (
+                                <>
+                                    <div style={{ position: 'relative', height: '14px', marginBottom: '4px' }}>
+                                        <FiX style={{ position: 'absolute', top: '-4px', right: '-4px', padding: '10px', cursor: 'pointer', color: '#888' }} onClick={handlePaletteEditCancel} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 'max-content' }}>
+                                        <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '8px', justifyContent: 'space-between', padding: '4px', background: '#f8f9fa', borderRadius: '8px' }}>
+                                            {paletteTempColors.map((c, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => setPaletteEditingColorIndex(idx)}
+                                                    style={{
+                                                        width: '38px',
+                                                        height: '38px',
+                                                        borderRadius: '50%',
+                                                        background: c,
+                                                        border: paletteEditingColorIndex === idx ? '3px solid #333' : '2px solid white',
+                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                                                        cursor: 'pointer',
+                                                        transition: 'transform 0.1s'
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                        {paletteEditingColorIndex !== null && (
+                                            <div style={{ padding: '8px', background: 'white', borderRadius: '8px', border: '1px solid #dee2e6' }}>
+                                                <HexColorPicker
+                                                    color={paletteTempColors[paletteEditingColorIndex]}
+                                                    onChange={(newColor) => {
+                                                        const next = [...paletteTempColors];
+                                                        next[paletteEditingColorIndex] = newColor;
+                                                        setPaletteTempColors(next);
+                                                    }}
+                                                    style={{ width: '100%', height: '150px' }}
+                                                />
+                                                <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 4px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span style={{ fontSize: '0.75rem', color: '#888', fontWeight: 600, width: '30px', flexShrink: 0 }}>HEX</span>
+                                                        <div style={{ display: 'flex', flex: 1 }}>
+                                                            <input
+                                                                value={paletteTempColors[paletteEditingColorIndex].toUpperCase()}
+                                                                readOnly
+                                                                style={{
+                                                                    width: '100%',
+                                                                    padding: '6px 10px',
+                                                                    fontSize: '1rem',
+                                                                    fontFamily: 'inherit',
+                                                                    border: '1px solid #ced4da',
+                                                                    borderRadius: '4px',
+                                                                    background: '#f1f3f5',
+                                                                    cursor: 'default',
+                                                                    color: '#495057',
+                                                                    textAlign: 'left',
+                                                                    height: '40px'
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span style={{ fontSize: '0.75rem', color: '#888', fontWeight: 600, width: '30px', flexShrink: 0 }}>RGB</span>
+                                                        <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
+                                                            {['r', 'g', 'b'].map((key) => {
+                                                                const rgb = hexToRgb(paletteTempColors[paletteEditingColorIndex!]);
+                                                                return (
+                                                                    <input
+                                                                        key={key}
+                                                                        type="number"
+                                                                        min="0"
+                                                                        max="255"
+                                                                        value={rgb[key as keyof typeof rgb]}
+                                                                        onChange={(e) => {
+                                                                            const val = parseInt(e.target.value) || 0;
+                                                                            const newRgb = { ...rgb, [key]: val };
+                                                                            const next = [...paletteTempColors];
+                                                                            next[paletteEditingColorIndex!] = rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+                                                                            setPaletteTempColors(next);
+                                                                        }}
+                                                                        style={{
+                                                                            flex: 1,
+                                                                            width: 0, // Allow flex to control width
+                                                                            padding: '6px 2px',
+                                                                            border: '1px solid #ced4da',
+                                                                            borderRadius: '4px',
+                                                                            fontSize: '1rem',
+                                                                            textAlign: 'center',
+                                                                            background: 'white',
+                                                                            height: '40px'
+                                                                        }}
+                                                                    />
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <CompactModalFooter style={{ marginTop: '20px' }}>
+                                        <CompactModalButton onClick={handlePaletteEditCancel}>{t.drawing?.cancel || 'Cancel'}</CompactModalButton>
+                                        <CompactModalButton $variant="primary" onClick={handlePaletteEditSave} style={{ minWidth: '100px' }}>{t.drawing?.save_palette || 'Save Palette'}</CompactModalButton>
+                                    </CompactModalFooter>
+                                </>
+                            )}
+                        </CompactModal>
+                    </Backdrop>
+                )}
+
+                {isBgPickerOpen && (
+                    <Backdrop
+                        $centered={!settingsAnchor}
+                        onClick={(e) => {
+                            const now = Date.now();
+                            if (now - openedTimeRef.current < 400) return;
+                            if (e.target === e.currentTarget) handleBgOk();
+                        }}>
+                        <CompactModal
+                            $anchor={settingsAnchor || undefined}
+                            onClick={e => e.stopPropagation()}
+                            style={{ minWidth: '200px', maxWidth: '95vw', maxHeight: '80vh', overflowY: 'auto', padding: '12px', paddingBottom: '24px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        >
+                            <div style={{ fontWeight: 600, fontSize: '0.75rem', color: '#495057', marginBottom: '6px' }}>{t.drawing.bg_settings}</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', marginBottom: '8px' }}>
+                                <BackgroundOptionButton
+                                    $active={background === 'none'}
+                                    onClick={() => setBackground('none')}
+                                >
+                                    {t.drawing.bg_none}
+                                </BackgroundOptionButton>
+                                <BackgroundOptionButton
+                                    $active={background === 'lines'}
+                                    onClick={() => setBackground('lines')}
+                                >
+                                    {t.drawing.bg_lines}
+                                </BackgroundOptionButton>
+                                <BackgroundOptionButton
+                                    $active={background === 'grid'}
+                                    onClick={() => setBackground('grid')}
+                                >
+                                    {t.drawing.bg_grid}
+                                </BackgroundOptionButton>
+                                <BackgroundOptionButton
+                                    $active={background === 'dots'}
+                                    onClick={() => setBackground('dots')}
+                                >
+                                    {t.drawing.bg_dots}
+                                </BackgroundOptionButton>
+                                <BackgroundOptionButton
+                                    $active={background === 'english'}
+                                    onClick={() => setBackground('english')}
+                                >
+                                    {t.drawing.bg_english}
+                                </BackgroundOptionButton>
+                                <BackgroundOptionButton
+                                    $active={background === 'music'}
+                                    onClick={() => setBackground('music')}
+                                >
+                                    {t.drawing.bg_music}
+                                </BackgroundOptionButton>
+                            </div>
+
+                            <input
+                                type="file"
+                                ref={bgFileInputRef}
+                                style={{ display: 'none' }}
+                                accept="image/*,.pdf"
+                                onChange={handleBackgroundFileChange}
+                            />
+
+                            <BackgroundOptionButton
+                                $active={background === 'image'}
+                                onClick={() => {
+                                    if (backgroundImage) {
+                                        setBackground('image');
+                                    } else {
+                                        bgFileInputRef.current?.click();
+                                    }
+                                }}
+                                style={{ width: '100%', marginBottom: '8px', minHeight: '36px' }}
+                            >
+                                {backgroundImage ? t.drawing.selected_file : t.drawing.upload_file}
+                            </BackgroundOptionButton>
+
+                            {backgroundImage && (
+                                <div style={{
+                                    padding: '8px',
+                                    background: '#f8f9fa',
+                                    borderRadius: '8px',
+                                    border: '1px solid #e9ecef',
+                                    marginBottom: '4px'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <FiTrash2
+                                                size={18}
+                                                style={{ cursor: 'pointer', color: '#ef4444' }}
+                                                onClick={() => {
+                                                    setBackgroundImage(null);
+                                                    setBackground('none');
+                                                }}
+                                                title={t.drawing.clear || 'Remove Background'}
+                                            />
+                                            <div style={{ fontSize: '0.75rem', color: '#495057', fontWeight: 600 }}>{t.drawing.bg_image_intensity}</div>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                            <input
+                                                type="number"
+                                                value={Math.round(backgroundImageOpacity * 100)}
+                                                onChange={(e) => setBackgroundImageOpacity((parseInt(e.target.value) || 0) / 100)}
+                                                style={{
+                                                    width: '58px',
+                                                    border: '1px solid transparent',
+                                                    background: 'transparent',
+                                                    fontSize: '0.7rem',
+                                                    color: '#333',
+                                                    fontWeight: 600,
+                                                    textAlign: 'right',
+                                                    padding: 0
+                                                }}
+                                                onFocus={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#ddd'; }}
+                                                onBlur={(e) => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'transparent'; }}
+                                            />
+                                            <span style={{ fontSize: '0.7rem', color: '#333', fontWeight: 600 }}>%</span>
+                                        </div>
+                                    </div>
+                                    <CustomRangeInput
+                                        type="range"
+                                        min="1"
+                                        max="100"
+                                        $size={6}
+                                        $thumbColor={`rgb(${255 - (255 - 51) * backgroundImageOpacity}, ${255 - (255 - 51) * backgroundImageOpacity}, ${255 - (255 - 51) * backgroundImageOpacity})`}
+                                        value={backgroundImageOpacity * 100}
+                                        onChange={(e) => setBackgroundImageOpacity(parseInt(e.target.value) / 100)}
+                                        style={{ margin: '4px 0' }}
+                                    />
+                                </div>
+                            )}
+
+                            {background !== 'none' && background !== 'image' && (
+                                <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                                        <div style={{ fontSize: '0.75rem', color: '#333', fontWeight: 500 }}>{t.drawing.bg_size}</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                            <input
+                                                type="number"
+                                                value={backgroundSize}
+                                                onChange={(e) => setBackgroundSize(parseInt(e.target.value) || 0)}
+                                                style={{
+                                                    width: '58px',
+                                                    border: '1px solid transparent',
+                                                    background: 'transparent',
+                                                    fontSize: '0.7rem',
+                                                    color: '#333',
+                                                    fontWeight: 500,
+                                                    textAlign: 'right',
+                                                    padding: 0
+                                                }}
+                                                onFocus={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#ddd'; }}
+                                                onBlur={(e) => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'transparent'; }}
+                                            />
+                                            <span style={{ fontSize: '0.7rem', color: '#333', fontWeight: 500 }}>px</span>
+                                        </div>
+                                    </div>
+                                    <CustomRangeInput
+                                        type="range"
+                                        min="10"
+                                        max="300"
+                                        $size={6}
+                                        value={backgroundSize}
+                                        onChange={(e) => setBackgroundSize(parseInt(e.target.value))}
+                                        style={{ margin: '8px 0' }}
+                                    />
+
+                                    {(background === 'english' || background === 'music') && (
+                                        <div style={{ marginTop: '4px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ fontSize: '0.7rem', color: '#333', fontWeight: 500 }}>{t.drawing.bg_bundle_gap}</div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                                                        <span style={{ fontSize: '0.65rem', color: '#333', fontWeight: 500 }}>x</span>
+                                                        <input
+                                                            type="number"
+                                                            step="0.1"
+                                                            value={backgroundBundleGap.toFixed(1)}
+                                                            onChange={(e) => setBackgroundBundleGap(parseFloat(e.target.value) || 1)}
+                                                            style={{
+                                                                width: '58px',
+                                                                border: '1px solid transparent',
+                                                                background: 'transparent',
+                                                                fontSize: '0.65rem',
+                                                                color: '#333',
+                                                                fontWeight: 500,
+                                                                textAlign: 'right',
+                                                                padding: 0
+                                                            }}
+                                                            onFocus={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#ddd'; }}
+                                                            onBlur={(e) => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'transparent'; }}
+                                                        />
+                                                    </div>
+                                                    <FiRotateCcw
+                                                        size={10}
+                                                        style={{ cursor: 'pointer', color: '#868e96' }}
+                                                        onClick={() => setBackgroundBundleGap(1)}
+                                                        title={t.drawing.reset_defaults}
                                                     />
                                                 </div>
-                                                <FiRotateCcw
-                                                    size={10}
-                                                    style={{ cursor: 'pointer', color: '#868e96' }}
-                                                    onClick={() => setBackgroundBundleGap(1)}
-                                                    title={t.drawing.reset_defaults}
-                                                />
                                             </div>
+                                            <CustomRangeInput
+                                                type="range"
+                                                min="90" // 0.9
+                                                max="300" // 3.0
+                                                step="10"
+                                                $size={5}
+                                                value={backgroundBundleGap * 100}
+                                                onChange={(e) => setBackgroundBundleGap(parseInt(e.target.value) / 100)}
+                                                style={{ margin: '4px 0 8px 0' }}
+                                            />
                                         </div>
-                                        <CustomRangeInput
-                                            type="range"
-                                            min="90" // 0.9
-                                            max="300" // 3.0
-                                            step="10"
-                                            $size={5}
-                                            value={backgroundBundleGap * 100}
-                                            onChange={(e) => setBackgroundBundleGap(parseInt(e.target.value) / 100)}
-                                            style={{ margin: '4px 0 8px 0' }}
-                                        />
-                                    </div>
-                                )}
+                                    )}
 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                                    <div style={{ fontSize: '0.7rem', color: '#333', fontWeight: 500 }}>{t.drawing.bg_darkness}</div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                        <input
-                                            type="number"
-                                            value={Math.round(lineOpacity * 100)}
-                                            onChange={(e) => setLineOpacity((parseInt(e.target.value) || 0) / 100)}
-                                            style={{
-                                                width: '58px',
-                                                border: '1px solid transparent',
-                                                background: 'transparent',
-                                                fontSize: '0.65rem',
-                                                color: '#333',
-                                                fontWeight: 500,
-                                                textAlign: 'right',
-                                                padding: 0
-                                            }}
-                                            onFocus={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#ddd'; }}
-                                            onBlur={(e) => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'transparent'; }}
-                                        />
-                                        <span style={{ fontSize: '0.7rem', color: '#333', fontWeight: 500 }}>%</span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                                        <div style={{ fontSize: '0.7rem', color: '#333', fontWeight: 500 }}>{t.drawing.bg_darkness}</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                            <input
+                                                type="number"
+                                                value={Math.round(lineOpacity * 100)}
+                                                onChange={(e) => setLineOpacity((parseInt(e.target.value) || 0) / 100)}
+                                                style={{
+                                                    width: '58px',
+                                                    border: '1px solid transparent',
+                                                    background: 'transparent',
+                                                    fontSize: '0.65rem',
+                                                    color: '#333',
+                                                    fontWeight: 500,
+                                                    textAlign: 'right',
+                                                    padding: 0
+                                                }}
+                                                onFocus={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#ddd'; }}
+                                                onBlur={(e) => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'transparent'; }}
+                                            />
+                                            <span style={{ fontSize: '0.7rem', color: '#333', fontWeight: 500 }}>%</span>
+                                        </div>
                                     </div>
+                                    <CustomRangeInput
+                                        type="range"
+                                        min="5"
+                                        max="80"
+                                        $size={6}
+                                        $thumbColor={`rgb(${255 - (255 - 51) * lineOpacity}, ${255 - (255 - 51) * lineOpacity}, ${255 - (255 - 51) * lineOpacity})`}
+                                        value={lineOpacity * 100}
+                                        onChange={(e) => setLineOpacity(parseInt(e.target.value) / 100)}
+                                        style={{ margin: '8px 0' }}
+                                    />
+                                </>
+                            )}
+
+                            <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }}></div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#333' }}>{t.drawing.bg_paper_color}</div>
+                                <div style={{ display: 'flex', background: '#f1f3f5', padding: '2px', borderRadius: '4px' }}>
+                                    <button
+                                        onClick={() => setBackgroundColorType('gray')}
+                                        style={{
+                                            padding: '2px 8px',
+                                            fontSize: '0.7rem',
+                                            border: 'none',
+                                            borderRadius: '3px',
+                                            background: backgroundColorType === 'gray' ? 'white' : 'transparent',
+                                            boxShadow: backgroundColorType === 'gray' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                                            cursor: 'pointer',
+                                            color: backgroundColorType === 'gray' ? '#333' : '#888'
+                                        }}
+                                    >
+                                        {t.drawing.bg_color_gray}
+                                    </button>
+                                    <button
+                                        onClick={() => setBackgroundColorType('beige')}
+                                        style={{
+                                            padding: '2px 8px',
+                                            fontSize: '0.7rem',
+                                            border: 'none',
+                                            borderRadius: '3px',
+                                            background: backgroundColorType === 'beige' ? 'white' : 'transparent',
+                                            boxShadow: backgroundColorType === 'beige' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                                            cursor: 'pointer',
+                                            color: backgroundColorType === 'beige' ? '#333' : '#888'
+                                        }}
+                                    >
+                                        {t.drawing.bg_color_beige}
+                                    </button>
+                                    <button
+                                        onClick={() => setBackgroundColorType('blue')}
+                                        style={{
+                                            padding: '2px 8px',
+                                            fontSize: '0.7rem',
+                                            border: 'none',
+                                            borderRadius: '3px',
+                                            background: backgroundColorType === 'blue' ? 'white' : 'transparent',
+                                            boxShadow: backgroundColorType === 'blue' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                                            cursor: 'pointer',
+                                            color: backgroundColorType === 'blue' ? '#333' : '#888'
+                                        }}
+                                    >
+                                        {t.drawing.bg_color_blue}
+                                    </button>
                                 </div>
-                                <CustomRangeInput
-                                    type="range"
-                                    min="5"
-                                    max="80"
-                                    $size={6}
-                                    $thumbColor={`rgb(${255 - (255 - 51) * lineOpacity}, ${255 - (255 - 51) * lineOpacity}, ${255 - (255 - 51) * lineOpacity})`}
-                                    value={lineOpacity * 100}
-                                    onChange={(e) => setLineOpacity(parseInt(e.target.value) / 100)}
-                                    style={{ margin: '8px 0' }}
-                                />
-                            </>
-                        )}
-
-                        <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }}></div>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#333' }}>{t.drawing.bg_paper_color}</div>
-                            <div style={{ display: 'flex', background: '#f1f3f5', padding: '2px', borderRadius: '4px' }}>
-                                <button
-                                    onClick={() => setBackgroundColorType('gray')}
-                                    style={{
-                                        padding: '2px 8px',
-                                        fontSize: '0.7rem',
-                                        border: 'none',
-                                        borderRadius: '3px',
-                                        background: backgroundColorType === 'gray' ? 'white' : 'transparent',
-                                        boxShadow: backgroundColorType === 'gray' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                        cursor: 'pointer',
-                                        color: backgroundColorType === 'gray' ? '#333' : '#888'
-                                    }}
-                                >
-                                    {t.drawing.bg_color_gray}
-                                </button>
-                                <button
-                                    onClick={() => setBackgroundColorType('beige')}
-                                    style={{
-                                        padding: '2px 8px',
-                                        fontSize: '0.7rem',
-                                        border: 'none',
-                                        borderRadius: '3px',
-                                        background: backgroundColorType === 'beige' ? 'white' : 'transparent',
-                                        boxShadow: backgroundColorType === 'beige' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                        cursor: 'pointer',
-                                        color: backgroundColorType === 'beige' ? '#333' : '#888'
-                                    }}
-                                >
-                                    {t.drawing.bg_color_beige}
-                                </button>
-                                <button
-                                    onClick={() => setBackgroundColorType('blue')}
-                                    style={{
-                                        padding: '2px 8px',
-                                        fontSize: '0.7rem',
-                                        border: 'none',
-                                        borderRadius: '3px',
-                                        background: backgroundColorType === 'blue' ? 'white' : 'transparent',
-                                        boxShadow: backgroundColorType === 'blue' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                        cursor: 'pointer',
-                                        color: backgroundColorType === 'blue' ? '#333' : '#888'
-                                    }}
-                                >
-                                    {t.drawing.bg_color_blue}
-                                </button>
                             </div>
-                        </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                            <div style={{ fontSize: '0.75rem', color: '#333', fontWeight: 500 }}>{t.drawing.bg_intensity}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                <input
-                                    type="number"
-                                    value={backgroundColorIntensity}
-                                    onChange={(e) => setBackgroundColorIntensity(parseInt(e.target.value) || 0)}
-                                    style={{
-                                        width: '40px',
-                                        border: '1px solid transparent',
-                                        background: 'transparent',
-                                        fontSize: '0.7rem',
-                                        color: '#333',
-                                        fontWeight: 500,
-                                        textAlign: 'right',
-                                        padding: 0
-                                    }}
-                                    onFocus={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#ddd'; }}
-                                    onBlur={(e) => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'transparent'; }}
-                                />
-                                <span style={{ fontSize: '0.7rem', color: '#333', fontWeight: 500 }}>%</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                                <div style={{ fontSize: '0.75rem', color: '#333', fontWeight: 500 }}>{t.drawing.bg_intensity}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                    <input
+                                        type="number"
+                                        value={backgroundColorIntensity}
+                                        onChange={(e) => setBackgroundColorIntensity(parseInt(e.target.value) || 0)}
+                                        style={{
+                                            width: '40px',
+                                            border: '1px solid transparent',
+                                            background: 'transparent',
+                                            fontSize: '0.7rem',
+                                            color: '#333',
+                                            fontWeight: 500,
+                                            textAlign: 'right',
+                                            padding: 0
+                                        }}
+                                        onFocus={(e) => { e.target.style.background = '#fff'; e.target.style.borderColor = '#ddd'; }}
+                                        onBlur={(e) => { e.target.style.background = 'transparent'; e.target.style.borderColor = 'transparent'; }}
+                                    />
+                                    <span style={{ fontSize: '0.7rem', color: '#333', fontWeight: 500 }}>%</span>
+                                </div>
                             </div>
-                        </div>
-                        <CustomRangeInput
-                            type="range"
-                            min="0"
-                            max="100"
-                            $size={6}
-                            $thumbColor={currentBackgroundColor}
-                            value={backgroundColorIntensity}
-                            onChange={(e) => setBackgroundColorIntensity(parseInt(e.target.value))}
-                            style={{ margin: '8px 0' }}
-                        />
+                            <CustomRangeInput
+                                type="range"
+                                min="0"
+                                max="100"
+                                $size={6}
+                                $thumbColor={currentBackgroundColor}
+                                value={backgroundColorIntensity}
+                                onChange={(e) => setBackgroundColorIntensity(parseInt(e.target.value))}
+                                style={{ margin: '8px 0' }}
+                            />
 
-                        <div style={{ borderTop: '1px solid #eee', margin: '8px 0 4px 0' }}></div>
+                            <div style={{ borderTop: '1px solid #eee', margin: '8px 0 4px 0' }}></div>
 
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                            <CompactModalButton
-                                onClick={() => {
-                                    const settings: any = {
-                                        type: background,
-                                        size: backgroundSize,
-                                        intensity: backgroundColorIntensity,
-                                        colorType: backgroundColorType,
-                                        opacity: lineOpacity,
-                                        bundleGap: backgroundBundleGap,
-                                        imageOpacity: backgroundImageOpacity
-                                    };
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <CompactModalButton
+                                    onClick={() => {
+                                        const settings: any = {
+                                            type: background,
+                                            size: backgroundSize,
+                                            intensity: backgroundColorIntensity,
+                                            colorType: backgroundColorType,
+                                            opacity: lineOpacity,
+                                            bundleGap: backgroundBundleGap,
+                                            imageOpacity: backgroundImageOpacity
+                                        };
 
-                                    if (background === 'image' && backgroundImage) {
-                                        try {
-                                            if (backgroundImage instanceof HTMLCanvasElement) {
-                                                settings.imageData = backgroundImage.toDataURL('image/png');
-                                            } else {
-                                                settings.imageData = backgroundImage.src;
+                                        if (background === 'image' && backgroundImage) {
+                                            try {
+                                                if (backgroundImage instanceof HTMLCanvasElement) {
+                                                    settings.imageData = backgroundImage.toDataURL('image/png');
+                                                } else {
+                                                    settings.imageData = backgroundImage.src;
+                                                }
+                                            } catch (e) {
+                                                console.error('Failed to capture background image for default settings', e);
                                             }
-                                        } catch (e) {
-                                            console.error('Failed to capture background image for default settings', e);
                                         }
-                                    }
 
-                                    try {
-                                        localStorage.setItem('fabric_default_background_v2', JSON.stringify(settings));
-                                    } catch (e) {
-                                        console.error('Failed to save background defaults to localStorage (possibly too large)', e);
-                                        // If it failed due to size, try saving without the image data as a fallback
-                                        delete settings.imageData;
-                                        localStorage.setItem('fabric_default_background_v2', JSON.stringify(settings));
-                                        alert('Background settings saved, but the image was too large to be set as default.');
-                                    }
+                                        try {
+                                            localStorage.setItem('fabric_default_background_v2', JSON.stringify(settings));
+                                        } catch (e) {
+                                            console.error('Failed to save background defaults to localStorage (possibly too large)', e);
+                                            // If it failed due to size, try saving without the image data as a fallback
+                                            delete settings.imageData;
+                                            localStorage.setItem('fabric_default_background_v2', JSON.stringify(settings));
+                                            alert('Background settings saved, but the image was too large to be set as default.');
+                                        }
 
-                                    setIsBgPickerOpen(false);
-                                    setSettingsAnchor(null);
-                                }}
-                                style={{ marginRight: 'auto', fontSize: '0.7rem', padding: '0.2rem 0.4rem', border: '1px solid #ced4da', background: '#f8f9fa' }}
-                            >
-                                {t.drawing.bg_save_default}
-                            </CompactModalButton>
-                            <CompactModalButton
-                                onClick={handleBgCancel}
-                            >
-                                {t.drawing.cancel}
-                            </CompactModalButton>
-                            <CompactModalButton
-                                $variant="primary"
-                                onClick={handleBgOk}
-                            >
-                                {t.drawing.ok}
-                            </CompactModalButton>
+                                        setIsBgPickerOpen(false);
+                                        setSettingsAnchor(null);
+                                    }}
+                                    style={{ marginRight: 'auto', fontSize: '0.7rem', padding: '0.2rem 0.4rem', border: '1px solid #ced4da', background: '#f8f9fa' }}
+                                >
+                                    {t.drawing.bg_save_default}
+                                </CompactModalButton>
+                                <CompactModalButton
+                                    onClick={handleBgCancel}
+                                >
+                                    {t.drawing.cancel}
+                                </CompactModalButton>
+                                <CompactModalButton
+                                    $variant="primary"
+                                    onClick={handleBgOk}
+                                >
+                                    {t.drawing.ok}
+                                </CompactModalButton>
+                            </div>
+                        </CompactModal>
+                    </Backdrop>
+                )
+                }
+
+                <CanvasWrapper
+                    ref={containerRef}
+                    $side={scrollbarSide}
+                    style={{
+                        ...backgroundStyle,
+                        display: 'grid',
+                        gridTemplateColumns: scrollbarSide === 'left' ? '12px 1fr' : '1fr 12px',
+                        gridTemplateRows: (isZoomLocked || canvasScale <= 1.001) ? '1fr 0px' : '1fr 12px',
+                        gridTemplateAreas: (isZoomLocked || canvasScale <= 1.001)
+                            ? (scrollbarSide === 'left' ? '"vert main" "corner horiz"' : '"main vert" "horiz corner"') // technically bottom row is 0px so hidden
+                            : (scrollbarSide === 'left' ? '"vert main" "corner horiz"' : '"main vert" "horiz corner"'),
+                        overflow: 'hidden', // Container does not scroll
+                        direction: 'ltr' // Always LTR for Grid
+                    }}
+                    className="canvas-scrollbar-container"
+                >
+                    {/* Vertical Scrollbar */}
+                    {/* Vertical Scrollbar */}
+                    <StyledScrollbar
+                        ref={verticalScrollRef}
+                        onScroll={handleVerticalScroll}
+                        style={{
+                            gridArea: 'vert',
+                            overflowY: 'scroll',
+                            overflowX: 'hidden'
+                            // Removed width:100% since component handles it, but grid area constrains it.
+                        }}
+                    >
+                        <div style={{ height: `${pageHeightState * canvasScale}px`, width: '1px' }} />
+                    </StyledScrollbar>
+
+                    {/* Main Canvas Viewport */}
+                    <div
+                        ref={canvasViewportRef}
+                        style={{
+                            gridArea: 'main',
+                            position: 'relative',
+                            width: '100%',
+                            height: '100%',
+                            overflow: 'hidden'
+                        }}
+                    >
+                        <div style={{ position: 'absolute', top: 0, left: 0 }}>
+                            <canvas ref={canvasRef} />
                         </div>
-                    </CompactModal>
-                </Backdrop>
-            )
+                    </div>
+
+                    {/* Horizontal Scrollbar */}
+                    <StyledScrollbar
+                        ref={horizontalScrollRef}
+                        onScroll={handleHorizontalScroll}
+                        style={{
+                            gridArea: 'horiz',
+                            overflowX: 'scroll',
+                            overflowY: 'hidden',
+                            display: (isZoomLocked || canvasScale <= 1.001) ? 'none' : 'block'
+                        }}
+                    >
+                        <div style={{ width: `${Math.max(pageWidthState * canvasScale, (fabricCanvasRef.current?.getWidth() || 0))}px`, height: '1px' }} />
+                    </StyledScrollbar>
+
+                    {/* Corner (Visual Spacer) */}
+                    <div style={{
+                        gridArea: 'corner',
+                        background: '#f1f1f1',
+                        display: (isZoomLocked || canvasScale <= 1.001) ? 'none' : 'block'
+                    }} />
+
+                </CanvasWrapper>
+            </ModalContainer >
+
+            {
+                pdfDocToSelect && (
+                    <PdfPageSelector
+                        pdfDoc={pdfDocToSelect}
+                        t={t}
+                        onSelect={(canvas) => {
+                            processImage(canvas);
+                            setPdfDocToSelect(null);
+                        }}
+                        onCancel={() => setPdfDocToSelect(null)}
+                    />
+                )
             }
 
-            <CanvasWrapper
-                ref={containerRef}
-                $side={scrollbarSide}
-                style={{
-                    ...backgroundStyle,
-                    display: 'grid',
-                    gridTemplateColumns: scrollbarSide === 'left' ? '12px 1fr' : '1fr 12px',
-                    gridTemplateRows: (isZoomLocked || canvasScale <= 1.001) ? '1fr 0px' : '1fr 12px',
-                    gridTemplateAreas: (isZoomLocked || canvasScale <= 1.001)
-                        ? (scrollbarSide === 'left' ? '"vert main" "corner horiz"' : '"main vert" "horiz corner"') // technically bottom row is 0px so hidden
-                        : (scrollbarSide === 'left' ? '"vert main" "corner horiz"' : '"main vert" "horiz corner"'),
-                    overflow: 'hidden', // Container does not scroll
-                    direction: 'ltr' // Always LTR for Grid
+            <ConfirmModal
+                isOpen={isClearConfirmOpen}
+                message={t.drawing?.clear_all_confirm || 'Clear all?'}
+                onConfirm={() => {
+                    handleClear();
+                    setIsClearConfirmOpen(false);
                 }}
-                className="canvas-scrollbar-container"
-            >
-                {/* Vertical Scrollbar */}
-                {/* Vertical Scrollbar */}
-                <StyledScrollbar
-                    ref={verticalScrollRef}
-                    onScroll={handleVerticalScroll}
-                    style={{
-                        gridArea: 'vert',
-                        overflowY: 'scroll',
-                        overflowX: 'hidden'
-                        // Removed width:100% since component handles it, but grid area constrains it.
-                    }}
-                >
-                    <div style={{ height: `${pageHeightState * canvasScale}px`, width: '1px' }} />
-                </StyledScrollbar>
+                onCancel={() => setIsClearConfirmOpen(false)}
+                confirmText={t.drawing?.clear || 'Clear'}
+                cancelText={t.drawing?.cancel || 'Cancel'}
+                isDestructive={true}
+            />
 
-                {/* Main Canvas Viewport */}
-                <div
-                    ref={canvasViewportRef}
-                    style={{
-                        gridArea: 'main',
-                        position: 'relative',
-                        width: '100%',
-                        height: '100%',
-                        overflow: 'hidden'
-                    }}
-                >
-                    <div style={{ position: 'absolute', top: 0, left: 0 }}>
-                        <canvas ref={canvasRef} />
-                    </div>
-                </div>
+            <ConfirmModal
+                isOpen={isPaletteResetConfirmOpen}
+                message={t.drawing?.palette_reset_confirm || 'Reset this palette?'}
+                onConfirm={() => {
+                    if (paletteResetIndex !== null) handlePaletteReset(paletteResetIndex);
+                    setIsPaletteResetConfirmOpen(false);
+                }}
+                onCancel={() => setIsPaletteResetConfirmOpen(false)}
+                confirmText={t.drawing?.reset || 'Reset'}
+                cancelText={t.drawing?.cancel || 'Cancel'}
+            />
 
-                {/* Horizontal Scrollbar */}
-                <StyledScrollbar
-                    ref={horizontalScrollRef}
-                    onScroll={handleHorizontalScroll}
-                    style={{
-                        gridArea: 'horiz',
-                        overflowX: 'scroll',
-                        overflowY: 'hidden',
-                        display: (isZoomLocked || canvasScale <= 1.001) ? 'none' : 'block'
-                    }}
-                >
-                    <div style={{ width: `${Math.max(pageWidthState * canvasScale, (fabricCanvasRef.current?.getWidth() || 0))}px`, height: '1px' }} />
-                </StyledScrollbar>
+            {
+                isExitConfirmOpen && (
+                    <Backdrop style={{ zIndex: 20000 }}>
+                        <CompactModal onClick={e => e.stopPropagation()} style={{ padding: '24px', width: '95vw', maxWidth: '400px', borderRadius: '16px', maxHeight: '80vh' }}>
+                            <h3 style={{ marginTop: 0, fontSize: '1.25rem', fontWeight: 600, color: '#111827' }}>{t.drawing?.exit_title || 'Exit Canvas'}</h3>
+                            <p style={{ color: '#4b5563', lineHeight: '1.6', margin: '12px 0 24px 0', fontSize: '0.95rem' }}>
+                                {t.drawing?.cancel_confirm || 'Are you sure you want to exit? Unsaved changes will be lost.'}
+                            </p>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                <CompactModalButton onClick={() => setIsExitConfirmOpen(false)} style={{ padding: '10px 16px', borderRadius: '8px', minWidth: '80px', flex: '1 1 auto' }}>
+                                    {t.drawing?.exit_cancel || 'Cancel'}
+                                </CompactModalButton>
+                                <CompactModalButton
+                                    $variant="primary"
+                                    onClick={handleConfirmExit}
+                                    style={{ background: '#ef4444', borderColor: '#ef4444', padding: '10px 16px', borderRadius: '8px', minWidth: '120px', flex: '1 1 auto' }}
+                                >
+                                    {t.drawing?.discard || 'Discard Changes'}
+                                </CompactModalButton>
+                            </div>
+                        </CompactModal>
+                    </Backdrop>
+                )
+            }
 
-                {/* Corner (Visual Spacer) */}
-                <div style={{
-                    gridArea: 'corner',
-                    background: '#f1f1f1',
-                    display: (isZoomLocked || canvasScale <= 1.001) ? 'none' : 'block'
-                }} />
+            {
+                isHelpOpen && (
+                    <Backdrop onClick={() => setIsHelpOpen(false)} style={{ zIndex: 11000 }}>
+                        <CompactModal onClick={e => e.stopPropagation()} style={{ padding: '20px', width: '95vw', maxWidth: '500px', maxHeight: '85vh', overflowY: 'auto' }}>
+                            <div style={{ padding: '8px' }}>
+                                <h3 style={{ margin: '0 0 20px 0', fontSize: '1.1rem', fontWeight: 600, color: '#111827', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>📘 {t.drawing?.help || 'Canvas Guide'}</h3>
 
-            </CanvasWrapper>
-        </ModalContainer >
+                                <div style={{ marginBottom: '16px' }}>
+                                    <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8rem', fontWeight: 600, color: '#1971c2', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⌨️ {t.drawing?.shortcuts || 'Shortcuts'}</h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 24px', fontSize: '0.75rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_select || 'Select'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>V</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_pen || 'Pen'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>P</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_line || 'Line'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>L</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_rect || 'Rect'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>R</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_circle || 'Circle'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>C</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_text || 'Text'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>T</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_eraser || 'Eraser'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>E</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_delete || 'Delete'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>D</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_undo || 'Undo'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>⌘Z</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_redo || 'Redo'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>⌘⇧Z</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_size || 'Size 1-5'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>1-5</kbd></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_del_sel || 'Del Select'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>Del</kbd></div>
+                                    </div>
+                                </div>
 
-        {
-            pdfDocToSelect && (
-                <PdfPageSelector
-                    pdfDoc={pdfDocToSelect}
-                    t={t}
-                    onSelect={(canvas) => {
-                        processImage(canvas);
-                        setPdfDocToSelect(null);
-                    }}
-                    onCancel={() => setPdfDocToSelect(null)}
-                />
-            )
-        }
-
-        <ConfirmModal
-            isOpen={isClearConfirmOpen}
-            message={t.drawing?.clear_all_confirm || 'Clear all?'}
-            onConfirm={() => {
-                handleClear();
-                setIsClearConfirmOpen(false);
-            }}
-            onCancel={() => setIsClearConfirmOpen(false)}
-            confirmText={t.drawing?.clear || 'Clear'}
-            cancelText={t.drawing?.cancel || 'Cancel'}
-            isDestructive={true}
-        />
-
-        <ConfirmModal
-            isOpen={isPaletteResetConfirmOpen}
-            message={t.drawing?.palette_reset_confirm || 'Reset this palette?'}
-            onConfirm={() => {
-                if (paletteResetIndex !== null) handlePaletteReset(paletteResetIndex);
-                setIsPaletteResetConfirmOpen(false);
-            }}
-            onCancel={() => setIsPaletteResetConfirmOpen(false)}
-            confirmText={t.drawing?.reset || 'Reset'}
-            cancelText={t.drawing?.cancel || 'Cancel'}
-        />
-
-        {
-            isExitConfirmOpen && (
-                <Backdrop style={{ zIndex: 20000 }}>
-                    <CompactModal onClick={e => e.stopPropagation()} style={{ padding: '24px', width: '95vw', maxWidth: '400px', borderRadius: '16px', maxHeight: '80vh' }}>
-                        <h3 style={{ marginTop: 0, fontSize: '1.25rem', fontWeight: 600, color: '#111827' }}>{t.drawing?.exit_title || 'Exit Canvas'}</h3>
-                        <p style={{ color: '#4b5563', lineHeight: '1.6', margin: '12px 0 24px 0', fontSize: '0.95rem' }}>
-                            {t.drawing?.cancel_confirm || 'Are you sure you want to exit? Unsaved changes will be lost.'}
-                        </p>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                            <CompactModalButton onClick={() => setIsExitConfirmOpen(false)} style={{ padding: '10px 16px', borderRadius: '8px', minWidth: '80px', flex: '1 1 auto' }}>
-                                {t.drawing?.exit_cancel || 'Cancel'}
-                            </CompactModalButton>
-                            <CompactModalButton
-                                $variant="primary"
-                                onClick={handleConfirmExit}
-                                style={{ background: '#ef4444', borderColor: '#ef4444', padding: '10px 16px', borderRadius: '8px', minWidth: '120px', flex: '1 1 auto' }}
-                            >
-                                {t.drawing?.discard || 'Discard Changes'}
-                            </CompactModalButton>
-                        </div>
-                    </CompactModal>
-                </Backdrop>
-            )
-        }
-
-        {
-            isHelpOpen && (
-                <Backdrop onClick={() => setIsHelpOpen(false)} style={{ zIndex: 11000 }}>
-                    <CompactModal onClick={e => e.stopPropagation()} style={{ padding: '20px', width: '95vw', maxWidth: '500px', maxHeight: '85vh', overflowY: 'auto' }}>
-                        <div style={{ padding: '8px' }}>
-                            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.1rem', fontWeight: 600, color: '#111827', borderBottom: '2px solid #f1f3f5', paddingBottom: '10px' }}>📘 {t.drawing?.help || 'Canvas Guide'}</h3>
-
-                            <div style={{ marginBottom: '16px' }}>
-                                <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8rem', fontWeight: 600, color: '#1971c2', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⌨️ {t.drawing?.shortcuts || 'Shortcuts'}</h4>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 24px', fontSize: '0.75rem' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_select || 'Select'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>V</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_pen || 'Pen'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>P</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_line || 'Line'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>L</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_rect || 'Rect'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>R</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_circle || 'Circle'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>C</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_text || 'Text'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>T</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_eraser || 'Eraser'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>E</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_delete || 'Delete'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>D</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_undo || 'Undo'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>⌘Z</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_redo || 'Redo'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>⌘⇧Z</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_size || 'Size 1-5'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>1-5</kbd></div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#495057' }}>{t.drawing?.sc_del_sel || 'Del Select'}</span><kbd style={{ background: '#f8f9fa', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.7rem', border: '1px solid #dee2e6', boxShadow: '0 1px 0 #dee2e6', color: '#333' }}>Del</kbd></div>
+                                <div style={{ marginBottom: '16px' }}>
+                                    <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8rem', fontWeight: 600, color: '#2f9e44', textTransform: 'uppercase', letterSpacing: '0.5px' }}>💡 {t.drawing?.help_tips || 'Features & Tips'}</h4>
+                                    <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.75rem', lineHeight: 1.6, color: '#495057', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <li><b>{t.drawing?.help_tip_detail_title}</b>: {t.drawing?.help_tip_detail_desc}</li>
+                                        <li><b>{t.drawing?.help_tip_eraser_title}</b>: <span style={{ display: 'inline-flex', verticalAlign: 'text-bottom' }}><PixelEraserIcon /></span> <span style={{ display: 'inline-flex', verticalAlign: 'text-bottom' }}><ObjectEraserIcon /></span> {t.drawing?.help_tip_eraser_desc}</li>
+                                        <li><b>{t.drawing?.help_tip_bg_title}</b>: <span style={{ display: 'inline-flex', verticalAlign: 'text-bottom' }}><BackgroundIcon /></span> {t.drawing?.help_tip_bg_desc}</li>
+                                        <li><b>{t.drawing?.help_tip_image_title}</b>: <FiDownload size={14} style={{ verticalAlign: 'text-bottom' }} /> {t.drawing?.help_tip_image_desc}</li>
+                                        <li><b>{t.drawing?.help_tip_clear_title}</b>: <FiTrash2 size={14} style={{ verticalAlign: 'text-bottom' }} /> {t.drawing?.help_tip_clear_desc}</li>
+                                        <li><b>{t.drawing?.help_tip_cancel_title}</b>: <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: '#ffffff', border: '1px solid #ced4da', verticalAlign: 'text-bottom', margin: '0 2px' }}><FiX size={10} color="#333" /></span> {t.drawing?.help_tip_cancel_desc}</li>
+                                        <li><b>{t.drawing?.help_tip_save_title}</b>: <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: '#333', border: '1px solid #333', verticalAlign: 'text-bottom', margin: '0 2px' }}><FiCheck size={10} color="#ffffff" /></span> {t.drawing?.help_tip_save_desc}</li>
+                                    </ul>
                                 </div>
                             </div>
+                            <CompactModalFooter>
+                                <div />
+                                <CompactModalButton onClick={() => setIsHelpOpen(false)} $variant="primary">
+                                    {t.drawing?.close || 'Close'}
+                                </CompactModalButton>
+                            </CompactModalFooter>
+                        </CompactModal>
+                    </Backdrop>
+                )
+            }
 
-                            <div style={{ marginBottom: '16px' }}>
-                                <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8rem', fontWeight: 600, color: '#2f9e44', textTransform: 'uppercase', letterSpacing: '0.5px' }}>💡 {t.drawing?.help_tips || 'Features & Tips'}</h4>
-                                <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '0.75rem', lineHeight: 1.6, color: '#495057', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <li><b>{t.drawing?.help_tip_detail_title}</b>: {t.drawing?.help_tip_detail_desc}</li>
-                                    <li><b>{t.drawing?.help_tip_eraser_title}</b>: <span style={{ display: 'inline-flex', verticalAlign: 'text-bottom' }}><PixelEraserIcon /></span> <span style={{ display: 'inline-flex', verticalAlign: 'text-bottom' }}><ObjectEraserIcon /></span> {t.drawing?.help_tip_eraser_desc}</li>
-                                    <li><b>{t.drawing?.help_tip_bg_title}</b>: <span style={{ display: 'inline-flex', verticalAlign: 'text-bottom' }}><BackgroundIcon /></span> {t.drawing?.help_tip_bg_desc}</li>
-                                    <li><b>{t.drawing?.help_tip_image_title}</b>: <FiDownload size={14} style={{ verticalAlign: 'text-bottom' }} /> {t.drawing?.help_tip_image_desc}</li>
-                                    <li><b>{t.drawing?.help_tip_clear_title}</b>: <FiTrash2 size={14} style={{ verticalAlign: 'text-bottom' }} /> {t.drawing?.help_tip_clear_desc}</li>
-                                    <li><b>{t.drawing?.help_tip_cancel_title}</b>: <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: '#ffffff', border: '1px solid #ced4da', verticalAlign: 'text-bottom', margin: '0 2px' }}><FiX size={10} color="#333" /></span> {t.drawing?.help_tip_cancel_desc}</li>
-                                    <li><b>{t.drawing?.help_tip_save_title}</b>: <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: '#333', border: '1px solid #333', verticalAlign: 'text-bottom', margin: '0 2px' }}><FiCheck size={10} color="#ffffff" /></span> {t.drawing?.help_tip_save_desc}</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <CompactModalFooter>
-                            <div />
-                            <CompactModalButton onClick={() => setIsHelpOpen(false)} $variant="primary">
-                                {t.drawing?.close || 'Close'}
-                            </CompactModalButton>
-                        </CompactModalFooter>
-                    </CompactModal>
-                </Backdrop>
-            )
-        }
-
-        {
-            isConfigOpen && (
-                <ToolbarConfigurator
-                    currentItems={toolbarItems}
-                    allItems={INITIAL_TOOLBAR_ITEMS}
-                    onSaveItems={(items) => setToolbarItems(items)}
-                    onClose={() => setIsConfigOpen(false)}
-                    colors={availableColors}
-                    brushSizes={availableBrushSizes}
-                    scrollbarSide={scrollbarSide}
-                    onScrollbarSideChange={setScrollbarSide}
-                    maxPages={maxPages}
-                    onMaxPagesChange={setMaxPages}
-                    defaultZoomLocked={(() => {
-                        const saved = localStorage.getItem('fabric_default_zoom_locked');
-                        if (saved !== null) return saved === 'true';
-                        return true;
-                    })()}
-                    onDefaultZoomLockedChange={(val) => {
-                        localStorage.setItem('fabric_default_zoom_locked', val ? 'true' : 'false');
-                        setIsZoomLocked(val);
-                    }}
-                    language={language as Language}
-                    t={t}
-                />
-            )
-        }
-    </ModalOverlay >
-);
+            {
+                isConfigOpen && (
+                    <ToolbarConfigurator
+                        currentItems={toolbarItems}
+                        allItems={INITIAL_TOOLBAR_ITEMS}
+                        onSaveItems={(items) => setToolbarItems(items)}
+                        onClose={() => setIsConfigOpen(false)}
+                        colors={availableColors}
+                        brushSizes={availableBrushSizes}
+                        scrollbarSide={scrollbarSide}
+                        onScrollbarSideChange={setScrollbarSide}
+                        maxPages={maxPages}
+                        onMaxPagesChange={setMaxPages}
+                        defaultZoomLocked={(() => {
+                            const saved = localStorage.getItem('fabric_default_zoom_locked');
+                            if (saved !== null) return saved === 'true';
+                            return true;
+                        })()}
+                        onDefaultZoomLockedChange={(val) => {
+                            localStorage.setItem('fabric_default_zoom_locked', val ? 'true' : 'false');
+                            setIsZoomLocked(val);
+                        }}
+                        language={language as Language}
+                        t={t}
+                    />
+                )
+            }
+        </ModalOverlay >
+    );
 };
