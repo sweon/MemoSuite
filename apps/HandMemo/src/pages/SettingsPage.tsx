@@ -4,9 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { exportData, importData } from '../utils/backup';
 import { FiTrash2, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiAlertTriangle, FiLock, FiEdit3 } from 'react-icons/fi';
-import { useLanguage } from '../contexts/LanguageContext';
-import { useColorTheme, ThemeSettings, AppLockSettings, useConfirm, PasswordModal } from '@memosuite/shared';
-import { type Language } from '../translations';
+import { useLanguage, useColorTheme, ThemeSettings, AppLockSettings, useConfirm, PasswordModal, LanguageSettings } from '@memosuite/shared';
 
 const Container = styled.div`
   padding: 24px 32px;
@@ -277,21 +275,6 @@ const CheckboxLabel = styled.label`
   }
 `;
 
-const Select = styled.select`
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.background};
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 1rem;
-  width: 100%;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: ${({ theme }) => theme.colors.primary};
-  }
-`;
 
 const HelpList = styled.ul`
   list-style: none;
@@ -353,10 +336,10 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
   </div>
 );
 
-type SubMenu = 'main' | 'data' | 'editor' | 'language' | 'about' | 'theme' | 'appLock';
+type SubMenu = 'main' | 'data' | 'editor' | 'language' | 'translation_editor' | 'about' | 'theme' | 'appLock';
 
 export const SettingsPage: React.FC = () => {
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const { confirm } = useConfirm();
   useColorTheme();
   const [currentSubMenu, setCurrentSubMenu] = useState<SubMenu>('main');
@@ -701,15 +684,12 @@ export const SettingsPage: React.FC = () => {
       {currentSubMenu === 'language' && (
         <Section>
           {renderHeader(t.settings.language)}
-          <Select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as Language)}
-          >
-            <option value="en">{t.settings.english}</option>
-            <option value="ko">{t.settings.korean}</option>
-          </Select>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>{t.settings.language}</label>
+          <LanguageSettings />
+
         </Section>
       )}
+
 
       {currentSubMenu === 'appLock' && (
         <Section>

@@ -6,10 +6,8 @@ import { FiTrash2, FiPlus, FiChevronRight, FiArrowLeft, FiDatabase, FiCpu, FiGlo
 import { MdDragIndicator } from 'react-icons/md';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
-import { useLanguage } from '../contexts/LanguageContext';
-import { ThemeSettings, DataManagementSection, AppLockSettings, useConfirm } from '@memosuite/shared';
+import { useLanguage, ThemeSettings, DataManagementSection, AppLockSettings, useConfirm, LanguageSettings } from '@memosuite/shared';
 import { llmemoAdapter } from '../utils/backupAdapter';
-import { type Language } from '../translations';
 import { TouchDelayDraggable } from '../components/Sidebar/TouchDelayDraggable';
 
 
@@ -243,21 +241,6 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'success' | 'seconda
 
 /* Unused styles removed: ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, RadioLabel, ScrollableList, CheckboxLabel */
 
-const Select = styled.select`
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.background};
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 1rem;
-  width: 100%;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: ${({ theme }) => theme.colors.primary};
-  }
-`;
 
 const HelpList = styled.ul`
   list-style: none;
@@ -322,7 +305,7 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
 type SubMenu = 'main' | 'models' | 'data' | 'editor' | 'theme' | 'language' | 'about' | 'appLock';
 
 export const SettingsPage: React.FC = () => {
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const { confirm } = useConfirm();
 
   const [currentSubMenu, setCurrentSubMenu] = useState<SubMenu>('main');
@@ -665,13 +648,7 @@ export const SettingsPage: React.FC = () => {
 
         <Section>
           {renderHeader(t.settings.language)}
-          <Select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as Language)}
-          >
-            <option value="en">{t.settings.english}</option>
-            <option value="ko">{t.settings.korean}</option>
-          </Select>
+          <LanguageSettings />
         </Section>
       )}
 

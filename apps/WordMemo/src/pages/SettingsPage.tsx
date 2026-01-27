@@ -7,9 +7,7 @@ import { FiTrash2, FiPlus, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, Fi
 import { MdDragIndicator } from 'react-icons/md';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
-import { useLanguage } from '../contexts/LanguageContext';
-import { ThemeSettings, AppLockSettings, useConfirm, PasswordModal } from '@memosuite/shared';
-import { type Language } from '../translations';
+import { useLanguage, ThemeSettings, AppLockSettings, useConfirm, PasswordModal, LanguageSettings } from '@memosuite/shared';
 import { TouchDelayDraggable } from '../components/Sidebar/TouchDelayDraggable';
 
 const Container = styled.div`
@@ -414,7 +412,7 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
 type SubMenu = 'main' | 'sources' | 'data' | 'editor' | 'language' | 'about' | 'learning' | 'llm' | 'theme' | 'appLock';
 
 export const SettingsPage: React.FC = () => {
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
   const { confirm } = useConfirm();
   const [currentSubMenu, setCurrentSubMenu] = useState<SubMenu>('main');
   const [spellCheck, setSpellCheck] = useState(() => localStorage.getItem('spellCheck') !== 'false');
@@ -958,13 +956,7 @@ export const SettingsPage: React.FC = () => {
       {currentSubMenu === 'language' && (
         <Section>
           {renderHeader(t.settings.language)}
-          <Select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as Language)}
-          >
-            <option value="en">{t.settings.english}</option>
-            <option value="ko">{t.settings.korean}</option>
-          </Select>
+          <LanguageSettings />
         </Section>
       )}
 

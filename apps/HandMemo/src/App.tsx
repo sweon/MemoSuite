@@ -1,8 +1,8 @@
 import { useLayoutEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ColorThemeProvider, GlobalStyle, InstallPrompt, AuthProvider, LockScreen, useAuth, ModalProvider } from '@memosuite/shared';
+import { ColorThemeProvider, GlobalStyle, InstallPrompt, AuthProvider, LockScreen, useAuth, ModalProvider, LanguageProvider, useLanguage } from '@memosuite/shared';
 import { SearchProvider } from './contexts/SearchContext';
-import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import { translations } from './translations';
 import { MainLayout } from './components/Layout/MainLayout';
 import { ExitGuardProvider } from '@memosuite/shared-drawing';
 
@@ -52,7 +52,7 @@ function AppContent() {
 
 function App() {
   return (
-    <LanguageProvider>
+    <LanguageProvider appName="handmemo" initialTranslations={translations}>
       <AuthProvider storageKeyPrefix="handmemo">
         <AppContent />
       </AuthProvider>

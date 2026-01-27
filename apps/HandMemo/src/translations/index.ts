@@ -156,9 +156,9 @@ export const translations = {
             editor_tab_size: "Tab Size",
             editor_tab_size_desc: "Set the number of spaces for a tab.",
             editor_large_size: "Large Editor",
-            editor_large_size_desc: "Increase the default height of the editor.",
             editor_advanced_toolbar: "Advanced Toolbar",
-            editor_advanced_toolbar_desc: "Show more formatting options in the toolbar."
+            editor_advanced_toolbar_desc: "Show more formatting options in the toolbar.",
+            customize: "Translation Editor"
         },
         memo_detail: {
             loading: "Loading...",
@@ -511,9 +511,9 @@ export const translations = {
             editor_tab_size: "탭 크기",
             editor_tab_size_desc: "탭 키 입력 시 공백 개수를 설정합니다.",
             editor_large_size: "에디터 크기 확대",
-            editor_large_size_desc: "에디터의 기본 높이를 더 크게 설정합니다.",
             editor_advanced_toolbar: "확장 툴바",
-            editor_advanced_toolbar_desc: "표(Table) 등 더 많은 도구를 툴바에 표시합니다."
+            editor_advanced_toolbar_desc: "표(Table) 등 더 많은 도구를 툴바에 표시합니다.",
+            customize: "번역 편집기"
         },
         memo_detail: {
             loading: "로딩 중...",

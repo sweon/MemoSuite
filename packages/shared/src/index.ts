@@ -30,3 +30,6 @@ export * from './utils/file';
 
 // Auth
 export * from './auth';
+
+// I18n
+export * from './i18n';
