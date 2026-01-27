@@ -2283,48 +2283,53 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
         };
 
-        // 1. Block Start in Backdrop
-        canvas.on('mouse:down', (opt) => {
-            const ptr = canvas.getPointer(opt.e);
-            if (!checkIsInside(ptr)) {
-                opt.e.stopImmediatePropagation();
-                (canvas as any)._isMouseDown = false;
-                (canvas as any)._boundaryBlocked = true;
+        // 🚀 PERSISTENT BACKDROP PROTECTION via Framework Orchestration
+        // We override Fabric's internal event methods so they survive canvas.off() calls.
+
+        const original__onMouseDown = (canvas as any).__onMouseDown.bind(canvas);
+        (canvas as any).__onMouseDown = function (e: Event) {
+            const ptr = this.getPointer(e);
+            if (!checkIsInside(ptr) && activeToolRef.current !== 'select') {
+                (this as any)._boundaryBlocked = true;
                 return;
             }
-            (canvas as any)._boundaryBlocked = false;
-        });
+            (this as any)._boundaryBlocked = false;
+            original__onMouseDown(e);
+        };
 
-        // 2. Terminate on Exit
-        canvas.on('mouse:move', (opt) => {
-            if (activeToolRef.current === 'select') return;
-            if ((canvas as any)._boundaryBlocked) return;
-
-            const isInteracting = (canvas as any)._isCurrentlyDrawing || (canvas as any)._isMouseDown;
-            if (!isInteracting) return;
-
-            const ptr = canvas.getPointer(opt.e);
-            if (!checkIsInside(ptr)) {
-                // Kill the interaction immediately (treat as pen release)
-                (canvas as any)._onMouseUp(opt.e);
-
-                // CRITICAL: Clean up internal brush state to prevent connecting lines
-                const brush = canvas.freeDrawingBrush as any;
-                if (brush && brush._points) {
-                    brush._points = [];
-                    if (brush._reset) brush._reset();
-                }
-                (canvas as any)._isCurrentlyDrawing = false;
-                (canvas as any)._isMouseDown = false;
-                (canvas as any)._boundaryBlocked = true; // Lock until next real mousedown
-
-                canvas.requestRenderAll();
+        const original__onMouseMove = (canvas as any).__onMouseMove.bind(canvas);
+        (canvas as any).__onMouseMove = function (e: Event) {
+            if (activeToolRef.current === 'select') {
+                return original__onMouseMove(e);
             }
-        });
+            if ((this as any)._boundaryBlocked) return;
 
-        canvas.on('mouse:up', () => {
-            (canvas as any)._boundaryBlocked = false;
-        });
+            const ptr = this.getPointer(e);
+            if (!checkIsInside(ptr)) {
+                // Terminate interaction if we exit the paper
+                const isInteracting = (this as any)._isCurrentlyDrawing || (this as any)._isMouseDown;
+                if (isInteracting) {
+                    this._onMouseUp(e);
+                    const brush = this.freeDrawingBrush as any;
+                    if (brush && brush._points) {
+                        brush._points = [];
+                        if (brush._reset) brush._reset();
+                    }
+                    (this as any)._isCurrentlyDrawing = false;
+                    (this as any)._isMouseDown = false;
+                    (this as any)._boundaryBlocked = true;
+                    this.requestRenderAll();
+                    return;
+                }
+            }
+            original__onMouseMove(e);
+        };
+
+        const original__onMouseUp = (canvas as any).__onMouseUp.bind(canvas);
+        (canvas as any).__onMouseUp = function (e: Event) {
+            (this as any)._boundaryBlocked = false;
+            original__onMouseUp(e);
+        };
 
         updateClipPath();
 
