@@ -1604,30 +1604,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const isInternalScrollRef = useRef(false);
 
 
-    const handleResetZoom = React.useCallback(() => {
-        const canvas = fabricCanvasRef.current;
-        if (!canvas) return;
-        canvas.setZoom(1);
-        setCanvasScale(1);
-        canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
-        canvas.requestRenderAll();
 
-        isInternalScrollRef.current = true;
-        if (verticalScrollRef.current) {
-            verticalScrollRef.current.scrollTop = 0;
-        }
-        if (horizontalScrollRef.current) {
-            horizontalScrollRef.current.scrollLeft = 0;
-        }
-        if (containerRef.current) {
-            containerRef.current.scrollTop = 0;
-            containerRef.current.scrollLeft = 0;
-        }
-        // Use a small timeout to let scroll events fire before resetting the flag
-        setTimeout(() => {
-            isInternalScrollRef.current = false;
-        }, 50);
-    }, []);
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -1754,6 +1731,121 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     }, [brushType]);
 
     // Tool Settings Persistence
+    const updateCanvasCssClip = React.useCallback(() => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+        const vpt = canvas.viewportTransform;
+        const upperCanvas = (canvas as any).upperCanvasEl as HTMLElement;
+        const container = upperCanvas?.parentElement;
+        if (!vpt || !container) return;
+
+        const zoom = vpt[0];
+        const tx = vpt[4];
+        const ty = vpt[5];
+        const w = pageWidthRef.current * zoom;
+        const h = pageHeightRef.current * zoom;
+
+        const canvasW = canvas.getWidth();
+        const canvasH = canvas.getHeight();
+
+        const clipT = Math.max(0, ty);
+        const clipL = Math.max(0, tx);
+        const clipR = Math.max(0, canvasW - (tx + w));
+        const clipB = Math.max(0, canvasH - (ty + h));
+
+        container.style.clipPath = `inset(${clipT}px ${clipR}px ${clipB}px ${clipL}px)`;
+    }, []);
+
+    const clampVpt = React.useCallback((vpt: number[]) => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+        const zoom = vpt[0];
+        const viewportW = canvasViewportRef.current?.clientWidth || canvas.getWidth();
+        const viewportH = canvasViewportRef.current?.clientHeight || canvas.getHeight();
+        const contentW = pageWidthRef.current * zoom;
+        const contentH = pageHeightRef.current * zoom;
+
+        if (contentW <= viewportW) {
+            vpt[4] = (viewportW - contentW) / 2;
+        } else {
+            vpt[4] = Math.min(0, Math.max(vpt[4], viewportW - contentW));
+        }
+
+        if (contentH <= viewportH) {
+            vpt[5] = (viewportH - contentH) / 2;
+        } else {
+            vpt[5] = Math.min(0, Math.max(vpt[5], viewportH - contentH));
+        }
+    }, []);
+
+    const syncScrollToViewport = React.useCallback(() => {
+        if (isSyncingScrollRef.current) return;
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+        const vpt = canvas.viewportTransform;
+        if (!vpt) return;
+
+        updateCanvasCssClip();
+
+        const zoom = vpt[0];
+        const viewportArea = canvasViewportRef.current;
+        const viewportW = viewportArea?.clientWidth || canvas.getWidth();
+        const viewportH = viewportArea?.clientHeight || canvas.getHeight();
+        const contentW = pageWidthRef.current * zoom;
+        const contentH = pageHeightRef.current * zoom;
+
+        isInternalScrollRef.current = true;
+
+        if (verticalScrollRef.current) {
+            const centeringOffset = Math.max(0, (viewportH - contentH) / 2);
+            verticalScrollRef.current.scrollTop = Math.round(centeringOffset - vpt[5]);
+        }
+
+        if (horizontalScrollRef.current) {
+            const centeringOffset = Math.max(0, (viewportW - contentW) / 2);
+            horizontalScrollRef.current.scrollLeft = Math.round(centeringOffset - vpt[4]);
+        }
+
+        isInternalScrollRef.current = false;
+
+        const vScroll = verticalScrollRef.current;
+        if (vScroll && viewportHeightRef.current > 0) {
+            const contentCenterY = (viewportHeightRef.current / 2 - vpt[5]) / zoom;
+            const pageUnitHeight = viewportHeightRef.current;
+            const calculatedPage = Math.floor(contentCenterY / pageUnitHeight) + 1;
+            const maxP = totalPagesRef.current || 1;
+            const newPage = Math.max(1, Math.min(maxP, calculatedPage));
+
+            setCurrentPage(prev => (prev !== newPage ? newPage : prev));
+        }
+    }, [updateCanvasCssClip, setCurrentPage]);
+
+    const handleResetZoom = React.useCallback(() => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return;
+        canvas.setZoom(1);
+        setCanvasScale(1);
+        canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+        canvas.requestRenderAll();
+        syncScrollToViewport();
+
+        isInternalScrollRef.current = true;
+        if (verticalScrollRef.current) {
+            verticalScrollRef.current.scrollTop = 0;
+        }
+        if (horizontalScrollRef.current) {
+            horizontalScrollRef.current.scrollLeft = 0;
+        }
+        if (containerRef.current) {
+            containerRef.current.scrollTop = 0;
+            containerRef.current.scrollLeft = 0;
+        }
+        // Use a small timeout to let scroll events fire before resetting the flag
+        setTimeout(() => {
+            isInternalScrollRef.current = false;
+        }, 50);
+    }, [syncScrollToViewport]);
+
     const getToolKey = (tool: ToolType, bType: string) => {
         if (tool === 'pen') return bType;
         return tool;
@@ -2266,30 +2358,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             return ptr.x >= 0 && ptr.x <= w && ptr.y >= 0 && ptr.y <= h;
         };
 
-        const updateCanvasCssClip = () => {
-            const vpt = canvas.viewportTransform;
-            const upperCanvas = (canvas as any).upperCanvasEl as HTMLElement;
-            const container = upperCanvas?.parentElement;
-            if (!vpt || !container) return;
 
-            const zoom = vpt[0];
-            const tx = vpt[4];
-            const ty = vpt[5];
-            const w = pageWidthRef.current * zoom;
-            const h = pageHeightRef.current * zoom;
-
-            const canvasW = canvas.getWidth();
-            const canvasH = canvas.getHeight();
-
-            // Calculate inset values from the edges of the viewport (canvas element)
-            // top right bottom left
-            const clipT = Math.max(0, ty);
-            const clipL = Math.max(0, tx);
-            const clipR = Math.max(0, canvasW - (tx + w));
-            const clipB = Math.max(0, canvasH - (ty + h));
-
-            container.style.clipPath = `inset(${clipT}px ${clipR}px ${clipB}px ${clipL}px)`;
-        };
 
         // 🚀 PERSISTENT BACKDROP PROTECTION via Framework Orchestration
         // We override Fabric's internal event methods so they survive canvas.off() calls.
@@ -2479,81 +2548,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             setCanvasScale(canvas.getZoom());
         });
 
-        const clampVpt = (vpt: number[]) => {
-            const zoom = vpt[0];
-            const viewportW = canvasViewportRef.current?.clientWidth || canvas.getWidth();
-            const viewportH = canvasViewportRef.current?.clientHeight || canvas.getHeight();
-            const contentW = pageWidthRef.current * zoom;
-            const contentH = pageHeightRef.current * zoom;
 
-            // X axis
-            if (contentW <= viewportW) {
-                vpt[4] = (viewportW - contentW) / 2;
-            } else {
-                vpt[4] = Math.min(0, Math.max(vpt[4], viewportW - contentW));
-            }
 
-            // Y axis
-            if (contentH <= viewportH) {
-                vpt[5] = (viewportH - contentH) / 2;
-            } else {
-                vpt[5] = Math.min(0, Math.max(vpt[5], viewportH - contentH));
-            }
-        };
 
-        const syncScrollToViewport = () => {
-            if (isSyncingScrollRef.current) return;
-            const vpt = canvas.viewportTransform;
-            if (!vpt) return;
-
-            // 🚀 SYNC CSS CLIP: Physical cut-off exactly at the paper boundary
-            updateCanvasCssClip();
-
-            const zoom = vpt[0];
-            const viewportArea = canvasViewportRef.current;
-            const viewportW = viewportArea?.clientWidth || canvas.getWidth();
-            const viewportH = viewportArea?.clientHeight || canvas.getHeight();
-            const contentW = pageWidthRef.current * zoom;
-            const contentH = pageHeightRef.current * zoom;
-
-            isInternalScrollRef.current = true;
-
-            // Vertical offset
-            if (verticalScrollRef.current) {
-                const centeringOffset = Math.max(0, (viewportH - contentH) / 2);
-                verticalScrollRef.current.scrollTop = Math.round(centeringOffset - vpt[5]);
-            }
-
-            // Horizontal offset
-            if (horizontalScrollRef.current) {
-                const centeringOffset = Math.max(0, (viewportW - contentW) / 2);
-                horizontalScrollRef.current.scrollLeft = Math.round(centeringOffset - vpt[4]);
-            }
-
-            isInternalScrollRef.current = false;
-
-            // Update current page robustly
-            const vScroll = verticalScrollRef.current;
-            if (vScroll && viewportHeightRef.current > 0) {
-                // Calculate which page is in the CENTER of the viewport
-                // This correctly identifies the active page even if the user is at the bottom of the document
-                const zoom = vpt[0];
-                const viewportHeight = viewportHeightRef.current;
-
-                // Content Y coordinate corresponding to the center of the viewport
-                // vpt[5] is Y translation (negative when scrolled down). 
-                // We subtract vpt[5] to get the offset, add half viewport to get center, then divide by zoom to get logical units.
-                const contentCenterY = (viewportHeight / 2 - vpt[5]) / zoom;
-
-                // Assuming logical page height corresponds to one viewport height unit
-                const pageUnitHeight = viewportHeight;
-
-                const calculatedPage = Math.floor(contentCenterY / pageUnitHeight) + 1;
-                const newPage = Math.max(1, Math.min(totalPagesRef.current, calculatedPage));
-
-                setCurrentPage(prev => (prev !== newPage ? newPage : prev));
-            }
-        };
 
         canvas.on('viewport:scaled', syncScrollToViewport);
         canvas.on('viewport:translated', syncScrollToViewport);
