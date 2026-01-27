@@ -2266,28 +2266,29 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             return ptr.x >= 0 && ptr.x <= w && ptr.y >= 0 && ptr.y <= h;
         };
 
-        const updateClipPath = () => {
-            const w = pageWidthRef.current;
-            const h = pageHeightRef.current;
-            if (w && h) {
-                // By setting absolutePositioned: false, the clipPath will be transformed 
-                // by the same viewport transform as the drawing objects.
-                // This keeps the "paper clip" perfectly aligned with the paper rectangle
-                // regardless of zoom or pan.
-                canvas.clipPath = new fabric.Rect({
-                    originX: 'left',
-                    originY: 'top',
-                    left: 0,
-                    top: 0,
-                    width: w,
-                    height: h,
-                    absolutePositioned: false,
-                    selectable: false,
-                    evented: false,
-                    fill: 'transparent'
-                });
-                canvas.requestRenderAll();
-            }
+        const updateCanvasCssClip = () => {
+            const vpt = canvas.viewportTransform;
+            const upperCanvas = (canvas as any).upperCanvasEl as HTMLElement;
+            const container = upperCanvas?.parentElement;
+            if (!vpt || !container) return;
+
+            const zoom = vpt[0];
+            const tx = vpt[4];
+            const ty = vpt[5];
+            const w = pageWidthRef.current * zoom;
+            const h = pageHeightRef.current * zoom;
+
+            const canvasW = canvas.getWidth();
+            const canvasH = canvas.getHeight();
+
+            // Calculate inset values from the edges of the viewport (canvas element)
+            // top right bottom left
+            const clipT = Math.max(0, ty);
+            const clipL = Math.max(0, tx);
+            const clipR = Math.max(0, canvasW - (tx + w));
+            const clipB = Math.max(0, canvasH - (ty + h));
+
+            container.style.clipPath = `inset(${clipT}px ${clipR}px ${clipB}px ${clipL}px)`;
         };
 
         // 🚀 PERSISTENT BACKDROP PROTECTION via Framework Orchestration
@@ -2370,7 +2371,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             original__onMouseUp(e);
         };
 
-        updateClipPath();
+        updateCanvasCssClip();
 
         // Auto-resize canvas when CanvasWrapper resizes
         const resizeObserver = new ResizeObserver((entries) => {
@@ -2409,7 +2410,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 if (pageRectRef.current) {
                     pageRectRef.current.set('height', newHeight).setCoords();
                 }
-                updateClipPath();
+                updateCanvasCssClip();
             }
 
             if (Math.abs(pageWidthRef.current - newWidth) > 5) {
@@ -2418,7 +2419,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 if (pageRectRef.current) {
                     pageRectRef.current.set('width', newWidth).setCoords();
                 }
-                updateClipPath();
+                updateCanvasCssClip();
             }
 
             if (changed) {
@@ -2504,6 +2505,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             if (isSyncingScrollRef.current) return;
             const vpt = canvas.viewportTransform;
             if (!vpt) return;
+
+            // 🚀 SYNC CSS CLIP: Physical cut-off exactly at the paper boundary
+            updateCanvasCssClip();
 
             const zoom = vpt[0];
             const viewportArea = canvasViewportRef.current;
