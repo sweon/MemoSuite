@@ -2286,6 +2286,20 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // 🚀 PERSISTENT BACKDROP PROTECTION via Framework Orchestration
         // We override Fabric's internal event methods so they survive canvas.off() calls.
 
+        const getBoundaryPoint = (p1: { x: number, y: number }, p2: { x: number, y: number }) => {
+            const w = pageWidthRef.current;
+            const h = pageHeightRef.current;
+            let t = 1;
+            if (p2.x < 0) t = Math.min(t, (0 - p1.x) / (p2.x - p1.x));
+            else if (p2.x > w) t = Math.min(t, (w - p1.x) / (p2.x - p1.x));
+            if (p2.y < 0) t = Math.min(t, (0 - p1.y) / (p2.y - p1.y));
+            else if (p2.y > h) t = Math.min(t, (h - p1.y) / (p2.y - p1.y));
+            return {
+                x: p1.x + t * (p2.x - p1.x),
+                y: p1.y + t * (p2.y - p1.y)
+            };
+        };
+
         const original__onMouseDown = (canvas as any).__onMouseDown.bind(canvas);
         (canvas as any).__onMouseDown = function (e: Event) {
             const ptr = this.getPointer(e);
@@ -2294,6 +2308,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 return;
             }
             (this as any)._boundaryBlocked = false;
+            (this as any)._lastInsidePtr = ptr;
             original__onMouseDown(e);
         };
 
@@ -2305,10 +2320,21 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             if ((this as any)._boundaryBlocked) return;
 
             const ptr = this.getPointer(e);
-            if (!checkIsInside(ptr)) {
+            const isInside = checkIsInside(ptr);
+
+            if (!isInside) {
                 // Terminate interaction if we exit the paper
                 const isInteracting = (this as any)._isCurrentlyDrawing || (this as any)._isMouseDown;
-                if (isInteracting) {
+                if (isInteracting && (this as any)._lastInsidePtr) {
+                    // FAST STROKE COMPATIBILITY: Interpolate the exact intersection point with the boundary
+                    const boundaryPtr = getBoundaryPoint((this as any)._lastInsidePtr, ptr);
+
+                    // Temporarily override getPointer to guide the brush to the edge
+                    const realGetPointer = this.getPointer;
+                    this.getPointer = () => boundaryPtr;
+                    original__onMouseMove(e);
+                    this.getPointer = realGetPointer;
+
                     this._onMouseUp(e);
                     const brush = this.freeDrawingBrush as any;
                     if (brush && brush._points) {
@@ -2321,7 +2347,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     this.requestRenderAll();
                     return;
                 }
+                (this as any)._boundaryBlocked = true;
+                return;
             }
+
+            (this as any)._lastInsidePtr = ptr;
             original__onMouseMove(e);
         };
 
