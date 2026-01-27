@@ -1,6 +1,8 @@
 import { useLayoutEffect } from 'react';
+import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageProvider, LockScreen, ModalProvider, useAuth, useLanguage } from '@memosuite/shared';
+
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ColorThemeProvider, GlobalStyle, InstallPrompt, AuthProvider, LockScreen, useAuth, ModalProvider, LanguageProvider, useLanguage } from '@memosuite/shared';
+
 import { SearchProvider } from './contexts/SearchContext';
 import { translations } from './translations';
 import { MainLayout } from './components/Layout/MainLayout';

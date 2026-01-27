@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { AppLockSettings, LanguageSettings, PasswordModal, ThemeSettings, useConfirm, useLanguage } from '@memosuite/shared';
+
 import styled, { keyframes } from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
@@ -7,7 +9,7 @@ import { FiTrash2, FiPlus, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, Fi
 import { MdDragIndicator } from 'react-icons/md';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
-import { useLanguage, ThemeSettings, AppLockSettings, useConfirm, PasswordModal, LanguageSettings } from '@memosuite/shared';
+
 import { TouchDelayDraggable } from '../components/Sidebar/TouchDelayDraggable';
 
 const Container = styled.div`
@@ -1208,5 +1210,3 @@ export const SettingsPage: React.FC = () => {
     </Container>
   );
 };
-
-

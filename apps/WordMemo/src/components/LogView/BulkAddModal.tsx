@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { FiX, FiCheck, FiUpload } from 'react-icons/fi';
 
@@ -113,8 +114,6 @@ const Footer = styled.div`
   justify-content: space-between;
   align-items: center;
 `;
-
-
 
 const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'danger' | 'cancel' }>`
   display: flex;

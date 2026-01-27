@@ -1,6 +1,5 @@
 import { db } from '../db';
-import { encryptData, decryptData, saveFile } from '@memosuite/shared';
-
+import { decryptData, encryptData, saveFile } from '@memosuite/shared';
 
 export const getBackupData = async (logIds?: number[]) => {
     let logs;

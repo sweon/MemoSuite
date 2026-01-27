@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SyncModal, useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -10,7 +12,7 @@ import { MarkdownView } from '../Editor/MarkdownView';
 import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+
 import { bookMemoSyncAdapter } from '../../utils/backupAdapter';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
 
@@ -359,7 +361,6 @@ export const MemoDetail: React.FC = () => {
         const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
         return match ? match[1] : undefined;
     }, [content]);
-
 
     const memo = useLiveQuery(
         () => (id ? db.memos.get(Number(id)) : undefined),

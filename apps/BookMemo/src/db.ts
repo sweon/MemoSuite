@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 
+
 export type BookStatus = 'reading' | 'completed' | 'on_hold';
 
 export interface Book {

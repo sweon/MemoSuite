@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
+import { AppLockSettings, LanguageSettings, PasswordModal, ThemeSettings, useColorTheme, useConfirm, useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { exportData, importData } from '../utils/backup';
 import { FiTrash2, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiAlertTriangle, FiLock, FiEdit3 } from 'react-icons/fi';
-import { useLanguage, useColorTheme, ThemeSettings, AppLockSettings, useConfirm, PasswordModal, LanguageSettings } from '@memosuite/shared';
 
 const Container = styled.div`
   padding: 24px 32px;
@@ -143,7 +144,6 @@ const Input = styled.input`
   }
 `;
 
-
 const ActionButton = styled.button<{ $variant?: 'primary' | 'success' | 'secondary' }>`
   display: flex;
   align-items: center;
@@ -274,7 +274,6 @@ const CheckboxLabel = styled.label`
     accent-color: ${({ theme }) => theme.colors.primary};
   }
 `;
-
 
 const HelpList = styled.ul`
   list-style: none;

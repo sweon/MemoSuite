@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SyncModal, useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -12,7 +14,7 @@ import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+
 import { llmemoSyncAdapter } from '../../utils/backupAdapter';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
 

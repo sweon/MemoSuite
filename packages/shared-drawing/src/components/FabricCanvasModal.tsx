@@ -613,7 +613,7 @@ interface FabricCanvasModalProps {
     initialData?: string;
     onSave: (data: string) => void;
     onClose: () => void;
-    language?: Language;
+    language?: string;
 }
 
 const INITIAL_PALETTES: string[][] = [
@@ -1295,7 +1295,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const persistentBackgroundPatternRef = useRef<fabric.Pattern | null>(null);
     const viewportHeightRef = useRef<number>(0);
     const canvasViewportRef = useRef<HTMLDivElement>(null);
-    const t = translations[language as Language];
+    const t = (translations[language as keyof typeof translations] || translations.en) as TranslationKeys;
 
     // Guard State
     const { registerGuard, unregisterGuard } = useExitGuard();

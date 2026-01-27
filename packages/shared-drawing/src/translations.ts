@@ -589,5 +589,5 @@ export const translations = {
     }
 };
 
-export type Language = 'en' | 'ko';
+export type Language = 'en' | 'ko' | string;
 export type TranslationKeys = typeof translations.en;

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
+
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -8,10 +10,10 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiArrowUpCircle, FiMinus } from 'react-icons/fi';
 import { Tooltip } from '../UI/Tooltip';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+
 import type { DropResult, DragUpdate } from '@hello-pangea/dnd';
 import { Toast } from '../UI/Toast';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
 import { useSearch } from '../../contexts/SearchContext';
 import { useStudyMode } from '../../contexts/StudyModeContext';
@@ -68,7 +70,6 @@ const AppVersion = styled.span`
   border-radius: ${({ theme }) => theme.radius.small};
   border: 1px solid ${({ theme }) => theme.colors.border};
 `;
-
 
 const SearchInputWrapper = styled.div`
   position: relative;
@@ -133,7 +134,6 @@ const StarFilterButton = styled(StarButton)`
   border-radius: ${({ theme }) => theme.radius.small};
   transition: ${({ theme }) => theme.effects.transition};
 `;
-
 
 const Button = styled.button`
   display: flex;
@@ -236,7 +236,6 @@ const StudyModeOption = styled.label<{ $active: boolean }>`
     font-size: 0.95rem;
   }
 `;
-
 
 interface SidebarProps {
   onCloseMobile: () => void;
@@ -380,8 +379,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
       });
     }
   }, []);
-
-
 
   useEffect(() => {
     // Only trigger on listKey change (which means a drag actually finished)

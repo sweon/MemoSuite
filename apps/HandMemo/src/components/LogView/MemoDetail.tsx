@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SyncModal, useLanguage, useModal } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -10,7 +12,7 @@ import { MarkdownView } from '../Editor/MarkdownView';
 import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+
 import { handMemoSyncAdapter } from '../../utils/backupAdapter';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
 
@@ -201,7 +203,7 @@ const formatDateForInput = (date: Date) => {
 
 import { useExitGuard, ExitGuardResult, FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+
 import { Toast } from '../UI/Toast';
 import { FiAlertTriangle } from 'react-icons/fi';
 
@@ -321,10 +323,6 @@ export const MemoDetail: React.FC = () => {
         const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
         return match ? match[1] : undefined;
     }, [content]);
-
-
-
-
 
     const memo = useLiveQuery(
         () => (id ? db.memos.get(Number(id)) : undefined),
@@ -478,7 +476,6 @@ export const MemoDetail: React.FC = () => {
                     {isEditing ? (
                         <>
 
-
                             <InputWrapper>
                                 <DateInput
                                     type={language === 'ko' ? 'text' : 'date'}
@@ -534,8 +531,6 @@ export const MemoDetail: React.FC = () => {
                         </>
                     )}
                 </MetaRow>
-
-
 
                 <ActionBar>
                     {isEditing ? (

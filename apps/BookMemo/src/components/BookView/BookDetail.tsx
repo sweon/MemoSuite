@@ -1,4 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { ThreadableList, useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useParams, useNavigate, useLocation, Outlet } from 'react-router-dom';
@@ -14,10 +16,8 @@ import {
   ComposedChart,
   ReferenceArea
 } from 'recharts';
-import { ThreadableList, useLanguage } from '@memosuite/shared';
+
 import type { DropResult } from '@hello-pangea/dnd';
-
-
 
 const Container = styled.div`
   display: flex;
@@ -352,7 +352,6 @@ export const BookDetail: React.FC = () => {
       }
     });
   };
-
 
   const { allChartData, globalMemos } = useMemo(() => {
     if (!memos || !book) return { allChartData: [], globalMemos: [] };

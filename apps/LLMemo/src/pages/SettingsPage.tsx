@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { AppLockSettings, DataManagementSection, LanguageSettings, ThemeSettings, useConfirm, useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
@@ -6,10 +8,9 @@ import { FiTrash2, FiPlus, FiChevronRight, FiArrowLeft, FiDatabase, FiCpu, FiGlo
 import { MdDragIndicator } from 'react-icons/md';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
-import { useLanguage, ThemeSettings, DataManagementSection, AppLockSettings, useConfirm, LanguageSettings } from '@memosuite/shared';
+
 import { llmemoAdapter } from '../utils/backupAdapter';
 import { TouchDelayDraggable } from '../components/Sidebar/TouchDelayDraggable';
-
 
 const Container = styled.div`
   padding: 24px 32px;
@@ -133,9 +134,6 @@ const BackButton = styled.button`
   }
 `;
 
-
-
-
 const ModelList = styled.ul`
   list-style: none;
   padding: 0;
@@ -240,7 +238,6 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'success' | 'seconda
 `;
 
 /* Unused styles removed: ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, RadioLabel, ScrollableList, CheckboxLabel */
-
 
 const HelpList = styled.ul`
   list-style: none;
@@ -352,7 +349,6 @@ export const SettingsPage: React.FC = () => {
     setAdvancedToolbar(next);
     localStorage.setItem('editor_advanced_toolbar', String(next));
   };
-
 
   useEffect(() => {
     const initializeOrder = async () => {
@@ -489,7 +485,6 @@ export const SettingsPage: React.FC = () => {
               </div>
               <FiChevronRight className="chevron" />
             </MenuButton>
-
 
             <MenuButton onClick={() => setCurrentSubMenu('language')}>
               <div className="icon-wrapper"><FiGlobe /></div>
@@ -702,5 +697,3 @@ export const SettingsPage: React.FC = () => {
     </Container>
   );
 };
-
-

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 
 const Overlay = styled.div`
@@ -59,30 +60,30 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
 `;
 
 interface ConfirmModalProps {
-    isOpen: boolean;
-    message: string;
-    onConfirm: () => void;
-    onCancel: () => void;
+  isOpen: boolean;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, message, onConfirm, onCancel }) => {
-    const { language } = useLanguage();
+  const { language } = useLanguage();
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    return (
-        <Overlay onClick={onCancel}>
-            <Modal onClick={e => e.stopPropagation()}>
-                <Message>{message}</Message>
-                <ButtonGroup>
-                    <Button $variant="secondary" onClick={onCancel}>
-                        {language === 'ko' ? '취소' : 'Cancel'}
-                    </Button>
-                    <Button onClick={onConfirm}>
-                        {language === 'ko' ? '확인' : 'OK'}
-                    </Button>
-                </ButtonGroup>
-            </Modal>
-        </Overlay>
-    );
+  return (
+    <Overlay onClick={onCancel}>
+      <Modal onClick={e => e.stopPropagation()}>
+        <Message>{message}</Message>
+        <ButtonGroup>
+          <Button $variant="secondary" onClick={onCancel}>
+            {language === 'ko' ? '취소' : 'Cancel'}
+          </Button>
+          <Button onClick={onConfirm}>
+            {language === 'ko' ? '확인' : 'OK'}
+          </Button>
+        </ButtonGroup>
+      </Modal>
+    </Overlay>
+  );
 };

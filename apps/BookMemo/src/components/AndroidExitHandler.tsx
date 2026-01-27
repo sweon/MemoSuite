@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLanguage } from '@memosuite/shared';
+
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Toast } from './UI/Toast';
 import { FiAlertTriangle } from 'react-icons/fi';
@@ -15,7 +16,6 @@ export const AndroidExitHandler: React.FC = () => {
     const isAtRoot = location.pathname === '/' || location.pathname === '';
 
     const { checkGuards } = useExitGuard();
-
 
     useEffect(() => {
         // Function to ensure we have an interceptor state

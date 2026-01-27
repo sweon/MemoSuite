@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
@@ -6,14 +8,12 @@ import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiArrowUpCircle, FiMinus } from 'react-icons/fi';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+
 import { Toast } from '../UI/Toast';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+
 import { useSearch } from '../../contexts/SearchContext';
 import { SidebarBookItem } from './SidebarBookItem';
 import { bookMemoSyncAdapter } from '../../utils/backupAdapter';
-
-
 
 import { ConfirmModal } from '../UI/ConfirmModal';
 
@@ -197,7 +197,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-comment-desc'>('date-desc');
-
 
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();

@@ -1,6 +1,5 @@
 import { db } from '../db';
-import { encryptData, decryptData, saveFile } from '@memosuite/shared';
-
+import { decryptData, encryptData, saveFile } from '@memosuite/shared';
 
 export const getBackupData = async (memoIds?: number[]) => {
     let memos = await db.memos.toArray();
@@ -51,7 +50,6 @@ export const exportData = async (selectedMemoIds?: number[], customFileName?: st
 
     await saveFile(JSON.stringify(data, null, 2), fileName, 'application/json');
 };
-
 
 export const importData = async (file: File, password?: string) => {
     const text = await new Promise<string>((resolve, reject) => {

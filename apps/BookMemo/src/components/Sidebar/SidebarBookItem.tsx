@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useColorTheme, useLanguage } from '@memosuite/shared';
+
 import { NavLink, useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import type { Book, Memo } from '../../db';
@@ -7,7 +9,6 @@ import { MemoItemLink, MemoTitle, MemoDate, ThreadToggleBtn } from './itemStyles
 import { FiCornerDownRight } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { useSearch } from '../../contexts/SearchContext';
-import { useColorTheme, useLanguage } from '@memosuite/shared';
 
 const GroupContainer = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.sm};
@@ -98,7 +99,6 @@ export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeN
   const { theme } = useColorTheme();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(true);
-
 
   const progressPercent = book.totalPages > 0
     ? Math.round(((book.currentPage || 0) / book.totalPages) * 100)

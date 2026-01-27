@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { db } from '../../db';
 import { FiX, FiCheck, FiCalendar } from 'react-icons/fi';

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SyncModal, ThreadableList, useColorTheme, useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
@@ -8,7 +10,7 @@ import { FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiArrowUpCircle,
 
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
-import { SyncModal, useColorTheme, ThreadableList, useLanguage } from '@memosuite/shared';
+
 import type { DropResult, DragUpdate } from '@hello-pangea/dnd';
 
 import { Toast } from '../UI/Toast';
@@ -67,7 +69,6 @@ const AppVersion = styled.span`
   border: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
-
 const SearchInputWrapper = styled.div`
   position: relative;
   margin-bottom: ${({ theme }) => theme.spacing.sm};
@@ -121,7 +122,6 @@ const ClearButton = styled.button`
     background-color: ${({ theme }) => theme.colors.border};
   }
 `;
-
 
 const Button = styled.button`
   display: flex;
@@ -193,7 +193,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
 
   // Expansion state (now collapsed by default)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
-
 
   const toggleThread = (threadId: string) => {
     const newSet = new Set(expandedThreads);
@@ -412,10 +411,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
     onDragUpdate?.(update);
   };
 
-
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, combine, draggableId } = result;
-
 
     const parseLogId = (dId: string) => {
       if (dId.startsWith('thread-header-')) return Number(dId.replace('thread-header-', ''));
@@ -722,8 +719,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
           minHeight: '200px'
         }}
       />
-
-
 
       <SyncModal
         isOpen={isSyncModalOpen}

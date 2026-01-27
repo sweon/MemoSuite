@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SyncModal, useConfirm, useLanguage } from '@memosuite/shared';
+
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -8,7 +10,7 @@ import { useStudyMode } from '../../contexts/StudyModeContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { SyncModal, useConfirm, useLanguage } from '@memosuite/shared';
+
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
 import { FiSave, FiEdit2, FiTrash2, FiX, FiCoffee, FiStar, FiList, FiGitMerge, FiShare2, FiBookOpen, FiPlus } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
@@ -20,7 +22,6 @@ import { DeleteChoiceModal } from './DeleteChoiceModal';
 import { StarButton } from '../Sidebar/itemStyles';
 
 import { Toast } from '../UI/Toast';
-
 
 const Container = styled.div`
   display: flex;
@@ -522,7 +523,6 @@ export const LogDetail: React.FC = () => {
             await confirm({ message: "Failed to add thread. Please try again.", cancelText: null });
         }
     };
-
 
     const handleRandomWord = async () => {
         const savedLevel = localStorage.getItem('wordLevel');
