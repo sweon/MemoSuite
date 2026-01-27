@@ -2270,16 +2270,23 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             const w = pageWidthRef.current;
             const h = pageHeightRef.current;
             if (w && h) {
+                // By setting absolutePositioned: false, the clipPath will be transformed 
+                // by the same viewport transform as the drawing objects.
+                // This keeps the "paper clip" perfectly aligned with the paper rectangle
+                // regardless of zoom or pan.
                 canvas.clipPath = new fabric.Rect({
+                    originX: 'left',
+                    originY: 'top',
                     left: 0,
                     top: 0,
                     width: w,
                     height: h,
-                    absolutePositioned: true, // IMPORTANT: clips brush trail correctly
+                    absolutePositioned: false,
                     selectable: false,
                     evented: false,
                     fill: 'transparent'
                 });
+                canvas.requestRenderAll();
             }
         };
 
@@ -2289,11 +2296,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const getBoundaryPoint = (p1: { x: number, y: number }, p2: { x: number, y: number }) => {
             const w = pageWidthRef.current;
             const h = pageHeightRef.current;
+            // Buffer of 0.5px to ensure we stay strictly inside the visual clip boundary
+            const buffer = 0.5;
             let t = 1;
-            if (p2.x < 0) t = Math.min(t, (0 - p1.x) / (p2.x - p1.x));
-            else if (p2.x > w) t = Math.min(t, (w - p1.x) / (p2.x - p1.x));
-            if (p2.y < 0) t = Math.min(t, (0 - p1.y) / (p2.y - p1.y));
-            else if (p2.y > h) t = Math.min(t, (h - p1.y) / (p2.y - p1.y));
+            if (p2.x < buffer) t = Math.min(t, (buffer - p1.x) / (p2.x - p1.x));
+            else if (p2.x > w - buffer) t = Math.min(t, (w - buffer - p1.x) / (p2.x - p1.x));
+            if (p2.y < buffer) t = Math.min(t, (buffer - p1.y) / (p2.y - p1.y));
+            else if (p2.y > h - buffer) t = Math.min(t, (h - buffer - p1.y) / (p2.y - p1.y));
             return {
                 x: p1.x + t * (p2.x - p1.x),
                 y: p1.y + t * (p2.y - p1.y)
