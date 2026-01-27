@@ -8,13 +8,12 @@ import { FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiArrowUpCircle,
 
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
-import { SyncModal, useColorTheme, ThreadableList } from '@memosuite/shared';
+import { SyncModal, useColorTheme, ThreadableList, useLanguage } from '@memosuite/shared';
 import type { DropResult, DragUpdate } from '@hello-pangea/dnd';
 
 import { Toast } from '../UI/Toast';
 import { llmemoSyncAdapter } from '../../utils/backupAdapter';
 import { useSearch } from '../../contexts/SearchContext';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { format } from 'date-fns';
 import { SidebarLogItem } from './SidebarLogItem';
 import { SidebarThreadItem } from './SidebarThreadItem';

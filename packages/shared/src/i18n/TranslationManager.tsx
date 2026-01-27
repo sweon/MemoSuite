@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { useLanguage } from './LanguageContext';
 import { flattenObject } from './utils';
-import { Language } from './types';
+import type { Language } from './types';
 import { FiDownload, FiUpload, FiRefreshCw, FiSearch, FiX, FiCheck, FiEdit3 } from 'react-icons/fi';
 
 const fadeIn = keyframes`

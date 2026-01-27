@@ -1,8 +1,8 @@
 import React from 'react';
+import { useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
 import { FiFileText } from 'react-icons/fi';
 
-import { useLanguage } from '../../contexts/LanguageContext';
 const Container = styled.div`
   display: flex;
   flex-direction: column;

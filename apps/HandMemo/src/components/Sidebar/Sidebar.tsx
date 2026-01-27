@@ -8,11 +8,10 @@ import { BsKeyboard } from 'react-icons/bs';
 import { RiTable2 } from 'react-icons/ri';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
-import { SyncModal, useColorTheme, ThreadableList } from '@memosuite/shared';
+import { SyncModal, useColorTheme, ThreadableList, useLanguage } from '@memosuite/shared';
 import { Toast } from '../UI/Toast';
 
 import { useSearch } from '../../contexts/SearchContext';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { SidebarMemoItem } from './SidebarMemoItem';
 import { handMemoSyncAdapter } from '../../utils/backupAdapter';
 import type { DropResult } from '@hello-pangea/dnd';

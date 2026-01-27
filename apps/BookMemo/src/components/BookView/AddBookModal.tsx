@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
+import { useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
 import { db } from '../../db';
 import { FiX, FiCheck, FiCalendar } from 'react-icons/fi';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { format } from 'date-fns';
 
 const Overlay = styled.div`

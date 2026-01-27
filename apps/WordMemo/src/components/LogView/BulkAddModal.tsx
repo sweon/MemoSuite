@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
+import { useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
 import { FiX, FiCheck, FiUpload } from 'react-icons/fi';
-import { useLanguage } from '../../contexts/LanguageContext';
 
 const Overlay = styled.div`
   position: fixed;

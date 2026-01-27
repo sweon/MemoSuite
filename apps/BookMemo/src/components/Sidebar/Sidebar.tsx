@@ -6,11 +6,10 @@ import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiArrowUpCircle, FiMinus } from 'react-icons/fi';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
-import { SyncModal } from '@memosuite/shared';
+import { SyncModal, useLanguage } from '@memosuite/shared';
 import { Toast } from '../UI/Toast';
-import { useColorTheme } from '@memosuite/shared';
+import { SyncModal, useLanguage } from '@memosuite/shared';
 import { useSearch } from '../../contexts/SearchContext';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { SidebarBookItem } from './SidebarBookItem';
 import { bookMemoSyncAdapter } from '../../utils/backupAdapter';
 

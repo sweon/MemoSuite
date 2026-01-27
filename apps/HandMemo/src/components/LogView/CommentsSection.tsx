@@ -7,8 +7,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare } from 'react-icons/fi';
 import { format } from 'date-fns';
-import { useColorTheme, useConfirm } from '@memosuite/shared';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useColorTheme, useConfirm, useLanguage } from '@memosuite/shared';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 

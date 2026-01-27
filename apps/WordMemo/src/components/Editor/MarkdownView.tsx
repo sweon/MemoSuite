@@ -1,5 +1,7 @@
 import React from 'react';
+import { useLanguage } from '@memosuite/shared';
 import ReactMarkdown from 'react-markdown';
+import { useLanguage } from '@memosuite/shared';
 import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -9,7 +11,6 @@ import styled, { useTheme } from 'styled-components';
 import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
 
 const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`

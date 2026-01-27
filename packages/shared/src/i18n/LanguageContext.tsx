@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Language, SUPPORTED_LANGUAGES, TranslationMap } from './types';
+import { SUPPORTED_LANGUAGES } from './types';
+import type { Language, TranslationMap } from './types';
 import { flattenObject, unflattenObject, deepMerge } from './utils';
 import { en as sharedEn } from './locales/en';
 import { ko as sharedKo } from './locales/ko';

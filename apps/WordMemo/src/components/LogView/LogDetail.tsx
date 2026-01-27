@@ -4,12 +4,11 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { useStudyMode } from '../../contexts/StudyModeContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { SyncModal, useConfirm } from '@memosuite/shared';
+import { SyncModal, useConfirm, useLanguage } from '@memosuite/shared';
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
 import { FiSave, FiEdit2, FiTrash2, FiX, FiCoffee, FiStar, FiList, FiGitMerge, FiShare2, FiBookOpen, FiPlus } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';

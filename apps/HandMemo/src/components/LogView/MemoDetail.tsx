@@ -4,14 +4,13 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
-import { useLanguage } from '../../contexts/LanguageContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
-import { SyncModal } from '@memosuite/shared';
+import { SyncModal, useLanguage } from '@memosuite/shared';
 import { handMemoSyncAdapter } from '../../utils/backupAdapter';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
 
@@ -202,7 +201,7 @@ const formatDateForInput = (date: Date) => {
 
 import { useExitGuard, ExitGuardResult, FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
-import { useModal } from '@memosuite/shared';
+import { SyncModal, useLanguage } from '@memosuite/shared';
 import { Toast } from '../UI/Toast';
 import { FiAlertTriangle } from 'react-icons/fi';
 

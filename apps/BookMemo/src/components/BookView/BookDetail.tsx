@@ -3,7 +3,6 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useParams, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { db } from '../../db';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { FiEdit2, FiEdit3, FiTrash2, FiRotateCcw, FiMaximize, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { format } from 'date-fns';
 import {
@@ -15,7 +14,7 @@ import {
   ComposedChart,
   ReferenceArea
 } from 'recharts';
-import { ThreadableList } from '@memosuite/shared';
+import { ThreadableList, useLanguage } from '@memosuite/shared';
 import type { DropResult } from '@hello-pangea/dnd';
 
 

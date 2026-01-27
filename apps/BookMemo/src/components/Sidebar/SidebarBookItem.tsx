@@ -6,9 +6,8 @@ import type { Book, Memo } from '../../db';
 import { MemoItemLink, MemoTitle, MemoDate, ThreadToggleBtn } from './itemStyles';
 import { FiCornerDownRight } from 'react-icons/fi';
 import { format } from 'date-fns';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { useSearch } from '../../contexts/SearchContext';
-import { useColorTheme } from '@memosuite/shared';
+import { useColorTheme, useLanguage } from '@memosuite/shared';
 
 const GroupContainer = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.sm};

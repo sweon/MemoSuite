@@ -1,7 +1,7 @@
 import React from 'react';
+import { useLanguage } from '@memosuite/shared';
 import styled, { keyframes } from 'styled-components';
 import { FiTrash2, FiFileText, FiX } from 'react-icons/fi';
-import { useLanguage } from '../../contexts/LanguageContext';
 
 const fadeIn = keyframes`
   from { opacity: 0; }

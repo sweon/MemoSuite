@@ -1,6 +1,6 @@
 import React from 'react';
+import { useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
-import { useLanguage } from '../../contexts/LanguageContext';
 
 const Overlay = styled.div`
   position: fixed;

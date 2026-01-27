@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
+import { useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
 import { db } from '../../db';
 import { FiCheck, FiCalendar, FiArrowLeft } from 'react-icons/fi';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 

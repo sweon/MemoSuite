@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useLanguage } from '@memosuite/shared';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Toast } from './UI/Toast';
 import { FiAlertTriangle } from 'react-icons/fi';
-import { useLanguage } from '../contexts/LanguageContext';
 import { useExitGuard, ExitGuardResult } from '@memosuite/shared-drawing';
 
 export const AndroidExitHandler: React.FC = () => {
