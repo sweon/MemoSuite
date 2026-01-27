@@ -146,7 +146,7 @@ const Table = styled.table`
   table-layout: fixed;
 
   th, td {
-    padding: 0.75rem;
+    padding: 0.4rem 0.75rem;
     text-align: left;
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
     word-break: break-all;
@@ -171,7 +171,7 @@ const Table = styled.table`
 
 const Input = styled.textarea`
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.3rem 0.5rem;
   border: 1px solid ${({ theme }) => theme.colors.border};
   background: ${({ theme }) => theme.colors.surface};
   color: ${({ theme }) => theme.colors.text};
@@ -180,7 +180,7 @@ const Input = styled.textarea`
   font-size: 0.85rem;
   resize: none;
   overflow: hidden;
-  min-height: 2.2rem;
+  min-height: 3rem;
   transition: border-color 0.2s;
 
   &:focus {
@@ -192,7 +192,7 @@ const Input = styled.textarea`
 
 const EnglishValue = styled.div`
   font-weight: 600;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.15rem;
   color: ${({ theme }) => theme.colors.text};
   font-size: 0.9rem;
 `;
@@ -214,7 +214,7 @@ const StatusIndicator = styled.div<{ $translated: boolean }>`
   gap: 0.3rem;
   font-size: 0.7rem;
   color: ${({ $translated, theme }) => $translated ? '#10b981' : theme.colors.textSecondary};
-  margin-top: 0.25rem;
+  margin-top: 0.15rem;
 `;
 
 export const TranslationManager: React.FC = () => {
