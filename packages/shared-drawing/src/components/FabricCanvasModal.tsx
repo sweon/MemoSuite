@@ -2677,6 +2677,18 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
             };
 
+            const abortActiveStroke = () => {
+                // Abort any current drawing immediately
+                (canvas as any)._isCurrentlyDrawing = false;
+                (canvas as any)._isMouseDown = false;
+                const brush = canvas.freeDrawingBrush as any;
+                if (brush) {
+                    brush._points = [];
+                    if (brush._reset) brush._reset();
+                }
+                canvas.requestRenderAll();
+            };
+
             const onPointerDown = (e: any) => {
                 const id = e.pointerId;
                 const isPen = isPenEvent(e);
@@ -2691,30 +2703,25 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     activePointers.set(id, getEvtPos(e));
                     if (activePointers.size >= 2) {
                         isMultiTouching = true;
+                        abortActiveStroke(); // Stop drawing if 2nd finger lands
+
                         // Init pinch
                         const points = Array.from(activePointers.values());
                         lastPinchDist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
                         lastPinchZoom = canvas.getZoom();
-                        return; // Absorb event (Don't send to Fabric)
+                        return; // Absorb event
                     }
                 }
 
                 // 2. Decision: Forward to Fabric or Absorb?
-                // Forward if: It's a Pen OR (Draw with Finger is ON AND not blocked by Smart Rejection)
                 const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen();
                 if (isPen || allowTouch) {
-                    activePointers.delete(id); // Don't track drawing finger for pinch
-
                     if (isPen) {
-                        // Double safety: Clear context to ensure no artifacts exist
                         if ((canvas as any).contextTopDirty) {
                             canvas.clearContext((canvas as any).contextTop);
                         }
-
-                        // NUCLEAR RESET: Hard reset Fabric's internal drawing/mouse state
                         (canvas as any)._isCurrentlyDrawing = false;
                         (canvas as any)._isMouseDown = false;
-
                         const brush = canvas.freeDrawingBrush as any;
                         if (brush) {
                             brush._points = [];
@@ -2725,9 +2732,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     forwardToFabric('__onMouseDown', e);
                     return;
                 }
-
-                // 3. Palm Logic
-                // We DO NOT forward single touch if Draw with Finger is OFF or Pen is detected.
             };
 
             const onPointerMove = (e: any) => {
@@ -2744,7 +2748,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     const points = Array.from(activePointers.values());
                     const dist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
 
-                    // Manual Zoom Logic on Fabric
                     if (!isZoomLockedRef.current && lastPinchDist > 10) {
                         const zoomRatio = dist / lastPinchDist;
                         const newZoom = Math.min(Math.max(lastPinchZoom * zoomRatio, 0.1), 10);
@@ -2752,7 +2755,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                             x: (points[0].x + points[1].x) / 2,
                             y: (points[0].y + points[1].y) / 2
                         };
-                        // We need point relative to canvas for zoomToPoint
                         const rect = lowerCanvasEl.getBoundingClientRect();
                         const localPoint = new fabric.Point(center.x - rect.left, center.y - rect.top);
 
@@ -2767,14 +2769,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 // 2. Forwarding Decision
                 const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen();
-                if (isPen || allowTouch) {
+                if (isPen || (allowTouch && !isMultiTouching)) {
                     forwardToFabric('__onMouseMove', e);
                 }
             };
 
             const onPointerUp = (e: any) => {
                 const id = e.pointerId;
-
 
                 if (id === penPointerId) {
                     penPointerId = -1;
@@ -2787,11 +2788,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 forwardToFabric('__onMouseUp', e);
             };
 
+            const onWheel = (e: any) => {
+                forwardToFabric('__onWheel', e);
+            };
+
             // Attach
             overlay.addEventListener('pointerdown', onPointerDown, { passive: false });
             overlay.addEventListener('pointermove', onPointerMove, { passive: false });
             overlay.addEventListener('pointerup', onPointerUp, { passive: false });
-            overlay.addEventListener('pointercancel', onPointerUp, { passive: false }); // same as up
+            overlay.addEventListener('pointercancel', onPointerUp, { passive: false });
+            overlay.addEventListener('wheel', onWheel, { passive: false });
 
             // Clean on dispose
             (canvas as any).__overlayEl = overlay;
