@@ -335,6 +335,9 @@ const CanvasWrapper = styled.div<{ $bgColor?: string; $side: 'left' | 'right' }>
   display: block; /* Block layout is more stable for scroll-based layouts */
   -webkit-overflow-scrolling: touch;
   touch-action: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
   
   /* Left side scrollbar support via RTL */
   /* We use direction: rtl for static left scrollbars. */
@@ -2695,6 +2698,15 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 overlay.style.touchAction = 'none'; // Prevent browser gestures
                 overlay.style.userSelect = 'none';
                 overlay.style.webkitUserSelect = 'none';
+                (overlay.style as any).webkitTouchCallout = 'none';
+
+                // Block context menu (Galaxy Tab / Android long-press popup)
+                overlay.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                };
+
                 wrapperEl.appendChild(overlay);
             }
 
@@ -2729,6 +2741,24 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
                 (canvas as any).__cursorObserver = observer;
             }
+
+            // AGGRESSIVE: Block context menu on all canvas components to prevent "Download/Share/Print" on Android
+            const blockMenu = (e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            };
+            wrapperEl.addEventListener('contextmenu', blockMenu);
+            if (upperCanvasEl) upperCanvasEl.addEventListener('contextmenu', blockMenu);
+            if (lowerCanvasEl) lowerCanvasEl.addEventListener('contextmenu', blockMenu);
+            overlay.addEventListener('contextmenu', blockMenu);
+
+            (canvas as any)._contextMenuCleanup = () => {
+                wrapperEl.removeEventListener('contextmenu', blockMenu);
+                if (upperCanvasEl) upperCanvasEl.removeEventListener('contextmenu', blockMenu);
+                if (lowerCanvasEl) lowerCanvasEl.removeEventListener('contextmenu', blockMenu);
+                overlay.removeEventListener('contextmenu', blockMenu);
+            };
 
             // Bridge Logic
             // We need to call Fabric's internal handlers, but treating the overlay as the target
@@ -3135,6 +3165,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
             if ((canvas as any).__cursorObserver) {
                 (canvas as any).__cursorObserver.disconnect();
+            }
+            if ((canvas as any)._contextMenuCleanup) {
+                (canvas as any)._contextMenuCleanup();
             }
 
             resizeObserver.disconnect();
@@ -6392,6 +6425,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 <CanvasWrapper
                     ref={containerRef}
                     $side={scrollbarSide}
+                    onContextMenu={(e) => e.preventDefault()}
                     style={{
                         ...backgroundStyle,
                         display: 'grid',
