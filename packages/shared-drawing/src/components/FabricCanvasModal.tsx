@@ -17,6 +17,7 @@ import {
     calculateBackgroundColor,
     createBackgroundPattern
 } from '../utils/background';
+import { isTablet } from '../utils/device';
 
 
 
@@ -1674,16 +1675,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const [canUndo, setCanUndo] = useState(false);
     const [canRedo, setCanRedo] = useState(false);
     const [tempBrushType, setTempBrushType] = useState(brushType);
-    const [palmRejection, setPalmRejection] = useState(() => {
-        return localStorage.getItem('fabric_palm_rejection') === 'true';
+    const [drawWithFinger, setDrawWithFinger] = useState(() => {
+        return localStorage.getItem('fabric_draw_with_finger') !== 'false';
     });
-    const palmRejectionRef = useRef(palmRejection);
+    const drawWithFingerRef = useRef(drawWithFinger);
     useEffect(() => {
-        palmRejectionRef.current = palmRejection;
-        localStorage.setItem('fabric_palm_rejection', palmRejection ? 'true' : 'false');
-    }, [palmRejection]);
+        drawWithFingerRef.current = drawWithFinger;
+        localStorage.setItem('fabric_draw_with_finger', drawWithFinger ? 'true' : 'false');
+    }, [drawWithFinger]);
 
-    const [tempPalmRejection, setTempPalmRejection] = useState(palmRejection);
+    const [tempDrawWithFinger, setTempDrawWithFinger] = useState(drawWithFinger);
 
     const [isPenEditOpen, setIsPenEditOpen] = useState(false);
     const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -2607,13 +2608,17 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         });
 
         // Palm Rejection Filter - Smart mode for Windows convertible laptops
-        // Logic: Block non-pen input ONLY when pen is active or was recently used.
-        // Allows finger-only drawing when pen is not in use.
+        // Logic: Always On Palm Rejection (Smart)
+        let penPointerId = -1;
+        let lastPenTime = 0;
+        const PEN_TIMEOUT = 300;
 
-        // clean up old variables
-
-        // clean up unused zoom state
-
+        // Check if we should block non-pen input
+        const shouldBlockNonPen = (): boolean => {
+            if (penPointerId !== -1) return true;
+            if (Date.now() - lastPenTime < PEN_TIMEOUT) return true;
+            return false;
+        };
 
         // Helper to detect if event is from a stylus/pen
         const isPenEvent = (e: any): boolean => {
@@ -2636,7 +2641,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             if (!wrapperEl || !lowerCanvasEl) return;
 
             // Check if overlay already exists
-            let overlay = wrapperEl.querySelector('.input-overlay-shield');
+            let overlay = wrapperEl.querySelector('.input-overlay-shield') as HTMLDivElement;
             if (!overlay) {
                 overlay = document.createElement('div');
                 overlay.className = 'input-overlay-shield';
@@ -2656,8 +2661,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             // We need to call Fabric's internal handlers, but treating the overlay as the target
             // might confuse Fabric's position logic if we don't be careful.
             // Fortunately, Fabric's 'getPointer' does 'getBoundingClientRect' on the upperCanvas.
-            // As long as we pass a valid Event object, Fabric should map clientX/Y correctly 
-            // relative to upperCanvas, even if target is overlay. (We might need to proxy target if Fabric checks it narrowly).
 
             // State
             const activePointers = new Map<number, { x: number, y: number }>();
@@ -2665,10 +2668,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             let lastPinchDist = 0;
             let lastPinchZoom = 1;
 
+            const getEvtPos = (e: any) => ({ x: e.clientX, y: e.clientY });
+
             const forwardToFabric = (methodName: string, e: any) => {
-                // We simply call the internal method.
-                // Note: We don't need to synthesize a new event usually, passing the original is fine
-                // provided we prevent default behaviors.
                 const handler = (canvas as any)[methodName];
                 if (handler) {
                     handler.call(canvas, e);
@@ -2679,9 +2681,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const id = e.pointerId;
                 const isPen = isPenEvent(e);
 
+                if (isPen) {
+                    penPointerId = id;
+                    lastPenTime = Date.now();
+                }
+
                 // 1. Zoom/Pan Tracking (Multi-touch)
                 if (e.pointerType === 'touch') {
-                    activePointers.set(id, { x: e.clientX, y: e.clientY });
+                    activePointers.set(id, getEvtPos(e));
                     if (activePointers.size >= 2) {
                         isMultiTouching = true;
                         // Init pinch
@@ -2692,25 +2699,19 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     }
                 }
 
-                // 2. Pen Logic (or Touch if Rejection OFF)
-                if (isPen || !palmRejectionRef.current) {
-                    // Preemptive Kill: If we were multi-touching or holding a touch, kill it?
-                    // Actually, with Overlay, the previous touch NEVER reached Fabric (unless Rejection was Off).
-                    // So we are safe.
+                // 2. Decision: Forward to Fabric or Absorb?
+                // Forward if: It's a Pen OR (Draw with Finger is ON AND not blocked by Smart Rejection)
+                const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen();
+                if (isPen || allowTouch) {
+                    activePointers.delete(id); // Don't track drawing finger for pinch
 
-                    // Specific fix for "Trace": If this is a Pen, we forward immediately.
-                    // Fabric will start a stroke.
-                    activePointers.delete(id); // Don't track pen as a multi-touch finger
-
-                    if (palmRejectionRef.current && isPen) {
+                    if (isPen) {
                         // Double safety: Clear context to ensure no artifacts exist
                         if ((canvas as any).contextTopDirty) {
                             canvas.clearContext((canvas as any).contextTop);
                         }
 
                         // NUCLEAR RESET: Hard reset Fabric's internal drawing/mouse state
-                        // This ensures that even if a palm event somehow leaked through 
-                        // previously, the pen starts fresh without "connecting" to old points.
                         (canvas as any)._isCurrentlyDrawing = false;
                         (canvas as any)._isMouseDown = false;
 
@@ -2725,10 +2726,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     return;
                 }
 
-                // 3. Palm Logic (Rejection ON, and it's a Touch)
-                // We DO NOT forward. We just track for Zoom.
-                // This means Fabric NEVER sees the palm.
-                // RETROACTIVE FIX NOT NEEDED -> PROACTIVE PREVENTION!
+                // 3. Palm Logic
+                // We DO NOT forward single touch if Draw with Finger is OFF or Pen is detected.
             };
 
             const onPointerMove = (e: any) => {
@@ -2737,7 +2736,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 // Update trackers
                 if (activePointers.has(id)) {
-                    activePointers.set(id, { x: e.clientX, y: e.clientY });
+                    activePointers.set(id, getEvtPos(e));
                 }
 
                 // 1. Configured Zoom/Pan
@@ -2761,22 +2760,27 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         setCanvasScale(newZoom);
                         syncScrollToViewport();
                     }
-                    // Pan logic could go here (omitted for brevity, Zoom is key)
                     e.preventDefault();
                     e.stopPropagation();
                     return;
                 }
 
-                // 2. Forwarding
-                if (isPen || !palmRejectionRef.current) {
-                    // Check if this pointer is the one presently drawing?
-                    // Fabric handles that check naturally if we consistently forward.
+                // 2. Forwarding Decision
+                const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen();
+                if (isPen || allowTouch) {
                     forwardToFabric('__onMouseMove', e);
                 }
             };
 
             const onPointerUp = (e: any) => {
                 const id = e.pointerId;
+                const isPen = isPenEvent(e);
+
+                if (id === penPointerId) {
+                    penPointerId = -1;
+                    lastPenTime = Date.now();
+                }
+
                 activePointers.delete(id);
                 if (activePointers.size < 2) isMultiTouching = false;
 
@@ -3170,7 +3174,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
     const handlePenOk = () => {
         updateToolSetting(undefined, undefined, tempBrushType);
-        setPalmRejection(tempPalmRejection);
+        setDrawWithFinger(tempDrawWithFinger);
         setSettingsAnchor(null);
         setIsPenEditOpen(false);
         lastInteractionTimeRef.current = Date.now();
@@ -3178,14 +3182,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
     const handlePenReset = () => {
         setTempBrushType('pen');
-        setTempPalmRejection(false);
+        setTempDrawWithFinger(true);
     };
 
     const handlePenCancel = () => {
         setSettingsAnchor(null);
         setIsPenEditOpen(false);
         setTempBrushType(brushType);
-        setTempPalmRejection(palmRejection);
+        setTempDrawWithFinger(drawWithFinger);
     };
 
     const handleFontCancel = () => {
@@ -5583,13 +5587,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                                     />
                                 </DashOption>
 
-                                {activePenSlot === 'pen_1' && (
+                                {activePenSlot === 'pen_1' && isTablet() && (
                                     <>
                                         <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }}></div>
 
                                         <DashOption
-                                            $active={tempPalmRejection}
-                                            onClick={() => setTempPalmRejection(!tempPalmRejection)}
+                                            $active={tempDrawWithFinger}
+                                            onClick={() => setTempDrawWithFinger(!tempDrawWithFinger)}
                                             style={{ height: '36px', justifyContent: 'flex-start', padding: '0 12px', gap: '12px' }}
                                         >
                                             <div style={{
@@ -5600,12 +5604,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
-                                                background: tempPalmRejection ? '#333' : 'transparent'
+                                                background: tempDrawWithFinger ? '#333' : 'transparent'
                                             }}>
-                                                {tempPalmRejection && <div style={{ width: '8px', height: '8px', background: 'white', borderRadius: '1px' }} />}
+                                                {tempDrawWithFinger && <div style={{ width: '8px', height: '8px', background: 'white', borderRadius: '1px' }} />}
                                             </div>
                                             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                            <span style={{ fontSize: '0.85rem' }}>{(t.drawing as any)?.palm_rejection || 'Palm Rejection'}</span>
+                                            <span style={{ fontSize: '0.85rem' }}>{(t.drawing as any)?.draw_with_finger || 'Draw with Finger'}</span>
                                         </DashOption>
                                     </>
                                 )}
