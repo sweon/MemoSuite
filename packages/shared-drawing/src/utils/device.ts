@@ -7,9 +7,12 @@ export const isMobileDevice = (): boolean => {
     // Also check for iPadOS 13+ which identifies as Macintosh but has touch points
     const isIpadOS = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    // Samsung Galaxy Book 360 / Windows Touch Devices
-    // Heuristic: Windows + Multi-touch support
+    // Windows Touch Devices (Like Galaxy Book 360)
     const isWindowsTouch = userAgent.includes('windows') && navigator.maxTouchPoints > 1;
 
-    return isMobile || isIpadOS || isWindowsTouch;
+    // Detection for any device with significant touch points (Tablet / Hybrid)
+    // Most tablets and touch laptops report 5 or 10+ touch points
+    const hasManyTouchPoints = navigator.maxTouchPoints > 2;
+
+    return isMobile || isIpadOS || isWindowsTouch || hasManyTouchPoints;
 };

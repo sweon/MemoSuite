@@ -5640,7 +5640,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                                     />
                                 </DashOption>
 
-                                {activePenSlot === 'pen_1' && isMobileDevice() && (
+                                {isMobileDevice() && (
                                     <>
                                         <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }}></div>
 
