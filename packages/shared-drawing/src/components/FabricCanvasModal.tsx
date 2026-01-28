@@ -2664,7 +2664,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             // State
             const activePointers = new Map<number, { x: number, y: number }>();
+            const forwardedPointers = new Set<number>();
             let isMultiTouching = false;
+            let multiTouchSessionActive = false;
             let lastPinchDist = 0;
             let lastPinchZoom = 1;
             let lastPinchMidpoint: { x: number, y: number } | null = null;
@@ -2699,23 +2701,26 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     lastPenTime = Date.now();
                 }
 
-                // 1. Zoom/Pan Tracking (Multi-touch)
-                if (e.pointerType === 'touch') {
-                    activePointers.set(id, getEvtPos(e));
-                    if (activePointers.size >= 2) {
-                        isMultiTouching = true;
-                        abortActiveStroke(); // Stop drawing if 2nd finger lands
+                activePointers.set(id, getEvtPos(e));
 
-                        // Init pinch
-                        const points = Array.from(activePointers.values());
-                        lastPinchDist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
-                        lastPinchZoom = canvas.getZoom();
-                        lastPinchMidpoint = {
-                            x: (points[0].x + points[1].x) / 2,
-                            y: (points[0].y + points[1].y) / 2
-                        };
-                        return; // Absorb event
-                    }
+                // 1. Zoom/Pan Tracking (Multi-touch)
+                if (e.pointerType === 'touch' && activePointers.size >= 2) {
+                    isMultiTouching = true;
+                    multiTouchSessionActive = true;
+                    abortActiveStroke(); // Stop drawing if 2nd finger lands
+
+                    // Init pinch
+                    const points = Array.from(activePointers.values());
+                    lastPinchDist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+                    lastPinchZoom = canvas.getZoom();
+                    lastPinchMidpoint = {
+                        x: (points[0].x + points[1].x) / 2,
+                        y: (points[0].y + points[1].y) / 2
+                    };
+
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return; // Absorb event
                 }
 
                 // 2. Decision: Forward to Fabric or Absorb?
@@ -2734,6 +2739,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         }
                     }
 
+                    forwardedPointers.add(id);
                     forwardToFabric('__onMouseDown', e);
                     return;
                 }
@@ -2797,12 +2803,29 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
 
                 activePointers.delete(id);
-                if (activePointers.size < 2) {
-                    isMultiTouching = false;
-                    lastPinchMidpoint = null;
+
+                if (multiTouchSessionActive) {
+                    // Stop multi-touch logic (pan/zoom) as soon as we drop below 2 fingers
+                    if (activePointers.size < 2) {
+                        isMultiTouching = false;
+                        lastPinchMidpoint = null;
+                    }
+
+                    // End the session and clear trackers when ALL fingers are lifted
+                    if (activePointers.size === 0) {
+                        multiTouchSessionActive = false;
+                        forwardedPointers.clear();
+                    }
+
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
                 }
 
-                forwardToFabric('__onMouseUp', e);
+                if (forwardedPointers.has(id)) {
+                    forwardToFabric('__onMouseUp', e);
+                    forwardedPointers.delete(id);
+                }
             };
 
             const onWheel = (e: any) => {
