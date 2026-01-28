@@ -2667,6 +2667,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             let isMultiTouching = false;
             let lastPinchDist = 0;
             let lastPinchZoom = 1;
+            let lastPinchMidpoint: { x: number, y: number } | null = null;
 
             const getEvtPos = (e: any) => ({ x: e.clientX, y: e.clientY });
 
@@ -2709,6 +2710,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         const points = Array.from(activePointers.values());
                         lastPinchDist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
                         lastPinchZoom = canvas.getZoom();
+                        lastPinchMidpoint = {
+                            x: (points[0].x + points[1].x) / 2,
+                            y: (points[0].y + points[1].y) / 2
+                        };
                         return; // Absorb event
                     }
                 }
@@ -2738,36 +2743,46 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const id = e.pointerId;
                 const isPen = isPenEvent(e);
 
-                // Update trackers
                 if (activePointers.has(id)) {
                     activePointers.set(id, getEvtPos(e));
                 }
 
-                // 1. Configured Zoom/Pan
                 if (isMultiTouching && activePointers.size >= 2) {
                     const points = Array.from(activePointers.values());
                     const dist = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+                    const center = {
+                        x: (points[0].x + points[1].x) / 2,
+                        y: (points[0].y + points[1].y) / 2
+                    };
 
                     if (!isZoomLockedRef.current && lastPinchDist > 10) {
                         const zoomRatio = dist / lastPinchDist;
                         const newZoom = Math.min(Math.max(lastPinchZoom * zoomRatio, 0.1), 10);
-                        const center = {
-                            x: (points[0].x + points[1].x) / 2,
-                            y: (points[0].y + points[1].y) / 2
-                        };
                         const rect = lowerCanvasEl.getBoundingClientRect();
                         const localPoint = new fabric.Point(center.x - rect.left, center.y - rect.top);
 
                         canvas.zoomToPoint(localPoint, newZoom);
                         setCanvasScale(newZoom);
                         syncScrollToViewport();
+                    } else if (isZoomLockedRef.current && lastPinchMidpoint) {
+                        const dx = center.x - lastPinchMidpoint.x;
+                        const dy = center.y - lastPinchMidpoint.y;
+
+                        const vpt = canvas.viewportTransform;
+                        if (vpt) {
+                            vpt[4] += dx;
+                            vpt[5] += dy;
+                            canvas.requestRenderAll();
+                            syncScrollToViewport();
+                        }
                     }
+
+                    lastPinchMidpoint = center;
                     e.preventDefault();
                     e.stopPropagation();
                     return;
                 }
 
-                // 2. Forwarding Decision
                 const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen();
                 if (isPen || (allowTouch && !isMultiTouching)) {
                     forwardToFabric('__onMouseMove', e);
@@ -2776,14 +2791,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             const onPointerUp = (e: any) => {
                 const id = e.pointerId;
-
                 if (id === penPointerId) {
                     penPointerId = -1;
                     lastPenTime = Date.now();
                 }
 
                 activePointers.delete(id);
-                if (activePointers.size < 2) isMultiTouching = false;
+                if (activePointers.size < 2) {
+                    isMultiTouching = false;
+                    lastPinchMidpoint = null;
+                }
 
                 forwardToFabric('__onMouseUp', e);
             };
@@ -2792,14 +2809,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 forwardToFabric('__onWheel', e);
             };
 
-            // Attach
             overlay.addEventListener('pointerdown', onPointerDown, { passive: false });
             overlay.addEventListener('pointermove', onPointerMove, { passive: false });
             overlay.addEventListener('pointerup', onPointerUp, { passive: false });
             overlay.addEventListener('pointercancel', onPointerUp, { passive: false });
             overlay.addEventListener('wheel', onWheel, { passive: false });
 
-            // Clean on dispose
             (canvas as any).__overlayEl = overlay;
         };
 
