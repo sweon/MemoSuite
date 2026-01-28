@@ -1820,6 +1820,58 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             setCurrentPage(prev => (prev !== newPage ? newPage : prev));
         }
     }, [updateCanvasCssClip, setCurrentPage]);
+    const updateEraserCursor = React.useCallback(() => {
+        const fCanvas = fabricCanvasRef.current;
+        if (!fCanvas) return;
+
+        const zoom = fCanvas.getZoom();
+        const baseSize = brushSize * 4;
+        const scaledSize = Math.round(baseSize * zoom);
+        const radius = scaledSize / 2;
+        const visualRadius = Math.max(1, radius * 0.5);
+
+        const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
+                <circle cx="${radius}" cy="${radius}" r="${visualRadius - 0.2}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
+            </svg>
+        `.trim().replace(/\s+/g, ' ');
+
+        const cursorStr = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, crosshair`;
+        fCanvas.freeDrawingCursor = cursorStr;
+
+        // Also set on overlay shield if it exists
+        const overlay = (fCanvas as any).__overlayEl;
+        if (overlay) {
+            overlay.style.cursor = cursorStr;
+        }
+    }, [brushSize]);
+
+    const updateObjectEraserCursor = React.useCallback(() => {
+        const fCanvas = fabricCanvasRef.current;
+        if (!fCanvas) return;
+
+        const zoom = fCanvas.getZoom();
+        const baseSize = brushSize * 4;
+        const scaledSize = Math.round(baseSize * zoom);
+        const radius = scaledSize / 2;
+        const visualRadius = Math.max(1, radius * 0.5);
+
+        const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
+                <circle cx="${radius}" cy="${radius}" r="${visualRadius - 0.2}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
+            </svg>
+        `.trim().replace(/\s+/g, ' ');
+
+        const cursorStr = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, crosshair`;
+        fCanvas.defaultCursor = cursorStr;
+        fCanvas.hoverCursor = cursorStr;
+
+        // Also set on overlay shield if it exists
+        const overlay = (fCanvas as any).__overlayEl;
+        if (overlay) {
+            overlay.style.cursor = cursorStr;
+        }
+    }, [brushSize]);
 
     const handleResetZoom = React.useCallback(() => {
         const canvas = fabricCanvasRef.current;
@@ -2669,6 +2721,29 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 wrapperEl.appendChild(overlay);
             }
 
+            // --- Cursor Synchronization ---
+            // Since the overlay is on top of the upperCanvas, we must sync the cursor
+            // style manually so tool-specific cursors (like the eraser) are visible.
+            const upperCanvasEl = (canvas as any).upperCanvasEl as HTMLElement;
+            if (upperCanvasEl) {
+                // Initial sync
+                overlay.style.cursor = upperCanvasEl.style.cursor;
+
+                // Watch for changes to upperCanvasEl's style (Fabric changes cursor here)
+                const observer = new MutationObserver(() => {
+                    if (overlay.style.cursor !== upperCanvasEl.style.cursor) {
+                        overlay.style.cursor = upperCanvasEl.style.cursor;
+                    }
+                });
+                observer.observe(upperCanvasEl, { attributes: true, attributeFilter: ['style'] });
+
+                // Cleanup old observer if it exists
+                if ((canvas as any).__cursorObserver) {
+                    (canvas as any).__cursorObserver.disconnect();
+                }
+                (canvas as any).__cursorObserver = observer;
+            }
+
             // Bridge Logic
             // We need to call Fabric's internal handlers, but treating the overlay as the target
             // might confuse Fabric's position logic if we don't be careful.
@@ -2790,6 +2865,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         canvas.zoomToPoint(localPoint, newZoom);
                         setCanvasScale(newZoom);
 
+                        if (activeToolRef.current === 'eraser_pixel') updateEraserCursor();
+                        if (activeToolRef.current === 'eraser_object') updateObjectEraserCursor();
+
                         const vpt = canvas.viewportTransform;
                         if (vpt) {
                             vpt[4] += dx;
@@ -2821,6 +2899,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen() && !isPalmEvent(e);
                 if (isPen || (allowTouch && !isMultiTouching)) {
                     forwardToFabric('__onMouseMove', e);
+
+                    // Immediate cursor sync: since the overlay captures the mouse, we must
+                    // reflect whatever cursor Fabric decided to show on the upperCanvas.
+                    if (upperCanvasEl && overlay.style.cursor !== upperCanvasEl.style.cursor) {
+                        overlay.style.cursor = upperCanvasEl.style.cursor;
+                    }
                 }
             };
 
@@ -3059,12 +3143,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         }
 
         return () => {
-            if ((canvas as any).upperCanvasEl) {
-                const overlay = (canvas as any).__overlayEl;
-                if (overlay && overlay.parentNode) {
-                    overlay.parentNode.removeChild(overlay);
-                }
+            const overlay = (canvas as any).__overlayEl;
+            if (overlay && overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
             }
+            if ((canvas as any).__cursorObserver) {
+                (canvas as any).__cursorObserver.disconnect();
+            }
+
             resizeObserver.disconnect();
             canvas.off('object:added', handleObjectAddedForHistory);
             canvas.off('object:modified', handleObjectModifiedForHistory);
@@ -4614,26 +4700,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 break;
 
             case 'eraser_pixel': {
-                const updateEraserCursor = () => {
-                    const fCanvas = fabricCanvasRef.current;
-                    if (!fCanvas) return;
-
-                    const zoom = fCanvas.getZoom();
-                    const baseSize = brushSize * 4;
-                    const scaledSize = Math.round(baseSize * zoom);
-                    const radius = scaledSize / 2;
-                    // visualRadius calculation for the CSS cursor (Desktop)
-                    const visualRadius = Math.max(1, radius * 0.5);
-
-                    const svg = `
-                        <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
-                            <circle cx="${radius}" cy="${radius}" r="${visualRadius - 0.2}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
-                        </svg>
-                    `.trim().replace(/\s+/g, ' ');
-
-                    fCanvas.freeDrawingCursor = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, none`;
-                };
-
                 updateEraserCursor();
 
                 canvas.isDrawingMode = true;
@@ -4750,26 +4816,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
 
             case 'eraser_object': {
-                const updateObjectEraserCursor = () => {
-                    const fCanvas = fabricCanvasRef.current;
-                    if (!fCanvas) return;
-
-                    const zoom = fCanvas.getZoom();
-                    const baseSize = brushSize * 4;
-                    const scaledSize = Math.round(baseSize * zoom);
-                    const radius = scaledSize / 2;
-                    const visualRadius = Math.max(1, radius * 0.5);
-
-                    const svg = `
-                        <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
-                            <circle cx="${radius}" cy="${radius}" r="${visualRadius - 0.2}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
-                        </svg>
-                    `.trim().replace(/\s+/g, ' ');
-
-                    fCanvas.defaultCursor = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, none`;
-                    fCanvas.hoverCursor = `url('data:image/svg+xml;base64,${btoa(svg)}') ${radius} ${radius}, none`;
-                };
-
                 updateObjectEraserCursor();
 
                 canvas.isDrawingMode = false;
