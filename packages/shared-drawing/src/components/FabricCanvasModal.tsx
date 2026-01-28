@@ -4778,18 +4778,21 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         }
                     };
 
-                    upperCanvasEl.addEventListener('pointerdown', handlePointer);
-                    upperCanvasEl.addEventListener('pointermove', handlePointer, { passive: true });
-                    upperCanvasEl.addEventListener('pointerup', handlePointer);
-                    upperCanvasEl.addEventListener('pointerleave', handlePointer);
-                    upperCanvasEl.addEventListener('pointercancel', handlePointer);
+                    const overlay = (canvas as any).__overlayEl;
+                    const eventTarget = overlay || upperCanvasEl;
+
+                    eventTarget.addEventListener('pointerdown', handlePointer);
+                    eventTarget.addEventListener('pointermove', handlePointer, { passive: true });
+                    eventTarget.addEventListener('pointerup', handlePointer);
+                    eventTarget.addEventListener('pointerleave', handlePointer);
+                    eventTarget.addEventListener('pointercancel', handlePointer);
 
                     (canvas as any)._touchEraserCleanup = () => {
-                        upperCanvasEl.removeEventListener('pointerdown', handlePointer);
-                        upperCanvasEl.removeEventListener('pointermove', handlePointer);
-                        upperCanvasEl.removeEventListener('pointerup', handlePointer);
-                        upperCanvasEl.removeEventListener('pointerleave', handlePointer);
-                        upperCanvasEl.removeEventListener('pointercancel', handlePointer);
+                        eventTarget.removeEventListener('pointerdown', handlePointer);
+                        eventTarget.removeEventListener('pointermove', handlePointer);
+                        eventTarget.removeEventListener('pointerup', handlePointer);
+                        eventTarget.removeEventListener('pointerleave', handlePointer);
+                        eventTarget.removeEventListener('pointercancel', handlePointer);
                         if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
                         touchEraserCursorRef.current = null;
                         if ((canvas as any)._lastEraserCursor) {
@@ -4879,18 +4882,21 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         }
                     };
 
-                    upperCanvasEl.addEventListener('pointerdown', handlePointer);
-                    upperCanvasEl.addEventListener('pointermove', handlePointer, { passive: true });
-                    upperCanvasEl.addEventListener('pointerup', handlePointer);
-                    upperCanvasEl.addEventListener('pointerleave', handlePointer);
-                    upperCanvasEl.addEventListener('pointercancel', handlePointer);
+                    const overlay = (canvas as any).__overlayEl;
+                    const eventTarget = overlay || upperCanvasEl;
+
+                    eventTarget.addEventListener('pointerdown', handlePointer);
+                    eventTarget.addEventListener('pointermove', handlePointer, { passive: true });
+                    eventTarget.addEventListener('pointerup', handlePointer);
+                    eventTarget.addEventListener('pointerleave', handlePointer);
+                    eventTarget.addEventListener('pointercancel', handlePointer);
 
                     (canvas as any)._touchEraserCleanup = () => {
-                        upperCanvasEl.removeEventListener('pointerdown', handlePointer);
-                        upperCanvasEl.removeEventListener('pointermove', handlePointer);
-                        upperCanvasEl.removeEventListener('pointerup', handlePointer);
-                        upperCanvasEl.removeEventListener('pointerleave', handlePointer);
-                        upperCanvasEl.removeEventListener('pointercancel', handlePointer);
+                        eventTarget.removeEventListener('pointerdown', handlePointer);
+                        eventTarget.removeEventListener('pointermove', handlePointer);
+                        eventTarget.removeEventListener('pointerup', handlePointer);
+                        eventTarget.removeEventListener('pointerleave', handlePointer);
+                        eventTarget.removeEventListener('pointercancel', handlePointer);
                         if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
                         touchEraserCursorRef.current = null;
                     };
