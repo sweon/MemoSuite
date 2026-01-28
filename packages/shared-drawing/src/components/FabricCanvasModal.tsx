@@ -1824,18 +1824,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const fCanvas = fabricCanvasRef.current;
         if (!fCanvas) return;
 
-        const zoom = fCanvas.getZoom();
-        const baseSize = brushSize * 4;
-        const scaledSize = Math.round(baseSize * zoom);
-        const radius = scaledSize / 2;
-        const visualRadius = Math.max(1, radius * 0.5);
-
-        const svg = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
-                <circle cx="${radius}" cy="${radius}" r="${visualRadius - 0.2}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
-            </svg>
-        `.trim().replace(/\s+/g, ' ');
-
         // CRITICAL: We use a DOM-based indicator (Compatibility Layer) for erasers.
         // We set the system cursor to 'none' to avoid duplicates and standard cursor flickering.
         fCanvas.freeDrawingCursor = 'none';
@@ -1851,18 +1839,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const updateObjectEraserCursor = React.useCallback(() => {
         const fCanvas = fabricCanvasRef.current;
         if (!fCanvas) return;
-
-        const zoom = fCanvas.getZoom();
-        const baseSize = brushSize * 4;
-        const scaledSize = Math.round(baseSize * zoom);
-        const radius = scaledSize / 2;
-        const visualRadius = Math.max(1, radius * 0.5);
-
-        const svg = `
-            <svg xmlns="http://www.w3.org/2000/svg" width="${scaledSize}" height="${scaledSize}" viewBox="0 0 ${scaledSize} ${scaledSize}">
-                <circle cx="${radius}" cy="${radius}" r="${visualRadius - 0.2}" fill="none" stroke="black" stroke-width="0.4" stroke-opacity="0.8" />
-            </svg>
-        `.trim().replace(/\s+/g, ' ');
 
         // CRITICAL: We use a DOM-based indicator (Compatibility Layer) for erasers.
         fCanvas.defaultCursor = 'none';
