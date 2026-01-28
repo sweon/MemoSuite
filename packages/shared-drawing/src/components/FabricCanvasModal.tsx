@@ -2769,15 +2769,23 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                         canvas.zoomToPoint(localPoint, newZoom);
                         setCanvasScale(newZoom);
+
+                        // Sync and Clamp
+                        const vpt = canvas.viewportTransform;
+                        if (vpt) {
+                            clampVpt(vpt);
+                            canvas.setViewportTransform(vpt);
+                        }
+
+                        canvas.requestRenderAll();
                         syncScrollToViewport();
                     } else if (isZoomLockedRef.current && lastPinchMidpoint) {
-                        const dx = center.x - lastPinchMidpoint.x;
                         const dy = center.y - lastPinchMidpoint.y;
 
                         const vpt = canvas.viewportTransform;
                         if (vpt) {
-                            vpt[4] += dx;
                             vpt[5] += dy;
+                            clampVpt(vpt); // Keep paper in view
                             canvas.requestRenderAll();
                             syncScrollToViewport();
                         }
