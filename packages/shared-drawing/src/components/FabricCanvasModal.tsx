@@ -2731,6 +2731,15 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 // Watch for changes to upperCanvasEl's style (Fabric changes cursor here)
                 const observer = new MutationObserver(() => {
+                    // CRITICAL: If eraser is active, we manage the cursor via the Compatibility Layer.
+                    // We must force the cursor to 'none' on the overlay/canvas to hide the system pointer.
+                    if (activeToolRef.current === 'eraser_pixel' || activeToolRef.current === 'eraser_object') {
+                        if (overlay.style.cursor !== 'none') {
+                            overlay.style.cursor = 'none';
+                        }
+                        return;
+                    }
+
                     if (overlay.style.cursor !== upperCanvasEl.style.cursor) {
                         overlay.style.cursor = upperCanvasEl.style.cursor;
                     }
@@ -4703,6 +4712,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 updateEraserCursor();
 
                 canvas.isDrawingMode = true;
+                canvas.freeDrawingCursor = 'none';
+                const overlay = (canvas as any).__overlayEl;
+                if (overlay) overlay.style.cursor = 'none';
+
                 const brush = new fabric.PencilBrush(canvas);
                 brush.width = brushSize * 4;
                 brush.color = 'black';
@@ -4735,13 +4748,17 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     touchEraserCursorRef.current = indicator;
 
                     const handlePointer = (e: PointerEvent) => {
-                        if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
-
-                        if (e.type === 'pointerup' || e.type === 'pointerleave' || e.type === 'pointercancel') {
+                        if (e.type === 'pointerleave' || e.type === 'pointercancel' || (e.pointerType !== 'mouse' && e.type === 'pointerup')) {
                             indicator.style.display = 'none';
                             // Restore standard cursor if it was hidden
                             const fCanvas = fabricCanvasRef.current;
-                            if (fCanvas) fCanvas.freeDrawingCursor = (canvas as any)._lastEraserCursor || 'crosshair';
+                            if (fCanvas) {
+                                fCanvas.freeDrawingCursor = (canvas as any)._lastEraserCursor || 'crosshair';
+                                const overlay = (canvas as any).__overlayEl;
+                                if (overlay && activeToolRef.current !== 'eraser_pixel') {
+                                    overlay.style.cursor = fCanvas.freeDrawingCursor;
+                                }
+                            }
                             canvas.requestRenderAll();
                             return;
                         }
@@ -4766,10 +4783,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         indicator.style.top = `${y - diameter / 2}px`;
                         indicator.style.display = 'block';
 
-                        // CRITICAL: Only one cursor! Hide the system cursor if touch is active
+                        // CRITICAL: Hide the system cursor!
                         if (canvas.freeDrawingCursor !== 'none') {
                             (canvas as any)._lastEraserCursor = canvas.freeDrawingCursor;
                             canvas.freeDrawingCursor = 'none';
+                        }
+                        const overlay = (canvas as any).__overlayEl;
+                        if (overlay && overlay.style.cursor !== 'none') {
+                            overlay.style.cursor = 'none';
                         }
 
                         // CRITICAL: Force re-render for real-time erasing feedback
@@ -4822,6 +4843,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 updateObjectEraserCursor();
 
                 canvas.isDrawingMode = false;
+                canvas.defaultCursor = 'none';
+                canvas.hoverCursor = 'none';
+                const overlay = (canvas as any).__overlayEl;
+                if (overlay) overlay.style.cursor = 'none';
 
                 // Create Touch overlay for Object Eraser too
                 const upperCanvasEl = (canvas as any).upperCanvasEl as HTMLCanvasElement;
@@ -4845,14 +4870,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     touchEraserCursorRef.current = indicator;
 
                     const handlePointer = (e: PointerEvent) => {
-                        if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
-
-                        if (e.type === 'pointerup' || e.type === 'pointerleave' || e.type === 'pointercancel') {
+                        if (e.type === 'pointerleave' || e.type === 'pointercancel' || (e.pointerType !== 'mouse' && e.type === 'pointerup')) {
                             indicator.style.display = 'none';
                             const fCanvas = fabricCanvasRef.current;
                             if (fCanvas) {
                                 fCanvas.defaultCursor = (canvas as any)._lastEraserCursor || 'pointer';
                                 fCanvas.hoverCursor = (canvas as any)._lastEraserCursor || 'not-allowed';
+                                const overlay = (canvas as any).__overlayEl;
+                                if (overlay && activeToolRef.current !== 'eraser_object') {
+                                    overlay.style.cursor = fCanvas.defaultCursor;
+                                }
                             }
                             return;
                         }
@@ -4879,6 +4906,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                             (canvas as any)._lastEraserCursor = canvas.defaultCursor;
                             canvas.defaultCursor = 'none';
                             canvas.hoverCursor = 'none';
+                        }
+                        const overlay = (canvas as any).__overlayEl;
+                        if (overlay && overlay.style.cursor !== 'none') {
+                            overlay.style.cursor = 'none';
                         }
                     };
 
