@@ -2685,11 +2685,18 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 // Abort any current drawing immediately
                 (canvas as any)._isCurrentlyDrawing = false;
                 (canvas as any)._isMouseDown = false;
+
+                // Clear the top canvas where the active brush path is drawn
+                if ((canvas as any).contextTop) {
+                    canvas.clearContext((canvas as any).contextTop);
+                }
+
                 const brush = canvas.freeDrawingBrush as any;
                 if (brush) {
                     brush._points = [];
                     if (brush._reset) brush._reset();
                 }
+
                 canvas.requestRenderAll();
             };
 
@@ -2708,7 +2715,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 if (e.pointerType === 'touch' && activePointers.size >= 2) {
                     isMultiTouching = true;
                     multiTouchSessionActive = true;
-                    abortActiveStroke(); // Stop drawing if 2nd finger lands
+                    abortActiveStroke(); // Stop drawing immediately
+
+                    // Clear forwarded pointers to ensure no one completes a stroke
+                    forwardedPointers.clear();
 
                     // Init pinch
                     const points = Array.from(activePointers.values());
@@ -2728,16 +2738,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen();
                 if (isPen || allowTouch) {
                     if (isPen) {
-                        if ((canvas as any).contextTopDirty) {
-                            canvas.clearContext((canvas as any).contextTop);
-                        }
-                        (canvas as any)._isCurrentlyDrawing = false;
-                        (canvas as any)._isMouseDown = false;
-                        const brush = canvas.freeDrawingBrush as any;
-                        if (brush) {
-                            brush._points = [];
-                            if (brush._reset) brush._reset();
-                        }
+                        abortActiveStroke();
                     }
 
                     forwardedPointers.add(id);
