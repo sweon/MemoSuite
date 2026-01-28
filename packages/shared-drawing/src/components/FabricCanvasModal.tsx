@@ -2510,25 +2510,26 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         // Mouse wheel zooming
         canvas.on('mouse:wheel', function (opt) {
+            const e = opt.e;
             if (isZoomLockedRef.current) {
                 if (verticalScrollRef.current) {
-                    verticalScrollRef.current.scrollTop += opt.e.deltaY;
+                    verticalScrollRef.current.scrollTop += e.deltaY;
                 }
                 if (horizontalScrollRef.current) {
-                    horizontalScrollRef.current.scrollLeft += opt.e.deltaX;
+                    horizontalScrollRef.current.scrollLeft += e.deltaX;
                 }
-                opt.e.preventDefault();
-                opt.e.stopPropagation();
+                if (e.cancelable) e.preventDefault();
+                e.stopPropagation();
                 return;
             }
 
-            const delta = opt.e.deltaY;
+            const delta = e.deltaY;
             let zoom = canvas.getZoom();
-            zoom *= 0.999 ** delta;
+            zoom *= Math.pow(0.999, delta);
             if (zoom > 10) zoom = 10;
             if (zoom < 0.1) zoom = 0.1;
 
-            const pointer = canvas.getPointer(opt.e);
+            const pointer = canvas.getPointer(e);
             canvas.zoomToPoint(new fabric.Point(pointer.x, pointer.y), zoom);
 
             const vpt = canvas.viewportTransform;
@@ -2540,8 +2541,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             canvas.requestRenderAll();
             syncScrollToViewport();
 
-            opt.e.preventDefault();
-            opt.e.stopPropagation();
+            if (e.cancelable) e.preventDefault();
+            e.stopPropagation();
         });
 
         // Sync native scroll to viewport
@@ -2764,15 +2765,23 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     if (!isZoomLockedRef.current && lastPinchDist > 10) {
                         const zoomRatio = dist / lastPinchDist;
                         const newZoom = Math.min(Math.max(lastPinchZoom * zoomRatio, 0.1), 10);
+
+                        // Calculate panning displacement
+                        const dx = lastPinchMidpoint ? (center.x - lastPinchMidpoint.x) : 0;
+                        const dy = lastPinchMidpoint ? (center.y - lastPinchMidpoint.y) : 0;
+
                         const rect = lowerCanvasEl.getBoundingClientRect();
-                        const localPoint = new fabric.Point(center.x - rect.left, center.y - rect.top);
+                        // Zoom around the PREVIOUS center to keep the content stable during the zoom portion
+                        const zoomPoint = lastPinchMidpoint || center;
+                        const localPoint = new fabric.Point(zoomPoint.x - rect.left, zoomPoint.y - rect.top);
 
                         canvas.zoomToPoint(localPoint, newZoom);
                         setCanvasScale(newZoom);
 
-                        // Sync and Clamp
                         const vpt = canvas.viewportTransform;
                         if (vpt) {
+                            vpt[4] += dx;
+                            vpt[5] += dy;
                             clampVpt(vpt);
                             canvas.setViewportTransform(vpt);
                         }
@@ -2837,7 +2846,15 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             };
 
             const onWheel = (e: any) => {
-                forwardToFabric('__onWheel', e);
+                // Manually fire the Fabric mouse:wheel event since we're using an overlay
+                // This ensures all internal and external Fabric listeners are triggered.
+                canvas.fire('mouse:wheel', { e: e });
+
+                // Prevent browser native scrolling of the page
+                if (e.cancelable) {
+                    e.preventDefault();
+                }
+                e.stopPropagation();
             };
 
             overlay.addEventListener('pointerdown', onPointerDown, { passive: false });
