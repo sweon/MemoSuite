@@ -2774,7 +2774,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             const onPointerUp = (e: any) => {
                 const id = e.pointerId;
-                const isPen = isPenEvent(e);
+
 
                 if (id === penPointerId) {
                     penPointerId = -1;
