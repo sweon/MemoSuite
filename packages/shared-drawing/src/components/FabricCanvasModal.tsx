@@ -2612,7 +2612,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // Logic: Always On Palm Rejection (Smart)
         let penPointerId = -1;
         let lastPenTime = 0;
-        const PEN_TIMEOUT = 300;
+        const PEN_TIMEOUT = 500; // Increased for safer palm rejection
 
         // Check if we should block non-pen input
         const shouldBlockNonPen = (): boolean => {
@@ -2627,6 +2627,17 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             if (e.pointerType === 'touch' || e.pointerType === 'mouse') return false;
             if (e.tiltX || e.tiltY) return true;
             if (e.pressure > 0 && e.pressure !== 0.5 && e.pressure !== 1) return true;
+            return false;
+        };
+
+        // Aggressive Palm Check: Filter by contact size if available
+        const isPalmEvent = (e: any): boolean => {
+            if (e.pointerType !== 'touch') return false;
+            // Most fingertips are small. Palms/sides of hands have large contact width/height.
+            // threshold of 20-30 pixels is usually safe to distinguish palm from finger.
+            const w = e.width || 0;
+            const h = e.height || 0;
+            if (w > 25 || h > 25) return true;
             return false;
         };
 
@@ -2735,7 +2746,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
 
                 // 2. Decision: Forward to Fabric or Absorb?
-                const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen();
+                const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen() && !isPalmEvent(e);
                 if (isPen || allowTouch) {
                     if (isPen) {
                         abortActiveStroke();
@@ -2807,7 +2818,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     return;
                 }
 
-                const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen();
+                const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen() && !isPalmEvent(e);
                 if (isPen || (allowTouch && !isMultiTouching)) {
                     forwardToFabric('__onMouseMove', e);
                 }
