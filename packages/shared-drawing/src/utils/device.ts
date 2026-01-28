@@ -1,16 +1,11 @@
-export const isTablet = (): boolean => {
+export const isMobileDevice = (): boolean => {
     const userAgent = navigator.userAgent.toLowerCase();
 
-    // Check for iPad
-    // New iPads with iPadOS 13+ send "Macintosh" in user agent but have touch points
-    const isIpad = /ipad/.test(userAgent) ||
-        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    // Check if it's a mobile device (phone or tablet)
+    const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
 
-    // Check for Android Tablet
-    // Android tablets usually don't have "mobile" in user agent, or have "tablet"
-    const isAndroid = /android/.test(userAgent);
-    const isAndroidMobile = /mobile/.test(userAgent);
-    const isAndroidTablet = isAndroid && !isAndroidMobile;
+    // Also check for iPadOS 13+ which identifies as Macintosh but has touch points
+    const isIpadOS = (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    return isIpad || isAndroidTablet;
+    return isMobile || isIpadOS;
 };

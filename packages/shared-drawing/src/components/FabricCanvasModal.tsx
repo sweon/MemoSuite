@@ -17,7 +17,7 @@ import {
     calculateBackgroundColor,
     createBackgroundPattern
 } from '../utils/background';
-import { isTablet } from '../utils/device';
+import { isMobileDevice } from '../utils/device';
 
 
 
@@ -3148,6 +3148,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             top: rect.bottom + 5
         });
         setTempBrushType(brushType);
+        setTempDrawWithFinger(drawWithFinger);
         openedTimeRef.current = Date.now();
         setIsPenEditOpen(true);
     };
@@ -5587,7 +5588,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                                     />
                                 </DashOption>
 
-                                {activePenSlot === 'pen_1' && isTablet() && (
+                                {activePenSlot === 'pen_1' && isMobileDevice() && (
                                     <>
                                         <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }}></div>
 

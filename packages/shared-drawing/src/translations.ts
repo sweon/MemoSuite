@@ -440,7 +440,7 @@ export const translations = {
             enter_filename: "파일명을 입력하세요:",
             head_size: "화살표 머리 크기",
             opacity: "투명도",
-            draw_with_finger: "손으로 그리기",
+            draw_with_finger: "손가락으로 그리기",
             cancel_confirm: "변경사항을 취소하시겠습니까?",
             exit_title: "종료하시겠습니까?",
             discard: "변경사항 취소",
