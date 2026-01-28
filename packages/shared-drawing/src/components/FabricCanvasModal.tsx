@@ -2707,6 +2707,18 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         if ((canvas as any).contextTopDirty) {
                             canvas.clearContext((canvas as any).contextTop);
                         }
+
+                        // NUCLEAR RESET: Hard reset Fabric's internal drawing/mouse state
+                        // This ensures that even if a palm event somehow leaked through 
+                        // previously, the pen starts fresh without "connecting" to old points.
+                        (canvas as any)._isCurrentlyDrawing = false;
+                        (canvas as any)._isMouseDown = false;
+
+                        const brush = canvas.freeDrawingBrush as any;
+                        if (brush) {
+                            brush._points = [];
+                            if (brush._reset) brush._reset();
+                        }
                     }
 
                     forwardToFabric('__onMouseDown', e);
