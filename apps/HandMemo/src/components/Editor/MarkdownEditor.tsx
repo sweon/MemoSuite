@@ -123,11 +123,15 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
     const prefix = `\`\`\`${type}`;
 
     for (let r = cursor.line; r >= 0; r--) {
-      if (cm.getLine(r).trim().startsWith(prefix)) {
+      const line = cm.getLine(r).trim();
+      if (line.startsWith(prefix)) {
         startLine = r;
         break;
       }
+      // If we find a closing block before the opening one, we are not inside a block
+      if (r < cursor.line && line === '```') break;
     }
+
     if (startLine !== -1) {
       for (let r = startLine + 1; r < cm.lineCount(); r++) {
         if (cm.getLine(r).trim() === '```') {
@@ -136,7 +140,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
         }
       }
     }
-    return { startLine, endLine };
+
+    if (startLine !== -1 && endLine !== -1 && cursor.line >= startLine && cursor.line <= endLine) {
+      return { startLine, endLine };
+    }
+    return { startLine: -1, endLine: -1 };
   };
 
   const handleDrawing = (providedStartLine?: number, providedEndLine?: number) => {
@@ -228,6 +236,10 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
       const insertText = `\n\n${newBlock}\n`;
       cm.replaceRange(insertText, cursor);
 
+      // Move cursor into the newly inserted block so findBlock can find it
+      const newCursor = { line: cursor.line + 2, ch: 0 };
+      cm.setCursor(newCursor);
+
       // Try to find the newly inserted block
       const found = findBlock('fabric');
       if (found.startLine !== -1) {
@@ -269,6 +281,10 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
       const cursor = lastCursorRef.current;
       const insertText = `\n\n${newBlock}\n`;
       cm.replaceRange(insertText, cursor);
+
+      // Move cursor into the newly inserted block so findBlock can find it
+      const newCursor = { line: cursor.line + 2, ch: 0 };
+      cm.setCursor(newCursor);
 
       // Try to find the newly inserted block
       const found = findBlock('spreadsheet');
