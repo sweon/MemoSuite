@@ -448,7 +448,8 @@ export const LogDetail: React.FC = () => {
     }, [isNew, sourceId, sources]);
 
     useEffect(() => {
-        if (!isEditing || localStorage.getItem('editor_autosave') === 'false') return;
+        const isEditingAnything = isEditing || isFabricModalOpen || isSpreadsheetModalOpen;
+        if (!isEditingAnything || localStorage.getItem('editor_autosave') === 'false') return;
 
         const interval = setInterval(async () => {
             const currentTagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -482,7 +483,7 @@ export const LogDetail: React.FC = () => {
         }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
-    }, [isEditing, title, content, tags, sourceId, id]);
+    }, [isEditing, isFabricModalOpen, isSpreadsheetModalOpen, title, content, tags, sourceId, id]);
 
     const handleSave = async () => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -929,6 +930,18 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         setIsFabricModalOpen(false);
                         setEditingDrawingData(undefined);
                     }}
+                    onAutosave={(json) => {
+                        const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                        let found = false;
+                        const newContent = content.replace(fabricRegex, (match, p1) => {
+                            if (!found && p1.trim() === editingDrawingData?.trim()) {
+                                found = true;
+                                return `\`\`\`fabric\n${json}\n\`\`\``;
+                            }
+                            return match;
+                        });
+                        if (newContent !== content) setContent(newContent);
+                    }}
                     onClose={() => {
                         setIsFabricModalOpen(false);
                         setEditingDrawingData(undefined);
@@ -965,6 +978,20 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     setIsSpreadsheetModalOpen(false);
                     setEditingSpreadsheetData(undefined);
                     setEditingSpreadsheetRaw(undefined);
+                }}
+                onAutosave={(data) => {
+                    const json = JSON.stringify(data);
+                    const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
+                    let found = false;
+
+                    const newContent = content.replace(spreadsheetRegex, (match, p1) => {
+                        if (editingSpreadsheetRaw && !found && p1.trim() === editingSpreadsheetRaw.trim()) {
+                            found = true;
+                            return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        }
+                        return match;
+                    });
+                    if (newContent !== content) setContent(newContent);
                 }}
                 initialData={editingSpreadsheetData}
                 language={language as 'en' | 'ko'}

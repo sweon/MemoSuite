@@ -616,6 +616,7 @@ outline: none;
 interface FabricCanvasModalProps {
     initialData?: string;
     onSave: (data: string) => void;
+    onAutosave?: (data: string) => void;
     onClose: () => void;
     language?: string;
 }
@@ -1292,7 +1293,7 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
     );
 };
 
-export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialData, onSave, onClose: propsOnClose, language = 'en' }) => {
+export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialData, onSave, onAutosave, onClose: propsOnClose, language = 'en' }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
@@ -4342,6 +4343,22 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
         }, 300);
     };
+
+    // Autosave logic
+    const onAutosaveRef = useRef(onAutosave);
+    useEffect(() => { onAutosaveRef.current = onAutosave; }, [onAutosave]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const canvas = fabricCanvasRef.current;
+            if (canvas && onAutosaveRef.current) {
+                const json = JSON.stringify(canvas.toJSON(['id', 'selectable', 'hasControls', 'hasBorders', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'id', 'name', 'type', 'subtype']));
+                onAutosaveRef.current(json);
+            }
+        }, 7000); // 7 seconds
+
+        return () => clearInterval(interval);
+    }, []);
 
     const handleSave = async () => {
         if (!fabricCanvasRef.current || isSaving) return;

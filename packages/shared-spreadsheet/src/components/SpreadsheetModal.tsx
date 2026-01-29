@@ -197,6 +197,7 @@ interface SpreadsheetModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: any) => void;
+  onAutosave?: (data: any) => void;
   initialData?: any;
   language?: 'en' | 'ko';
 }
@@ -218,6 +219,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onAutosave,
   initialData,
   language = 'en'
 }) => {
@@ -343,6 +345,27 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
       setMountKey(uuidv4());
     }
   }, [isOpen, initialData]);
+
+  // Autosave logic
+  const onAutosaveRef = useRef(onAutosave);
+  useEffect(() => { onAutosaveRef.current = onAutosave; }, [onAutosave]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const interval = setInterval(() => {
+      if (workbookRef.current && onAutosaveRef.current) {
+        try {
+          const allSheets = workbookRef.current.getAllSheets();
+          if (allSheets && allSheets.length > 0) {
+            onAutosaveRef.current(allSheets);
+          }
+        } catch (e) { }
+      }
+    }, 7000); // 7 seconds
+
+    return () => clearInterval(interval);
+  }, [isOpen]);
 
   const handleSave = useCallback((e?: React.MouseEvent) => {
     e?.stopPropagation();

@@ -395,7 +395,8 @@ export const MemoDetail: React.FC = () => {
     const lastSavedState = useRef({ title, content, tags });
 
     useEffect(() => {
-        if (!isEditing || localStorage.getItem('editor_autosave') === 'false') return;
+        const isEditingAnything = isEditing || isFabricModalOpen || isSpreadsheetModalOpen;
+        if (!isEditingAnything || localStorage.getItem('editor_autosave') === 'false') return;
 
         const interval = setInterval(async () => {
             const currentTags = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -427,7 +428,7 @@ export const MemoDetail: React.FC = () => {
         }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
-    }, [isEditing, title, content, tags, id]);
+    }, [isEditing, isFabricModalOpen, isSpreadsheetModalOpen, title, content, tags, id]);
 
     const handleSave = async (overrideTitle?: string, overrideContent?: string) => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -769,6 +770,30 @@ export const MemoDetail: React.FC = () => {
                             }
                         }
                     }}
+                    onAutosave={(json) => {
+                        let newContent = content;
+                        const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+
+                        if (editingDrawingData) {
+                            let found = false;
+                            newContent = content.replace(fabricRegex, (match, p1) => {
+                                if (!found && p1.trim() === editingDrawingData.trim()) {
+                                    found = true;
+                                    return `\`\`\`fabric\n${json}\n\`\`\``;
+                                }
+                                return match;
+                            });
+                        } else if (searchParams.get('drawing') === 'true' || content.trim().startsWith('```fabric')) {
+                            newContent = `\`\`\`fabric\n${json}\n\`\`\``;
+                        } else {
+                            if (content.includes('```fabric')) {
+                                newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
+                            } else {
+                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                            }
+                        }
+                        if (newContent !== content) setContent(newContent);
+                    }}
                     onClose={() => {
                         setIsFabricModalOpen(false);
                         setEditingDrawingData(undefined);
@@ -832,6 +857,33 @@ export const MemoDetail: React.FC = () => {
                             });
                         }
                     }
+                }}
+                onAutosave={(data) => {
+                    const json = JSON.stringify(data);
+                    let newContent = content;
+                    const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
+
+                    if (editingSpreadsheetRaw) {
+                        let found = false;
+                        const targetRaw = editingSpreadsheetRaw.trim();
+                        newContent = content.replace(spreadsheetRegex, (match, p1) => {
+                            if (!found && p1.trim() === targetRaw) {
+                                found = true;
+                                return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                            }
+                            return match;
+                        });
+                    } else if (content.includes('```spreadsheet')) {
+                        newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
+                    } else if (searchParams.get('spreadsheet') === 'true' || content.trim().startsWith('```spreadsheet')) {
+                        newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                    } else if (content.trim()) {
+                        newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
+                    } else {
+                        newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                    }
+
+                    if (newContent !== content) setContent(newContent);
                 }}
                 initialData={editingSpreadsheetData}
                 language={language as 'en' | 'ko'}
