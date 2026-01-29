@@ -44,10 +44,23 @@ export interface Comment {
     updatedAt: Date;
 }
 
+export interface Autosave {
+    id?: number;
+    originalId?: number;
+    bookId?: number;
+    pageNumber?: number;
+    quote?: string;
+    title: string;
+    content: string;
+    tags: string[];
+    createdAt: Date;
+}
+
 export class BookMemoDatabase extends Dexie {
     books!: Table<Book>;
     memos!: Table<Memo>;
     comments!: Table<Comment>;
+    autosaves!: Table<Autosave>;
 
     constructor() {
         super('BookMemoDB');
@@ -82,6 +95,10 @@ export class BookMemoDatabase extends Dexie {
         // 2026-01-25: Add order and parentId for ThreadableList support
         this.version(7).stores({
             memos: '++id, bookId, pageNumber, title, *tags, createdAt, updatedAt, threadId, type, order, parentId'
+        });
+
+        this.version(8).stores({
+            autosaves: '++id, originalId, bookId, createdAt'
         });
     }
 }

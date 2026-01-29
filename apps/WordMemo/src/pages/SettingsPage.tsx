@@ -1,15 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { AppLockSettings, LanguageSettings, PasswordModal, ThemeSettings, useConfirm, useLanguage } from '@memosuite/shared';
+import { AppLockSettings, LanguageSettings, PasswordModal, ThemeSettings, useConfirm, useLanguage, AutosaveSection as SharedAutosaveSection } from '@memosuite/shared';
+import type { Autosave } from '@memosuite/shared';
 
 import styled, { keyframes } from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { exportData, importData } from '../utils/backup';
-import { FiTrash2, FiPlus, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, FiDatabase, FiCpu, FiGlobe, FiInfo, FiShare2, FiAlertTriangle, FiEdit3, FiLock, FiLayers, FiTrendingUp } from 'react-icons/fi';
+import { FiTrash2, FiPlus, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, FiDatabase, FiCpu, FiGlobe, FiInfo, FiShare2, FiAlertTriangle, FiEdit3, FiLock, FiLayers, FiTrendingUp, FiSave } from 'react-icons/fi';
 import { MdDragIndicator } from 'react-icons/md';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
 
+import { useNavigate } from 'react-router-dom';
 import { TouchDelayDraggable } from '../components/Sidebar/TouchDelayDraggable';
 
 const Container = styled.div`
@@ -411,7 +413,7 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
   </div>
 );
 
-type SubMenu = 'main' | 'sources' | 'data' | 'editor' | 'language' | 'about' | 'learning' | 'llm' | 'theme' | 'appLock';
+type SubMenu = 'main' | 'sources' | 'data' | 'editor' | 'language' | 'about' | 'learning' | 'llm' | 'theme' | 'appLock' | 'autosave';
 
 export const SettingsPage: React.FC = () => {
   const { t } = useLanguage();
@@ -711,6 +713,47 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const AutosaveSection: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+    const { t } = useLanguage();
+    const { confirm } = useConfirm();
+    const navigate = useNavigate();
+    const autosaves = useLiveQuery(() => db.autosaves.orderBy('createdAt').reverse().toArray());
+
+    const handleRestore = (as: Autosave) => {
+      // Autosave interface in db.ts matched shared Autosave interface structure mostly
+      if (as.originalId) {
+        navigate(`/log/${as.originalId}?autosaveId=${as.id}&edit=true`);
+      } else {
+        navigate(`/?autosaveId=${as.id}&edit=true`);
+      }
+    };
+
+    const handleDelete = async (id: number) => {
+      if (await confirm({ message: t.log_detail.delete_confirm, isDestructive: true })) {
+        await db.autosaves.delete(id);
+      }
+    };
+
+    const handleClearAll = async () => {
+      if (await confirm({ message: t.settings.reset_confirm, isDestructive: true })) {
+        await db.autosaves.clear();
+      }
+    };
+
+    return (
+      <SharedAutosaveSection
+        autosaves={autosaves as Autosave[]}
+        onRestore={handleRestore}
+        onDelete={handleDelete}
+        onClearAll={handleClearAll}
+        onBack={onBack}
+        t={t}
+        autosaveEnabled={autosave}
+        onToggleAutosave={toggleAutosave}
+      />
+    );
+  };
+
   const renderHeader = (title: string) => (
     <Header>
       <BackButton onClick={() => setCurrentSubMenu('main')}>
@@ -749,6 +792,15 @@ export const SettingsPage: React.FC = () => {
               <div className="label-wrapper">
                 <span className="title">{t.settings.learning}</span>
                 <span className="desc">{t.settings.level_desc}</span>
+              </div>
+              <FiChevronRight className="chevron" />
+            </MenuButton>
+
+            <MenuButton onClick={() => setCurrentSubMenu('autosave')}>
+              <div className="icon-wrapper"><FiSave /></div>
+              <div className="label-wrapper">
+                <span className="title">{t.settings.autosave_settings}</span>
+                <span className="desc">{t.settings.autosave_settings_desc}</span>
               </div>
               <FiChevronRight className="chevron" />
             </MenuButton>
@@ -817,6 +869,10 @@ export const SettingsPage: React.FC = () => {
           {renderHeader(t.settings.app_lock)}
           <AppLockSettings t={t} />
         </Section>
+      )}
+
+      {currentSubMenu === 'autosave' && (
+        <AutosaveSection onBack={() => setCurrentSubMenu('main')} />
       )}
 
       {currentSubMenu === 'sources' && (
@@ -908,12 +964,6 @@ export const SettingsPage: React.FC = () => {
               desc={t.settings.spellcheck_desc}
               checked={spellCheck}
               onChange={toggleSpellCheck}
-            />
-            <EditorSettingItem
-              title={t.settings.editor_autosave}
-              desc={t.settings.editor_autosave_desc}
-              checked={autosave}
-              onChange={toggleAutosave}
             />
             <EditorSettingItem
               title={t.settings.editor_line_numbers}

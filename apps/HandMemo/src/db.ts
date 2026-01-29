@@ -22,9 +22,19 @@ export interface Comment {
     updatedAt: Date;
 }
 
+export interface Autosave {
+    id?: number;
+    originalId?: number;
+    title: string;
+    content: string;
+    tags: string[];
+    createdAt: Date;
+}
+
 export class HandMemoDatabase extends Dexie {
     memos!: Table<Memo>;
     comments!: Table<Comment>;
+    autosaves!: Table<Autosave>;
 
     constructor() {
         super('HandMemoDB');
@@ -58,6 +68,10 @@ export class HandMemoDatabase extends Dexie {
 
         this.version(7).stores({
             books: null
+        });
+
+        this.version(8).stores({
+            autosaves: '++id, title, originalId, createdAt'
         });
     }
 }

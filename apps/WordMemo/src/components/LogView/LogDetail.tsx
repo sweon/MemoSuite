@@ -254,6 +254,8 @@ export const LogDetail: React.FC = () => {
     }, [content]);
     const { studyMode } = useStudyMode();
 
+    const lastSavedState = useRef({ title, content, tags, sourceId });
+
     const log = useLiveQuery(
         () => (id ? db.logs.get(Number(id)) : undefined),
         [id]
@@ -323,6 +325,7 @@ export const LogDetail: React.FC = () => {
     useEffect(() => {
         // Check for edit mode from URL first
         const shouldEdit = searchParams.get('edit') === 'true';
+        const autosaveId = searchParams.get('autosaveId');
 
         if (log) {
             setTitle(log.title);
@@ -332,18 +335,77 @@ export const LogDetail: React.FC = () => {
 
             // Set editing mode based on URL param
             setIsEditing(shouldEdit);
-        } else if (isNew) {
-            setTitle('');
-            setContent('');
-            setTags('');
-            setEditingDrawingData(undefined);
-            setEditingSpreadsheetData(undefined);
-            setEditingSpreadsheetRaw(undefined);
-            setSourceId(undefined);
-            setIsEditing(true);
 
-            if (searchParams.get('drawing') === 'true') {
-                setIsFabricModalOpen(true);
+            // Restoration prompt for existing log
+            const checkExistingAutosave = async () => {
+                if (!shouldEdit) return;
+                const existing = await db.autosaves
+                    .where('originalId')
+                    .equals(Number(id))
+                    .reverse()
+                    .sortBy('createdAt');
+
+                if (existing.length > 0) {
+                    const draft = existing[0];
+                    if (draft.content !== log.content || draft.title !== log.title) {
+                        if (await confirm({ message: t.log_detail.autosave_restore_confirm })) {
+                            setTitle(draft.title);
+                            setContent(draft.content);
+                            setTags(draft.tags.join(', '));
+                            setSourceId(draft.sourceId);
+                        }
+                    }
+                }
+            };
+            checkExistingAutosave();
+
+        } else if (isNew) {
+            if (autosaveId) {
+                const loadAutosave = async () => {
+                    const as = await db.autosaves.get(Number(autosaveId));
+                    if (as) {
+                        setTitle(as.title);
+                        setContent(as.content);
+                        setTags(as.tags.join(', '));
+                        setSourceId(as.sourceId);
+                        setIsEditing(true);
+                    }
+                };
+                loadAutosave();
+            } else {
+                setTitle('');
+                setContent('');
+                setTags('');
+                setEditingDrawingData(undefined);
+                setEditingSpreadsheetData(undefined);
+                setEditingSpreadsheetRaw(undefined);
+                setSourceId(undefined);
+                setIsEditing(true);
+
+                if (searchParams.get('drawing') === 'true') {
+                    setIsFabricModalOpen(true);
+                }
+
+                // Restoration prompt for new log
+                const checkNewAutosave = async () => {
+                    const latest = await db.autosaves
+                        .filter(a => a.originalId === undefined)
+                        .reverse()
+                        .sortBy('createdAt');
+
+                    if (latest.length > 0) {
+                        const draft = latest[0];
+                        if (draft.content.trim() || draft.title.trim()) {
+                            if (await confirm({ message: t.log_detail.autosave_restore_confirm })) {
+                                setTitle(draft.title);
+                                setContent(draft.content);
+                                setTags(draft.tags.join(', '));
+                                setSourceId(draft.sourceId);
+                            }
+                        }
+                    }
+                };
+                checkNewAutosave();
             }
         }
     }, [log, isNew, id, searchParams]);
@@ -373,6 +435,43 @@ export const LogDetail: React.FC = () => {
         initSource();
     }, [isNew, sourceId, sources]);
 
+    useEffect(() => {
+        if (!isEditing || localStorage.getItem('editor_autosave') === 'false') return;
+
+        const interval = setInterval(async () => {
+            const currentTagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
+            const lastTagArray = lastSavedState.current.tags.split(',').map(t => t.trim()).filter(Boolean);
+
+            const hasChanged = title !== lastSavedState.current.title ||
+                content !== lastSavedState.current.content ||
+                sourceId !== lastSavedState.current.sourceId ||
+                JSON.stringify(currentTagArray) !== JSON.stringify(lastTagArray);
+
+            if (!hasChanged) return;
+            if (!title.trim() && !content.trim()) return;
+
+            lastSavedState.current = { title, content, tags, sourceId };
+
+            await db.autosaves.add({
+                originalId: id ? Number(id) : undefined,
+                title,
+                content,
+                tags: currentTagArray,
+                sourceId: sourceId ? Number(sourceId) : undefined,
+                createdAt: new Date()
+            });
+
+            // Keep only latest 20 autosaves
+            const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();
+            if (allAutosaves.length > 20) {
+                const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
+                await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
+            }
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [isEditing, title, content, tags, sourceId, id]);
+
     const handleSave = async () => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
         const now = new Date();
@@ -399,6 +498,10 @@ export const LogDetail: React.FC = () => {
             if (searchParams.get('edit')) {
                 navigate(`/log/${id}`, { replace: true });
             }
+
+            // Cleanup autosaves for this log
+            await db.autosaves.where('originalId').equals(Number(id)).delete();
+            setIsEditing(false);
         } else {
             const newId = await db.logs.add({
                 title: derivedTitle,
@@ -409,6 +512,16 @@ export const LogDetail: React.FC = () => {
                 updatedAt: now,
                 isStarred: 1
             });
+
+            // If we loaded from an autosave, delete it
+            const autosaveId = searchParams.get('autosaveId');
+            if (autosaveId) {
+                await db.autosaves.delete(Number(autosaveId));
+            } else {
+                // Also cleanup any "new log" autosaves
+                await db.autosaves.filter(a => a.originalId === undefined).delete();
+            }
+
             navigate(`/log/${newId}`, { replace: true });
         }
     };

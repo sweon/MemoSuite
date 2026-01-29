@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { AppLockSettings, DataManagementSection, LanguageSettings, ThemeSettings, useConfirm, useLanguage } from '@memosuite/shared';
+import { AppLockSettings, DataManagementSection, LanguageSettings, ThemeSettings, useConfirm, useLanguage, AutosaveSection as SharedAutosaveSection } from '@memosuite/shared';
+import type { Autosave } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { FiTrash2, FiPlus, FiChevronRight, FiArrowLeft, FiDatabase, FiCpu, FiGlobe, FiInfo, FiShare2, FiLock, FiEdit3 } from 'react-icons/fi';
+import { FiTrash2, FiPlus, FiChevronRight, FiArrowLeft, FiDatabase, FiCpu, FiGlobe, FiInfo, FiShare2, FiLock, FiEdit3, FiSave } from 'react-icons/fi';
 import { MdDragIndicator } from 'react-icons/md';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
+import { useNavigate } from 'react-router-dom';
 
 import { llmemoAdapter } from '../utils/backupAdapter';
 import { TouchDelayDraggable } from '../components/Sidebar/TouchDelayDraggable';
@@ -299,7 +301,56 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
   </div>
 );
 
-type SubMenu = 'main' | 'models' | 'data' | 'editor' | 'theme' | 'language' | 'about' | 'appLock';
+type SubMenu = 'main' | 'models' | 'data' | 'editor' | 'theme' | 'language' | 'about' | 'appLock' | 'autosave';
+
+const AutosaveSection: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const { t } = useLanguage();
+  const { confirm } = useConfirm();
+  const navigate = useNavigate();
+  const autosaves = useLiveQuery(() => db.autosaves.orderBy('createdAt').reverse().toArray());
+
+  const [autosaveEnabled, setAutosaveEnabled] = useState(() => localStorage.getItem('editor_autosave') !== 'false');
+
+  const toggleAutosave = () => {
+    const next = !autosaveEnabled;
+    setAutosaveEnabled(next);
+    localStorage.setItem('editor_autosave', String(next));
+  };
+
+  const handleRestore = (as: Autosave) => {
+    // Logic for LLMemo navigation
+    if (as.originalId) {
+      navigate(`/log/${as.originalId}?autosaveId=${as.id}&edit=true`);
+    } else {
+      navigate(`/?autosaveId=${as.id}&edit=true`);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (await confirm({ message: t.log_detail.delete_confirm, isDestructive: true })) {
+      await db.autosaves.delete(id);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (await confirm({ message: t.settings.reset_confirm, isDestructive: true })) {
+      await db.autosaves.clear();
+    }
+  };
+
+  return (
+    <SharedAutosaveSection
+      autosaves={autosaves as Autosave[]}
+      onRestore={handleRestore}
+      onDelete={handleDelete}
+      onClearAll={handleClearAll}
+      onBack={onBack}
+      t={t}
+      autosaveEnabled={autosaveEnabled}
+      onToggleAutosave={toggleAutosave}
+    />
+  );
+};
 
 export const SettingsPage: React.FC = () => {
   const { t } = useLanguage();
@@ -309,7 +360,6 @@ export const SettingsPage: React.FC = () => {
   const models = useLiveQuery(() => db.models.orderBy('order').toArray());
 
   const [spellCheck, setSpellCheck] = useState(() => localStorage.getItem('spellCheck') !== 'false');
-  const [autosave, setAutosave] = useState(() => localStorage.getItem('editor_autosave') !== 'false');
   const [lineNumbers, setLineNumbers] = useState(() => localStorage.getItem('editor_line_numbers') === 'true');
   const [tabSize, setTabSize] = useState(() => Number(localStorage.getItem('editor_tab_size')) || 4);
   const [largeSize, setLargeSize] = useState(() => localStorage.getItem('editor_large_size') === 'true');
@@ -319,12 +369,6 @@ export const SettingsPage: React.FC = () => {
     const next = !spellCheck;
     setSpellCheck(next);
     localStorage.setItem('spellCheck', String(next));
-  };
-
-  const toggleAutosave = () => {
-    const next = !autosave;
-    setAutosave(next);
-    localStorage.setItem('editor_autosave', String(next));
   };
 
   const toggleLineNumbers = () => {
@@ -457,6 +501,15 @@ export const SettingsPage: React.FC = () => {
               <FiChevronRight className="chevron" />
             </MenuButton>
 
+            <MenuButton onClick={() => setCurrentSubMenu('autosave')}>
+              <div className="icon-wrapper"><FiSave /></div>
+              <div className="label-wrapper">
+                <span className="title">{t.settings.autosave_settings}</span>
+                <span className="desc">{t.settings.autosave_settings_desc}</span>
+              </div>
+              <FiChevronRight className="chevron" />
+            </MenuButton>
+
             <MenuButton onClick={() => setCurrentSubMenu('editor')}>
               <div className="icon-wrapper"><FiEdit3 /></div>
               <div className="label-wrapper">
@@ -571,12 +624,6 @@ export const SettingsPage: React.FC = () => {
               onChange={toggleSpellCheck}
             />
             <EditorSettingItem
-              title={t.settings.editor_autosave}
-              desc={t.settings.editor_autosave_desc}
-              checked={autosave}
-              onChange={toggleAutosave}
-            />
-            <EditorSettingItem
               title={t.settings.editor_line_numbers}
               desc={t.settings.editor_line_numbers_desc}
               checked={lineNumbers}
@@ -637,6 +684,10 @@ export const SettingsPage: React.FC = () => {
             names: t.settings.themes
           }} />
         </Section>
+      )}
+
+      {currentSubMenu === 'autosave' && (
+        <AutosaveSection onBack={() => setCurrentSubMenu('main')} />
       )}
 
       {currentSubMenu === 'language' && (

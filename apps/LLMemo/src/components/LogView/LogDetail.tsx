@@ -249,14 +249,29 @@ export const LogDetail: React.FC = () => {
             // Set editing mode based on URL param
             setIsEditing(shouldEdit);
         } else if (isNew) {
-            setTitle('');
-            setContent('');
-            setTags('');
-            setEditingDrawingData(undefined);
-            setEditingSpreadsheetData(undefined);
-            setEditingSpreadsheetRaw(undefined);
-            setModelId(undefined);
-            setIsEditing(true);
+            const autosaveId = searchParams.get('autosaveId');
+            if (autosaveId) {
+                const loadAutosave = async () => {
+                    const autosave = await db.autosaves.get(Number(autosaveId));
+                    if (autosave) {
+                        setTitle(autosave.title);
+                        setContent(autosave.content);
+                        setTags(autosave.tags.join(', '));
+                        setModelId(autosave.modelId);
+                        setIsEditing(true);
+                    }
+                };
+                loadAutosave();
+            } else {
+                setTitle('');
+                setContent('');
+                setTags('');
+                setEditingDrawingData(undefined);
+                setEditingSpreadsheetData(undefined);
+                setEditingSpreadsheetRaw(undefined);
+                setModelId(undefined);
+                setIsEditing(true);
+            }
 
             if (searchParams.get('drawing') === 'true') {
                 setIsFabricModalOpen(true);
@@ -271,6 +286,45 @@ export const LogDetail: React.FC = () => {
         }
     }, [isNew, modelId, models]);
 
+    const lastSavedState = useRef({ title, content, tags, modelId });
+
+    useEffect(() => {
+        if (!isEditing || localStorage.getItem('editor_autosave') === 'false') return;
+
+        const interval = setInterval(async () => {
+            const currentTags = tags.split(',').map(t => t.trim()).filter(Boolean);
+            const lastTags = lastSavedState.current.tags.split(',').map(t => t.trim()).filter(Boolean);
+
+            const hasChanged = title !== lastSavedState.current.title ||
+                content !== lastSavedState.current.content ||
+                JSON.stringify(currentTags) !== JSON.stringify(lastTags) ||
+                modelId !== lastSavedState.current.modelId;
+
+            if (!hasChanged) return;
+            if (!title && !content) return;
+
+            lastSavedState.current = { title, content, tags, modelId };
+
+            await db.autosaves.add({
+                originalId: id ? Number(id) : undefined,
+                title,
+                content,
+                tags: currentTags,
+                modelId: modelId ? Number(modelId) : undefined,
+                createdAt: new Date()
+            });
+
+            // Keep only latest 20 autosaves across the app for performance
+            const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();
+            if (allAutosaves.length > 20) {
+                const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
+                await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
+            }
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [isEditing, title, content, tags, modelId, id]);
+
     const handleSave = async () => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
         const now = new Date();
@@ -284,11 +338,13 @@ export const LogDetail: React.FC = () => {
                 updatedAt: now
             });
 
+            // Cleanup autosaves for this log
+            await db.autosaves.where('originalId').equals(Number(id)).delete();
+
             // Clear edit param if present to prevent re-entering edit mode
             if (searchParams.get('edit')) {
                 navigate(`/log/${id}`, { replace: true });
             }
-            // Don't set isEditing here - let the useEffect handle it based on URL
         } else {
             const newId = await db.logs.add({
                 title: title || t.log_detail.untitled,
@@ -298,6 +354,15 @@ export const LogDetail: React.FC = () => {
                 createdAt: now,
                 updatedAt: now
             });
+
+            // If we loaded from an autosave, delete it
+            const autosaveId = searchParams.get('autosaveId');
+            if (autosaveId) {
+                await db.autosaves.delete(Number(autosaveId));
+            } else {
+                await db.autosaves.filter(a => a.originalId === undefined).delete();
+            }
+
             navigate(`/log/${newId}`);
         }
     };

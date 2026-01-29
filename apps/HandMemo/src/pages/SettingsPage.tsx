@@ -1,315 +1,321 @@
+
 import React, { useState, useRef } from 'react';
-import { AppLockSettings, LanguageSettings, PasswordModal, ThemeSettings, useColorTheme, useConfirm, useLanguage } from '@memosuite/shared';
+import { AppLockSettings, LanguageSettings, PasswordModal, ThemeSettings, useColorTheme, useConfirm, useLanguage, AutosaveSection as SharedAutosaveSection } from '@memosuite/shared';
+import type { Autosave } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { exportData, importData } from '../utils/backup';
-import { FiTrash2, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiAlertTriangle, FiLock, FiEdit3 } from 'react-icons/fi';
+import { FiTrash2, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiAlertTriangle, FiLock, FiEdit3, FiSave } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
+
 
 const Container = styled.div`
-  padding: 24px 32px;
-  margin: 0;
-  height: 100%;
-  overflow-y: auto;
-  width: 100%;
-  
-  @media (max-width: 600px) {
-    padding: 16px;
-  }
+padding: 24px 32px;
+margin: 0;
+height: 100%;
+overflow-y: auto;
+width: 100%;
+
+@media(max-width: 600px) {
+  padding: 16px;
+}
 `;
 
 const Section = styled.div`
-  margin-bottom: 2rem;
-  animation: fadeIn 0.3s ease-out;
+margin-bottom: 2rem;
+animation: fadeIn 0.3s ease-out;
 
-  @keyframes fadeIn {
+@keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
-  }
+}
 `;
 
 const Header = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  padding-bottom: 1rem;
+display: flex;
+align-items: center;
+gap: 1rem;
+margin-bottom: 2rem;
+border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+padding-bottom: 1rem;
 `;
 
 const Title = styled.h2`
-  margin: 0;
-  font-size: 1.5rem;
-  color: ${({ theme }) => theme.colors.text};
+margin: 0;
+font-size: 1.5rem;
+color: ${({ theme }) => theme.colors.text};
 `;
 
 const MenuList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+display: flex;
+flex-direction: column;
+gap: 0.75rem;
 `;
 
 const MenuButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
-  background: ${({ theme }) => theme.colors.surface};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 100%;
-  text-align: left;
+display: flex;
+align-items: center;
+gap: 1rem;
+padding: 1.25rem;
+background: ${({ theme }) => theme.colors.surface};
+border: 1px solid ${({ theme }) => theme.colors.border};
+border-radius: 12px;
+cursor: pointer;
+transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+width: 100%;
+text-align: left;
   
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border-color: ${({ theme }) => theme.colors.primary};
-    background: ${({ theme }) => theme.colors.background};
-  }
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: ${({ theme }) => theme.colors.primary};
+  background: ${({ theme }) => theme.colors.background};
+}
 
   &:active {
-    transform: translateY(0);
-  }
+  transform: translateY(0);
+}
 
   .icon-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    background: ${({ theme }) => theme.colors.background};
-    border-radius: 10px;
-    color: ${({ theme }) => theme.colors.primary};
-    font-size: 1.25rem;
-  }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: ${({ theme }) => theme.colors.background};
+  border-radius: 10px;
+  color: ${({ theme }) => theme.colors.primary};
+  font-size: 1.25rem;
+}
 
   .label-wrapper {
-    flex: 1;
+  flex: 1;
     
     .title {
-      display: block;
-      font-weight: 600;
-      font-size: 1.05rem;
-      color: ${({ theme }) => theme.colors.text};
-      margin-bottom: 0.2rem;
-    }
+    display: block;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: ${({ theme }) => theme.colors.text};
+    margin-bottom: 0.2rem;
+  }
     
     .desc {
-      display: block;
-      font-size: 0.85rem;
-      color: ${({ theme }) => theme.colors.textSecondary};
-      opacity: 0.8;
-    }
+    display: block;
+    font-size: 0.85rem;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    opacity: 0.8;
   }
+}
 
   .chevron {
-    color: ${({ theme }) => theme.colors.textSecondary};
-    opacity: 0.5;
-  }
+  color: ${({ theme }) => theme.colors.textSecondary};
+  opacity: 0.5;
+}
 `;
 
 const BackButton = styled.button`
-  background: transparent;
-  border: none;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
+background: transparent;
+border: none;
+color: ${({ theme }) => theme.colors.textSecondary};
+cursor: pointer;
+padding: 8px;
+border-radius: 50%;
+display: flex;
+align-items: center;
+justify-content: center;
+transition: all 0.2s;
 
   &:hover {
-    background: ${({ theme }) => theme.colors.border};
-    color: ${({ theme }) => theme.colors.text};
-  }
+  background: ${({ theme }) => theme.colors.border};
+  color: ${({ theme }) => theme.colors.text};
+}
 `;
 
+
 const Input = styled.input`
-  flex: 1;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme }) => theme.colors.background};
-  color: ${({ theme }) => theme.colors.text};
-  font-size: 1rem;
+flex: 1;
+padding: 0.75rem 1rem;
+border-radius: 8px;
+border: 1px solid ${({ theme }) => theme.colors.border};
+background: ${({ theme }) => theme.colors.background};
+color: ${({ theme }) => theme.colors.text};
+font-size: 1rem;
 
   &:focus {
-    outline: none;
-    border-color: ${({ theme }) => theme.colors.primary};
-  }
+  outline: none;
+  border-color: ${({ theme }) => theme.colors.primary};
+}
 `;
 
 const ActionButton = styled.button<{ $variant?: 'primary' | 'success' | 'secondary' }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  padding: 0.75rem 1.25rem;
-  background: ${({ theme, $variant }) =>
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 0.6rem;
+padding: 0.75rem 1.25rem;
+background: ${({ theme, $variant }) =>
     $variant === 'success' ? '#10b981' :
       $variant === 'secondary' ? 'transparent' :
-        theme.colors.primary};
-  color: ${({ $variant }) => $variant === 'secondary' ? 'inherit' : 'white'};
-  border: ${({ $variant, theme }) => $variant === 'secondary' ? `1px solid ${theme.colors.border}` : 'none'};
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 0.95rem;
-  transition: all 0.2s;
+        theme.colors.primary
+  };
+color: ${({ $variant }) => $variant === 'secondary' ? 'inherit' : 'white'};
+border: ${({ $variant, theme }) => $variant === 'secondary' ? `1px solid ${theme.colors.border}` : 'none'};
+border-radius: 8px;
+cursor: pointer;
+font-weight: 500;
+font-size: 0.95rem;
+transition: all 0.2s;
   
   &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  opacity: 0.5;
+  cursor: not - allowed;
+}
 
-  &:hover:not(:disabled) {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
+  &: hover: not(: disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
     ${({ $variant, theme }) => $variant === 'secondary' && `
       background: ${theme.colors.border};
       border-color: ${theme.colors.textSecondary};
     `}
-  }
+}
 `;
 
 const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
+position: fixed;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+background: rgba(0, 0, 0, 0.5);
+display: flex;
+justify-content: center;
+align-items: center;
+z-index: 1000;
+backdrop-filter: blur(4px);
 `;
 
 const ModalContent = styled.div`
-  background: ${({ theme }) => theme.colors.surface};
-  padding: 2rem;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+background: ${({ theme }) => theme.colors.surface};
+padding: 2rem;
+border-radius: 12px;
+width: 90%;
+max-width: 500px;
+max-height: 80vh;
+display: flex;
+flex-direction: column;
+box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 `;
 
 const ModalHeader = styled.h3`
-  margin-top: 0;
-  margin-bottom: 1rem;
-  color: ${({ theme }) => theme.colors.text};
+margin-top: 0;
+margin-bottom: 1rem;
+color: ${({ theme }) => theme.colors.text};
 `;
 
 const ModalBody = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 1.5rem;
+flex: 1;
+overflow-y: auto;
+margin-bottom: 1.5rem;
 `;
 
 const ModalFooter = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
+display: flex;
+justify-content: flex-end;
+gap: 1rem;
 `;
 
 const RadioLabel = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
-  padding: 1rem;
-  background: ${({ theme }) => theme.colors.background};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 8px;
-  cursor: pointer;
-  color: ${({ theme }) => theme.colors.text};
-  transition: all 0.2s;
+display: flex;
+align-items: center;
+gap: 0.5rem;
+margin-bottom: 1.25rem;
+padding: 1rem;
+background: ${({ theme }) => theme.colors.background};
+border: 1px solid ${({ theme }) => theme.colors.border};
+border-radius: 8px;
+cursor: pointer;
+color: ${({ theme }) => theme.colors.text};
+transition: all 0.2s;
 
   &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-  }
+  border-color: ${({ theme }) => theme.colors.primary};
+}
 
   input {
-    width: 18px;
-    height: 18px;
-    accent-color: ${({ theme }) => theme.colors.primary};
-  }
+  width: 18px;
+  height: 18px;
+  accent-color: ${({ theme }) => theme.colors.primary};
+}
 `;
 
 const ScrollableList = styled.div`
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 8px;
-  max-height: 200px;
-  overflow-y: auto;
-  padding: 0.5rem;
-  margin-top: 0.5rem;
-  background: ${({ theme }) => theme.colors.surface};
+border: 1px solid ${({ theme }) => theme.colors.border};
+border-radius: 8px;
+max-height: 200px;
+overflow-y: auto;
+padding: 0.5rem;
+margin-top: 0.5rem;
+background: ${({ theme }) => theme.colors.surface};
 `;
 
 const CheckboxLabel = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.25rem;
-  padding: 0.5rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  color: ${({ theme }) => theme.colors.text};
+display: flex;
+align-items: center;
+gap: 0.75rem;
+margin-bottom: 0.25rem;
+padding: 0.5rem;
+border-radius: 4px;
+font-size: 0.9rem;
+cursor: pointer;
+color: ${({ theme }) => theme.colors.text};
   
   &:hover {
-    background: ${({ theme }) => theme.colors.background};
-  }
+  background: ${({ theme }) => theme.colors.background};
+}
 
   input {
-    accent-color: ${({ theme }) => theme.colors.primary};
-  }
+  accent-color: ${({ theme }) => theme.colors.primary};
+}
 `;
 
 const HelpList = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0;
+list-style: none;
+padding: 0;
+margin: 0;
   
   li {
-    margin-bottom: 1rem;
-    padding-left: 1rem;
-    position: relative;
-    line-height: 1.6;
-    color: ${({ theme }) => theme.colors.text};
+  margin-bottom: 1rem;
+  padding-left: 1rem;
+  position: relative;
+  line-height: 1.6;
+  color: ${({ theme }) => theme.colors.text};
     
     &::before {
-      content: '•';
-      position: absolute;
-      left: 0;
-      color: ${({ theme }) => theme.colors.primary};
-      font-weight: bold;
-    }
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: ${({ theme }) => theme.colors.primary};
+    font-weight: bold;
   }
+}
 `;
 
 const TabButton = styled.button<{ active: boolean }>`
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  border: 1px solid ${({ theme, active }) => active ? theme.colors.primary : theme.colors.border};
-  background: ${({ theme, active }) => active ? theme.colors.primary : 'transparent'};
-  color: ${({ active }) => active ? '#fff' : 'inherit'};
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
+padding: 0.5rem 1rem;
+border-radius: 8px;
+border: 1px solid ${({ theme, active }) => active ? theme.colors.primary : theme.colors.border};
+background: ${({ theme, active }) => active ? theme.colors.primary : 'transparent'};
+color: ${({ active }) => active ? '#fff' : 'inherit'};
+cursor: pointer;
+font-weight: 600;
+transition: all 0.2s;
 
   &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-  }
+  border-color: ${({ theme }) => theme.colors.primary};
+}
 `;
 
 const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolean; onChange: () => void }> = ({ title, desc, checked, onChange }) => (
@@ -335,7 +341,57 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
   </div>
 );
 
-type SubMenu = 'main' | 'data' | 'editor' | 'language' | 'translation_editor' | 'about' | 'theme' | 'appLock';
+type SubMenu = 'main' | 'data' | 'editor' | 'language' | 'translation_editor' | 'about' | 'theme' | 'appLock' | 'autosave';
+
+const AutosaveSection: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const { t } = useLanguage();
+  const { confirm } = useConfirm();
+  const navigate = useNavigate();
+  const autosaves = useLiveQuery(() => db.autosaves.orderBy('createdAt').reverse().toArray());
+
+  const [autosaveEnabled, setAutosaveEnabled] = useState(() => localStorage.getItem('editor_autosave') !== 'false');
+
+  const toggleAutosave = () => {
+    const next = !autosaveEnabled;
+    setAutosaveEnabled(next);
+    localStorage.setItem('editor_autosave', String(next));
+  };
+
+
+  const handleRestore = (as: Autosave) => {
+    // Logic for HandMemo navigation
+    if (as.originalId) {
+      navigate(`/memo/${as.originalId}?autosaveId=${as.id}&edit=true`);
+    } else {
+      navigate(`/?autosaveId=${as.id}&edit=true`);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (await confirm({ message: t.memo_detail.delete_confirm, isDestructive: true })) {
+      await db.autosaves.delete(id);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (await confirm({ message: t.settings.reset_confirm, isDestructive: true })) {
+      await db.autosaves.clear();
+    }
+  };
+
+  return (
+    <SharedAutosaveSection
+      autosaves={autosaves as Autosave[]}
+      onRestore={handleRestore}
+      onDelete={handleDelete}
+      onClearAll={handleClearAll}
+      onBack={onBack}
+      t={t}
+      autosaveEnabled={autosaveEnabled}
+      onToggleAutosave={toggleAutosave}
+    />
+  );
+};
 
 export const SettingsPage: React.FC = () => {
   const { t } = useLanguage();
@@ -344,7 +400,6 @@ export const SettingsPage: React.FC = () => {
   const [currentSubMenu, setCurrentSubMenu] = useState<SubMenu>('main');
 
   const [spellCheck, setSpellCheck] = useState(() => localStorage.getItem('spellCheck') !== 'false');
-  const [autosave, setAutosave] = useState(() => localStorage.getItem('editor_autosave') !== 'false');
   const [lineNumbers, setLineNumbers] = useState(() => localStorage.getItem('editor_line_numbers') === 'true');
   const [tabSize, setTabSize] = useState(() => Number(localStorage.getItem('editor_tab_size')) || 4);
   const [largeSize, setLargeSize] = useState(() => localStorage.getItem('editor_large_size') === 'true');
@@ -356,11 +411,6 @@ export const SettingsPage: React.FC = () => {
     localStorage.setItem('spellCheck', String(next));
   };
 
-  const toggleAutosave = () => {
-    const next = !autosave;
-    setAutosave(next);
-    localStorage.setItem('editor_autosave', String(next));
-  };
 
   const toggleLineNumbers = () => {
     const next = !lineNumbers;
@@ -397,7 +447,7 @@ export const SettingsPage: React.FC = () => {
     setShowExportModal(true);
     setExportMode('all');
     setSelectedMemos(new Set());
-    setExportFileName(`handmemo-backup-${new Date().toISOString().slice(0, 10)}`);
+    setExportFileName(`handmemo - backup - ${new Date().toISOString().slice(0, 10)} `);
   };
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -517,6 +567,15 @@ export const SettingsPage: React.FC = () => {
         <Section>
           <Title style={{ marginBottom: '1.5rem' }}>{t.settings.title}</Title>
           <MenuList>
+            <MenuButton onClick={() => setCurrentSubMenu('autosave')}>
+              <div className="icon-wrapper"><FiSave /></div>
+              <div className="label-wrapper">
+                <span className="title">{t.settings.autosave_settings}</span>
+                <span className="desc">{t.settings.autosave_settings_desc}</span>
+              </div>
+              <FiChevronRight className="chevron" />
+            </MenuButton>
+
             <MenuButton onClick={() => setCurrentSubMenu('editor')}>
               <div className="icon-wrapper"><FiEdit3 /></div>
               <div className="label-wrapper">
@@ -585,12 +644,6 @@ export const SettingsPage: React.FC = () => {
               desc={t.settings.spellcheck_desc}
               checked={spellCheck}
               onChange={toggleSpellCheck}
-            />
-            <EditorSettingItem
-              title={t.settings.editor_autosave}
-              desc={t.settings.editor_autosave_desc}
-              checked={autosave}
-              onChange={toggleAutosave}
             />
             <EditorSettingItem
               title={t.settings.editor_line_numbers}
@@ -666,6 +719,10 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         </Section>
+      )}
+
+      {currentSubMenu === 'autosave' && (
+        <AutosaveSection onBack={() => setCurrentSubMenu('main')} />
       )}
 
       {currentSubMenu === 'theme' && (

@@ -340,30 +340,80 @@ export const MemoDetail: React.FC = () => {
             setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
             setIsEditing(shouldEdit);
         } else if (isNew) {
-            setTitle('');
-            setContent('');
-            setTags('');
-            setEditingDrawingData(undefined);
-            setEditingSpreadsheetData(undefined);
-            setEditingSpreadsheetRaw(undefined);
+            const autosaveId = searchParams.get('autosaveId');
+            if (autosaveId) {
+                const loadAutosave = async () => {
+                    const autosave = await db.autosaves.get(Number(autosaveId));
+                    if (autosave) {
+                        setTitle(autosave.title);
+                        setContent(autosave.content);
+                        setTags(autosave.tags.join(', '));
+                        setIsEditing(true);
+                    }
+                };
+                loadAutosave();
+            } else {
+                setTitle('');
+                setContent('');
+                setTags('');
+                setEditingDrawingData(undefined);
+                setEditingSpreadsheetData(undefined);
+                setEditingSpreadsheetRaw(undefined);
 
-            const isInitialDrawing = searchParams.get('drawing') === 'true';
-            const isInitialSheet = searchParams.get('spreadsheet') === 'true';
+                const isInitialDrawing = searchParams.get('drawing') === 'true';
+                const isInitialSheet = searchParams.get('spreadsheet') === 'true';
 
-            setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
-            setIsEditing(!(isInitialDrawing || isInitialSheet));
+                setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
+                setIsEditing(!(isInitialDrawing || isInitialSheet));
 
-            // Auto-open drawing if requested
-            if (isInitialDrawing) {
-                setIsFabricModalOpen(true);
-            }
+                // Auto-open drawing if requested
+                if (isInitialDrawing) {
+                    setIsFabricModalOpen(true);
+                }
 
-            // Auto-open spreadsheet if requested
-            if (isInitialSheet) {
-                setIsSpreadsheetModalOpen(true);
+                // Auto-open spreadsheet if requested
+                if (isInitialSheet) {
+                    setIsSpreadsheetModalOpen(true);
+                }
             }
         }
     }, [memo, isNew, searchParams]);
+    const lastSavedState = useRef({ title, content, tags });
+
+    useEffect(() => {
+        if (!isEditing || localStorage.getItem('editor_autosave') === 'false') return;
+
+        const interval = setInterval(async () => {
+            const currentTags = tags.split(',').map(t => t.trim()).filter(Boolean);
+            const lastTags = lastSavedState.current.tags.split(',').map(t => t.trim()).filter(Boolean);
+
+            const hasChanged = title !== lastSavedState.current.title ||
+                content !== lastSavedState.current.content ||
+                JSON.stringify(currentTags) !== JSON.stringify(lastTags);
+
+            if (!hasChanged) return;
+            if (!title && !content) return;
+
+            lastSavedState.current = { title, content, tags };
+
+            await db.autosaves.add({
+                originalId: id ? Number(id) : undefined,
+                title,
+                content,
+                tags: currentTags,
+                createdAt: new Date()
+            });
+
+            // Keep only latest 20 autosaves across the app for performance
+            const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();
+            if (allAutosaves.length > 20) {
+                const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
+                await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
+            }
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [isEditing, title, content, tags, id]);
 
     const handleSave = async (overrideTitle?: string, overrideContent?: string) => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -423,6 +473,9 @@ export const MemoDetail: React.FC = () => {
                 type: finalType
             });
 
+            // Cleanup autosaves for this memo
+            await db.autosaves.where('originalId').equals(Number(id)).delete();
+
             if (searchParams.get('edit')) {
                 navigate(`/memo/${id}`, { replace: true });
             }
@@ -437,6 +490,14 @@ export const MemoDetail: React.FC = () => {
                 updatedAt: now,
                 type: finalType
             });
+
+            // If we loaded from an autosave, delete it
+            const autosaveId = searchParams.get('autosaveId');
+            if (autosaveId) {
+                await db.autosaves.delete(Number(autosaveId));
+            } else {
+                await db.autosaves.filter(a => a.originalId === undefined).delete();
+            }
 
             navigate(`/memo/${newId}`);
         }

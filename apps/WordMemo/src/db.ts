@@ -35,11 +35,22 @@ export interface LLMProvider {
     order?: number;
 }
 
+export interface Autosave {
+    id?: number;
+    originalId?: number; // The ID of the log being edited, if any
+    title: string;
+    content: string;
+    sourceId?: number;
+    tags: string[];
+    createdAt: Date;
+}
+
 export class WordMemoDatabase extends Dexie {
     logs!: Table<Log>;
     sources!: Table<Source>;
     comments!: Table<Comment>;
     llmProviders!: Table<LLMProvider>;
+    autosaves!: Table<Autosave>;
 
     constructor() {
         super('WordMemoDB');
@@ -63,6 +74,10 @@ export class WordMemoDatabase extends Dexie {
 
         this.version(5).stores({
             llmProviders: '++id, name, order'
+        });
+
+        this.version(6).stores({
+            autosaves: '++id, originalId, createdAt'
         });
     }
 }

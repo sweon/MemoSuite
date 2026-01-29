@@ -145,8 +145,8 @@ export const translations = {
             editor_desc: "Tweak the writing experience",
             spellcheck: "Spelling Checker",
             spellcheck_desc: "Enable spelling checker in the editor.",
-            editor_autosave: "Autosave",
-            editor_autosave_desc: "Automatically save content periodically.",
+            editor_autosave: "Auto-save",
+            editor_autosave_desc: "The content you’re working on is automatically saved at regular intervals.",
             editor_line_numbers: "Line Numbers",
             editor_line_numbers_desc: "Show line numbers in the editor.",
             editor_tab_size: "Tab Size",
@@ -154,7 +154,12 @@ export const translations = {
             editor_large_size: "Large Editor",
             editor_large_size_desc: "Increase the default height of the editor.",
             editor_advanced_toolbar: "Advanced Toolbar",
-            editor_advanced_toolbar_desc: "Show more formatting options in the toolbar."
+            editor_advanced_toolbar_desc: "Show more formatting options in the toolbar.",
+            autosave_settings: "Auto-save",
+            autosave_settings_desc: "Manage auto-saved drafts",
+            autosave_list: "Auto-save File List",
+            autosave_clear: "Clear Auto-save Storage",
+            no_autosave_found: "No autosaved drafts found.",
         },
         memo_detail: {
             loading: "Loading...",
@@ -171,7 +176,8 @@ export const translations = {
             add_thread: "Add Thread",
             untitled: "Untitled",
             share_memo: "Share",
-            empty_state_title: "Select a book or create a new one"
+            empty_state_title: "Select a book or create a new one",
+            autosave_restore_confirm: "Found an unsaved draft. Restore it?"
         },
         book_detail: {
             progress: "Progress",
@@ -514,8 +520,8 @@ export const translations = {
             editor_desc: "글쓰기 환경 설정",
             spellcheck: "맞춤법 검사",
             spellcheck_desc: "에디터에서 맞춤법 검사 기능을 활성화합니다.",
-            editor_autosave: "자동 저장",
-            editor_autosave_desc: "작성 중인 내용을 주기적으로 자동 저장합니다.",
+            editor_autosave: "자동저장",
+            editor_autosave_desc: "작성 중인 내용을 주기적으로 자동저장합니다.",
             editor_line_numbers: "줄 번호 표시",
             editor_line_numbers_desc: "에디터 왼쪽에 줄 번호를 표시합니다.",
             editor_tab_size: "탭 크기",
@@ -523,7 +529,12 @@ export const translations = {
             editor_large_size: "에디터 크기 확대",
             editor_large_size_desc: "에디터의 기본 높이를 더 크게 설정합니다.",
             editor_advanced_toolbar: "확장 툴바",
-            editor_advanced_toolbar_desc: "표(Table) 등 더 많은 도구를 툴바에 표시합니다."
+            editor_advanced_toolbar_desc: "표(Table) 등 더 많은 도구를 툴바에 표시합니다.",
+            autosave_settings: "자동저장",
+            autosave_settings_desc: "자동저장된 초안 관리",
+            autosave_list: "자동저장 파일 목록",
+            autosave_clear: "자동저장 저장소 비우기",
+            no_autosave_found: "자동저장된 메모를 찾을 수 없습니다."
         },
         memo_detail: {
             loading: "로딩 중...",
@@ -540,7 +551,8 @@ export const translations = {
             add_thread: "이어서 추가",
             untitled: "제목 없음",
             share_memo: "공유",
-            empty_state_title: "책을 선택하거나 새로 만드세요"
+            empty_state_title: "책을 선택하거나 새로 만드세요",
+            autosave_restore_confirm: "저장되지 않은 초안이 있습니다. 복구하시겠습니까?"
         },
         book_detail: {
             progress: "진행률",

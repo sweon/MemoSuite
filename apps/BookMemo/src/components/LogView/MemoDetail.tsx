@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+import { SyncModal, useLanguage, useConfirm } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -260,6 +260,7 @@ export const MemoDetail: React.FC = () => {
     const [showExitToast, setShowExitToast] = useState(false);
     const lastBackPress = useRef(0);
     const isClosingRef = useRef(false);
+    const { confirm } = useConfirm();
 
     const [isEditingInternal, setIsEditingInternal] = useState(isNew);
 
@@ -374,6 +375,7 @@ export const MemoDetail: React.FC = () => {
 
     useEffect(() => {
         const shouldEdit = searchParams.get('edit') === 'true';
+        const autosaveId = searchParams.get('autosaveId');
 
         if (memo) {
             setTitle(memo.title);
@@ -383,21 +385,85 @@ export const MemoDetail: React.FC = () => {
             setQuote(memo.quote || '');
             setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
             setIsEditing(shouldEdit);
-        } else if (isNew) {
-            setTitle('');
-            setContent('');
-            setTags('');
-            const p = searchParams.get('page');
-            setPageNumber(p || '');
-            setQuote('');
-            setEditingDrawingData(undefined);
-            setEditingSpreadsheetData(undefined);
-            setEditingSpreadsheetRaw(undefined);
-            setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
-            setIsEditing(true);
 
-            if (searchParams.get('drawing') === 'true') {
-                setIsFabricModalOpen(true);
+            // Restoration prompt for existing memo
+            const checkExistingAutosave = async () => {
+                if (!shouldEdit) return;
+                const existing = await db.autosaves
+                    .where('originalId')
+                    .equals(Number(id))
+                    .reverse()
+                    .sortBy('createdAt');
+
+                if (existing.length > 0) {
+                    const draft = existing[0];
+                    if (draft.content !== memo.content || draft.title !== memo.title) {
+                        if (await confirm({ message: t.memo_detail.autosave_restore_confirm })) {
+                            setTitle(draft.title);
+                            setContent(draft.content);
+                            setTags(draft.tags.join(', '));
+                            setPageNumber(draft.pageNumber?.toString() || '');
+                            setQuote(draft.quote || '');
+                        }
+                    }
+                }
+            };
+            checkExistingAutosave();
+
+        } else if (isNew) {
+            if (autosaveId) {
+                const loadAutosave = async () => {
+                    const as = await db.autosaves.get(Number(autosaveId));
+                    if (as) {
+                        setTitle(as.title);
+                        setContent(as.content);
+                        setTags(as.tags.join(', '));
+                        setPageNumber(as.pageNumber?.toString() || '');
+                        setQuote(as.quote || '');
+                        setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
+                        setIsEditing(true);
+                    }
+                };
+                loadAutosave();
+            } else {
+                setTitle('');
+                setContent('');
+                setTags('');
+                const p = searchParams.get('page');
+                setPageNumber(p || '');
+                setQuote('');
+                setEditingDrawingData(undefined);
+                setEditingSpreadsheetData(undefined);
+                setEditingSpreadsheetRaw(undefined);
+                setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
+                setIsEditing(true);
+
+                if (searchParams.get('drawing') === 'true') {
+                    setIsFabricModalOpen(true);
+                }
+
+                // Restoration prompt for new memo
+                const checkNewAutosave = async () => {
+                    const targetBookId = bookId ? Number(bookId) : undefined;
+                    const latest = await db.autosaves
+                        .filter(a => a.originalId === undefined && a.bookId === targetBookId)
+                        .reverse()
+                        .sortBy('createdAt');
+
+                    if (latest.length > 0) {
+                        const draft = latest[0];
+                        if (draft.content.trim() || draft.title.trim()) {
+                            if (await confirm({ message: t.memo_detail.autosave_restore_confirm })) {
+                                setTitle(draft.title);
+                                setContent(draft.content);
+                                setTags(draft.tags.join(', '));
+                                setPageNumber(draft.pageNumber?.toString() || '');
+                                setQuote(draft.quote || '');
+                            }
+                        }
+                    }
+                };
+                checkNewAutosave();
             }
         }
     }, [memo, isNew, searchParams, language]);
@@ -407,6 +473,48 @@ export const MemoDetail: React.FC = () => {
             setPageNumber(prev => (prev === '' ? book.currentPage!.toString() : prev));
         }
     }, [isNew, book?.currentPage, searchParams]);
+
+    const lastSavedState = useRef({ title, content, tags, pageNumber, quote });
+
+    useEffect(() => {
+        if (!isEditing || localStorage.getItem('editor_autosave') === 'false') return;
+
+        const interval = setInterval(async () => {
+            const currentTagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
+            const lastTagArray = lastSavedState.current.tags.split(',').map(t => t.trim()).filter(Boolean);
+
+            const hasChanged = title !== lastSavedState.current.title ||
+                content !== lastSavedState.current.content ||
+                pageNumber !== lastSavedState.current.pageNumber ||
+                quote !== lastSavedState.current.quote ||
+                JSON.stringify(currentTagArray) !== JSON.stringify(lastTagArray);
+
+            if (!hasChanged) return;
+            if (!title.trim() && !content.trim() && !quote.trim()) return;
+
+            lastSavedState.current = { title, content, tags, pageNumber, quote };
+
+            await db.autosaves.add({
+                originalId: id ? Number(id) : undefined,
+                bookId: bookId ? Number(bookId) : memo?.bookId,
+                title,
+                content,
+                tags: currentTagArray,
+                pageNumber: pageNumber ? parseInt(pageNumber, 10) : undefined,
+                quote,
+                createdAt: new Date()
+            });
+
+            // Keep only latest 20 autosaves
+            const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();
+            if (allAutosaves.length > 20) {
+                const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
+                await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
+            }
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [isEditing, title, content, tags, pageNumber, quote, id, bookId, memo]);
 
     const handleSave = async () => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -499,6 +607,8 @@ export const MemoDetail: React.FC = () => {
             if (searchParams.get('edit')) {
                 navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
             }
+            // Cleanup autosaves for this memo
+            await db.autosaves.where('originalId').equals(Number(id)).delete();
             setIsEditing(false);
         } else {
             const newId = await db.memos.add({
@@ -512,6 +622,15 @@ export const MemoDetail: React.FC = () => {
                 updatedAt: now,
                 type: finalType
             });
+
+            // If we loaded from an autosave, delete it
+            const autosaveId = searchParams.get('autosaveId');
+            if (autosaveId) {
+                await db.autosaves.delete(Number(autosaveId));
+            } else {
+                // Also cleanup any "new memo" autosaves for this book
+                await db.autosaves.where('bookId').equals(targetBookId || -1).filter(a => a.originalId === undefined).delete();
+            }
 
             navigate(`/book/${targetBookId}/memo/${newId}`);
         }

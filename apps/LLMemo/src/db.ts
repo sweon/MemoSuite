@@ -27,10 +27,21 @@ export interface Comment {
     updatedAt: Date;
 }
 
+export interface Autosave {
+    id?: number;
+    originalId?: number;
+    title: string;
+    content: string;
+    modelId?: number;
+    tags: string[];
+    createdAt: Date;
+}
+
 export class LLMLogDatabase extends Dexie {
     logs!: Table<Log>;
     models!: Table<Model>;
     comments!: Table<Comment>;
+    autosaves!: Table<Autosave>;
 
     constructor() {
         super('LLMLogDB');
@@ -46,6 +57,10 @@ export class LLMLogDatabase extends Dexie {
 
         this.version(3).stores({
             logs: '++id, title, *tags, modelId, createdAt, updatedAt, threadId'
+        });
+
+        this.version(4).stores({
+            autosaves: '++id, title, originalId, createdAt'
         });
     }
 }

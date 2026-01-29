@@ -23,6 +23,7 @@ export * from './components/ModalProvider';
 export * from './components/PasswordModal';
 export * from './components/ThreadableList';
 export * from './components/PremiumCard';
+export * from './components/AutosaveSection';
 
 // Utils
 export * from './utils/crypto';
