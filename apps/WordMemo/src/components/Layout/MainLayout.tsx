@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { Sidebar } from '../Sidebar/Sidebar';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { FiMenu } from 'react-icons/fi';
 
 const Container = styled.div<{ $isResizing: boolean }>`
@@ -201,6 +201,14 @@ export const MainLayout: React.FC = () => {
       window.removeEventListener('touchend', stopResizing);
     };
   }, [isResizing, handleMouseMove, handleTouchMove, stopResizing]);
+
+  const location = useLocation();
+  useEffect(() => {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile && (location.pathname === '/' || location.pathname === '/index.html')) {
+      setSidebarOpen(true);
+    }
+  }, [location.pathname]);
 
   return (
     <Container ref={containerRef} $isResizing={isResizing}>

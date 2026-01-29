@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { Sidebar } from '../Sidebar/Sidebar';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { FiMenu } from 'react-icons/fi';
 
 const Container = styled.div<{ $isResizing: boolean }>`
@@ -240,6 +240,13 @@ export const MainLayout: React.FC = () => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isMobile]);
+
+  const location = useLocation();
+  useEffect(() => {
+    if (isMobile && (location.pathname === '/' || location.pathname === '/index.html')) {
+      setSidebarOpen(true);
+    }
+  }, [location.pathname, isMobile]);
 
   // Resize handle is visible:
   // - Desktop: always visible
