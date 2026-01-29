@@ -128,7 +128,18 @@ const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: (
             }
 
             const w = staticCanvas.getWidth() || 800;
-            const h = staticCanvas.getHeight() || 600;
+            const fullH = staticCanvas.getHeight() || 600;
+
+            // Calculate content height to crop empty bottom space
+            let maxBottom = 0;
+            staticCanvas.getObjects().forEach(obj => {
+              if ((obj as any).isPageBackground || (obj as any).excludeFromExport) return;
+              const bottom = (obj.top || 0) + (obj.height || 0) * (obj.scaleY || 1);
+              if (bottom > maxBottom) maxBottom = bottom;
+            });
+
+            // Crop to content + small margin, but keep at least 200px and don't exceed full height
+            const h = Math.min(fullH, Math.max(200, maxBottom + 60));
 
             const exportCanvas = document.createElement('canvas');
             exportCanvas.width = w;
@@ -148,7 +159,8 @@ const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: (
                 }
               }
 
-              // 2. Draw Fabric Drawing on top (with its transparent eraser holes)
+              // 2. Draw Fabric Drawing on top
+              // We draw the original staticCanvas. It will be cropped by exportCanvas dimensions.
               ctx.drawImage(staticCanvas.getElement(), 0, 0);
 
               const base64 = exportCanvas.toDataURL('image/png', 0.5);
