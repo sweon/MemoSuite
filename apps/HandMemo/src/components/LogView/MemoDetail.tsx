@@ -235,7 +235,6 @@ export const MemoDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
-    const [editingSpreadsheetRaw, setEditingSpreadsheetRaw] = useState<string | undefined>(undefined);
 
     const startEditing = () => {
         setIsEditingInternal(true);
@@ -258,7 +257,6 @@ export const MemoDetail: React.FC = () => {
             // Reset editing states for fresh requests
             setEditingDrawingData(undefined);
             setEditingSpreadsheetData(undefined);
-            setEditingSpreadsheetRaw(undefined);
 
             if (isNew) {
                 setContent('');
@@ -372,7 +370,6 @@ export const MemoDetail: React.FC = () => {
                 setTags('');
                 setEditingDrawingData(undefined);
                 setEditingSpreadsheetData(undefined);
-                setEditingSpreadsheetRaw(undefined);
 
                 const isInitialDrawing = searchParams.get('drawing') === 'true';
                 const isInitialSheet = searchParams.get('spreadsheet') === 'true';
@@ -664,7 +661,6 @@ export const MemoDetail: React.FC = () => {
                             }}
                             onEditSpreadsheet={(json) => {
                                 try {
-                                    setEditingSpreadsheetRaw(json);
                                     setEditingSpreadsheetData(JSON.parse(json));
                                     setIsSpreadsheetModalOpen(true);
                                 } catch (e) {
@@ -815,11 +811,10 @@ export const MemoDetail: React.FC = () => {
                     // Close modal early
                     setIsSpreadsheetModalOpen(false);
                     setEditingSpreadsheetData(undefined);
-                    setEditingSpreadsheetRaw(undefined);
 
-                    if (editingSpreadsheetRaw) {
+                    if (editingSpreadsheetData) {
                         let found = false;
-                        const targetRaw = editingSpreadsheetRaw.trim();
+                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
                         newContent = content.replace(spreadsheetRegex, (match, p1) => {
                             if (!found && p1.trim() === targetRaw) {
                                 found = true;
@@ -863,9 +858,9 @@ export const MemoDetail: React.FC = () => {
                     let newContent = content;
                     const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
 
-                    if (editingSpreadsheetRaw) {
+                    if (editingSpreadsheetData) {
                         let found = false;
-                        const targetRaw = editingSpreadsheetRaw.trim();
+                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
                         newContent = content.replace(spreadsheetRegex, (match, p1) => {
                             if (!found && p1.trim() === targetRaw) {
                                 found = true;

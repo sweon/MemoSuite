@@ -285,7 +285,6 @@ export const MemoDetail: React.FC = () => {
             // Reset editing states for fresh requests
             setEditingDrawingData(undefined);
             setEditingSpreadsheetData(undefined);
-            setEditingSpreadsheetRaw(undefined);
 
             if (isNew) {
                 setContent('');
@@ -311,7 +310,6 @@ export const MemoDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
-    const [editingSpreadsheetRaw, setEditingSpreadsheetRaw] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         if (isEditingInternal) {
@@ -449,7 +447,6 @@ export const MemoDetail: React.FC = () => {
                 setQuote('');
                 setEditingDrawingData(undefined);
                 setEditingSpreadsheetData(undefined);
-                setEditingSpreadsheetRaw(undefined);
                 setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
                 setIsEditing(true);
 
@@ -849,7 +846,6 @@ export const MemoDetail: React.FC = () => {
                             }}
                             onEditSpreadsheet={(json) => {
                                 try {
-                                    setEditingSpreadsheetRaw(json);
                                     setEditingSpreadsheetData(JSON.parse(json));
                                     setIsSpreadsheetModalOpen(true);
                                 } catch (e) {
@@ -966,9 +962,9 @@ export const MemoDetail: React.FC = () => {
                     let newContent = content;
                     const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
 
-                    if (editingSpreadsheetRaw) {
+                    if (editingSpreadsheetData) {
                         let found = false;
-                        const targetRaw = editingSpreadsheetRaw.trim();
+                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
                         newContent = content.replace(spreadsheetRegex, (match, p1) => {
                             if (!found && p1.trim() === targetRaw) {
                                 found = true;
@@ -989,16 +985,15 @@ export const MemoDetail: React.FC = () => {
                     }
                     setIsSpreadsheetModalOpen(false);
                     setEditingSpreadsheetData(undefined);
-                    setEditingSpreadsheetRaw(undefined);
                 }}
                 onAutosave={(data) => {
                     const json = JSON.stringify(data);
                     let newContent = content;
                     const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
 
-                    if (editingSpreadsheetRaw) {
+                    if (editingSpreadsheetData) {
                         let found = false;
-                        const targetRaw = editingSpreadsheetRaw.trim();
+                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
                         newContent = content.replace(spreadsheetRegex, (match, p1) => {
                             if (!found && p1.trim() === targetRaw) {
                                 found = true;

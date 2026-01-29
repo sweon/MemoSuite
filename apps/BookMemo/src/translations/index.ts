@@ -159,6 +159,7 @@ export const translations = {
             autosave_settings_desc: "Manage auto-saved drafts",
             autosave_list: "Auto-save File List",
             autosave_clear: "Clear Auto-save Storage",
+            autosave_clear_confirm: "Are you sure you want to delete all autosave files? This action cannot be undone.",
             no_autosave_found: "No autosaved drafts found.",
         },
         memo_detail: {
@@ -534,6 +535,7 @@ export const translations = {
             autosave_settings_desc: "자동저장된 초안 관리",
             autosave_list: "자동저장 파일 목록",
             autosave_clear: "자동저장 저장소 비우기",
+            autosave_clear_confirm: "정말로 모든 자동저장 파일을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
             no_autosave_found: "자동저장된 메모를 찾을 수 없습니다."
         },
         memo_detail: {

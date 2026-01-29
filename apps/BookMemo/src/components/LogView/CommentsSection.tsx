@@ -353,15 +353,13 @@ export const CommentsSection: React.FC<{ memoId: number }> = ({ memoId }) => {
                             const json = JSON.stringify(data);
                             const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
                             let found = false;
-                            const targetJson = JSON.stringify(editingSpreadsheetData);
+                            const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
 
                             const newContent = comment.content.replace(spreadsheetRegex, (match, p1) => {
-                                try {
-                                    if (!found && JSON.stringify(JSON.parse(p1)) === targetJson) {
-                                        found = true;
-                                        return `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                                    }
-                                } catch (e) { }
+                                if (!found && p1.trim() === targetRaw) {
+                                    found = true;
+                                    return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                                }
                                 return match;
                             });
 
@@ -374,6 +372,32 @@ export const CommentsSection: React.FC<{ memoId: number }> = ({ memoId }) => {
                     setIsSpreadsheetModalOpen(false);
                     setActiveCommentId(null);
                     setEditingSpreadsheetData(undefined);
+                }}
+                onAutosave={async (data) => {
+                    if (activeCommentId) {
+                        const comment = await db.comments.get(activeCommentId);
+                        if (comment) {
+                            const json = JSON.stringify(data);
+                            const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
+                            let found = false;
+                            const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
+
+                            const newContent = comment.content.replace(spreadsheetRegex, (match, p1) => {
+                                if (!found && p1.trim() === targetRaw) {
+                                    found = true;
+                                    return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                                }
+                                return match;
+                            });
+
+                            if (newContent !== comment.content) {
+                                await db.comments.update(activeCommentId, {
+                                    content: newContent,
+                                    updatedAt: new Date()
+                                });
+                            }
+                        }
+                    }
                 }}
                 initialData={editingSpreadsheetData}
                 language={language as 'en' | 'ko'}

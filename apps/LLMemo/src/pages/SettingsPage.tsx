@@ -333,7 +333,7 @@ const AutosaveSection: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   };
 
   const handleClearAll = async () => {
-    if (await confirm({ message: t.settings.reset_confirm, isDestructive: true })) {
+    if (await confirm({ message: t.settings.autosave_clear_confirm, isDestructive: true })) {
       await db.autosaves.clear();
     }
   };

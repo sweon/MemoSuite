@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useLayoutEffect } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { fabric } from 'fabric';
 import { ConfirmModal } from './ConfirmModal';
@@ -4344,21 +4344,49 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         }, 300);
     };
 
+    const getCanvasJson = useCallback(() => {
+        const canvas = fabricCanvasRef.current;
+        if (!canvas) return null;
+
+        const jsonObj = canvas.toJSON([
+            'id', 'selectable', 'evented', 'lockMovementX', 'lockMovementY',
+            'lockScalingX', 'lockScalingY', 'lockRotation', 'hasControls', 'hasBorders',
+            'isPageBackground', 'isPixelEraser', 'isObjectEraser', 'excludeFromExport', '__historyId'
+        ]) as any;
+
+        jsonObj.width = pageWidthRef.current;
+        jsonObj.height = pageHeightRef.current;
+
+        jsonObj.backgroundConfig = {
+            type: background,
+            size: backgroundSize,
+            bundleGap: backgroundBundleGap,
+            intensity: backgroundColorIntensity,
+            colorType: backgroundColorType,
+            opacity: lineOpacity,
+            imageOpacity: backgroundImageOpacity,
+            imageData: (background === 'image' && backgroundImage instanceof HTMLImageElement) ? backgroundImage.src : undefined
+        };
+
+        return JSON.stringify(jsonObj);
+    }, [background, backgroundSize, backgroundBundleGap, backgroundColorIntensity, backgroundColorType, lineOpacity, backgroundImageOpacity, backgroundImage]);
+
     // Autosave logic
     const onAutosaveRef = useRef(onAutosave);
     useEffect(() => { onAutosaveRef.current = onAutosave; }, [onAutosave]);
 
     useEffect(() => {
         const interval = setInterval(() => {
-            const canvas = fabricCanvasRef.current;
-            if (canvas && onAutosaveRef.current) {
-                const json = JSON.stringify(canvas.toJSON(['id', 'selectable', 'hasControls', 'hasBorders', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'id', 'name', 'type', 'subtype']));
-                onAutosaveRef.current(json);
+            if (onAutosaveRef.current) {
+                const json = getCanvasJson();
+                if (json) {
+                    onAutosaveRef.current(json);
+                }
             }
         }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
-    }, []);
+    }, [getCanvasJson]);
 
     const handleSave = async () => {
         if (!fabricCanvasRef.current || isSaving) return;
@@ -4368,31 +4396,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         await new Promise(resolve => setTimeout(resolve, 50));
 
         try {
-            const canvas = fabricCanvasRef.current;
-            // ENSURE logic dimensions are saved using Ref values
-            // Optimization: Filter out default values to keep JSON small
-            const jsonObj = canvas.toJSON([
-                'id', 'selectable', 'evented', 'lockMovementX', 'lockMovementY',
-                'lockScalingX', 'lockScalingY', 'lockRotation', 'hasControls', 'hasBorders',
-                'isPageBackground', 'isPixelEraser', 'isObjectEraser', 'excludeFromExport', '__historyId'
-            ]) as any;
-
-            jsonObj.width = pageWidthRef.current;
-            jsonObj.height = pageHeightRef.current;
-
-            jsonObj.backgroundConfig = {
-                type: background,
-                size: backgroundSize,
-                bundleGap: backgroundBundleGap,
-                intensity: backgroundColorIntensity,
-                colorType: backgroundColorType,
-                opacity: lineOpacity,
-                imageOpacity: backgroundImageOpacity,
-                imageData: (background === 'image' && backgroundImage instanceof HTMLImageElement) ? backgroundImage.src : undefined
-            };
-
-            const json = JSON.stringify(jsonObj);
-            await onSave(json);
+            const json = getCanvasJson();
+            if (json) {
+                await onSave(json);
+            }
         } catch (err) {
             console.error('Failed to save drawing', err);
             setIsSaving(false);

@@ -183,7 +183,6 @@ export const CommentsSection: React.FC<{ logId: number }> = ({ logId }) => {
     const [activeCommentId, setActiveCommentId] = useState<number | null>(null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
-    const [editingSpreadsheetRaw, setEditingSpreadsheetRaw] = useState<string | undefined>(undefined);
 
     const handleAdd = async () => {
         if (!newContent.trim()) return;
@@ -276,7 +275,6 @@ export const CommentsSection: React.FC<{ logId: number }> = ({ logId }) => {
                                 onEditSpreadsheet={(json) => {
                                     try {
                                         setActiveCommentId(c.id!);
-                                        setEditingSpreadsheetRaw(json);
                                         setEditingSpreadsheetData(JSON.parse(json));
                                         setIsSpreadsheetModalOpen(true);
                                     } catch (e) {
@@ -345,7 +343,6 @@ export const CommentsSection: React.FC<{ logId: number }> = ({ logId }) => {
                     setIsSpreadsheetModalOpen(false);
                     setActiveCommentId(null);
                     setEditingSpreadsheetData(undefined);
-                    setEditingSpreadsheetRaw(undefined);
                 }}
                 onSave={async (data: any) => {
                     if (activeCommentId) {
@@ -354,9 +351,10 @@ export const CommentsSection: React.FC<{ logId: number }> = ({ logId }) => {
                             const json = JSON.stringify(data);
                             const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
                             let found = false;
+                            const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
 
                             const newContent = comment.content.replace(spreadsheetRegex, (match, p1) => {
-                                if (editingSpreadsheetRaw && !found && p1.trim() === editingSpreadsheetRaw.trim()) {
+                                if (!found && p1.trim() === targetRaw) {
                                     found = true;
                                     return `\`\`\`spreadsheet\n${json}\n\`\`\``;
                                 }
@@ -372,7 +370,32 @@ export const CommentsSection: React.FC<{ logId: number }> = ({ logId }) => {
                     setIsSpreadsheetModalOpen(false);
                     setActiveCommentId(null);
                     setEditingSpreadsheetData(undefined);
-                    setEditingSpreadsheetRaw(undefined);
+                }}
+                onAutosave={async (data) => {
+                    if (activeCommentId) {
+                        const comment = await db.comments.get(activeCommentId);
+                        if (comment) {
+                            const json = JSON.stringify(data);
+                            const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
+                            let found = false;
+                            const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
+
+                            const newContent = comment.content.replace(spreadsheetRegex, (match, p1) => {
+                                if (!found && p1.trim() === targetRaw) {
+                                    found = true;
+                                    return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                                }
+                                return match;
+                            });
+
+                            if (newContent !== comment.content) {
+                                await db.comments.update(activeCommentId, {
+                                    content: newContent,
+                                    updatedAt: new Date()
+                                });
+                            }
+                        }
+                    }
                 }}
                 initialData={editingSpreadsheetData}
                 language={language as 'en' | 'ko'}
