@@ -277,6 +277,11 @@ export const MemoDetail: React.FC = () => {
     // Track Sidebar interactions via t parameter to ensure stable modal opening
     const tParam = searchParams.get('t');
     const prevTParam = useRef<string | null>(null);
+    const currentAutosaveIdRef = useRef<number | undefined>(undefined);
+
+    useEffect(() => {
+        currentAutosaveIdRef.current = undefined;
+    }, [id]);
 
     useEffect(() => {
         if (tParam && tParam !== prevTParam.current) {
@@ -505,10 +510,14 @@ export const MemoDetail: React.FC = () => {
             if (!hasChanged) return;
             if (!title.trim() && !content.trim() && !quote.trim()) return;
 
-            lastSavedState.current = { title, content, tags, pageNumber, quote };
+            const numericOriginalId = id ? Number(id) : undefined;
 
-            await db.autosaves.add({
-                originalId: id ? Number(id) : undefined,
+            if (numericOriginalId && !currentAutosaveIdRef.current) {
+                await db.autosaves.where('originalId').equals(numericOriginalId).delete();
+            }
+
+            const autosaveData: any = {
+                originalId: numericOriginalId,
                 bookId: bookId ? Number(bookId) : memo?.bookId,
                 title,
                 content,
@@ -516,7 +525,15 @@ export const MemoDetail: React.FC = () => {
                 pageNumber: pageNumber ? parseInt(pageNumber, 10) : undefined,
                 quote,
                 createdAt: new Date()
-            });
+            };
+
+            if (currentAutosaveIdRef.current) {
+                autosaveData.id = currentAutosaveIdRef.current;
+            }
+
+            const newId = await db.autosaves.put(autosaveData);
+            currentAutosaveIdRef.current = newId;
+            lastSavedState.current = { title, content, tags, pageNumber, quote };
 
             // Keep only latest 20 autosaves
             const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();

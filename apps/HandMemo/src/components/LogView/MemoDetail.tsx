@@ -221,6 +221,11 @@ export const MemoDetail: React.FC = () => {
     const [showExitToast, setShowExitToast] = useState(false);
     const lastBackPress = useRef(0);
     const isClosingRef = useRef(false);
+    const currentAutosaveIdRef = useRef<number | undefined>(undefined);
+
+    useEffect(() => {
+        currentAutosaveIdRef.current = undefined;
+    }, [id]);
 
     // Internal editing state
     const [isEditingInternal, setIsEditingInternal] = useState(() => {
@@ -406,15 +411,29 @@ export const MemoDetail: React.FC = () => {
             if (!hasChanged) return;
             if (!title && !content) return;
 
-            lastSavedState.current = { title, content, tags };
+            const numericOriginalId = id ? Number(id) : undefined;
 
-            await db.autosaves.add({
-                originalId: id ? Number(id) : undefined,
+            // If it's an existing file and we haven't tracked an autosave for it in this session yet,
+            // clear any existing older autosaves for this file.
+            if (numericOriginalId && !currentAutosaveIdRef.current) {
+                await db.autosaves.where('originalId').equals(numericOriginalId).delete();
+            }
+
+            const autosaveData: any = {
+                originalId: numericOriginalId,
                 title,
                 content,
                 tags: currentTags,
                 createdAt: new Date()
-            });
+            };
+
+            if (currentAutosaveIdRef.current) {
+                autosaveData.id = currentAutosaveIdRef.current;
+            }
+
+            const newId = await db.autosaves.put(autosaveData);
+            currentAutosaveIdRef.current = newId;
+            lastSavedState.current = { title, content, tags };
 
             // Keep only latest 20 autosaves across the app for performance
             const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();
