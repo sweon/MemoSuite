@@ -376,20 +376,20 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
     placeholder: "Type here... (Markdown + Math supported)",
     previewRender: customRenderer,
     toolbar: [
-      "bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "|", "link", "image", "|",
+      "bold", "italic", "heading", "quote", "unordered-list", "ordered-list", "link", "image",
       {
         name: "drawing",
         action: () => handleDrawingRef.current(),
         className: "fa fa-pencil",
-        title: language === 'ko' ? "그리기 삽입/편집" : "Insert/Edit Drawing",
+        title: language === 'ko' ? "그리기 삽입 및 편집" : "Insert or Edit Drawing",
       },
       {
         name: "spreadsheet",
         action: () => handleSpreadsheetRef.current(),
         className: "fa fa-table",
-        title: language === 'ko' ? "스프레드시트 삽입/편집" : "Insert/Edit Spreadsheet",
+        title: language === 'ko' ? "스프레드시트 삽입 및 편집" : "Insert or Edit Spreadsheet",
       },
-      "|", "preview", "side-by-side", "fullscreen", "|", "guide"
+      "preview", "side-by-side", "fullscreen", "guide"
     ] as any,
     autofocus: false,
     status: false,
