@@ -240,14 +240,28 @@ export const LogDetail: React.FC = () => {
         // Check for edit mode from URL first
         const shouldEdit = searchParams.get('edit') === 'true';
 
-        if (log) {
-            setTitle(log.title);
-            setContent(log.content);
-            setTags(log.tags.join(', '));
-            setModelId(log.modelId);
+        const autosaveId = searchParams.get('autosaveId');
 
-            // Set editing mode based on URL param
-            setIsEditing(shouldEdit);
+        if (log) {
+            const loadData = async () => {
+                if (autosaveId) {
+                    const as = await db.autosaves.get(Number(autosaveId));
+                    if (as) {
+                        setTitle(as.title);
+                        setContent(as.content);
+                        setTags(as.tags.join(', '));
+                        setModelId(as.modelId);
+                        setIsEditing(true);
+                        return;
+                    }
+                }
+                setTitle(log.title);
+                setContent(log.content);
+                setTags(log.tags.join(', '));
+                setModelId(log.modelId);
+                setIsEditing(shouldEdit);
+            };
+            loadData();
         } else if (isNew) {
             const autosaveId = searchParams.get('autosaveId');
             if (autosaveId) {
@@ -320,7 +334,7 @@ export const LogDetail: React.FC = () => {
                 const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
                 await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
             }
-        }, 30000); // 30 seconds
+        }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
     }, [isEditing, title, content, tags, modelId, id]);

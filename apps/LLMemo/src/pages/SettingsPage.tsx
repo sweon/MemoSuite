@@ -322,7 +322,7 @@ const AutosaveSection: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     if (as.originalId) {
       navigate(`/log/${as.originalId}?autosaveId=${as.id}&edit=true`);
     } else {
-      navigate(`/?autosaveId=${as.id}&edit=true`);
+      navigate(`/new?autosaveId=${as.id}&edit=true`);
     }
   };
 

@@ -378,13 +378,28 @@ export const MemoDetail: React.FC = () => {
         const autosaveId = searchParams.get('autosaveId');
 
         if (memo) {
-            setTitle(memo.title);
-            setContent(memo.content);
-            setTags(memo.tags.join(', '));
-            setPageNumber(memo.pageNumber?.toString() || '');
-            setQuote(memo.quote || '');
-            setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
-            setIsEditing(shouldEdit);
+            const loadData = async () => {
+                if (autosaveId) {
+                    const as = await db.autosaves.get(Number(autosaveId));
+                    if (as) {
+                        setTitle(as.title);
+                        setContent(as.content);
+                        setTags(as.tags.join(', '));
+                        setPageNumber(as.pageNumber?.toString() || '');
+                        setQuote(as.quote || '');
+                        setIsEditing(true);
+                        return;
+                    }
+                }
+                setTitle(memo.title);
+                setContent(memo.content);
+                setTags(memo.tags.join(', '));
+                setPageNumber(memo.pageNumber?.toString() || '');
+                setQuote(memo.quote || '');
+                setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
+                setIsEditing(shouldEdit);
+            };
+            loadData();
 
             // Restoration prompt for existing memo
             const checkExistingAutosave = async () => {
@@ -511,7 +526,7 @@ export const MemoDetail: React.FC = () => {
                 const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
                 await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
             }
-        }, 30000); // 30 seconds
+        }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
     }, [isEditing, title, content, tags, pageNumber, quote, id, bookId, memo]);

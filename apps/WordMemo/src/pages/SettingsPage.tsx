@@ -724,7 +724,7 @@ export const SettingsPage: React.FC = () => {
       if (as.originalId) {
         navigate(`/log/${as.originalId}?autosaveId=${as.id}&edit=true`);
       } else {
-        navigate(`/?autosaveId=${as.id}&edit=true`);
+        navigate(`/new?autosaveId=${as.id}&edit=true`);
       }
     };
 

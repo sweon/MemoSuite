@@ -360,9 +360,9 @@ const AutosaveSection: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const handleRestore = (as: Autosave) => {
     // Logic for BookMemo navigation
     if (as.originalId) {
-      navigate(`/ book / ${as.bookId} /memo/${as.originalId}?autosaveId = ${as.id}& edit=true`);
+      navigate(`/book/${as.bookId}/memo/${as.originalId}?autosaveId=${as.id}&edit=true`);
     } else {
-      navigate(`/ book / ${as.bookId} /memo/new ? autosaveId = ${as.id}& edit=true`);
+      navigate(`/book/${as.bookId}/new?autosaveId=${as.id}&edit=true`);
     }
   };
 

@@ -332,13 +332,27 @@ export const MemoDetail: React.FC = () => {
     useEffect(() => {
         const shouldEdit = searchParams.get('edit') === 'true';
 
-        if (memo) {
-            setTitle(memo.title);
-            setContent(memo.content);
-            setTags(memo.tags.join(', '));
+        const autosaveId = searchParams.get('autosaveId');
 
-            setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
-            setIsEditing(shouldEdit);
+        if (memo) {
+            const loadData = async () => {
+                if (autosaveId) {
+                    const as = await db.autosaves.get(Number(autosaveId));
+                    if (as) {
+                        setTitle(as.title);
+                        setContent(as.content);
+                        setTags(as.tags.join(', '));
+                        setIsEditing(true);
+                        return;
+                    }
+                }
+                setTitle(memo.title);
+                setContent(memo.content);
+                setTags(memo.tags.join(', '));
+                setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
+                setIsEditing(shouldEdit);
+            };
+            loadData();
         } else if (isNew) {
             const autosaveId = searchParams.get('autosaveId');
             if (autosaveId) {
@@ -410,7 +424,7 @@ export const MemoDetail: React.FC = () => {
                 const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
                 await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
             }
-        }, 30000); // 30 seconds
+        }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
     }, [isEditing, title, content, tags, id]);

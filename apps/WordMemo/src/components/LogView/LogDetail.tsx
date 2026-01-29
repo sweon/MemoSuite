@@ -328,13 +328,25 @@ export const LogDetail: React.FC = () => {
         const autosaveId = searchParams.get('autosaveId');
 
         if (log) {
-            setTitle(log.title);
-            setContent(log.content);
-            setTags(log.tags.join(', '));
-            setSourceId(log.sourceId);
-
-            // Set editing mode based on URL param
-            setIsEditing(shouldEdit);
+            const loadData = async () => {
+                if (autosaveId) {
+                    const as = await db.autosaves.get(Number(autosaveId));
+                    if (as) {
+                        setTitle(as.title);
+                        setContent(as.content);
+                        setTags(as.tags.join(', '));
+                        setSourceId(as.sourceId);
+                        setIsEditing(true);
+                        return;
+                    }
+                }
+                setTitle(log.title);
+                setContent(log.content);
+                setTags(log.tags.join(', '));
+                setSourceId(log.sourceId);
+                setIsEditing(shouldEdit);
+            };
+            loadData();
 
             // Restoration prompt for existing log
             const checkExistingAutosave = async () => {
@@ -467,7 +479,7 @@ export const LogDetail: React.FC = () => {
                 const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
                 await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
             }
-        }, 30000); // 30 seconds
+        }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
     }, [isEditing, title, content, tags, sourceId, id]);
