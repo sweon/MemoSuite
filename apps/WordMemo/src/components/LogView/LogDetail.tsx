@@ -525,14 +525,8 @@ export const LogDetail: React.FC = () => {
                 isStarred: 1
             });
 
-            // If we loaded from an autosave, delete it
-            const autosaveId = searchParams.get('autosaveId');
-            if (autosaveId) {
-                await db.autosaves.delete(Number(autosaveId));
-            } else {
-                // Also cleanup any "new log" autosaves
-                await db.autosaves.filter(a => a.originalId === undefined).delete();
-            }
+            // Cleanup all new log autosaves
+            await db.autosaves.filter(a => a.originalId === undefined).delete();
 
             navigate(`/log/${newId}`, { replace: true });
         }

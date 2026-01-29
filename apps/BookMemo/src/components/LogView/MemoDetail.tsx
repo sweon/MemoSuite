@@ -638,14 +638,8 @@ export const MemoDetail: React.FC = () => {
                 type: finalType
             });
 
-            // If we loaded from an autosave, delete it
-            const autosaveId = searchParams.get('autosaveId');
-            if (autosaveId) {
-                await db.autosaves.delete(Number(autosaveId));
-            } else {
-                // Also cleanup any "new memo" autosaves for this book
-                await db.autosaves.where('bookId').equals(targetBookId || -1).filter(a => a.originalId === undefined).delete();
-            }
+            // Cleanup all new memo autosaves
+            await db.autosaves.filter(a => a.originalId === undefined).delete();
 
             navigate(`/book/${targetBookId}/memo/${newId}`);
         }
