@@ -227,6 +227,8 @@ export const MemoDetail: React.FC = () => {
     useEffect(() => {
         currentAutosaveIdRef.current = undefined;
         restoredIdRef.current = null;
+        setCommentDraft(null);
+        setIsEditingInternal(!id);
     }, [id]);
 
     // Internal editing state
@@ -332,6 +334,16 @@ export const MemoDetail: React.FC = () => {
     const [tags, setTags] = useState('');
     const [date, setDate] = useState('');
 
+    const [prevId, setPrevId] = useState(id);
+    if (id !== prevId) {
+        setPrevId(id);
+        setTitle('');
+        setContent('');
+        setTags('');
+        setCommentDraft(null);
+        setIsEditingInternal(!id);
+    }
+
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
     const contentDrawingData = React.useMemo(() => {
         const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
@@ -356,14 +368,9 @@ export const MemoDetail: React.FC = () => {
         )));
 
     useEffect(() => {
-        // Comment editing can happen in preview mode, so we need to track it separately
-        if (!isEditing && !hasDraftChanges) {
-            setIsDirty(false);
-            return;
-        }
-        setIsDirty(isEditing ? isCurrentlyDirty : hasDraftChanges);
+        setIsDirty(isEditing || hasDraftChanges);
         return () => setIsDirty(false);
-    }, [isEditing, isCurrentlyDirty, hasDraftChanges, setIsDirty]);
+    }, [isEditing, hasDraftChanges, setIsDirty]);
 
     const loadedIdRef = useRef<string | null>(null);
 

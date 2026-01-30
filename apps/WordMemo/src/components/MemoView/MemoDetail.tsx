@@ -211,6 +211,8 @@ export const MemoDetail: React.FC = () => {
     useEffect(() => {
         currentAutosaveIdRef.current = undefined;
         restoredIdRef.current = null;
+        setCommentDraft(null);
+        setIsEditing(id === undefined);
     }, [id]);
 
     useEffect(() => {
@@ -256,6 +258,17 @@ export const MemoDetail: React.FC = () => {
     useEffect(() => { commentDraftRef.current = commentDraft; }, [commentDraft]);
     const restoredIdRef = useRef<string | null>(null);
 
+    const [prevId, setPrevId] = useState(id);
+    if (id !== prevId) {
+        setPrevId(id);
+        setTitle('');
+        setContent('');
+        setTags('');
+        setSourceId(undefined);
+        setCommentDraft(null);
+        setIsEditing(id === undefined);
+    }
+
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
     const contentDrawingData = React.useMemo(() => {
         const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
@@ -284,13 +297,9 @@ export const MemoDetail: React.FC = () => {
         )));
 
     useEffect(() => {
-        if (!isEditing) {
-            setIsDirty(false);
-            return;
-        }
-        setIsDirty(isCurrentlyDirty);
+        setIsDirty(isEditing || hasDraftChanges);
         return () => setIsDirty(false);
-    }, [isEditing, isCurrentlyDirty, setIsDirty]);
+    }, [isEditing, hasDraftChanges, setIsDirty]);
 
     const isPlaceholder = !isNew && id && !log?.title && !log?.content;
 

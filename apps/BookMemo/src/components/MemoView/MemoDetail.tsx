@@ -282,6 +282,8 @@ export const MemoDetail: React.FC = () => {
     useEffect(() => {
         currentAutosaveIdRef.current = undefined;
         restoredIdRef.current = null;
+        setCommentDraft(null);
+        setIsEditingInternal(!id);
     }, [id]);
 
     useEffect(() => {
@@ -369,6 +371,18 @@ export const MemoDetail: React.FC = () => {
     const [date, setDate] = useState('');
     const [pageNumber, setPageNumber] = useState('');
     const [quote, setQuote] = useState('');
+
+    const [prevId, setPrevId] = useState(id);
+    if (id !== prevId) {
+        setPrevId(id);
+        setTitle('');
+        setContent('');
+        setTags('');
+        setQuote('');
+        setPageNumber('');
+        setCommentDraft(null);
+        setIsEditingInternal(!id);
+    }
     const { setIsDirty } = useOutletContext<{ setIsDirty: (d: boolean) => void }>();
 
 
@@ -402,13 +416,9 @@ export const MemoDetail: React.FC = () => {
         )));
 
     useEffect(() => {
-        if (!isEditing) {
-            setIsDirty(false);
-            return;
-        }
-        setIsDirty(isCurrentlyDirty);
+        setIsDirty(isEditing || hasDraftChanges);
         return () => setIsDirty(false);
-    }, [isEditing, isCurrentlyDirty, setIsDirty]);
+    }, [isEditing, hasDraftChanges, setIsDirty]);
 
     const loadedIdRef = useRef<string | null>(null);
 
