@@ -44,6 +44,12 @@ export interface Comment {
     updatedAt: Date;
 }
 
+export interface CommentDraft {
+    commentId?: number;
+    content: string;
+    isNew: boolean;
+}
+
 export interface Autosave {
     id?: number;
     originalId?: number;
@@ -54,6 +60,7 @@ export interface Autosave {
     content: string;
     tags: string[];
     createdAt: Date;
+    commentDraft?: CommentDraft;
 }
 
 export class BookMemoDatabase extends Dexie {
@@ -98,6 +105,10 @@ export class BookMemoDatabase extends Dexie {
         });
 
         this.version(8).stores({
+            autosaves: '++id, originalId, bookId, createdAt'
+        });
+
+        this.version(9).stores({
             autosaves: '++id, originalId, bookId, createdAt'
         });
     }

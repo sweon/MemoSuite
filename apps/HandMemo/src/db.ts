@@ -22,6 +22,12 @@ export interface Comment {
     updatedAt: Date;
 }
 
+export interface CommentDraft {
+    commentId?: number;
+    content: string;
+    isNew: boolean;
+}
+
 export interface Autosave {
     id?: number;
     originalId?: number;
@@ -29,6 +35,7 @@ export interface Autosave {
     content: string;
     tags: string[];
     createdAt: Date;
+    commentDraft?: CommentDraft;
 }
 
 export class HandMemoDatabase extends Dexie {
@@ -71,6 +78,10 @@ export class HandMemoDatabase extends Dexie {
         });
 
         this.version(8).stores({
+            autosaves: '++id, title, originalId, createdAt'
+        });
+
+        this.version(9).stores({
             autosaves: '++id, title, originalId, createdAt'
         });
     }

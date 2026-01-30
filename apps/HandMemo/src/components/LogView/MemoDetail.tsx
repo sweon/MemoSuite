@@ -4,7 +4,7 @@ import { SyncModal, useLanguage, useModal } from '@memosuite/shared';
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../../db';
+import { db, type CommentDraft } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
@@ -251,6 +251,10 @@ export const MemoDetail: React.FC = () => {
         window.history.back(); // Trigger guard -> allow
     };
 
+    const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
+    const commentDraftRef = useRef<CommentDraft | null>(null);
+    useEffect(() => { commentDraftRef.current = commentDraft; }, [commentDraft]);
+
     // Track Sidebar interactions via t parameter to ensure stable modal opening
     const tParam = searchParams.get('t');
     const prevTParam = useRef<string | null>(null);
@@ -346,6 +350,7 @@ export const MemoDetail: React.FC = () => {
                         setContent(as.content);
                         setTags(as.tags.join(', '));
                         setIsEditing(true);
+                        setCommentDraft(as.commentDraft || null);
                         return;
                     }
                 }
@@ -354,8 +359,37 @@ export const MemoDetail: React.FC = () => {
                 setTags(memo.tags.join(', '));
                 setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
                 setIsEditing(shouldEdit);
+                setCommentDraft(null);
             };
             loadData();
+
+            // Restoration prompt for existing memo
+            const checkExistingAutosave = async () => {
+                if (!shouldEdit && !searchParams.get('comment')) return;
+                const existing = await db.autosaves
+                    .where('originalId')
+                    .equals(Number(id))
+                    .reverse()
+                    .sortBy('createdAt');
+
+                if (existing.length > 0) {
+                    const draft = existing[0];
+                    const hasMemoChanges = draft.content !== memo.content || draft.title !== memo.title;
+                    const hasCommentDraft = !!draft.commentDraft;
+
+                    if (hasMemoChanges || hasCommentDraft) {
+                        if (confirm(t.log_detail?.autosave_restore_confirm || "An unsaved draft exists. Restore it?")) {
+                            setTitle(draft.title);
+                            setContent(draft.content);
+                            setTags(draft.tags.join(', '));
+                            if (draft.commentDraft) {
+                                setCommentDraft(draft.commentDraft);
+                            }
+                        }
+                    }
+                }
+            };
+            checkExistingAutosave();
         } else if (isNew) {
             const autosaveId = searchParams.get('autosaveId');
             if (autosaveId) {
@@ -366,6 +400,7 @@ export const MemoDetail: React.FC = () => {
                         setContent(autosave.content);
                         setTags(autosave.tags.join(', '));
                         setIsEditing(true);
+                        setCommentDraft(autosave.commentDraft || null);
                     }
                 };
                 loadAutosave();
@@ -373,6 +408,7 @@ export const MemoDetail: React.FC = () => {
                 setTitle('');
                 setContent('');
                 setTags('');
+                setCommentDraft(null);
                 setEditingDrawingData(undefined);
                 setEditingSpreadsheetData(undefined);
 
@@ -391,39 +427,69 @@ export const MemoDetail: React.FC = () => {
                 if (isInitialSheet) {
                     setIsSpreadsheetModalOpen(true);
                 }
+
+                // Restoration prompt for new memo
+                const checkNewAutosave = async () => {
+                    const latest = await db.autosaves
+                        .filter(a => a.originalId === undefined)
+                        .reverse()
+                        .sortBy('createdAt');
+
+                    if (latest.length > 0) {
+                        const draft = latest[0];
+                        if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
+                            if (confirm(t.log_detail?.autosave_restore_confirm || "An unsaved draft exists. Restore it?")) {
+                                setTitle(draft.title);
+                                setContent(draft.content);
+                                setTags(draft.tags.join(', '));
+                                if (draft.commentDraft) {
+                                    setCommentDraft(draft.commentDraft);
+                                }
+                            }
+                        }
+                    }
+                };
+                checkNewAutosave();
             }
         }
-    }, [memo, isNew, searchParams]);
-    const lastSavedState = useRef({ title, content, tags });
+    }, [memo, isNew, searchParams, id]);
+
+    const lastSavedState = useRef({ title, content, tags, commentDraft });
+
+    const currentStateRef = useRef({ title, content, tags, commentDraft });
+    useEffect(() => {
+        currentStateRef.current = { title, content, tags, commentDraft };
+    }, [title, content, tags, commentDraft]);
 
     useEffect(() => {
-        const isEditingAnything = isEditing || isFabricModalOpen || isSpreadsheetModalOpen;
+        const isEditingAnything = isEditing || isFabricModalOpen || isSpreadsheetModalOpen || !!commentDraft;
         if (!isEditingAnything || localStorage.getItem('editor_autosave') === 'false') return;
 
         const interval = setInterval(async () => {
-            const currentTags = tags.split(',').map(t => t.trim()).filter(Boolean);
-            const lastTags = lastSavedState.current.tags.split(',').map(t => t.trim()).filter(Boolean);
+            const { title: cTitle, content: cContent, tags: cTags, commentDraft: cCommentDraft } = currentStateRef.current;
+            const currentTagArray = cTags.split(',').map(t => t.trim()).filter(Boolean);
+            const lastTagArray = lastSavedState.current.tags.split(',').map(t => t.trim()).filter(Boolean);
 
-            const hasChanged = title !== lastSavedState.current.title ||
-                content !== lastSavedState.current.content ||
-                JSON.stringify(currentTags) !== JSON.stringify(lastTags);
+            const hasChanged = cTitle !== lastSavedState.current.title ||
+                cContent !== lastSavedState.current.content ||
+                JSON.stringify(currentTagArray) !== JSON.stringify(lastTagArray) ||
+                JSON.stringify(cCommentDraft) !== JSON.stringify(lastSavedState.current.commentDraft);
 
             if (!hasChanged) return;
-            if (!title && !content) return;
+            if (!cTitle.trim() && !cContent.trim() && !cCommentDraft) return;
 
             const numericOriginalId = id ? Number(id) : undefined;
 
-            // If it's an existing file and we haven't tracked an autosave for it in this session yet,
-            // clear any existing older autosaves for this file.
             if (numericOriginalId && !currentAutosaveIdRef.current) {
                 await db.autosaves.where('originalId').equals(numericOriginalId).delete();
             }
 
             const autosaveData: any = {
                 originalId: numericOriginalId,
-                title,
-                content,
-                tags: currentTags,
+                title: cTitle,
+                content: cContent,
+                tags: currentTagArray,
+                commentDraft: cCommentDraft || undefined,
                 createdAt: new Date()
             };
 
@@ -433,9 +499,9 @@ export const MemoDetail: React.FC = () => {
 
             const newId = await db.autosaves.put(autosaveData);
             currentAutosaveIdRef.current = newId;
-            lastSavedState.current = { title, content, tags };
+            lastSavedState.current = { title: cTitle, content: cContent, tags: cTags, commentDraft: cCommentDraft };
 
-            // Keep only latest 20 autosaves across the app for performance
+            // Keep only latest 20 autosaves
             const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();
             if (allAutosaves.length > 20) {
                 const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
@@ -444,7 +510,7 @@ export const MemoDetail: React.FC = () => {
         }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
-    }, [isEditing, isFabricModalOpen, isSpreadsheetModalOpen, title, content, tags, id]);
+    }, [id]); // Only depend on id to keep interval stable
 
     const handleSave = async (overrideTitle?: string, overrideContent?: string) => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -689,7 +755,13 @@ export const MemoDetail: React.FC = () => {
                         />
                     </ContentPadding>
                     <CommentsWrapper>
-                        {!isNew && memo && <CommentsSection memoId={memo.id!} />}
+                        {!isNew && memo && (
+                            <CommentsSection
+                                memoId={memo.id!}
+                                initialEditingState={commentDraft}
+                                onEditingChange={setCommentDraft}
+                            />
+                        )}
                     </CommentsWrapper>
                 </>
             )}

@@ -35,6 +35,12 @@ export interface LLMProvider {
     order?: number;
 }
 
+export interface CommentDraft {
+    commentId?: number;
+    content: string;
+    isNew: boolean;
+}
+
 export interface Autosave {
     id?: number;
     originalId?: number; // The ID of the log being edited, if any
@@ -43,6 +49,7 @@ export interface Autosave {
     sourceId?: number;
     tags: string[];
     createdAt: Date;
+    commentDraft?: CommentDraft;
 }
 
 export class WordMemoDatabase extends Dexie {
@@ -77,6 +84,14 @@ export class WordMemoDatabase extends Dexie {
         });
 
         this.version(6).stores({
+            autosaves: '++id, originalId, createdAt'
+        });
+
+        this.version(7).stores({
+            autosaves: '++id, originalId, createdAt'
+        });
+
+        this.version(8).stores({
             autosaves: '++id, originalId, createdAt'
         });
     }

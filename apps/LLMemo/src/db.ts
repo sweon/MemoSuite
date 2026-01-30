@@ -27,6 +27,12 @@ export interface Comment {
     updatedAt: Date;
 }
 
+export interface CommentDraft {
+    commentId?: number;
+    content: string;
+    isNew: boolean;
+}
+
 export interface Autosave {
     id?: number;
     originalId?: number;
@@ -35,6 +41,7 @@ export interface Autosave {
     modelId?: number;
     tags: string[];
     createdAt: Date;
+    commentDraft?: CommentDraft;
 }
 
 export class LLMLogDatabase extends Dexie {
@@ -60,6 +67,14 @@ export class LLMLogDatabase extends Dexie {
         });
 
         this.version(4).stores({
+            autosaves: '++id, title, originalId, createdAt'
+        });
+
+        this.version(5).stores({
+            autosaves: '++id, title, originalId, createdAt'
+        });
+
+        this.version(6).stores({
             autosaves: '++id, title, originalId, createdAt'
         });
     }
