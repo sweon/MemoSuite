@@ -192,9 +192,11 @@ export const CommentsSection: React.FC<{
         if (initialEditingState) {
             if (initialEditingState.isNew) {
                 setIsAdding(true);
+                setEditingId(null);
                 setNewContent(initialEditingState.content);
-            } else {
-                setEditingId(initialEditingState.commentId || null);
+            } else if (initialEditingState.commentId) {
+                setEditingId(initialEditingState.commentId);
+                setIsAdding(false);
                 setEditContent(initialEditingState.content);
             }
         }
@@ -204,12 +206,12 @@ export const CommentsSection: React.FC<{
     React.useEffect(() => {
         if (!onEditingChange) return;
 
-        if (isAdding && newContent.trim()) {
+        if (isAdding) {
             onEditingChange({
                 content: newContent,
                 isNew: true
             });
-        } else if (editingId && editContent.trim()) {
+        } else if (editingId) {
             onEditingChange({
                 commentId: editingId,
                 content: editContent,
@@ -239,6 +241,7 @@ export const CommentsSection: React.FC<{
     };
 
     const startEdit = (c: Comment) => {
+        setIsAdding(false);
         setEditingId(c.id!);
         setEditContent(c.content);
     };
@@ -320,10 +323,10 @@ export const CommentsSection: React.FC<{
                             <div style={{ marginTop: '0.5rem' }}>
                                 <EditorHeader style={{ padding: '0.5rem', borderRadius: '8px 8px 0 0' }}>
                                     <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
-                                        <HeaderButton onClick={() => handleOpenFabricForEdit(c.id!, editingId === c.id ? undefined : undefined)} title={t.log_detail.add_drawing}>
+                                        <HeaderButton onClick={() => handleOpenFabricForEdit(c.id!)} title={t.log_detail.add_drawing}>
                                             <FiImage />
                                         </HeaderButton>
-                                        <HeaderButton onClick={() => handleOpenSpreadsheetForEdit(c.id!, editingId === c.id ? undefined : undefined)} title={t.log_detail.add_spreadsheet}>
+                                        <HeaderButton onClick={() => handleOpenSpreadsheetForEdit(c.id!)} title={t.log_detail.add_spreadsheet}>
                                             <FiGrid />
                                         </HeaderButton>
                                     </div>
@@ -430,63 +433,63 @@ export const CommentsSection: React.FC<{
                             }
                         }
 
-                        setIsFabricModalOpen(false);
-                        setActiveCommentId(null);
-                        setEditingDrawingData(undefined);
+                        setIsAdding(false);
+                        setEditingId(null);
+                    }
                     }}
-                    onAutosave={async (json: string) => {
-                        const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
-                        let found = false;
+            onAutosave={async (json: string) => {
+                const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                let found = false;
 
-                        if (editingId === activeCommentId) {
-                            const updatedContent = editingDrawingData
-                                ? editContent.replace(fabricRegex, (match, p1) => {
-                                    if (!found && p1.trim() === editingDrawingData.trim()) {
-                                        found = true;
-                                        return `\`\`\`fabric\n${json}\n\`\`\``;
-                                    }
-                                    return match;
-                                })
-                                : (editContent.trim() ? `${editContent}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
-                            if (updatedContent !== editContent) setEditContent(updatedContent);
-                        } else if (isAdding && activeCommentId === -1) {
-                            const updatedContent = editingDrawingData
-                                ? newContent.replace(fabricRegex, (match, p1) => {
-                                    if (!found && p1.trim() === editingDrawingData.trim()) {
-                                        found = true;
-                                        return `\`\`\`fabric\n${json}\n\`\`\``;
-                                    }
-                                    return match;
-                                })
-                                : (newContent.trim() ? `${newContent}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
-                            if (updatedContent !== newContent) setNewContent(updatedContent);
-                        } else if (activeCommentId) {
-                            const comment = await db.comments.get(activeCommentId);
-                            if (comment) {
-                                const finalContent = editingDrawingData
-                                    ? comment.content.replace(fabricRegex, (match, p1) => {
-                                        if (!found && p1.trim() === editingDrawingData.trim()) {
-                                            found = true;
-                                            return `\`\`\`fabric\n${json}\n\`\`\``;
-                                        }
-                                        return match;
-                                    })
-                                    : (comment.content.trim() ? `${comment.content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
-
-                                if (finalContent !== comment.content) {
-                                    await db.comments.update(activeCommentId, {
-                                        content: finalContent,
-                                        updatedAt: new Date()
-                                    });
-                                }
+                if (editingId === activeCommentId) {
+                    const updatedContent = editingDrawingData
+                        ? editContent.replace(fabricRegex, (match, p1) => {
+                            if (!found && p1.trim() === editingDrawingData.trim()) {
+                                found = true;
+                                return `\`\`\`fabric\n${json}\n\`\`\``;
                             }
+                            return match;
+                        })
+                        : (editContent.trim() ? `${editContent}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
+                    if (updatedContent !== editContent) setEditContent(updatedContent);
+                } else if (isAdding && activeCommentId === -1) {
+                    const updatedContent = editingDrawingData
+                        ? newContent.replace(fabricRegex, (match, p1) => {
+                            if (!found && p1.trim() === editingDrawingData.trim()) {
+                                found = true;
+                                return `\`\`\`fabric\n${json}\n\`\`\``;
+                            }
+                            return match;
+                        })
+                        : (newContent.trim() ? `${newContent}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
+                    if (updatedContent !== newContent) setNewContent(updatedContent);
+                } else if (activeCommentId) {
+                    const comment = await db.comments.get(activeCommentId);
+                    if (comment) {
+                        const finalContent = editingDrawingData
+                            ? comment.content.replace(fabricRegex, (match, p1) => {
+                                if (!found && p1.trim() === editingDrawingData.trim()) {
+                                    found = true;
+                                    return `\`\`\`fabric\n${json}\n\`\`\``;
+                                }
+                                return match;
+                            })
+                            : (comment.content.trim() ? `${comment.content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
+
+                        if (finalContent !== comment.content) {
+                            await db.comments.update(activeCommentId, {
+                                content: finalContent,
+                                updatedAt: new Date()
+                            });
                         }
-                    }}
-                    onClose={() => {
-                        setIsFabricModalOpen(false);
-                        setActiveCommentId(null);
-                        setEditingDrawingData(undefined);
-                    }}
+                    }
+                }
+            }}
+            onClose={() => {
+                setIsFabricModalOpen(false);
+                setActiveCommentId(null);
+                setEditingDrawingData(undefined);
+            }}
                 />
             )}
 
@@ -548,6 +551,10 @@ export const CommentsSection: React.FC<{
                     setIsSpreadsheetModalOpen(false);
                     setActiveCommentId(null);
                     setEditingSpreadsheetData(undefined);
+                    if (activeCommentId === editingId || activeCommentId === -1) {
+                        setIsAdding(false);
+                        setEditingId(null);
+                    }
                 }}
                 onAutosave={async (data) => {
                     const json = JSON.stringify(data);
@@ -591,7 +598,7 @@ export const CommentsSection: React.FC<{
                                 : (comment.content.trim() ? `${comment.content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\`` : `\`\`\`spreadsheet\n${json}\n\`\`\``);
 
                             if (updatedCommentContent !== comment.content) {
-                                db.comments.update(activeCommentId, {
+                                await db.comments.update(activeCommentId, {
                                     content: updatedCommentContent,
                                     updatedAt: new Date()
                                 });

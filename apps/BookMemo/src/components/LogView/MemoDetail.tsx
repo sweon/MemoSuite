@@ -490,7 +490,7 @@ export const MemoDetail: React.FC = () => {
 
     useEffect(() => {
         const isEditingAnything = isEditing || isFabricModalOpen || isSpreadsheetModalOpen || !!commentDraft;
-        if (!isEditingAnything || localStorage.getItem('editor_autosave') === 'false') return;
+        if (!isEditingAnything) return;
 
         const interval = setInterval(async () => {
             const { title: cTitle, content: cContent, tags: cTags, pageNumber: cPageNumber, quote: cQuote, commentDraft: cCommentDraft } = currentStateRef.current;

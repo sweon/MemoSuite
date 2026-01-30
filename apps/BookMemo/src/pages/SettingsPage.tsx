@@ -1,14 +1,12 @@
 
 import React, { useState, useRef } from 'react';
-import { AppLockSettings, LanguageSettings, PasswordModal, ThemeSettings, useColorTheme, useConfirm, useLanguage, AutosaveSection as SharedAutosaveSection } from '@memosuite/shared';
-import type { Autosave } from '@memosuite/shared';
+import { AppLockSettings, LanguageSettings, PasswordModal, ThemeSettings, useColorTheme, useConfirm, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { exportData, importData } from '../utils/backup';
-import { FiTrash2, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiAlertTriangle, FiLock, FiEdit3, FiSave } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { FiTrash2, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiAlertTriangle, FiLock, FiEdit3 } from 'react-icons/fi';
 
 const Container = styled.div`
 padding: 24px 32px;
@@ -340,57 +338,9 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
   </div>
 );
 
-type SubMenu = 'main' | 'data' | 'editor' | 'language' | 'about' | 'theme' | 'appLock' | 'autosave';
+type SubMenu = 'main' | 'data' | 'editor' | 'language' | 'about' | 'theme' | 'appLock';
 
-const AutosaveSection: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const { t } = useLanguage();
-  const { confirm } = useConfirm();
-  const navigate = useNavigate();
 
-  const autosaves = useLiveQuery(() => db.autosaves.orderBy('createdAt').reverse().toArray());
-
-  const [autosaveEnabled, setAutosaveEnabled] = useState(() => localStorage.getItem('editor_autosave') !== 'false');
-
-  const toggleAutosave = () => {
-    const next = !autosaveEnabled;
-    setAutosaveEnabled(next);
-    localStorage.setItem('editor_autosave', String(next));
-  };
-
-  const handleRestore = (as: Autosave) => {
-    // Logic for BookMemo navigation
-    if (as.originalId) {
-      navigate(`/book/${as.bookId}/memo/${as.originalId}?restore=true`);
-    } else {
-      navigate(`/book/${as.bookId}/new?restore=true`);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (await confirm({ message: t.memo_detail.delete_confirm, isDestructive: true })) {
-      await db.autosaves.delete(id);
-    }
-  };
-
-  const handleClearAll = async () => {
-    if (await confirm({ message: t.settings.autosave_clear_confirm, isDestructive: true })) {
-      await db.autosaves.clear();
-    }
-  };
-
-  return (
-    <SharedAutosaveSection
-      autosaves={autosaves as Autosave[]}
-      onRestore={handleRestore}
-      onDelete={handleDelete}
-      onClearAll={handleClearAll}
-      onBack={onBack}
-      t={t}
-      autosaveEnabled={autosaveEnabled}
-      onToggleAutosave={toggleAutosave}
-    />
-  );
-};
 
 export const SettingsPage: React.FC = () => {
   const { t } = useLanguage();
@@ -403,6 +353,8 @@ export const SettingsPage: React.FC = () => {
   const [tabSize, setTabSize] = useState(() => Number(localStorage.getItem('editor_tab_size')) || 4);
   const [largeSize, setLargeSize] = useState(() => localStorage.getItem('editor_large_size') === 'true');
   const [advancedToolbar, setAdvancedToolbar] = useState(() => localStorage.getItem('editor_advanced_toolbar') !== 'false');
+
+
 
   const toggleSpellCheck = () => {
     const next = !spellCheck;
@@ -565,14 +517,7 @@ export const SettingsPage: React.FC = () => {
         <Section>
           <Title style={{ marginBottom: '1.5rem' }}>{t.settings.title}</Title>
           <MenuList>
-            <MenuButton onClick={() => setCurrentSubMenu('autosave')}>
-              <div className="icon-wrapper"><FiSave /></div>
-              <div className="label-wrapper">
-                <span className="title">{t.settings.autosave_settings}</span>
-                <span className="desc">{t.settings.autosave_settings_desc}</span>
-              </div>
-              <FiChevronRight className="chevron" />
-            </MenuButton>
+
 
             <MenuButton onClick={() => setCurrentSubMenu('editor')}>
               <div className="icon-wrapper"><FiEdit3 /></div>
@@ -643,6 +588,7 @@ export const SettingsPage: React.FC = () => {
               checked={spellCheck}
               onChange={toggleSpellCheck}
             />
+
             <EditorSettingItem
               title={t.settings.editor_line_numbers}
               desc={t.settings.editor_line_numbers_desc}
@@ -683,9 +629,7 @@ export const SettingsPage: React.FC = () => {
         </Section>
       )}
 
-      {currentSubMenu === 'autosave' && (
-        <AutosaveSection onBack={() => setCurrentSubMenu('main')} />
-      )}
+
 
       {currentSubMenu === 'data' && (
         <Section>
