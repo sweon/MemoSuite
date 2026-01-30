@@ -6,7 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Comment, type CommentDraft } from '../../db';
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare, FiImage, FiGrid } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare } from 'react-icons/fi';
 import { format } from 'date-fns';
 
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
@@ -255,29 +255,7 @@ export const CommentsSection: React.FC<{
         }
     };
 
-    const handleOpenFabricForNew = () => {
-        setActiveCommentId(-1);
-        setEditingDrawingData(undefined);
-        setIsFabricModalOpen(true);
-    };
 
-    const handleOpenSpreadsheetForNew = () => {
-        setActiveCommentId(-1);
-        setEditingSpreadsheetData(undefined);
-        setIsSpreadsheetModalOpen(true);
-    };
-
-    const handleOpenFabricForEdit = (id: number, drawingJson?: string) => {
-        setActiveCommentId(id);
-        setEditingDrawingData(drawingJson);
-        setIsFabricModalOpen(true);
-    };
-
-    const handleOpenSpreadsheetForEdit = (id: number, sheetData?: any) => {
-        setActiveCommentId(id);
-        setEditingSpreadsheetData(sheetData);
-        setIsSpreadsheetModalOpen(true);
-    };
 
     return (
         <Section>
@@ -320,14 +298,6 @@ export const CommentsSection: React.FC<{
                         {editingId === c.id ? (
                             <div style={{ marginTop: '0.5rem' }}>
                                 <EditorHeader style={{ padding: '0.5rem', borderRadius: '8px 8px 0 0' }}>
-                                    <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
-                                        <HeaderButton onClick={() => handleOpenFabricForEdit(c.id!, editingId === c.id ? undefined : undefined)} title={t.log_detail.add_drawing}>
-                                            <FiImage />
-                                        </HeaderButton>
-                                        <HeaderButton onClick={() => handleOpenSpreadsheetForEdit(c.id!, editingId === c.id ? undefined : undefined)} title={t.log_detail.add_spreadsheet}>
-                                            <FiGrid />
-                                        </HeaderButton>
-                                    </div>
                                     <HeaderButton onClick={() => setEditingId(null)} $variant="secondary">{t.comments.cancel}</HeaderButton>
                                     <HeaderButton onClick={saveEdit} $variant="primary">{t.comments.save_comment}</HeaderButton>
                                 </EditorHeader>
@@ -360,14 +330,7 @@ export const CommentsSection: React.FC<{
             {isAdding ? (
                 <EditorContainer>
                     <EditorHeader>
-                        <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
-                            <HeaderButton onClick={handleOpenFabricForNew} title={t.log_detail.add_drawing}>
-                                <FiImage />
-                            </HeaderButton>
-                            <HeaderButton onClick={handleOpenSpreadsheetForNew} title={t.log_detail.add_spreadsheet}>
-                                <FiGrid />
-                            </HeaderButton>
-                        </div>
+                        <div style={{ flex: 1 }} />
                         <HeaderButton onClick={() => setIsAdding(false)} $variant="secondary">{t.comments.cancel}</HeaderButton>
                         <HeaderButton onClick={handleAdd} $variant="primary">{t.comments.save_comment}</HeaderButton>
                     </EditorHeader>
