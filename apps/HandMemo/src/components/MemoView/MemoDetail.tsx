@@ -356,13 +356,14 @@ export const MemoDetail: React.FC = () => {
         )));
 
     useEffect(() => {
-        if (!isEditing) {
+        // Comment editing can happen in preview mode, so we need to track it separately
+        if (!isEditing && !hasDraftChanges) {
             setIsDirty(false);
             return;
         }
-        setIsDirty(isCurrentlyDirty);
+        setIsDirty(isEditing ? isCurrentlyDirty : hasDraftChanges);
         return () => setIsDirty(false);
-    }, [isEditing, isCurrentlyDirty, setIsDirty]);
+    }, [isEditing, isCurrentlyDirty, hasDraftChanges, setIsDirty]);
 
     const loadedIdRef = useRef<string | null>(null);
 
