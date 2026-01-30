@@ -4,7 +4,7 @@ import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiArrowUpCircle, FiMinus } from 'react-icons/fi';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
@@ -200,6 +200,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
 
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const isEditing = location.pathname.includes('/new') || searchParams.get('edit') === 'true';
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -369,7 +373,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
         <AppTitle>BookMemo</AppTitle>
         <AppVersion>v{pkg.version}</AppVersion>
       </BrandHeader>
-      <Header>
+      <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
         <TopActions>
           <Tooltip content={t.sidebar.add_book || "New Book"}>
             <Button onClick={() => {
@@ -480,7 +484,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
         </div>
       </Header>
 
-      <BookList>
+      <BookList style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
         {sortedBooks?.map(book => (
           <SidebarBookItem
             key={book.id}

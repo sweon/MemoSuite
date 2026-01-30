@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Log } from '../../db';
-import { useNavigate, useParams, useLocation } from 'react-router-dom'; // Ensure react-router-dom is installed
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'; // Ensure react-router-dom is installed
 import { FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiArrowUpCircle, FiPlus, FiMinus } from 'react-icons/fi';
 
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -203,7 +203,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const { theme, mode, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
+
+  const isEditing = location.pathname.includes('/new') || searchParams.get('edit') === 'true';
 
   // Decide whether to replace history or push.
   // We only replace if we are already in a sub-page (log detail or settings).
@@ -542,7 +545,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
         <AppTitle>LLMemo</AppTitle>
         <AppVersion>v{pkg.version}</AppVersion>
       </BrandHeader>
-      <Header>
+      <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
         <TopActions>
           <Tooltip content={t.sidebar.new}>
             <Button onClick={() => {
@@ -716,7 +719,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
           flex: 1,
           overflowY: 'auto',
           padding: '0.5rem',
-          minHeight: '200px'
+          minHeight: '200px',
+          opacity: isEditing ? 0.5 : 1,
+          pointerEvents: isEditing ? 'none' : 'auto'
         }}
       />
 

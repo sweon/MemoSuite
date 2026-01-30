@@ -6,7 +6,7 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Log } from '../../db';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiArrowUpCircle, FiMinus } from 'react-icons/fi';
 import { Tooltip } from '../UI/Tooltip';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
@@ -261,7 +261,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const { mode, theme, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
+
+  const isEditing = location.pathname.includes('/new') || searchParams.get('edit') === 'true';
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
@@ -644,7 +647,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
         <AppTitle>WordMemo</AppTitle>
         <AppVersion>v{pkg.version}</AppVersion>
       </BrandHeader>
-      <Header>
+      <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
         <TopActions>
           <Tooltip content={t.sidebar.new}>
             <Button onClick={() => {
@@ -796,6 +799,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
               id="sidebar-log-list"
               ref={provided.innerRef}
               {...provided.droppableProps}
+              style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}
             >
               <div style={{ display: 'none' }}>{listKey}</div>
               {flatItems.map((item, index) => {
