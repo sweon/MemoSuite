@@ -360,14 +360,12 @@ export const LogDetail: React.FC = () => {
                     const hasCommentDraft = !!draft.commentDraft;
 
                     if (hasLogChanges || hasCommentDraft) {
-                        if (await confirm({ message: t.log_detail.autosave_restore_confirm })) {
-                            setTitle(draft.title);
-                            setContent(draft.content);
-                            setTags(draft.tags.join(', '));
-                            setSourceId(draft.sourceId);
-                            if (draft.commentDraft) {
-                                setCommentDraft(draft.commentDraft);
-                            }
+                        setTitle(draft.title);
+                        setContent(draft.content);
+                        setTags(draft.tags.join(', '));
+                        setSourceId(draft.sourceId);
+                        if (draft.commentDraft) {
+                            setCommentDraft(draft.commentDraft);
                         }
                     }
                 }
@@ -387,7 +385,7 @@ export const LogDetail: React.FC = () => {
                 setIsFabricModalOpen(true);
             }
 
-            // Restoration prompt for new log
+            // Restoration for new log: Automatically restore without asking
             const checkNewAutosave = async () => {
                 const latest = await db.autosaves
                     .filter(a => a.originalId === undefined)
@@ -397,14 +395,12 @@ export const LogDetail: React.FC = () => {
                 if (latest.length > 0) {
                     const draft = latest[0];
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
-                        if (await confirm({ message: t.log_detail.autosave_restore_confirm })) {
-                            setTitle(draft.title);
-                            setContent(draft.content);
-                            setTags(draft.tags.join(', '));
-                            setSourceId(draft.sourceId);
-                            if (draft.commentDraft) {
-                                setCommentDraft(draft.commentDraft);
-                            }
+                        setTitle(draft.title);
+                        setContent(draft.content);
+                        setTags(draft.tags.join(', '));
+                        setSourceId(draft.sourceId);
+                        if (draft.commentDraft) {
+                            setCommentDraft(draft.commentDraft);
                         }
                     }
                 }

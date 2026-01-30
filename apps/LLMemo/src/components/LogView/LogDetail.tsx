@@ -274,14 +274,12 @@ export const LogDetail: React.FC = () => {
                     const hasCommentDraft = !!draft.commentDraft;
 
                     if (hasLogChanges || hasCommentDraft) {
-                        if (await confirm(t.log_detail.autosave_restore_confirm || "Restore unsaved changes?")) {
-                            setTitle(draft.title);
-                            setContent(draft.content);
-                            setTags(draft.tags.join(', '));
-                            setModelId(draft.modelId);
-                            if (draft.commentDraft) {
-                                setCommentDraft(draft.commentDraft);
-                            }
+                        setTitle(draft.title);
+                        setContent(draft.content);
+                        setTags(draft.tags.join(', '));
+                        setModelId(draft.modelId);
+                        if (draft.commentDraft) {
+                            setCommentDraft(draft.commentDraft);
                         }
                     }
                 }
@@ -307,14 +305,12 @@ export const LogDetail: React.FC = () => {
                 if (latest.length > 0) {
                     const draft = latest[0];
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
-                        if (await confirm(t.log_detail.autosave_restore_confirm || "Restore unsaved changes?")) {
-                            setTitle(draft.title);
-                            setContent(draft.content);
-                            setTags(draft.tags.join(', '));
-                            setModelId(draft.modelId);
-                            if (draft.commentDraft) {
-                                setCommentDraft(draft.commentDraft);
-                            }
+                        setTitle(draft.title);
+                        setContent(draft.content);
+                        setTags(draft.tags.join(', '));
+                        setModelId(draft.modelId);
+                        if (draft.commentDraft) {
+                            setCommentDraft(draft.commentDraft);
                         }
                     }
                 }

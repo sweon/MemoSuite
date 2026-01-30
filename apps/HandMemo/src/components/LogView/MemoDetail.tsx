@@ -365,13 +365,11 @@ export const MemoDetail: React.FC = () => {
                     const hasCommentDraft = !!draft.commentDraft;
 
                     if (hasMemoChanges || hasCommentDraft) {
-                        if (confirm(t.log_detail?.autosave_restore_confirm || "An unsaved draft exists. Restore it?")) {
-                            setTitle(draft.title);
-                            setContent(draft.content);
-                            setTags(draft.tags.join(', '));
-                            if (draft.commentDraft) {
-                                setCommentDraft(draft.commentDraft);
-                            }
+                        setTitle(draft.title);
+                        setContent(draft.content);
+                        setTags(draft.tags.join(', '));
+                        if (draft.commentDraft) {
+                            setCommentDraft(draft.commentDraft);
                         }
                     }
                 }
@@ -401,7 +399,7 @@ export const MemoDetail: React.FC = () => {
                 setIsSpreadsheetModalOpen(true);
             }
 
-            // Restoration prompt for new memo
+            // Restoration for new memo: Automatically restore without asking
             const checkNewAutosave = async () => {
                 const latest = await db.autosaves
                     .filter(a => a.originalId === undefined)
@@ -411,13 +409,11 @@ export const MemoDetail: React.FC = () => {
                 if (latest.length > 0) {
                     const draft = latest[0];
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
-                        if (confirm(t.log_detail?.autosave_restore_confirm || "An unsaved draft exists. Restore it?")) {
-                            setTitle(draft.title);
-                            setContent(draft.content);
-                            setTags(draft.tags.join(', '));
-                            if (draft.commentDraft) {
-                                setCommentDraft(draft.commentDraft);
-                            }
+                        setTitle(draft.title);
+                        setContent(draft.content);
+                        setTags(draft.tags.join(', '));
+                        if (draft.commentDraft) {
+                            setCommentDraft(draft.commentDraft);
                         }
                     }
                 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useLanguage, useConfirm } from '@memosuite/shared';
+import { SyncModal, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
@@ -260,7 +260,7 @@ export const MemoDetail: React.FC = () => {
     const [showExitToast, setShowExitToast] = useState(false);
     const lastBackPress = useRef(0);
     const isClosingRef = useRef(false);
-    const { confirm } = useConfirm();
+
 
     const [isEditingInternal, setIsEditingInternal] = useState(isNew);
 
@@ -397,9 +397,9 @@ export const MemoDetail: React.FC = () => {
             };
             loadData();
 
-            // Restoration prompt for existing memo
+            // Restoration for existing memo: Automatically update state without asking
             const checkExistingAutosave = async () => {
-                if (!shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return; // 'comment' param can be used to trigger comment restoration
+                if (!shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
                 const existing = await db.autosaves
                     .where('originalId')
                     .equals(Number(id))
@@ -412,15 +412,13 @@ export const MemoDetail: React.FC = () => {
                     const hasCommentDraft = !!draft.commentDraft;
 
                     if (hasMemoChanges || hasCommentDraft) {
-                        if (await confirm({ message: t.memo_detail.autosave_restore_confirm })) {
-                            setTitle(draft.title);
-                            setContent(draft.content);
-                            setTags(draft.tags.join(', '));
-                            setPageNumber(draft.pageNumber?.toString() || '');
-                            setQuote(draft.quote || '');
-                            if (draft.commentDraft) {
-                                setCommentDraft(draft.commentDraft);
-                            }
+                        setTitle(draft.title);
+                        setContent(draft.content);
+                        setTags(draft.tags.join(', '));
+                        setPageNumber(draft.pageNumber?.toString() || '');
+                        setQuote(draft.quote || '');
+                        if (draft.commentDraft) {
+                            setCommentDraft(draft.commentDraft);
                         }
                     }
                 }
@@ -447,7 +445,7 @@ export const MemoDetail: React.FC = () => {
                 setIsSpreadsheetModalOpen(true);
             }
 
-            // Restoration prompt for new memo
+            // Restoration for new memo: Automatically restore to editor state without asking
             const checkNewAutosave = async () => {
                 const targetBookId = bookId ? Number(bookId) : undefined;
                 const latest = await db.autosaves
@@ -458,15 +456,13 @@ export const MemoDetail: React.FC = () => {
                 if (latest.length > 0) {
                     const draft = latest[0];
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
-                        if (await confirm({ message: t.memo_detail.autosave_restore_confirm })) {
-                            setTitle(draft.title);
-                            setContent(draft.content);
-                            setTags(draft.tags.join(', '));
-                            setPageNumber(draft.pageNumber?.toString() || '');
-                            setQuote(draft.quote || '');
-                            if (draft.commentDraft) {
-                                setCommentDraft(draft.commentDraft);
-                            }
+                        setTitle(draft.title);
+                        setContent(draft.content);
+                        setTags(draft.tags.join(', '));
+                        setPageNumber(draft.pageNumber?.toString() || '');
+                        setQuote(draft.quote || '');
+                        if (draft.commentDraft) {
+                            setCommentDraft(draft.commentDraft);
                         }
                     }
                 }
