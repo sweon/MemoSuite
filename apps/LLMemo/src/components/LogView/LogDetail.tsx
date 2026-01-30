@@ -187,6 +187,7 @@ export const LogDetail: React.FC = () => {
 
     useEffect(() => {
         currentAutosaveIdRef.current = undefined;
+        restoredIdRef.current = null;
     }, [id]);
 
     useEffect(() => {
@@ -229,6 +230,7 @@ export const LogDetail: React.FC = () => {
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
     useEffect(() => { commentDraftRef.current = commentDraft; }, [commentDraft]);
+    const restoredIdRef = useRef<string | null>(null);
 
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
     const contentDrawingData = React.useMemo(() => {
@@ -270,19 +272,46 @@ export const LogDetail: React.FC = () => {
         if (log && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = log.tags.join(', ');
-                setTitle(log.title);
-                setContent(log.content);
-                setTags(tagsStr);
-                setModelId(log.modelId);
-                setCommentDraft(null);
 
-                // Initialize lastSavedState with loaded values
+                // Check for autosave for initial display
+                const existing = await db.autosaves
+                    .where('originalId')
+                    .equals(Number(id))
+                    .reverse()
+                    .sortBy('createdAt');
+
+                let initialTitle = log.title;
+                let initialContent = log.content;
+                let initialTagsStr = tagsStr;
+                let initialModelId = log.modelId;
+                let initialCommentDraft: CommentDraft | null = null;
+
+                if (existing.length > 0) {
+                    const draft = existing[0];
+                    initialTitle = draft.title;
+                    initialContent = draft.content;
+                    initialTagsStr = draft.tags.join(', ');
+                    initialModelId = draft.modelId;
+                    initialCommentDraft = draft.commentDraft || null;
+
+                    // Resume autosave session and mark as restored
+                    currentAutosaveIdRef.current = draft.id;
+                    restoredIdRef.current = id || null;
+                }
+
+                setTitle(initialTitle);
+                setContent(initialContent);
+                setTags(initialTagsStr);
+                setModelId(initialModelId);
+                setCommentDraft(initialCommentDraft);
+
+                // Initialize lastSavedState with initial values
                 lastSavedState.current = {
-                    title: log.title,
-                    content: log.content,
-                    tags: tagsStr,
-                    modelId: log.modelId,
-                    commentDraft: null
+                    title: initialTitle,
+                    content: initialContent,
+                    tags: initialTagsStr,
+                    modelId: initialModelId,
+                    commentDraft: initialCommentDraft
                 };
                 loadedIdRef.current = id || null;
             };
@@ -295,7 +324,11 @@ export const LogDetail: React.FC = () => {
 
             // Restoration prompt for existing log
             const checkExistingAutosave = async () => {
-                if (!shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
+                if (!isEditing && !shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
+
+                // Don't restore if we already restored/checked in this edit session
+                if (isEditing && restoredIdRef.current === id) return;
+
                 const existing = await db.autosaves
                     .where('originalId')
                     .equals(Number(id))
@@ -327,6 +360,7 @@ export const LogDetail: React.FC = () => {
                         };
                     }
                 }
+                if (isEditing) restoredIdRef.current = id || null;
             };
             checkExistingAutosave();
         } else if (isNew && loadedIdRef.current !== 'new') {
@@ -376,7 +410,7 @@ export const LogDetail: React.FC = () => {
         if (searchParams.get('drawing') === 'true') {
             setIsFabricModalOpen(true);
         }
-    }, [log, isNew, id, searchParams]);
+    }, [log, isNew, id, searchParams, isEditing]);
 
     // Set default model if new and models loaded
     useEffect(() => {
@@ -460,6 +494,8 @@ export const LogDetail: React.FC = () => {
 
             // Cleanup autosaves for this log
             await db.autosaves.where('originalId').equals(Number(id)).delete();
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
 
             // Clear edit param if present to prevent re-entering edit mode
             if (searchParams.get('edit')) {
@@ -673,6 +709,8 @@ export const LogDetail: React.FC = () => {
                                 if (searchParams.get('edit')) {
                                     navigate(`/log/${id}`, { replace: true });
                                 }
+                                currentAutosaveIdRef.current = undefined;
+                                restoredIdRef.current = null;
                                 setIsEditing(false);
                             }}>
                                 <FiX size={14} /> {t.log_detail.cancel}

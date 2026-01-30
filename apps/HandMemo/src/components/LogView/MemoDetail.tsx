@@ -225,6 +225,7 @@ export const MemoDetail: React.FC = () => {
 
     useEffect(() => {
         currentAutosaveIdRef.current = undefined;
+        restoredIdRef.current = null;
     }, [id]);
 
     // Internal editing state
@@ -254,6 +255,7 @@ export const MemoDetail: React.FC = () => {
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
     useEffect(() => { commentDraftRef.current = commentDraft; }, [commentDraft]);
+    const restoredIdRef = useRef<string | null>(null);
 
     // Track Sidebar interactions via t parameter to ensure stable modal opening
     const tParam = searchParams.get('t');
@@ -294,6 +296,8 @@ export const MemoDetail: React.FC = () => {
 
                 if (isClosingRef.current) {
                     setIsEditingInternal(false);
+                    currentAutosaveIdRef.current = undefined;
+                    restoredIdRef.current = null;
                     return ExitGuardResult.ALLOW_NAVIGATION;
                 }
 
@@ -301,6 +305,8 @@ export const MemoDetail: React.FC = () => {
                 if (now - lastBackPress.current < 2000) {
                     isClosingRef.current = true;
                     setIsEditingInternal(false);
+                    currentAutosaveIdRef.current = undefined;
+                    restoredIdRef.current = null;
                     return ExitGuardResult.ALLOW_NAVIGATION;
                 } else {
                     lastBackPress.current = now;
@@ -363,18 +369,43 @@ export const MemoDetail: React.FC = () => {
         if (memo && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = memo.tags.join(', ');
-                setTitle(memo.title);
-                setContent(memo.content);
-                setTags(tagsStr);
-                setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
-                setCommentDraft(null);
 
-                // Initialize lastSavedState with loaded values
+                // Check for autosave for initial display
+                const existing = await db.autosaves
+                    .where('originalId')
+                    .equals(Number(id))
+                    .reverse()
+                    .sortBy('createdAt');
+
+                let initialTitle = memo.title;
+                let initialContent = memo.content;
+                let initialTagsStr = tagsStr;
+                let initialCommentDraft: CommentDraft | null = null;
+
+                if (existing.length > 0) {
+                    const draft = existing[0];
+                    initialTitle = draft.title;
+                    initialContent = draft.content;
+                    initialTagsStr = draft.tags.join(', ');
+                    initialCommentDraft = draft.commentDraft || null;
+
+                    // Resume autosave session and mark as restored
+                    currentAutosaveIdRef.current = draft.id;
+                    restoredIdRef.current = id || null;
+                }
+
+                setTitle(initialTitle);
+                setContent(initialContent);
+                setTags(initialTagsStr);
+                setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
+                setCommentDraft(initialCommentDraft);
+
+                // Initialize lastSavedState with initial values
                 lastSavedState.current = {
-                    title: memo.title,
-                    content: memo.content,
-                    tags: tagsStr,
-                    commentDraft: null
+                    title: initialTitle,
+                    content: initialContent,
+                    tags: initialTagsStr,
+                    commentDraft: initialCommentDraft
                 };
                 loadedIdRef.current = id || null;
             };
@@ -387,7 +418,11 @@ export const MemoDetail: React.FC = () => {
 
             // Restoration prompt for existing memo
             const checkExistingAutosave = async () => {
-                if (!shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
+                if (!isEditing && !shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
+
+                // Don't restore if we already restored/checked in this edit session
+                if (isEditing && restoredIdRef.current === id) return;
+
                 const existing = await db.autosaves
                     .where('originalId')
                     .equals(Number(id))
@@ -417,6 +452,7 @@ export const MemoDetail: React.FC = () => {
                         };
                     }
                 }
+                if (isEditing) restoredIdRef.current = id || null;
             };
             checkExistingAutosave();
         } else if (isNew && loadedIdRef.current !== 'new') {
@@ -474,7 +510,7 @@ export const MemoDetail: React.FC = () => {
             };
             checkNewAutosave();
         }
-    }, [memo, isNew, searchParams, id, language, t.log_detail?.autosave_restore_confirm]);
+    }, [memo, isNew, searchParams, id, language, t.log_detail?.autosave_restore_confirm, isEditing]);
 
     const lastSavedState = useRef({ title, content, tags, commentDraft });
 
@@ -594,6 +630,8 @@ export const MemoDetail: React.FC = () => {
 
             // Cleanup autosaves for this memo
             await db.autosaves.where('originalId').equals(Number(id)).delete();
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
 
             if (searchParams.get('edit')) {
                 navigate(`/memo/${id}`, { replace: true });

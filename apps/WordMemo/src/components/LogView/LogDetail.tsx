@@ -210,6 +210,7 @@ export const LogDetail: React.FC = () => {
 
     useEffect(() => {
         currentAutosaveIdRef.current = undefined;
+        restoredIdRef.current = null;
     }, [id]);
 
     useEffect(() => {
@@ -253,6 +254,7 @@ export const LogDetail: React.FC = () => {
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
     useEffect(() => { commentDraftRef.current = commentDraft; }, [commentDraft]);
+    const restoredIdRef = useRef<string | null>(null);
 
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
     const contentDrawingData = React.useMemo(() => {
@@ -357,19 +359,46 @@ export const LogDetail: React.FC = () => {
         if (log && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = log.tags.join(', ');
-                setTitle(log.title);
-                setContent(log.content);
-                setTags(tagsStr);
-                setSourceId(log.sourceId);
-                setCommentDraft(null);
 
-                // Initialize lastSavedState with loaded values
+                // Check for autosave for initial display
+                const existing = await db.autosaves
+                    .where('originalId')
+                    .equals(Number(id))
+                    .reverse()
+                    .sortBy('createdAt');
+
+                let initialTitle = log.title;
+                let initialContent = log.content;
+                let initialTagsStr = tagsStr;
+                let initialSourceId = log.sourceId;
+                let initialCommentDraft: CommentDraft | null = null;
+
+                if (existing.length > 0) {
+                    const draft = existing[0];
+                    initialTitle = draft.title;
+                    initialContent = draft.content;
+                    initialTagsStr = draft.tags.join(', ');
+                    initialSourceId = draft.sourceId;
+                    initialCommentDraft = draft.commentDraft || null;
+
+                    // Resume autosave session and mark as restored
+                    currentAutosaveIdRef.current = draft.id;
+                    restoredIdRef.current = id || null;
+                }
+
+                setTitle(initialTitle);
+                setContent(initialContent);
+                setTags(initialTagsStr);
+                setSourceId(initialSourceId);
+                setCommentDraft(initialCommentDraft);
+
+                // Initialize lastSavedState with initial values
                 lastSavedState.current = {
-                    title: log.title,
-                    content: log.content,
-                    tags: tagsStr,
-                    sourceId: log.sourceId,
-                    commentDraft: null
+                    title: initialTitle,
+                    content: initialContent,
+                    tags: initialTagsStr,
+                    sourceId: initialSourceId,
+                    commentDraft: initialCommentDraft
                 };
                 loadedIdRef.current = id || null;
             };
@@ -382,7 +411,11 @@ export const LogDetail: React.FC = () => {
 
             // Restoration prompt for existing log
             const checkExistingAutosave = async () => {
-                if (!shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
+                if (!isEditing && !shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
+
+                // Don't restore if we already restored/checked in this edit session
+                if (isEditing && restoredIdRef.current === id) return;
+
                 const existing = await db.autosaves
                     .where('originalId')
                     .equals(Number(id))
@@ -414,6 +447,7 @@ export const LogDetail: React.FC = () => {
                         };
                     }
                 }
+                if (isEditing) restoredIdRef.current = id || null;
             };
             checkExistingAutosave();
         } else if (isNew && loadedIdRef.current !== 'new') {
@@ -463,7 +497,7 @@ export const LogDetail: React.FC = () => {
             };
             checkNewAutosave();
         }
-    }, [log, isNew, id, searchParams]);
+    }, [log, isNew, id, searchParams, isEditing]);
 
     useEffect(() => {
         const initSource = async () => {
@@ -579,6 +613,8 @@ export const LogDetail: React.FC = () => {
 
             // Cleanup autosaves for this log
             await db.autosaves.where('originalId').equals(Number(id)).delete();
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
             setIsEditing(false);
         } else {
             const newId = await db.logs.add({
@@ -919,6 +955,8 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 if (searchParams.get('edit')) {
                                     navigate(`/log/${id}`, { replace: true });
                                 }
+                                currentAutosaveIdRef.current = undefined;
+                                restoredIdRef.current = null;
                                 setIsEditing(false);
                             }}>
                                 <FiX size={14} /> {t.log_detail.cancel}

@@ -281,6 +281,7 @@ export const MemoDetail: React.FC = () => {
 
     useEffect(() => {
         currentAutosaveIdRef.current = undefined;
+        restoredIdRef.current = null;
     }, [id]);
 
     useEffect(() => {
@@ -319,6 +320,7 @@ export const MemoDetail: React.FC = () => {
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
     useEffect(() => { commentDraftRef.current = commentDraft; }, [commentDraft]);
+    const restoredIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (isEditingInternal) {
@@ -331,6 +333,8 @@ export const MemoDetail: React.FC = () => {
 
                 if (isClosingRef.current) {
                     setIsEditingInternal(false);
+                    currentAutosaveIdRef.current = undefined;
+                    restoredIdRef.current = null;
                     return ExitGuardResult.ALLOW_NAVIGATION;
                 }
 
@@ -338,6 +342,8 @@ export const MemoDetail: React.FC = () => {
                 if (now - lastBackPress.current < 2000) {
                     isClosingRef.current = true;
                     setIsEditingInternal(false);
+                    currentAutosaveIdRef.current = undefined;
+                    restoredIdRef.current = null;
                     return ExitGuardResult.ALLOW_NAVIGATION;
                 } else {
                     lastBackPress.current = now;
@@ -410,22 +416,51 @@ export const MemoDetail: React.FC = () => {
         if (memo && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = memo.tags.join(', ');
-                setTitle(memo.title);
-                setContent(memo.content);
-                setTags(tagsStr);
-                setPageNumber(memo.pageNumber?.toString() || '');
-                setQuote(memo.quote || '');
-                setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
-                setCommentDraft(null);
 
-                // Initialize lastSavedState with loaded values
+                // Check for autosave for initial display
+                const existing = await db.autosaves
+                    .where('originalId')
+                    .equals(Number(id))
+                    .reverse()
+                    .sortBy('createdAt');
+
+                let initialTitle = memo.title;
+                let initialContent = memo.content;
+                let initialTagsStr = tagsStr;
+                let initialPageNumber = memo.pageNumber?.toString() || '';
+                let initialQuote = memo.quote || '';
+                let initialCommentDraft: CommentDraft | null = null;
+
+                if (existing.length > 0) {
+                    const draft = existing[0];
+                    initialTitle = draft.title;
+                    initialContent = draft.content;
+                    initialTagsStr = draft.tags.join(', ');
+                    initialPageNumber = draft.pageNumber?.toString() || '';
+                    initialQuote = draft.quote || '';
+                    initialCommentDraft = draft.commentDraft || null;
+
+                    // Resume autosave session and mark as restored
+                    currentAutosaveIdRef.current = draft.id;
+                    restoredIdRef.current = id || null;
+                }
+
+                setTitle(initialTitle);
+                setContent(initialContent);
+                setTags(initialTagsStr);
+                setPageNumber(initialPageNumber);
+                setQuote(initialQuote);
+                setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
+                setCommentDraft(initialCommentDraft);
+
+                // Initialize lastSavedState with initial values
                 lastSavedState.current = {
-                    title: memo.title,
-                    content: memo.content,
-                    tags: tagsStr,
-                    pageNumber: memo.pageNumber?.toString() || '',
-                    quote: memo.quote || '',
-                    commentDraft: null
+                    title: initialTitle,
+                    content: initialContent,
+                    tags: initialTagsStr,
+                    pageNumber: initialPageNumber,
+                    quote: initialQuote,
+                    commentDraft: initialCommentDraft
                 };
                 loadedIdRef.current = id || null;
             };
@@ -438,7 +473,11 @@ export const MemoDetail: React.FC = () => {
 
             // Restoration for existing memo: Automatically update state without asking
             const checkExistingAutosave = async () => {
-                if (!shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
+                if (!isEditing && !shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
+
+                // Don't restore if we already restored/checked in this edit session
+                if (isEditing && restoredIdRef.current === id) return;
+
                 const existing = await db.autosaves
                     .where('originalId')
                     .equals(Number(id))
@@ -472,6 +511,7 @@ export const MemoDetail: React.FC = () => {
                         };
                     }
                 }
+                if (isEditing) restoredIdRef.current = id || null;
             };
             checkExistingAutosave();
 
@@ -531,7 +571,7 @@ export const MemoDetail: React.FC = () => {
             };
             checkNewAutosave();
         }
-    }, [memo, isNew, searchParams, language, id, bookId]);
+    }, [memo, isNew, searchParams, language, id, bookId, isEditing]);
 
     useEffect(() => {
         if (isNew && book?.currentPage && !searchParams.get('page')) {
@@ -695,6 +735,8 @@ export const MemoDetail: React.FC = () => {
             }
             // Cleanup autosaves for this memo
             await db.autosaves.where('originalId').equals(Number(id)).delete();
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
             setIsEditing(false);
         } else {
             const newId = await db.memos.add({
