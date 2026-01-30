@@ -4,6 +4,7 @@ import { Sidebar } from '../Sidebar/Sidebar';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FiMenu } from 'react-icons/fi';
 import { metadataCache } from '@memosuite/shared';
+import { db } from '../../db';
 
 const isImageUrl = (url: string) => {
   return /\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(url) || url.startsWith('data:image/');
@@ -272,9 +273,19 @@ export const MainLayout: React.FC = () => {
 
         metadataCache.fetchImageMetadata(imageUrl);
 
-        // Create a new image memo regardless of current location
-        // (since we're not in an editor, user likely wants a new memo)
-        navigate('/memo/new', { state: { imageUrl } });
+        // Create and save the memo immediately, then navigate to preview
+        const now = new Date();
+        const newId = await db.memos.add({
+          title: '이미지에 메모',
+          content: `![](${imageUrl})\n\n`,
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+          type: 'normal'
+        });
+
+        // Navigate to the saved memo's preview (not edit mode)
+        navigate(`/memo/${newId}`);
       }
     };
 
