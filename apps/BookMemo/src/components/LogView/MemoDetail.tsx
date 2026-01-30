@@ -383,28 +383,26 @@ export const MemoDetail: React.FC = () => {
         [bookId, memo]
     );
 
+    const hasDraftChanges = !!commentDraft;
+    const isCurrentlyDirty = !!(isNew
+        ? (title || content || tags || quote || pageNumber || hasDraftChanges)
+        : (!!memo && (
+            title !== memo.title ||
+            content !== memo.content ||
+            tags !== memo.tags.join(', ') ||
+            quote !== (memo.quote || '') ||
+            pageNumber !== (memo.pageNumber?.toString() || '') ||
+            hasDraftChanges
+        )));
+
     useEffect(() => {
         if (!isEditing) {
             setIsDirty(false);
             return;
         }
-
-        let isCurrentlyDirty = false;
-        if (isNew) {
-            // Include commentDraft in dirty check - if anything is typed in drawing/spreadsheet, it should be dirty
-            isCurrentlyDirty = !!(title.trim() || content.trim() || tags.trim() || quote.trim() || pageNumber.trim() || commentDraft);
-        } else if (memo) {
-            const hasDraftChanges = !!commentDraft;
-            const hasMemoChanges = title !== memo.title ||
-                content !== memo.content ||
-                tags !== memo.tags.join(', ') ||
-                quote !== (memo.quote || '') ||
-                pageNumber !== (memo.pageNumber?.toString() || '');
-            isCurrentlyDirty = hasDraftChanges || hasMemoChanges;
-        }
         setIsDirty(isCurrentlyDirty);
         return () => setIsDirty(false);
-    }, [isEditing, isNew, title, content, tags, quote, pageNumber, commentDraft, memo, setIsDirty]);
+    }, [isEditing, isCurrentlyDirty, setIsDirty]);
 
     useEffect(() => {
         const shouldEdit = searchParams.get('edit') === 'true';
@@ -825,13 +823,10 @@ export const MemoDetail: React.FC = () => {
                             <ActionButton
                                 $variant="primary"
                                 onClick={handleSave}
-                                disabled={
-                                    (!title.trim() && !pageNumber && !content.trim() && !quote.trim()) ||
-                                    (!!quote.trim() && !pageNumber)
-                                }
+                                disabled={!isCurrentlyDirty || (!!quote.trim() && !pageNumber)}
                                 style={{
-                                    opacity: ((!title.trim() && !pageNumber && !content.trim() && !quote.trim()) || (!!quote.trim() && !pageNumber)) ? 0.5 : 1,
-                                    cursor: ((!title.trim() && !pageNumber && !content.trim() && !quote.trim()) || (!!quote.trim() && !pageNumber)) ? 'not-allowed' : 'pointer'
+                                    opacity: (!isCurrentlyDirty || (!!quote.trim() && !pageNumber)) ? 0.5 : 1,
+                                    cursor: (!isCurrentlyDirty || (!!quote.trim() && !pageNumber)) ? 'not-allowed' : 'pointer'
                                 }}
                             >
                                 <FiSave size={14} /> {t.memo_detail.save}

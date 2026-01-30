@@ -270,26 +270,25 @@ export const LogDetail: React.FC = () => {
 
     const { setIsDirty } = useOutletContext<{ setIsDirty: (d: boolean) => void }>();
 
+    const hasDraftChanges = !!commentDraft;
+    const isCurrentlyDirty = !!(isNew
+        ? (title || content || tags || hasDraftChanges)
+        : (!!log && (
+            title !== log.title ||
+            content !== log.content ||
+            tags !== log.tags.join(', ') ||
+            sourceId !== log.sourceId ||
+            hasDraftChanges
+        )));
+
     useEffect(() => {
         if (!isEditing) {
             setIsDirty(false);
             return;
         }
-
-        let isCurrentlyDirty = false;
-        if (isNew) {
-            isCurrentlyDirty = !!(title.trim() || content.trim() || tags.trim() || commentDraft);
-        } else if (log) {
-            const hasDraftChanges = !!commentDraft;
-            const hasLogChanges = title !== log.title ||
-                content !== log.content ||
-                tags !== log.tags.join(', ') ||
-                sourceId !== log.sourceId;
-            isCurrentlyDirty = hasDraftChanges || hasLogChanges;
-        }
         setIsDirty(isCurrentlyDirty);
         return () => setIsDirty(false);
-    }, [isEditing, isNew, title, content, tags, sourceId, commentDraft, log, setIsDirty]);
+    }, [isEditing, isCurrentlyDirty, setIsDirty]);
 
     const isPlaceholder = !isNew && id && !log?.title && !log?.content;
 
@@ -863,7 +862,15 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 <ActionBar>
                     {isEditing ? (
                         <>
-                            <ActionButton $variant="primary" onClick={handleSave}>
+                            <ActionButton
+                                $variant="primary"
+                                onClick={handleSave}
+                                disabled={!isCurrentlyDirty}
+                                style={{
+                                    opacity: !isCurrentlyDirty ? 0.5 : 1,
+                                    cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
+                                }}
+                            >
                                 <FiSave size={14} /> {t.log_detail.save}
                             </ActionButton>
                             <ActionButton onClick={handleRandomWord}>

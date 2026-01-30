@@ -338,25 +338,24 @@ export const MemoDetail: React.FC = () => {
 
     const { setIsDirty } = useOutletContext<{ setIsDirty: (d: boolean) => void }>();
 
+    const hasDraftChanges = !!commentDraft;
+    const isCurrentlyDirty = !!(isNew
+        ? (title || content || tags || hasDraftChanges)
+        : (!!memo && (
+            title !== memo.title ||
+            content !== memo.content ||
+            tags !== memo.tags.join(', ') ||
+            hasDraftChanges
+        )));
+
     useEffect(() => {
         if (!isEditing) {
             setIsDirty(false);
             return;
         }
-
-        let isCurrentlyDirty = false;
-        if (isNew) {
-            isCurrentlyDirty = !!(title.trim() || content.trim() || tags.trim() || commentDraft);
-        } else if (memo) {
-            const hasDraftChanges = !!commentDraft;
-            const hasMemoChanges = title !== memo.title ||
-                content !== memo.content ||
-                tags !== memo.tags.join(', ');
-            isCurrentlyDirty = hasDraftChanges || hasMemoChanges;
-        }
         setIsDirty(isCurrentlyDirty);
         return () => setIsDirty(false);
-    }, [isEditing, isNew, title, content, tags, commentDraft, memo, setIsDirty]);
+    }, [isEditing, isCurrentlyDirty, setIsDirty]);
 
     useEffect(() => {
         const shouldEdit = searchParams.get('edit') === 'true';
@@ -681,10 +680,10 @@ export const MemoDetail: React.FC = () => {
                             <ActionButton
                                 $variant="primary"
                                 onClick={() => handleSave()}
-                                disabled={!title.trim() && !content.trim()}
+                                disabled={!isCurrentlyDirty}
                                 style={{
-                                    opacity: (!title.trim() && !content.trim()) ? 0.5 : 1,
-                                    cursor: (!title.trim() && !content.trim()) ? 'not-allowed' : 'pointer'
+                                    opacity: !isCurrentlyDirty ? 0.5 : 1,
+                                    cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
                                 }}
                             >
                                 <FiSave size={14} /> {t.memo_detail.save}
