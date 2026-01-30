@@ -122,9 +122,9 @@ const HeaderButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.3rem 0.6rem;
+  padding: 5px 10px;
   border-radius: 5px;
-  font-size: 0.8rem;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
