@@ -359,10 +359,20 @@ export const LogDetail: React.FC = () => {
             const loadData = async () => {
                 setTitle(log.title);
                 setContent(log.content);
-                setTags(log.tags.join(', '));
+                const tagsStr = log.tags.join(', ');
+                setTags(tagsStr);
                 setSourceId(log.sourceId);
                 setIsEditing(shouldEdit);
                 setCommentDraft(null);
+
+                // Initialize lastSavedState with loaded values
+                lastSavedState.current = {
+                    title: log.title,
+                    content: log.content,
+                    tags: tagsStr,
+                    sourceId: log.sourceId,
+                    commentDraft: null
+                };
                 return;
             };
             loadData();
@@ -514,7 +524,7 @@ export const LogDetail: React.FC = () => {
         }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
-    }, [id]); // Only depend on id to keep interval stable
+    }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft, log]); // Added dependencies to ensure interval starts/stops correctly
 
     const handleSave = async () => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);

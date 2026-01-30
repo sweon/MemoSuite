@@ -411,12 +411,23 @@ export const MemoDetail: React.FC = () => {
             const loadData = async () => {
                 setTitle(memo.title);
                 setContent(memo.content);
-                setTags(memo.tags.join(', '));
+                const tagsStr = memo.tags.join(', ');
+                setTags(tagsStr);
                 setPageNumber(memo.pageNumber?.toString() || '');
                 setQuote(memo.quote || '');
                 setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
                 setIsEditing(shouldEdit);
                 setCommentDraft(null);
+
+                // Initialize lastSavedState with loaded values
+                lastSavedState.current = {
+                    title: memo.title,
+                    content: memo.content,
+                    tags: tagsStr,
+                    pageNumber: memo.pageNumber?.toString() || '',
+                    quote: memo.quote || '',
+                    commentDraft: null
+                };
                 return;
             };
             loadData();
@@ -562,7 +573,7 @@ export const MemoDetail: React.FC = () => {
         }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
-    }, [id]); // Only depend on id to keep interval stable
+    }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft, bookId, memo?.bookId]); // Added dependencies to ensure interval starts/stops correctly
 
     const handleSave = async () => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
