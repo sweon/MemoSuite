@@ -18,7 +18,7 @@ import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
 import { useSearch } from '../../contexts/SearchContext';
 import { useStudyMode } from '../../contexts/StudyModeContext';
 import { format } from 'date-fns';
-import { SidebarLogItem } from './SidebarLogItem';
+import { SidebarMemoItem } from './SidebarMemoItem';
 import { StarButton } from './itemStyles';
 import { SidebarThreadItem } from './SidebarThreadItem';
 import pkg from '../../../package.json';
@@ -807,7 +807,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
                 if (item.type === 'single') {
                   const logId = item.log.id!;
                   return (
-                    <SidebarLogItem
+                    <SidebarMemoItem
                       key={logId}
                       log={item.log}
                       index={index}
@@ -843,7 +843,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
                 } else if (item.type === 'thread-child') {
                   const logId = item.log.id!;
                   return (
-                    <SidebarLogItem
+                    <SidebarMemoItem
                       key={logId}
                       log={item.log}
                       index={index}

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useLanguage, useModal } from '@memosuite/shared';
+import { SyncModal, useLanguage, useModal, metadataCache } from '@memosuite/shared';
 
 import styled from 'styled-components';
-import { useParams, useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CommentDraft } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
@@ -214,6 +214,7 @@ export const MemoDetail: React.FC = () => {
     const { setSearchQuery } = useSearch();
     const { t, language } = useLanguage();
     const { prompt: modalPrompt } = useModal();
+    const location = useLocation();
     const isNew = !id;
 
     // Guard Hook
@@ -478,6 +479,14 @@ export const MemoDetail: React.FC = () => {
             // Auto-open spreadsheet if requested
             if (isInitialSheet) {
                 setIsSpreadsheetModalOpen(true);
+            }
+
+            // Handle dropped image from MainLayout
+            const initialImageUrl = location.state?.imageUrl;
+            if (initialImageUrl) {
+                setTitle('이미지에 메모');
+                setContent(`![](${initialImageUrl})\n\n`);
+                metadataCache.fetchImageMetadata(initialImageUrl);
             }
 
             // Restoration for new memo: Automatically restore without asking

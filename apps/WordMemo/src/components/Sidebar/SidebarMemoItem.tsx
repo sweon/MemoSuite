@@ -20,7 +20,7 @@ interface Props {
     studyMode?: 'none' | 'hide-meanings' | 'hide-words';
 }
 
-export const SidebarLogItem: React.FC<Props> = ({
+export const SidebarMemoItem: React.FC<Props> = ({
     log,
     index,
     isActive,

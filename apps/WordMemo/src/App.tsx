@@ -7,8 +7,8 @@ import { SearchProvider } from './contexts/SearchContext';
 import { translations } from './translations';
 import { StudyModeProvider } from './contexts/StudyModeContext';
 import { MainLayout } from './components/Layout/MainLayout';
-import { LogDetail } from './components/LogView/LogDetail';
-import { EmptyState } from './components/LogView/EmptyState';
+import { MemoDetail } from './components/MemoView/MemoDetail';
+import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
 import { ExitGuardProvider } from '@memosuite/shared-drawing';
 import { AndroidExitHandler } from './components/AndroidExitHandler';
@@ -74,8 +74,8 @@ function AppContent() {
               <Routes>
                 <Route path="/" element={<MainLayout />}>
                   <Route index element={<EmptyState />} />
-                  <Route path="new" element={<LogDetail />} />
-                  <Route path="log/:id" element={<LogDetail />} />
+                  <Route path="new" element={<MemoDetail />} />
+                  <Route path="log/:id" element={<MemoDetail />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>

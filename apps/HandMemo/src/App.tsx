@@ -8,8 +8,8 @@ import { translations } from './translations';
 import { MainLayout } from './components/Layout/MainLayout';
 import { ExitGuardProvider } from '@memosuite/shared-drawing';
 
-import { MemoDetail } from './components/LogView/MemoDetail';
-import { EmptyState } from './components/LogView/EmptyState';
+import { MemoDetail } from './components/MemoView/MemoDetail';
+import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
 import { AndroidExitHandler } from './components/AndroidExitHandler';
 import { db } from './db';

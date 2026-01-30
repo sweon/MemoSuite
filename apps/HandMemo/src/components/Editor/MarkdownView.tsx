@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLanguage } from '@memosuite/shared';
+import { useLanguage, metadataCache } from '@memosuite/shared';
 
 import ReactMarkdown from 'react-markdown';
 
@@ -429,6 +429,26 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
         remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeKatex]}
         components={{
+          img: ({ src, alt }: any) => {
+            const meta = metadataCache.get(src || '');
+            if (meta) {
+              return (
+                <img
+                  src={src}
+                  alt={alt}
+                  width={meta.width}
+                  height={meta.height}
+                  style={{
+                    aspectRatio: `${meta.width} / ${meta.height}`,
+                    height: 'auto',
+                    maxWidth: '100%',
+                    display: 'block'
+                  }}
+                />
+              );
+            }
+            return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px' }} />;
+          },
           pre: ({ children, ...props }: any) => {
             const child = Array.isArray(children) ? children[0] : children;
             if (React.isValidElement(child) &&

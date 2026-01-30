@@ -194,7 +194,7 @@ const ContentWrapper = styled.div<{ $isBlurred?: boolean }>`
   `}
 `;
 
-export const LogDetail: React.FC = () => {
+export const MemoDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();

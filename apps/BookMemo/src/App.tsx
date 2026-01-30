@@ -10,8 +10,8 @@ import { ExitGuardProvider } from '@memosuite/shared-drawing';
 import { BookDetail } from './components/BookView/BookDetail';
 import { AddBookPage } from './components/BookView/AddBookPage';
 import { EditBookPage } from './components/BookView/EditBookPage';
-import { MemoDetail } from './components/LogView/MemoDetail';
-import { EmptyState } from './components/LogView/EmptyState';
+import { MemoDetail } from './components/MemoView/MemoDetail';
+import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
 import { AndroidExitHandler } from './components/AndroidExitHandler';
 

@@ -16,6 +16,11 @@ import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { metadataCache } from '@memosuite/shared';
+
+const isImageUrl = (url: string) => {
+  return /\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(url) || url.startsWith('data:image/');
+};
 
 // Custom styles for the editor to match theme
 const EditorWrapper = styled.div`
@@ -473,6 +478,25 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
           getCodemirrorInstance={(cm) => {
             cmRef.current = cm;
             if (updateWidgetsRef.current) setTimeout(() => updateWidgetsRef.current(cm), 100);
+
+            // Add drop handler
+            cm.on('drop', (_, e) => {
+              const imageUrl = e.dataTransfer?.getData('text/uri-list')?.split('\n')[0] || e.dataTransfer?.getData('text/plain');
+
+              if (imageUrl && isImageUrl(imageUrl)) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const pos = cm.coordsChar({ left: e.clientX, top: e.clientY });
+                const imageMarkdown = `![](${imageUrl})`;
+
+                // If we are dropping onto a line, let's see where to insert.
+                cm.replaceRange(imageMarkdown, pos);
+
+                metadataCache.fetchImageMetadata(imageUrl);
+                onChange(cm.getValue());
+              }
+            });
           }}
         />
       </EditorWrapper>

@@ -1,8 +1,13 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { Sidebar } from '../Sidebar/Sidebar';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FiMenu } from 'react-icons/fi';
+import { metadataCache } from '@memosuite/shared';
+
+const isImageUrl = (url: string) => {
+  return /\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(url) || url.startsWith('data:image/');
+};
 
 const Container = styled.div<{ $isResizing: boolean }>`
   display: flex;
@@ -248,6 +253,46 @@ export const MainLayout: React.FC = () => {
       setSidebarOpen(true);
     }
   }, [location.pathname, isMobile]);
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleGlobalDrop = async (e: DragEvent) => {
+      // Check if we are in a CodeMirror editor area. If so, let the editor handle it.
+      const editorElement = document.querySelector('.CodeMirror');
+      if (editorElement && editorElement.contains(e.target as Node)) {
+        return; // Editor will handle it
+      }
+
+      const imageUrl = e.dataTransfer?.getData('text/uri-list')?.split('\n')[0] || e.dataTransfer?.getData('text/plain');
+
+      if (imageUrl && isImageUrl(imageUrl)) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        metadataCache.fetchImageMetadata(imageUrl);
+
+        // Create a new image memo regardless of current location
+        // (since we're not in an editor, user likely wants a new memo)
+        navigate('/memo/new', { state: { imageUrl } });
+      }
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      const types = e.dataTransfer?.types || [];
+      if (types.includes('text/uri-list') || types.includes('text/plain')) {
+        e.preventDefault();
+        e.dataTransfer!.dropEffect = 'copy';
+      }
+    };
+
+    window.addEventListener('drop', handleGlobalDrop);
+    window.addEventListener('dragover', handleDragOver);
+    return () => {
+      window.removeEventListener('drop', handleGlobalDrop);
+      window.removeEventListener('dragover', handleDragOver);
+    };
+  }, [location.pathname, navigate]);
 
   // Resize handle is visible:
   // - Desktop: always visible
