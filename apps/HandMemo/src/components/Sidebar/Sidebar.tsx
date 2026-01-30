@@ -4,7 +4,7 @@ import { SyncModal, ThreadableList, useColorTheme, useLanguage } from '@memosuit
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Memo } from '../../db';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiArrowUpCircle, FiPenTool, FiPlus, FiMinus } from 'react-icons/fi';
 import { BsKeyboard } from 'react-icons/bs';
 import { RiTable2 } from 'react-icons/ri';
@@ -208,9 +208,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
 
-  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && isDirty && location.pathname !== '/';
+  const isEditing = isDirty;
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
