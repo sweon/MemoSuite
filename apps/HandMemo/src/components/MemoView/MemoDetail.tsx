@@ -810,7 +810,7 @@ export const MemoDetail: React.FC = () => {
                 <>
                     <ContentPadding>
                         <MarkdownView
-                            content={content}
+                            content={memo?.content || ''}
                             onEditDrawing={(json) => {
                                 setEditingDrawingData(json);
                                 setIsFabricModalOpen(true);
