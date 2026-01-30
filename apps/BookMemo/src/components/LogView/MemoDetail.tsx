@@ -382,22 +382,9 @@ export const MemoDetail: React.FC = () => {
 
     useEffect(() => {
         const shouldEdit = searchParams.get('edit') === 'true';
-        const autosaveId = searchParams.get('autosaveId');
 
         if (memo) {
             const loadData = async () => {
-                if (autosaveId) {
-                    const as = await db.autosaves.get(Number(autosaveId));
-                    if (as) {
-                        setTitle(as.title);
-                        setContent(as.content);
-                        setTags(as.tags.join(', '));
-                        setPageNumber(as.pageNumber?.toString() || '');
-                        setQuote(as.quote || '');
-                        setIsEditing(true);
-                        return;
-                    }
-                }
                 setTitle(memo.title);
                 setContent(memo.content);
                 setTags(memo.tags.join(', '));
@@ -405,22 +392,14 @@ export const MemoDetail: React.FC = () => {
                 setQuote(memo.quote || '');
                 setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
                 setIsEditing(shouldEdit);
-
-                if (autosaveId) {
-                    const as = await db.autosaves.get(Number(autosaveId));
-                    if (as) {
-                        setCommentDraft(as.commentDraft || null);
-                    }
-                } else {
-                    setCommentDraft(null);
-                }
+                setCommentDraft(null);
                 return;
             };
             loadData();
 
             // Restoration prompt for existing memo
             const checkExistingAutosave = async () => {
-                if (!shouldEdit && !searchParams.get('comment')) return; // 'comment' param can be used to trigger comment restoration
+                if (!shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return; // 'comment' param can be used to trigger comment restoration
                 const existing = await db.autosaves
                     .where('originalId')
                     .equals(Number(id))
@@ -449,68 +428,52 @@ export const MemoDetail: React.FC = () => {
             checkExistingAutosave();
 
         } else if (isNew) {
-            if (autosaveId) {
-                const loadAutosave = async () => {
-                    const as = await db.autosaves.get(Number(autosaveId));
-                    if (as) {
-                        setTitle(as.title);
-                        setContent(as.content);
-                        setTags(as.tags.join(', '));
-                        setPageNumber(as.pageNumber?.toString() || '');
-                        setQuote(as.quote || '');
-                        setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
-                        setIsEditing(true);
-                        if (as.commentDraft) {
-                            setCommentDraft(as.commentDraft);
-                        }
-                    }
-                };
-                loadAutosave();
-            } else {
-                setTitle('');
-                setContent('');
-                setTags('');
-                const p = searchParams.get('page');
-                setPageNumber(p || '');
-                setQuote('');
-                setEditingDrawingData(undefined);
-                setEditingSpreadsheetData(undefined);
-                setCommentDraft(null);
-                setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
-                setIsEditing(true);
+            setTitle('');
+            setContent('');
+            setTags('');
+            const p = searchParams.get('page');
+            setPageNumber(p || '');
+            setQuote('');
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
+            setCommentDraft(null);
+            setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
+            setIsEditing(true);
 
-                if (searchParams.get('drawing') === 'true') {
-                    setIsFabricModalOpen(true);
-                }
+            if (searchParams.get('drawing') === 'true') {
+                setIsFabricModalOpen(true);
+            }
+            if (searchParams.get('spreadsheet') === 'true') {
+                setIsSpreadsheetModalOpen(true);
+            }
 
-                // Restoration prompt for new memo
-                const checkNewAutosave = async () => {
-                    const targetBookId = bookId ? Number(bookId) : undefined;
-                    const latest = await db.autosaves
-                        .filter(a => a.originalId === undefined && a.bookId === targetBookId)
-                        .reverse()
-                        .sortBy('createdAt');
+            // Restoration prompt for new memo
+            const checkNewAutosave = async () => {
+                const targetBookId = bookId ? Number(bookId) : undefined;
+                const latest = await db.autosaves
+                    .filter(a => a.originalId === undefined && a.bookId === targetBookId)
+                    .reverse()
+                    .sortBy('createdAt');
 
-                    if (latest.length > 0) {
-                        const draft = latest[0];
-                        if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
-                            if (await confirm({ message: t.memo_detail.autosave_restore_confirm })) {
-                                setTitle(draft.title);
-                                setContent(draft.content);
-                                setTags(draft.tags.join(', '));
-                                setPageNumber(draft.pageNumber?.toString() || '');
-                                setQuote(draft.quote || '');
-                                if (draft.commentDraft) {
-                                    setCommentDraft(draft.commentDraft);
-                                }
+                if (latest.length > 0) {
+                    const draft = latest[0];
+                    if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
+                        if (await confirm({ message: t.memo_detail.autosave_restore_confirm })) {
+                            setTitle(draft.title);
+                            setContent(draft.content);
+                            setTags(draft.tags.join(', '));
+                            setPageNumber(draft.pageNumber?.toString() || '');
+                            setQuote(draft.quote || '');
+                            if (draft.commentDraft) {
+                                setCommentDraft(draft.commentDraft);
                             }
                         }
                     }
-                };
-                checkNewAutosave();
-            }
+                }
+            };
+            checkNewAutosave();
         }
-    }, [memo, isNew, searchParams, language]);
+    }, [memo, isNew, searchParams, language, id, bookId]);
 
     useEffect(() => {
         if (isNew && book?.currentPage && !searchParams.get('page')) {

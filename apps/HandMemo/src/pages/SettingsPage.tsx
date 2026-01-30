@@ -361,9 +361,9 @@ const AutosaveSection: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const handleRestore = (as: Autosave) => {
     // Logic for HandMemo navigation
     if (as.originalId) {
-      navigate(`/memo/${as.originalId}?autosaveId=${as.id}&edit=true`);
+      navigate(`/memo/${as.originalId}?restore=true`);
     } else {
-      navigate(`/memo/new?autosaveId=${as.id}&edit=true`);
+      navigate(`/memo/new?restore=true`);
     }
   };
 

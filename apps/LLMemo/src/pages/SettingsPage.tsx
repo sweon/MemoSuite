@@ -320,9 +320,9 @@ const AutosaveSection: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const handleRestore = (as: Autosave) => {
     // Logic for LLMemo navigation
     if (as.originalId) {
-      navigate(`/log/${as.originalId}?autosaveId=${as.id}&edit=true`);
+      navigate(`/log/${as.originalId}?restore=true`);
     } else {
-      navigate(`/new?autosaveId=${as.id}&edit=true`);
+      navigate(`/new?restore=true`);
     }
   };
 

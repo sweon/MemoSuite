@@ -339,21 +339,8 @@ export const MemoDetail: React.FC = () => {
     useEffect(() => {
         const shouldEdit = searchParams.get('edit') === 'true';
 
-        const autosaveId = searchParams.get('autosaveId');
-
         if (memo) {
             const loadData = async () => {
-                if (autosaveId) {
-                    const as = await db.autosaves.get(Number(autosaveId));
-                    if (as) {
-                        setTitle(as.title);
-                        setContent(as.content);
-                        setTags(as.tags.join(', '));
-                        setIsEditing(true);
-                        setCommentDraft(as.commentDraft || null);
-                        return;
-                    }
-                }
                 setTitle(memo.title);
                 setContent(memo.content);
                 setTags(memo.tags.join(', '));
@@ -365,7 +352,7 @@ export const MemoDetail: React.FC = () => {
 
             // Restoration prompt for existing memo
             const checkExistingAutosave = async () => {
-                if (!shouldEdit && !searchParams.get('comment')) return;
+                if (!shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
                 const existing = await db.autosaves
                     .where('originalId')
                     .equals(Number(id))
@@ -391,68 +378,53 @@ export const MemoDetail: React.FC = () => {
             };
             checkExistingAutosave();
         } else if (isNew) {
-            const autosaveId = searchParams.get('autosaveId');
-            if (autosaveId) {
-                const loadAutosave = async () => {
-                    const autosave = await db.autosaves.get(Number(autosaveId));
-                    if (autosave) {
-                        setTitle(autosave.title);
-                        setContent(autosave.content);
-                        setTags(autosave.tags.join(', '));
-                        setIsEditing(true);
-                        setCommentDraft(autosave.commentDraft || null);
-                    }
-                };
-                loadAutosave();
-            } else {
-                setTitle('');
-                setContent('');
-                setTags('');
-                setCommentDraft(null);
-                setEditingDrawingData(undefined);
-                setEditingSpreadsheetData(undefined);
+            setTitle('');
+            setContent('');
+            setTags('');
+            setCommentDraft(null);
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
 
-                const isInitialDrawing = searchParams.get('drawing') === 'true';
-                const isInitialSheet = searchParams.get('spreadsheet') === 'true';
+            const isInitialDrawing = searchParams.get('drawing') === 'true';
+            const isInitialSheet = searchParams.get('spreadsheet') === 'true';
 
-                setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
-                setIsEditing(!(isInitialDrawing || isInitialSheet));
+            setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
+            setIsEditing(!(isInitialDrawing || isInitialSheet));
 
-                // Auto-open drawing if requested
-                if (isInitialDrawing) {
-                    setIsFabricModalOpen(true);
-                }
+            // Auto-open drawing if requested
+            if (isInitialDrawing) {
+                setIsFabricModalOpen(true);
+            }
 
-                // Auto-open spreadsheet if requested
-                if (isInitialSheet) {
-                    setIsSpreadsheetModalOpen(true);
-                }
+            // Auto-open spreadsheet if requested
+            if (isInitialSheet) {
+                setIsSpreadsheetModalOpen(true);
+            }
 
-                // Restoration prompt for new memo
-                const checkNewAutosave = async () => {
-                    const latest = await db.autosaves
-                        .filter(a => a.originalId === undefined)
-                        .reverse()
-                        .sortBy('createdAt');
+            // Restoration prompt for new memo
+            const checkNewAutosave = async () => {
+                const latest = await db.autosaves
+                    .filter(a => a.originalId === undefined)
+                    .reverse()
+                    .sortBy('createdAt');
 
-                    if (latest.length > 0) {
-                        const draft = latest[0];
-                        if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
-                            if (confirm(t.log_detail?.autosave_restore_confirm || "An unsaved draft exists. Restore it?")) {
-                                setTitle(draft.title);
-                                setContent(draft.content);
-                                setTags(draft.tags.join(', '));
-                                if (draft.commentDraft) {
-                                    setCommentDraft(draft.commentDraft);
-                                }
+                if (latest.length > 0) {
+                    const draft = latest[0];
+                    if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
+                        if (confirm(t.log_detail?.autosave_restore_confirm || "An unsaved draft exists. Restore it?")) {
+                            setTitle(draft.title);
+                            setContent(draft.content);
+                            setTags(draft.tags.join(', '));
+                            if (draft.commentDraft) {
+                                setCommentDraft(draft.commentDraft);
                             }
                         }
                     }
-                };
-                checkNewAutosave();
-            }
+                }
+            };
+            checkNewAutosave();
         }
-    }, [memo, isNew, searchParams, id]);
+    }, [memo, isNew, searchParams, id, language, t.log_detail?.autosave_restore_confirm]);
 
     const lastSavedState = useRef({ title, content, tags, commentDraft });
 

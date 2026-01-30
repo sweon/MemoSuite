@@ -722,9 +722,9 @@ export const SettingsPage: React.FC = () => {
     const handleRestore = (as: Autosave) => {
       // Autosave interface in db.ts matched shared Autosave interface structure mostly
       if (as.originalId) {
-        navigate(`/log/${as.originalId}?autosaveId=${as.id}&edit=true`);
+        navigate(`/log/${as.originalId}?restore=true`);
       } else {
-        navigate(`/new?autosaveId=${as.id}&edit=true`);
+        navigate(`/new?restore=true`);
       }
     };
 

@@ -247,41 +247,21 @@ export const LogDetail: React.FC = () => {
         // Check for edit mode from URL first
         const shouldEdit = searchParams.get('edit') === 'true';
 
-        const autosaveId = searchParams.get('autosaveId');
-
         if (log) {
             const loadData = async () => {
-                if (autosaveId) {
-                    const as = await db.autosaves.get(Number(autosaveId));
-                    if (as) {
-                        setTitle(as.title);
-                        setContent(as.content);
-                        setTags(as.tags.join(', '));
-                        setModelId(as.modelId);
-                        setIsEditing(true);
-                        return;
-                    }
-                }
                 setTitle(log.title);
                 setContent(log.content);
                 setTags(log.tags.join(', '));
                 setModelId(log.modelId);
                 setIsEditing(shouldEdit);
-
-                if (autosaveId) {
-                    const as = await db.autosaves.get(Number(autosaveId));
-                    if (as) {
-                        setCommentDraft(as.commentDraft || null);
-                    }
-                } else {
-                    setCommentDraft(null);
-                }
+                setCommentDraft(null);
                 return;
             };
             loadData();
 
             // Restoration prompt for existing log
             const checkExistingAutosave = async () => {
+                if (!shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
                 const existing = await db.autosaves
                     .where('originalId')
                     .equals(Number(id))
@@ -308,60 +288,42 @@ export const LogDetail: React.FC = () => {
             };
             checkExistingAutosave();
         } else if (isNew) {
-            const autosaveId = searchParams.get('autosaveId');
-            if (autosaveId) {
-                const loadAutosave = async () => {
-                    const autosave = await db.autosaves.get(Number(autosaveId));
-                    if (autosave) {
-                        setTitle(autosave.title);
-                        setContent(autosave.content);
-                        setTags(autosave.tags.join(', '));
-                        setModelId(autosave.modelId);
-                        setIsEditing(true);
-                        if (autosave.commentDraft) {
-                            setCommentDraft(autosave.commentDraft);
-                        }
-                    }
-                };
-                loadAutosave();
-            } else {
-                setTitle('');
-                setContent('');
-                setTags('');
-                setEditingDrawingData(undefined);
-                setEditingSpreadsheetData(undefined);
-                setModelId(undefined);
-                setCommentDraft(null);
-                setIsEditing(true);
+            setTitle('');
+            setContent('');
+            setTags('');
+            setEditingDrawingData(undefined);
+            setEditingSpreadsheetData(undefined);
+            setModelId(undefined);
+            setCommentDraft(null);
+            setIsEditing(true);
 
-                // Restoration prompt for new log
-                const checkNewAutosave = async () => {
-                    const latest = await db.autosaves
-                        .filter(a => a.originalId === undefined)
-                        .reverse()
-                        .sortBy('createdAt');
+            // Restoration prompt for new log
+            const checkNewAutosave = async () => {
+                const latest = await db.autosaves
+                    .filter(a => a.originalId === undefined)
+                    .reverse()
+                    .sortBy('createdAt');
 
-                    if (latest.length > 0) {
-                        const draft = latest[0];
-                        if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
-                            if (await confirm(t.log_detail.autosave_restore_confirm || "Restore unsaved changes?")) {
-                                setTitle(draft.title);
-                                setContent(draft.content);
-                                setTags(draft.tags.join(', '));
-                                setModelId(draft.modelId);
-                                if (draft.commentDraft) {
-                                    setCommentDraft(draft.commentDraft);
-                                }
+                if (latest.length > 0) {
+                    const draft = latest[0];
+                    if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
+                        if (await confirm(t.log_detail.autosave_restore_confirm || "Restore unsaved changes?")) {
+                            setTitle(draft.title);
+                            setContent(draft.content);
+                            setTags(draft.tags.join(', '));
+                            setModelId(draft.modelId);
+                            if (draft.commentDraft) {
+                                setCommentDraft(draft.commentDraft);
                             }
                         }
                     }
-                };
-                checkNewAutosave();
-            }
+                }
+            };
+            checkNewAutosave();
+        }
 
-            if (searchParams.get('drawing') === 'true') {
-                setIsFabricModalOpen(true);
-            }
+        if (searchParams.get('drawing') === 'true') {
+            setIsFabricModalOpen(true);
         }
     }, [log, isNew, id, searchParams]);
 
