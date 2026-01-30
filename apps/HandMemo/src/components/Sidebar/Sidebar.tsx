@@ -191,9 +191,10 @@ const AppVersion = styled.span`
 
 interface SidebarProps {
   onCloseMobile: (skipHistory?: boolean) => void;
+  isDirty?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false }) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-edited' | 'last-commented'>(() => {
@@ -209,7 +210,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && location.pathname !== '/';
+  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && isDirty && location.pathname !== '/';
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);

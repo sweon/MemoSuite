@@ -239,9 +239,10 @@ const StudyModeOption = styled.label<{ $active: boolean }>`
 
 interface SidebarProps {
   onCloseMobile: () => void;
+  isDirty?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false }) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'source-desc' | 'source-asc' | 'comment-desc' | 'alpha' | 'starred'>('date-desc');
@@ -264,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
 
-  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && location.pathname !== '/';
+  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && isDirty && location.pathname !== '/';
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 

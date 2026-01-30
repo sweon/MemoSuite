@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SyncModal, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CommentDraft } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
@@ -240,6 +240,29 @@ export const LogDetail: React.FC = () => {
         () => (id ? db.logs.get(Number(id)) : undefined),
         [id]
     );
+
+    const { setIsDirty } = useOutletContext<{ setIsDirty: (d: boolean) => void }>();
+
+    useEffect(() => {
+        if (!isEditing) {
+            setIsDirty(false);
+            return;
+        }
+
+        let isCurrentlyDirty = false;
+        if (isNew) {
+            isCurrentlyDirty = !!(title.trim() || content.trim() || tags.trim() || commentDraft);
+        } else if (log) {
+            const hasDraftChanges = !!commentDraft;
+            const hasLogChanges = title !== log.title ||
+                content !== log.content ||
+                tags !== log.tags.join(', ') ||
+                modelId !== log.modelId;
+            isCurrentlyDirty = hasDraftChanges || hasLogChanges;
+        }
+        setIsDirty(isCurrentlyDirty);
+        return () => setIsDirty(false);
+    }, [isEditing, isNew, title, content, tags, modelId, commentDraft, log, setIsDirty]);
 
     const models = useLiveQuery(() => db.models.orderBy('order').toArray());
 

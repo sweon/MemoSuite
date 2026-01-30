@@ -138,6 +138,7 @@ export const MainLayout: React.FC = () => {
     return Math.max(MIN_WIDTH, parsed);
   });
   const [isResizing, setIsResizing] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<any>(null);
 
@@ -218,7 +219,7 @@ export const MainLayout: React.FC = () => {
     <Container ref={containerRef} $isResizing={isResizing}>
       <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
       <SidebarWrapper $isOpen={isSidebarOpen} $width={sidebarWidth}>
-        <Sidebar onCloseMobile={() => setSidebarOpen(false)} />
+        <Sidebar onCloseMobile={() => setSidebarOpen(false)} isDirty={isDirty} />
         {/* Resize handle - always attached to the right edge of sidebar */}
         <ResizeHandle
           $isResizing={isResizing}
@@ -232,7 +233,7 @@ export const MainLayout: React.FC = () => {
           <FiMenu size={24} onClick={() => setSidebarOpen(true)} />
           <h3>LLMemo</h3>
         </MobileHeader>
-        <Outlet />
+        <Outlet context={{ setIsDirty }} />
       </ContentWrapper>
     </Container>
   );

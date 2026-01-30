@@ -135,6 +135,7 @@ export const MainLayout: React.FC = () => {
   });
   const [isResizing, setIsResizing] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isDirty, setIsDirty] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<any>(null);
 
@@ -257,7 +258,7 @@ export const MainLayout: React.FC = () => {
     <Container ref={containerRef} $isResizing={isResizing}>
       <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
       <SidebarWrapper $isOpen={isSidebarOpen} $width={sidebarWidth}>
-        <Sidebar onCloseMobile={(skip) => toggleSidebar(false, skip)} />
+        <Sidebar onCloseMobile={(skip) => toggleSidebar(false, skip)} isDirty={isDirty} />
         <ResizeHandle
           $isResizing={isResizing}
           $isVisible={isResizeHandleVisible}
@@ -271,7 +272,7 @@ export const MainLayout: React.FC = () => {
           {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
           <h3>BookMemo</h3>
         </MobileHeader>
-        <Outlet />
+        <Outlet context={{ setIsDirty }} />
       </ContentWrapper>
     </Container>
   );

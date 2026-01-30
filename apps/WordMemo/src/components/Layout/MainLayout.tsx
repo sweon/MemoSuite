@@ -137,6 +137,7 @@ export const MainLayout: React.FC = () => {
     return Math.max(MIN_WIDTH, parsed);
   });
   const [isResizing, setIsResizing] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<any>(null);
 
@@ -214,7 +215,7 @@ export const MainLayout: React.FC = () => {
     <Container ref={containerRef} $isResizing={isResizing}>
       <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
       <SidebarWrapper $isOpen={isSidebarOpen} $width={sidebarWidth}>
-        <Sidebar onCloseMobile={() => setSidebarOpen(false)} />
+        <Sidebar onCloseMobile={() => setSidebarOpen(false)} isDirty={isDirty} />
         <ResizeHandle
           $isResizing={isResizing}
           onMouseDown={startResizing}
@@ -234,7 +235,7 @@ export const MainLayout: React.FC = () => {
             <h3 style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>WordMemo</h3>
           </div>
         </MobileHeader>
-        <Outlet />
+        <Outlet context={{ setIsDirty }} />
       </ContentWrapper>
     </Container>
   );

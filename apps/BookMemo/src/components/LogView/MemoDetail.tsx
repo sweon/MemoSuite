@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SyncModal, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CommentDraft } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
@@ -363,6 +363,9 @@ export const MemoDetail: React.FC = () => {
     const [date, setDate] = useState('');
     const [pageNumber, setPageNumber] = useState('');
     const [quote, setQuote] = useState('');
+    const { setIsDirty } = useOutletContext<{ setIsDirty: (d: boolean) => void }>();
+
+
 
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
     const contentDrawingData = React.useMemo(() => {
@@ -379,6 +382,29 @@ export const MemoDetail: React.FC = () => {
         () => (bookId ? db.books.get(Number(bookId)) : (memo?.bookId ? db.books.get(memo.bookId) : undefined)),
         [bookId, memo]
     );
+
+    useEffect(() => {
+        if (!isEditing) {
+            setIsDirty(false);
+            return;
+        }
+
+        let isCurrentlyDirty = false;
+        if (isNew) {
+            // Include commentDraft in dirty check - if anything is typed in drawing/spreadsheet, it should be dirty
+            isCurrentlyDirty = !!(title.trim() || content.trim() || tags.trim() || quote.trim() || pageNumber.trim() || commentDraft);
+        } else if (memo) {
+            const hasDraftChanges = !!commentDraft;
+            const hasMemoChanges = title !== memo.title ||
+                content !== memo.content ||
+                tags !== memo.tags.join(', ') ||
+                quote !== (memo.quote || '') ||
+                pageNumber !== (memo.pageNumber?.toString() || '');
+            isCurrentlyDirty = hasDraftChanges || hasMemoChanges;
+        }
+        setIsDirty(isCurrentlyDirty);
+        return () => setIsDirty(false);
+    }, [isEditing, isNew, title, content, tags, quote, pageNumber, commentDraft, memo, setIsDirty]);
 
     useEffect(() => {
         const shouldEdit = searchParams.get('edit') === 'true';

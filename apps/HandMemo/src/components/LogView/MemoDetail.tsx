@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SyncModal, useLanguage, useModal } from '@memosuite/shared';
 
 import styled from 'styled-components';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CommentDraft } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
@@ -335,6 +335,28 @@ export const MemoDetail: React.FC = () => {
         () => (id ? db.memos.get(Number(id)) : undefined),
         [id]
     );
+
+    const { setIsDirty } = useOutletContext<{ setIsDirty: (d: boolean) => void }>();
+
+    useEffect(() => {
+        if (!isEditing) {
+            setIsDirty(false);
+            return;
+        }
+
+        let isCurrentlyDirty = false;
+        if (isNew) {
+            isCurrentlyDirty = !!(title.trim() || content.trim() || tags.trim() || commentDraft);
+        } else if (memo) {
+            const hasDraftChanges = !!commentDraft;
+            const hasMemoChanges = title !== memo.title ||
+                content !== memo.content ||
+                tags !== memo.tags.join(', ');
+            isCurrentlyDirty = hasDraftChanges || hasMemoChanges;
+        }
+        setIsDirty(isCurrentlyDirty);
+        return () => setIsDirty(false);
+    }, [isEditing, isNew, title, content, tags, commentDraft, memo, setIsDirty]);
 
     useEffect(() => {
         const shouldEdit = searchParams.get('edit') === 'true';

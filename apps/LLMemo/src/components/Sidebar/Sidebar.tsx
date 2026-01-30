@@ -184,9 +184,10 @@ const IconButton = styled.button`
 
 interface SidebarProps {
   onCloseMobile: () => void;
+  isDirty?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false }) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'model-desc' | 'model-asc' | 'comment-desc'>('date-desc');
@@ -206,7 +207,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
 
-  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && location.pathname !== '/';
+  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && isDirty && location.pathname !== '/';
 
   // Decide whether to replace history or push.
   // We only replace if we are already in a sub-page (log detail or settings).
