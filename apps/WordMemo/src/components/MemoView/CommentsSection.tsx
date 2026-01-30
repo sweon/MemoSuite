@@ -1,7 +1,7 @@
 import React from 'react';
 import { useColorTheme, useConfirm, useLanguage } from '@memosuite/shared';
 
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Comment, type CommentDraft } from '../../db';
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
@@ -13,51 +13,53 @@ import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 
 const Section = styled.div`
-  margin-top: 4rem;
-  border-top: 2px solid ${({ theme }) => theme.colors.border};
-  padding-top: 2.5rem;
-  padding-bottom: 2.5rem;
+  margin-top: 2rem;
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
 `;
 
 const SectionHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
   
   h3 {
     margin: 0;
-    font-size: 1.25rem;
-    color: ${({ theme }) => theme.colors.text};
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
   
   .count {
-    background: ${({ theme }) => theme.colors.border};
-    color: ${({ theme }) => theme.colors.textSecondary};
+    background: ${({ theme }) => theme.colors.primary}15;
+    color: ${({ theme }) => theme.colors.primary};
     padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    font-weight: 600;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
   }
 `;
 
 const CommentList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.75rem;
 `;
 
 const CommentItem = styled.div`
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: 12px;
-  padding: 1.25rem;
-  background: ${({ theme }) => theme.colors.surface};
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  border-left: 3px solid ${({ theme }) => theme.colors.primary}40;
+  padding: 0.75rem 1rem;
+  background: ${({ theme }) => theme.colors.background};
+  border-radius: 0 8px 8px 0;
+  transition: all 0.15s ease;
 
   &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-left-color: ${({ theme }) => theme.colors.primary};
+    background: ${({ theme }) => theme.colors.surface};
   }
 `;
 
@@ -65,16 +67,20 @@ const CommentHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
   color: ${({ theme }) => theme.colors.textSecondary};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  padding-bottom: 0.5rem;
 `;
 
 const Actions = styled.div`
   display: flex;
-  gap: 0.25rem;
+  gap: 0.125rem;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+
+  ${CommentItem}:hover & {
+    opacity: 1;
+  }
 `;
 
 const ActionIcon = styled.button<{ $variant?: 'danger' | 'primary' }>`
@@ -82,38 +88,32 @@ const ActionIcon = styled.button<{ $variant?: 'danger' | 'primary' }>`
   border: none;
   cursor: pointer;
   color: ${({ theme }) => theme.colors.textSecondary};
-  padding: 6px;
-  border-radius: 6px;
+  padding: 4px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.15s;
 
   &:hover {
-    background: ${({ theme }) => theme.colors.background};
+    background: ${({ theme }) => theme.colors.border};
     color: ${({ theme, $variant }) => $variant === 'danger' ? theme.colors.danger : theme.colors.primary};
   }
 `;
 
-const slideDown = keyframes`
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
-
 const EditorContainer = styled.div`
-  margin-top: 1rem;
-  border: 1.5px solid ${({ theme }) => theme.colors.primary};
-  border-radius: 12px;
+  margin-top: 0.75rem;
+  border: 1px solid ${({ theme }) => theme.colors.primary}60;
+  border-radius: 8px;
   overflow: hidden;
   background: ${({ theme }) => theme.colors.surface};
-  animation: ${slideDown} 0.2s ease-out;
 `;
 
 const EditorHeader = styled.div`
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
   background: ${({ theme }) => theme.colors.background};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
@@ -121,16 +121,16 @@ const EditorHeader = styled.div`
 const HeaderButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
+  gap: 0.25rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
   
   background: ${({ theme, $variant }) => $variant === 'primary' ? theme.colors.primary : 'transparent'};
-  color: ${({ theme, $variant }) => $variant === 'primary' ? 'white' : theme.colors.text};
+  color: ${({ theme, $variant }) => $variant === 'primary' ? 'white' : theme.colors.textSecondary};
   border: ${({ theme, $variant }) => $variant === 'primary' ? 'none' : `1px solid ${theme.colors.border}`};
 
   &:hover {
@@ -140,25 +140,26 @@ const HeaderButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
 `;
 
 const AddButton = styled.button`
-  margin-top: 1.5rem;
+  margin-top: 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  background: ${({ theme }) => theme.colors.background};
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  background: transparent;
   color: ${({ theme }) => theme.colors.textSecondary};
-  border: 2px dashed ${({ theme }) => theme.colors.border};
+  border: 1px dashed ${({ theme }) => theme.colors.border};
   width: 100%;
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.15s;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     color: ${({ theme }) => theme.colors.primary};
-    background: ${({ theme }) => theme.colors.surface};
+    background: ${({ theme }) => theme.colors.primary}08;
   }
 `;
 
