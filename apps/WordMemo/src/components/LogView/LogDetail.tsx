@@ -873,12 +873,6 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                             >
                                 <FiSave size={14} /> {t.log_detail.save}
                             </ActionButton>
-                            <ActionButton onClick={handleRandomWord}>
-                                <FiList size={14} /> {t.log_detail.random_word}
-                            </ActionButton>
-                            <ActionButton onClick={() => setShowBulkAdd(true)}>
-                                <FiPlus size={14} /> {t.log_detail.bulk_add}
-                            </ActionButton>
                             <ActionButton $variant="cancel" onClick={() => {
                                 if (isPlaceholder) {
                                     navigate('/', { replace: true });
@@ -894,6 +888,12 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 setIsEditing(false);
                             }}>
                                 <FiX size={14} /> {t.log_detail.cancel}
+                            </ActionButton>
+                            <ActionButton onClick={handleRandomWord}>
+                                <FiList size={14} /> {t.log_detail.random_word}
+                            </ActionButton>
+                            <ActionButton onClick={() => setShowBulkAdd(true)}>
+                                <FiPlus size={14} /> {t.log_detail.bulk_add}
                             </ActionButton>
                         </>
                     ) : (

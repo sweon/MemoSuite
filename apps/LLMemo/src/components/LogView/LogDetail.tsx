@@ -632,14 +632,21 @@ export const LogDetail: React.FC = () => {
                             >
                                 <FiSave size={14} /> {t.log_detail.save}
                             </ActionButton>
+                            <ActionButton onClick={() => {
+                                if (isNew) {
+                                    navigate('/');
+                                    return;
+                                }
+                                if (searchParams.get('edit')) {
+                                    navigate(`/log/${id}`, { replace: true });
+                                }
+                                setIsEditing(false);
+                            }}>
+                                <FiX size={14} /> {t.log_detail.cancel}
+                            </ActionButton>
                             {!isNew && (
-                                <ActionButton onClick={() => {
-                                    if (searchParams.get('edit')) {
-                                        navigate(`/log/${id}`, { replace: true });
-                                    }
-                                    setIsEditing(false);
-                                }}>
-                                    <FiX size={14} /> {t.log_detail.cancel}
+                                <ActionButton onClick={handleAddThread}>
+                                    <FiGitMerge size={14} /> {t.log_detail.add_thread}
                                 </ActionButton>
                             )}
                         </>

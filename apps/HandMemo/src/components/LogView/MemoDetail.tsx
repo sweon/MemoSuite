@@ -688,20 +688,22 @@ export const MemoDetail: React.FC = () => {
                             >
                                 <FiSave size={14} /> {t.memo_detail.save}
                             </ActionButton>
+                            <ActionButton onClick={() => {
+                                if (isNew) {
+                                    navigate('/');
+                                    return;
+                                }
+                                if (searchParams.get('edit')) {
+                                    navigate(`/memo/${id}`, { replace: true });
+                                }
+                                setIsEditing(false);
+                            }}>
+                                <FiX size={14} /> {t.memo_detail.cancel}
+                            </ActionButton>
                             {!isNew && (
-                                <>
-                                    <ActionButton $variant="danger" onClick={handleDelete}>
-                                        <FiTrash2 size={14} /> {t.memo_detail.delete}
-                                    </ActionButton>
-                                    <ActionButton onClick={() => {
-                                        if (searchParams.get('edit')) {
-                                            navigate(`/memo/${id}`, { replace: true });
-                                        }
-                                        setIsEditing(false);
-                                    }}>
-                                        <FiX size={14} /> {t.memo_detail.cancel}
-                                    </ActionButton>
-                                </>
+                                <ActionButton $variant="danger" onClick={handleDelete}>
+                                    <FiTrash2 size={14} /> {t.memo_detail.delete}
+                                </ActionButton>
                             )}
                         </>
                     ) : (
