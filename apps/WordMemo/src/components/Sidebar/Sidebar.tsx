@@ -264,7 +264,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
 
-  const isEditing = location.pathname.includes('/new') || searchParams.get('edit') === 'true';
+  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && location.pathname !== '/';
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 

@@ -206,7 +206,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile }) => {
   const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
 
-  const isEditing = location.pathname.includes('/new') || searchParams.get('edit') === 'true';
+  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && location.pathname !== '/';
 
   // Decide whether to replace history or push.
   // We only replace if we are already in a sub-page (log detail or settings).
