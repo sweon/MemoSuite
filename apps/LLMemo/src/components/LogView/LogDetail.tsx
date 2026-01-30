@@ -264,19 +264,16 @@ export const LogDetail: React.FC = () => {
     }, [isEditing, isCurrentlyDirty, setIsDirty]);
 
     const models = useLiveQuery(() => db.models.orderBy('order').toArray());
+    const loadedIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        // Check for edit mode from URL first
-        const shouldEdit = searchParams.get('edit') === 'true';
-
-        if (log) {
+        if (log && loadedIdRef.current !== id) {
             const loadData = async () => {
+                const tagsStr = log.tags.join(', ');
                 setTitle(log.title);
                 setContent(log.content);
-                const tagsStr = log.tags.join(', ');
                 setTags(tagsStr);
                 setModelId(log.modelId);
-                setIsEditing(shouldEdit);
                 setCommentDraft(null);
 
                 // Initialize lastSavedState with loaded values
@@ -287,9 +284,14 @@ export const LogDetail: React.FC = () => {
                     modelId: log.modelId,
                     commentDraft: null
                 };
-                return;
+                loadedIdRef.current = id || null;
             };
             loadData();
+        }
+
+        if (log) {
+            const shouldEdit = searchParams.get('edit') === 'true';
+            if (shouldEdit && !isEditing) setIsEditing(true);
 
             // Restoration prompt for existing log
             const checkExistingAutosave = async () => {
@@ -317,7 +319,7 @@ export const LogDetail: React.FC = () => {
                 }
             };
             checkExistingAutosave();
-        } else if (isNew) {
+        } else if (isNew && loadedIdRef.current !== 'new') {
             setTitle('');
             setContent('');
             setTags('');
@@ -326,6 +328,7 @@ export const LogDetail: React.FC = () => {
             setModelId(undefined);
             setCommentDraft(null);
             setIsEditing(true);
+            loadedIdRef.current = 'new';
 
             // Restoration prompt for new log
             const checkNewAutosave = async () => {
@@ -420,7 +423,7 @@ export const LogDetail: React.FC = () => {
         }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
-    }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft, log]); // Added dependencies to ensure interval starts/stops correctly
+    }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft]); // Removed log dependency to prevent interval reset on DB updates
 
     const handleSave = async () => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);

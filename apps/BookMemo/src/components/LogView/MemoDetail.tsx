@@ -404,19 +404,18 @@ export const MemoDetail: React.FC = () => {
         return () => setIsDirty(false);
     }, [isEditing, isCurrentlyDirty, setIsDirty]);
 
-    useEffect(() => {
-        const shouldEdit = searchParams.get('edit') === 'true';
+    const loadedIdRef = useRef<string | null>(null);
 
-        if (memo) {
+    useEffect(() => {
+        if (memo && loadedIdRef.current !== id) {
             const loadData = async () => {
+                const tagsStr = memo.tags.join(', ');
                 setTitle(memo.title);
                 setContent(memo.content);
-                const tagsStr = memo.tags.join(', ');
                 setTags(tagsStr);
                 setPageNumber(memo.pageNumber?.toString() || '');
                 setQuote(memo.quote || '');
                 setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
-                setIsEditing(shouldEdit);
                 setCommentDraft(null);
 
                 // Initialize lastSavedState with loaded values
@@ -428,9 +427,14 @@ export const MemoDetail: React.FC = () => {
                     quote: memo.quote || '',
                     commentDraft: null
                 };
-                return;
+                loadedIdRef.current = id || null;
             };
             loadData();
+        }
+
+        if (memo) {
+            const shouldEdit = searchParams.get('edit') === 'true';
+            if (shouldEdit && !isEditing) setIsEditing(shouldEdit);
 
             // Restoration for existing memo: Automatically update state without asking
             const checkExistingAutosave = async () => {
@@ -460,7 +464,7 @@ export const MemoDetail: React.FC = () => {
             };
             checkExistingAutosave();
 
-        } else if (isNew) {
+        } else if (isNew && loadedIdRef.current !== 'new') {
             setTitle('');
             setContent('');
             setTags('');
@@ -472,6 +476,7 @@ export const MemoDetail: React.FC = () => {
             setCommentDraft(null);
             setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
             setIsEditing(true);
+            loadedIdRef.current = 'new';
 
             if (searchParams.get('drawing') === 'true') {
                 setIsFabricModalOpen(true);
@@ -573,7 +578,7 @@ export const MemoDetail: React.FC = () => {
         }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
-    }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft, bookId, memo?.bookId]); // Added dependencies to ensure interval starts/stops correctly
+    }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft, bookId]); // Removed memo dependency to prevent interval reset on DB updates
 
     const handleSave = async () => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
