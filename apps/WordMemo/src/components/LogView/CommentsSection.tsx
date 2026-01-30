@@ -436,60 +436,60 @@ export const CommentsSection: React.FC<{
                         setIsAdding(false);
                         setEditingId(null);
                     }
-                    }}
-            onAutosave={async (json: string) => {
-                const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
-                let found = false;
-
-                if (editingId === activeCommentId) {
-                    const updatedContent = editingDrawingData
-                        ? editContent.replace(fabricRegex, (match, p1) => {
-                            if (!found && p1.trim() === editingDrawingData.trim()) {
-                                found = true;
-                                return `\`\`\`fabric\n${json}\n\`\`\``;
-                            }
-                            return match;
-                        })
-                        : (editContent.trim() ? `${editContent}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
-                    if (updatedContent !== editContent) setEditContent(updatedContent);
-                } else if (isAdding && activeCommentId === -1) {
-                    const updatedContent = editingDrawingData
-                        ? newContent.replace(fabricRegex, (match, p1) => {
-                            if (!found && p1.trim() === editingDrawingData.trim()) {
-                                found = true;
-                                return `\`\`\`fabric\n${json}\n\`\`\``;
-                            }
-                            return match;
-                        })
-                        : (newContent.trim() ? `${newContent}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
-                    if (updatedContent !== newContent) setNewContent(updatedContent);
-                } else if (activeCommentId) {
-                    const comment = await db.comments.get(activeCommentId);
-                    if (comment) {
-                        const finalContent = editingDrawingData
-                            ? comment.content.replace(fabricRegex, (match, p1) => {
-                                if (!found && p1.trim() === editingDrawingData.trim()) {
-                                    found = true;
-                                    return `\`\`\`fabric\n${json}\n\`\`\``;
-                                }
-                                return match;
-                            })
-                            : (comment.content.trim() ? `${comment.content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
-
-                        if (finalContent !== comment.content) {
-                            await db.comments.update(activeCommentId, {
-                                content: finalContent,
-                                updatedAt: new Date()
-                            });
-                        }
                     }
-                }
-            }}
-            onClose={() => {
-                setIsFabricModalOpen(false);
-                setActiveCommentId(null);
-                setEditingDrawingData(undefined);
-            }}
+                    onAutosave={async (json: string) => {
+                        const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                        let found = false;
+
+                        if (editingId === activeCommentId) {
+                            const updatedContent = editingDrawingData
+                                ? editContent.replace(fabricRegex, (match, p1) => {
+                                    if (!found && p1.trim() === editingDrawingData.trim()) {
+                                        found = true;
+                                        return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    }
+                                    return match;
+                                })
+                                : (editContent.trim() ? `${editContent}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
+                            if (updatedContent !== editContent) setEditContent(updatedContent);
+                        } else if (isAdding && activeCommentId === -1) {
+                            const updatedContent = editingDrawingData
+                                ? newContent.replace(fabricRegex, (match, p1) => {
+                                    if (!found && p1.trim() === editingDrawingData.trim()) {
+                                        found = true;
+                                        return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    }
+                                    return match;
+                                })
+                                : (newContent.trim() ? `${newContent}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
+                            if (updatedContent !== newContent) setNewContent(updatedContent);
+                        } else if (activeCommentId) {
+                            const comment = await db.comments.get(activeCommentId);
+                            if (comment) {
+                                const finalContent = editingDrawingData
+                                    ? comment.content.replace(fabricRegex, (match, p1) => {
+                                        if (!found && p1.trim() === editingDrawingData.trim()) {
+                                            found = true;
+                                            return `\`\`\`fabric\n${json}\n\`\`\``;
+                                        }
+                                        return match;
+                                    })
+                                    : (comment.content.trim() ? `${comment.content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``);
+
+                                if (finalContent !== comment.content) {
+                                    await db.comments.update(activeCommentId, {
+                                        content: finalContent,
+                                        updatedAt: new Date()
+                                    });
+                                }
+                            }
+                        }
+                    }}
+                    onClose={() => {
+                        setIsFabricModalOpen(false);
+                        setActiveCommentId(null);
+                        setEditingDrawingData(undefined);
+                    }}
                 />
             )}
 
