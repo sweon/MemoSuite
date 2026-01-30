@@ -402,10 +402,19 @@ export const MemoDetail: React.FC = () => {
                     if (hasMemoChanges || hasCommentDraft) {
                         setTitle(draft.title);
                         setContent(draft.content);
-                        setTags(draft.tags.join(', '));
+                        const tagsStr = draft.tags.join(', ');
+                        setTags(tagsStr);
                         if (draft.commentDraft) {
                             setCommentDraft(draft.commentDraft);
                         }
+
+                        // Also update lastSavedState to match the restored draft
+                        lastSavedState.current = {
+                            title: draft.title,
+                            content: draft.content,
+                            tags: tagsStr,
+                            commentDraft: draft.commentDraft || null
+                        };
                     }
                 }
             };
@@ -447,10 +456,19 @@ export const MemoDetail: React.FC = () => {
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
                         setTitle(draft.title);
                         setContent(draft.content);
-                        setTags(draft.tags.join(', '));
+                        const tagsStr = draft.tags.join(', ');
+                        setTags(tagsStr);
                         if (draft.commentDraft) {
                             setCommentDraft(draft.commentDraft);
                         }
+
+                        // Also update lastSavedState to match the restored draft
+                        lastSavedState.current = {
+                            title: draft.title,
+                            content: draft.content,
+                            tags: tagsStr,
+                            commentDraft: draft.commentDraft || null
+                        };
                     }
                 }
             };

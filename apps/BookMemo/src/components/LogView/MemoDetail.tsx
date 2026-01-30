@@ -453,12 +453,23 @@ export const MemoDetail: React.FC = () => {
                     if (hasMemoChanges || hasCommentDraft) {
                         setTitle(draft.title);
                         setContent(draft.content);
-                        setTags(draft.tags.join(', '));
+                        const tagsStr = draft.tags.join(', ');
+                        setTags(tagsStr);
                         setPageNumber(draft.pageNumber?.toString() || '');
                         setQuote(draft.quote || '');
                         if (draft.commentDraft) {
                             setCommentDraft(draft.commentDraft);
                         }
+
+                        // Also update lastSavedState to match the restored draft
+                        lastSavedState.current = {
+                            title: draft.title,
+                            content: draft.content,
+                            tags: tagsStr,
+                            pageNumber: draft.pageNumber?.toString() || '',
+                            quote: draft.quote || '',
+                            commentDraft: draft.commentDraft || null
+                        };
                     }
                 }
             };
@@ -498,12 +509,23 @@ export const MemoDetail: React.FC = () => {
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
                         setTitle(draft.title);
                         setContent(draft.content);
-                        setTags(draft.tags.join(', '));
+                        const tagsStr = draft.tags.join(', ');
+                        setTags(tagsStr);
                         setPageNumber(draft.pageNumber?.toString() || '');
                         setQuote(draft.quote || '');
                         if (draft.commentDraft) {
                             setCommentDraft(draft.commentDraft);
                         }
+
+                        // Also update lastSavedState to match the restored draft
+                        lastSavedState.current = {
+                            title: draft.title,
+                            content: draft.content,
+                            tags: tagsStr,
+                            pageNumber: draft.pageNumber?.toString() || '',
+                            quote: draft.quote || '',
+                            commentDraft: draft.commentDraft || null
+                        };
                     }
                 }
             };
@@ -535,7 +557,7 @@ export const MemoDetail: React.FC = () => {
 
             const hasChanged = cTitle !== lastSavedState.current.title ||
                 cContent !== lastSavedState.current.content ||
-                cPageNumber !== lastSavedState.current.pageNumber ||
+                String(cPageNumber) !== String(lastSavedState.current.pageNumber) ||
                 cQuote !== lastSavedState.current.quote ||
                 JSON.stringify(currentTagArray) !== JSON.stringify(lastTagArray) ||
                 JSON.stringify(cCommentDraft) !== JSON.stringify(lastSavedState.current.commentDraft);

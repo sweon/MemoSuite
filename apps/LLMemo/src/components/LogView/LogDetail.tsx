@@ -310,11 +310,21 @@ export const LogDetail: React.FC = () => {
                     if (hasLogChanges || hasCommentDraft) {
                         setTitle(draft.title);
                         setContent(draft.content);
-                        setTags(draft.tags.join(', '));
+                        const tagsStr = draft.tags.join(', ');
+                        setTags(tagsStr);
                         setModelId(draft.modelId);
                         if (draft.commentDraft) {
                             setCommentDraft(draft.commentDraft);
                         }
+
+                        // Also update lastSavedState to match the restored draft
+                        lastSavedState.current = {
+                            title: draft.title,
+                            content: draft.content,
+                            tags: tagsStr,
+                            modelId: draft.modelId,
+                            commentDraft: draft.commentDraft || null
+                        };
                     }
                 }
             };
@@ -342,11 +352,21 @@ export const LogDetail: React.FC = () => {
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
                         setTitle(draft.title);
                         setContent(draft.content);
-                        setTags(draft.tags.join(', '));
+                        const tagsStr = draft.tags.join(', ');
+                        setTags(tagsStr);
                         setModelId(draft.modelId);
                         if (draft.commentDraft) {
                             setCommentDraft(draft.commentDraft);
                         }
+
+                        // Also update lastSavedState to match the restored draft
+                        lastSavedState.current = {
+                            title: draft.title,
+                            content: draft.content,
+                            tags: tagsStr,
+                            modelId: draft.modelId,
+                            commentDraft: draft.commentDraft || null
+                        };
                     }
                 }
             };
@@ -383,7 +403,7 @@ export const LogDetail: React.FC = () => {
 
             const hasChanged = cTitle !== lastSavedState.current.title ||
                 cContent !== lastSavedState.current.content ||
-                cModelId !== lastSavedState.current.modelId ||
+                String(cModelId) !== String(lastSavedState.current.modelId) ||
                 JSON.stringify(currentTagArray) !== JSON.stringify(lastTagArray) ||
                 JSON.stringify(cCommentDraft) !== JSON.stringify(lastSavedState.current.commentDraft);
 
