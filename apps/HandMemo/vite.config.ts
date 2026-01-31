@@ -17,14 +17,16 @@ export default defineConfig({
       selfDestroying: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
+        id: './',
         name: 'HandMemo',
         short_name: 'HandMemo',
         description: 'Local-first Note-taking & Drawing',
         theme_color: '#ef8e13',
         background_color: '#ffffff',
-        start_url: '/MemoSuite/HandMemo/',
-        scope: '/MemoSuite/HandMemo/',
+        start_url: './',
+        scope: './',
         display: 'standalone',
+        display_override: ['window-controls-overlay', 'standalone'],
         orientation: 'any',
         categories: ['productivity', 'utilities', 'notes'],
         icons: [
@@ -53,10 +55,10 @@ export default defineConfig({
             purpose: 'maskable'
           }
         ],
+        prefer_related_applications: false,
         share_target: {
-          action: '/MemoSuite/HandMemo/',
+          action: './',
           method: 'GET',
-          enctype: 'application/x-www-form-urlencoded',
           params: {
             title: 'title',
             text: 'text',
@@ -66,9 +68,9 @@ export default defineConfig({
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 10000000, // 10MB
-        // Disable automatic updates on navigation
-        skipWaiting: false,
-        clientsClaim: false
+        // Claim clients immediately to ensure the service worker is active and registering the manifest features
+        skipWaiting: true,
+        clientsClaim: true
       }
     })
   ],
