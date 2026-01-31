@@ -841,13 +841,25 @@ export const MainLayout: React.FC = () => {
       }
     };
 
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Allow context menu only on inputs or textareas if absolutely needed,
+      // otherwise block to prevent "Download/Share/Print" popup on long-press.
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('.CodeMirror') || target.closest('.fortune-container')) {
+        return;
+      }
+      e.preventDefault();
+    };
+
     window.addEventListener('drop', handleGlobalDrop);
     window.addEventListener('dragover', handleDragOver);
     window.addEventListener('paste', handleGlobalPaste);
+    window.addEventListener('contextmenu', handleContextMenu);
     return () => {
       window.removeEventListener('drop', handleGlobalDrop);
       window.removeEventListener('dragover', handleDragOver);
       window.removeEventListener('paste', handleGlobalPaste);
+      window.removeEventListener('contextmenu', handleContextMenu);
     };
   }, [location.pathname, navigate]);
 

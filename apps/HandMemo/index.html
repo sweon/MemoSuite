@@ -17,6 +17,27 @@
     html,
     body {
       overscroll-behavior: none;
+      -webkit-touch-callout: none;
+      /* Disable systemic popups on long-press */
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    input,
+    textarea,
+    [contenteditable="true"],
+    .CodeMirror,
+    .EasyMDEContainer,
+    .fortune-container,
+    .luckysheet {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    img {
+      -webkit-touch-callout: none;
+      pointer-events: none;
+      /* Optional: prevents dragging images if needed */
     }
   </style>
 </head>
