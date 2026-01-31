@@ -260,6 +260,7 @@ export const MemoDetail: React.FC = () => {
     const commentDraftRef = useRef<CommentDraft | null>(null);
     useEffect(() => { commentDraftRef.current = commentDraft; }, [commentDraft]);
     const restoredIdRef = useRef<string | null>(null);
+    const [commentRestorationVersion, setCommentRestorationVersion] = useState(0);
 
     // Track Sidebar interactions via t parameter to ensure stable modal opening
     const tParam = searchParams.get('t');
@@ -348,8 +349,8 @@ export const MemoDetail: React.FC = () => {
         [id]
     );
 
-    const { setIsEditing: setAppIsEditing, movingMemoId, setMovingMemoId } = useOutletContext<{
-        setIsEditing: (active: boolean) => void,
+    const { setAppIsEditing, movingMemoId, setMovingMemoId } = useOutletContext<{
+        setAppIsEditing: (val: boolean) => void,
         movingMemoId: number | null,
         setMovingMemoId: (id: number | null) => void
     }>();
@@ -366,9 +367,9 @@ export const MemoDetail: React.FC = () => {
         )));
 
     useEffect(() => {
-        setAppIsEditing(isEditing);
+        setAppIsEditing(isEditing || (!!commentDraft && commentDraft.content.trim().length > 0));
         return () => setAppIsEditing(false);
-    }, [isEditing, setAppIsEditing]);
+    }, [isEditing, commentDraft, setAppIsEditing]);
 
     const loadedIdRef = useRef<string | null>(null);
 
@@ -377,42 +378,20 @@ export const MemoDetail: React.FC = () => {
             const loadData = async () => {
                 const tagsStr = memo.tags.join(', ');
 
-                // Check for autosave for initial display
-                const existing = await db.autosaves
-                    .where('originalId')
-                    .equals(Number(id))
-                    .reverse()
-                    .sortBy('createdAt');
-
-                let initialTitle = memo.title;
-                let initialContent = memo.content;
-                let initialTagsStr = tagsStr;
-                let initialCommentDraft: CommentDraft | null = null;
-
-                if (existing.length > 0) {
-                    const draft = existing[0];
-                    initialTitle = draft.title;
-                    initialContent = draft.content;
-                    initialTagsStr = draft.tags.join(', ');
-                    initialCommentDraft = draft.commentDraft || null;
-
-                    // Resume autosave session and mark as restored
-                    currentAutosaveIdRef.current = draft.id;
-                    restoredIdRef.current = id || null;
-                }
-
-                setTitle(initialTitle);
-                setContent(initialContent);
-                setTags(initialTagsStr);
+                // Only load original memo data when viewing
+                // Autosave restoration happens separately in checkExistingAutosave
+                setTitle(memo.title);
+                setContent(memo.content);
+                setTags(tagsStr);
                 setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : formatDateForInput(memo.createdAt));
-                setCommentDraft(initialCommentDraft);
+                setCommentDraft(null);
 
-                // Initialize lastSavedState with initial values
+                // Initialize lastSavedState with original memo values
                 lastSavedState.current = {
-                    title: initialTitle,
-                    content: initialContent,
-                    tags: initialTagsStr,
-                    commentDraft: initialCommentDraft
+                    title: memo.title,
+                    content: memo.content,
+                    tags: tagsStr,
+                    commentDraft: null
                 };
                 loadedIdRef.current = id || null;
             };
@@ -447,7 +426,7 @@ export const MemoDetail: React.FC = () => {
                         const tagsStr = draft.tags.join(', ');
                         setTags(tagsStr);
                         if (draft.commentDraft) {
-                            setCommentDraft(draft.commentDraft);
+                            setCommentDraft(draft.commentDraft); setCommentRestorationVersion(v => v + 1);
                         }
 
                         // Also update lastSavedState to match the restored draft
@@ -510,7 +489,7 @@ export const MemoDetail: React.FC = () => {
                         const tagsStr = draft.tags.join(', ');
                         setTags(tagsStr);
                         if (draft.commentDraft) {
-                            setCommentDraft(draft.commentDraft);
+                            setCommentDraft(draft.commentDraft); setCommentRestorationVersion(v => v + 1);
                         }
 
                         // Also update lastSavedState to match the restored draft
@@ -857,6 +836,7 @@ export const MemoDetail: React.FC = () => {
                     <CommentsWrapper>
                         {!isNew && memo && (
                             <CommentsSection
+                                key={`${memo.id!}-${commentRestorationVersion}`}
                                 memoId={memo.id!}
                                 initialEditingState={commentDraft}
                                 onEditingChange={setCommentDraft}

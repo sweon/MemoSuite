@@ -421,7 +421,7 @@ export const MainLayout: React.FC = () => {
     return Math.max(minW, parsed);
   });
   const [isResizing, setIsResizing] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isAppEditing, setAppIsEditing] = useState(false);
   const [movingMemoId, setMovingMemoId] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -891,7 +891,7 @@ export const MainLayout: React.FC = () => {
       <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
         <Sidebar
           onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)}
-          isEditing={isEditing}
+          isEditing={isAppEditing}
           movingMemoId={movingMemoId}
           setMovingMemoId={setMovingMemoId}
         />
@@ -908,7 +908,7 @@ export const MainLayout: React.FC = () => {
           {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
           <h3>HandMemo</h3>
         </MobileHeader>
-        <Outlet context={{ setIsEditing, movingMemoId, setMovingMemoId }} />
+        <Outlet context={{ setAppIsEditing, movingMemoId, setMovingMemoId }} />
       </ContentWrapper>
 
       {pasteButton && (
@@ -941,6 +941,6 @@ export const MainLayout: React.FC = () => {
           <FiSave size={14} /> {language === 'ko' ? '붙여넣기' : 'Paste'}
         </div>
       )}
-    </Container>
+    </Container >
   );
 };
