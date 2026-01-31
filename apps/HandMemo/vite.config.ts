@@ -68,7 +68,6 @@ export default defineConfig({
               {
                 name: 'files',
                 accept: [
-                  'image/*',
                   'text/plain',
                   'text/markdown',
                   'text/csv',
