@@ -9,7 +9,7 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiArrowRightCircle } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -355,7 +355,12 @@ export const MemoDetail: React.FC = () => {
         [id]
     );
 
-    const { setIsDirty } = useOutletContext<{ setIsDirty: (d: boolean) => void }>();
+    const { setIsDirty, movingMemoId, setMovingMemoId } = useOutletContext<{
+        setIsDirty: (d: boolean) => void,
+        movingMemoId: number | null,
+        setMovingMemoId: (id: number | null) => void
+    }>();
+    const isMovingLocal = movingMemoId === Number(id);
 
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
@@ -803,6 +808,21 @@ export const MemoDetail: React.FC = () => {
                             <ActionButton $variant="danger" onClick={handleDelete}>
                                 <FiTrash2 size={14} /> {t.memo_detail.delete}
                             </ActionButton>
+                            {!isNew && (
+                                <ActionButton
+                                    $variant={isMovingLocal ? "primary" : undefined}
+                                    onClick={() => {
+                                        if (isMovingLocal) {
+                                            setMovingMemoId?.(null);
+                                        } else {
+                                            setMovingMemoId?.(Number(id));
+                                        }
+                                    }}
+                                >
+                                    <FiArrowRightCircle size={14} />
+                                    {isMovingLocal ? (language === 'ko' ? '이동 중...' : 'Moving...') : (language === 'ko' ? '옮기기' : 'Move')}
+                                </ActionButton>
+                            )}
                             <ActionButton onClick={() => setIsShareModalOpen(true)}>
                                 <FiShare2 size={14} /> {t.memo_detail.share_memo}
                             </ActionButton>

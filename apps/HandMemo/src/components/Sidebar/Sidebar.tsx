@@ -192,9 +192,16 @@ const AppVersion = styled.span`
 interface SidebarProps {
   onCloseMobile: (skipHistory?: boolean) => void;
   isDirty?: boolean;
+  movingMemoId?: number | null;
+  setMovingMemoId?: (id: number | null) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  onCloseMobile,
+  isDirty = false,
+  movingMemoId,
+  setMovingMemoId
+}) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-edited' | 'last-commented'>(() => {
@@ -537,8 +544,77 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
 
   const showUpdateIndicator = needRefresh && updateCheckedManually;
 
+  const handleMove = async (targetMemoId: number) => {
+    if (!movingMemoId || !setMovingMemoId) return;
+    if (movingMemoId === targetMemoId) return;
+
+    try {
+      // Get the target memo to see its threadId
+      const targetMemo = await db.memos.get(targetMemoId);
+      if (!targetMemo) return;
+
+      // If target is already a child, we should use its parent's threadId 
+      // OR just make it a child of the target.
+      // Usually "threadId" is assigned to all memos in a group, and they are ordered by threadOrder.
+      // Wait, in HandMemo's ThreadableList, threadId is common for all siblings.
+
+      const threadId = targetMemo.threadId || uuidv4();
+
+      // If target was not in a thread, we need to update it too
+      if (!targetMemo.threadId) {
+        await db.memos.update(targetMemoId, { threadId, threadOrder: 0 });
+      }
+
+      // Find max order in this thread
+      const siblings = await db.memos.where('threadId').equals(threadId).toArray();
+      const maxOrder = siblings.reduce((max, m) => Math.max(max, m.threadOrder || 0), 0);
+
+      await db.memos.update(movingMemoId, {
+        threadId,
+        threadOrder: maxOrder + 1,
+        updatedAt: new Date()
+      });
+
+      setMovingMemoId(null);
+      setToastMessage(t.sidebar.move_success || "Memo moved successfully");
+    } catch (err) {
+      console.error('Failed to move memo', err);
+      setToastMessage(t.sidebar.move_failed || "Failed to move memo");
+    }
+  };
+
   return (
     <SidebarContainer>
+      {movingMemoId && (
+        <div style={{
+          padding: '12px',
+          background: theme.colors.primary,
+          color: 'white',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          zIndex: 10
+        }}>
+          <span>{t.sidebar.select_target || "Select target memo"}</span>
+          <button
+            onClick={() => setMovingMemoId?.(null)}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              color: 'white',
+              borderRadius: '4px',
+              padding: '2px 8px',
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+          >
+            {t.common?.cancel || "Cancel"}
+          </button>
+        </div>
+      )}
       <BrandHeader>
         <AppTitle>HandMemo</AppTitle>
         <AppVersion>v{pkg.version}</AppVersion>
@@ -693,13 +769,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
             key={item.memo.id}
             memo={item.memo}
             isActive={location.pathname.includes(`/memo/${item.memo.id}`)}
-            onClick={onCloseMobile}
+            onClick={(skipHistory) => {
+              if (movingMemoId) {
+                handleMove(item.memo.id!);
+              } else {
+                onCloseMobile(skipHistory);
+              }
+            }}
             formatDate={(date) => format(date, language === 'ko' ? 'yyyy.MM.dd' : 'MMM d, yyyy')}
             untitledText={t.sidebar.untitled}
             inThread={item.isThreadChild}
             isThreadHead={item.isThreadHead}
             childCount={item.childCount}
             collapsed={collapsedThreads.has(item.threadId || '')}
+            isMovingMode={!!movingMemoId}
             onToggle={toggleThread}
             threadId={item.threadId}
             collapseText={t.sidebar.collapse}

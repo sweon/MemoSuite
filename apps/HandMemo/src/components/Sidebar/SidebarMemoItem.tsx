@@ -48,6 +48,7 @@ interface Props {
     collapseText?: string;
     moreText?: string;
     isCombineTarget?: boolean;
+    isMovingMode?: boolean;
 }
 
 
@@ -65,7 +66,8 @@ export const SidebarMemoItem: React.FC<Props> = ({
     threadId,
     collapseText,
     moreText,
-    isCombineTarget
+    isCombineTarget,
+    isMovingMode
 }) => {
 
     const isDrawing = memo.content.includes('```fabric');
@@ -82,10 +84,15 @@ export const SidebarMemoItem: React.FC<Props> = ({
             }}
         >
             <MemoItemLink
-                to={`/memo/${memo.id}`}
+                to={isMovingMode ? '#' : `/memo/${memo.id}`}
                 $isActive={isActive}
                 $inThread={inThread}
-                onClick={() => onClick?.(true)}
+                onClick={(e: React.MouseEvent) => {
+                    if (isMovingMode) {
+                        e.preventDefault();
+                    }
+                    onClick?.(true);
+                }}
             >
                 <TitleRow>
                     {isSpreadsheet ? (

@@ -299,6 +299,7 @@ export const MainLayout: React.FC = () => {
   });
   const [isResizing, setIsResizing] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [movingMemoId, setMovingMemoId] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const containerRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<any>(null);
@@ -615,7 +616,12 @@ export const MainLayout: React.FC = () => {
     <Container ref={containerRef} $isResizing={isResizing}>
       <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
       <SidebarWrapper $isOpen={isSidebarOpen} $width={sidebarWidth}>
-        <Sidebar onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)} isDirty={isDirty} />
+        <Sidebar
+          onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)}
+          isDirty={isDirty}
+          movingMemoId={movingMemoId}
+          setMovingMemoId={setMovingMemoId}
+        />
         <ResizeHandle
           $isResizing={isResizing}
           $isVisible={isResizeHandleVisible}
@@ -629,7 +635,7 @@ export const MainLayout: React.FC = () => {
           {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
           <h3>HandMemo</h3>
         </MobileHeader>
-        <Outlet context={{ setIsDirty }} />
+        <Outlet context={{ setIsDirty, movingMemoId, setMovingMemoId }} />
       </ContentWrapper>
     </Container>
   );
