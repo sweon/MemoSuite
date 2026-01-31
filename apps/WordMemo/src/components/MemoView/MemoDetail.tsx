@@ -12,7 +12,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
-import { FiSave, FiEdit2, FiTrash2, FiX, FiCoffee, FiStar, FiList, FiGitMerge, FiShare2, FiBookOpen, FiPlus } from 'react-icons/fi';
+import { FiSave, FiEdit2, FiTrash2, FiX, FiCoffee, FiStar, FiList, FiGitMerge, FiShare2, FiBookOpen, FiPlus, FiPrinter, FiFileText } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
@@ -990,6 +990,12 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                             </ActionButton>
                             <ActionButton onClick={handleAddThread}>
                                 <FiGitMerge size={14} /> {t.log_detail.add_thread}
+                            </ActionButton>
+                            <ActionButton onClick={() => window.print()}>
+                                <FiFileText size={14} /> {language === 'ko' ? 'PDF' : 'PDF'}
+                            </ActionButton>
+                            <ActionButton onClick={() => window.print()}>
+                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                             </ActionButton>
                         </>
                     )}

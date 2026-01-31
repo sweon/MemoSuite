@@ -72,4 +72,44 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
   ::-webkit-scrollbar-thumb:hover {
     background: ${({ theme }) => theme.colors.textSecondary}88;
   }
+
+  @media print {
+    /* Hide navigation and UI elements */
+    nav, 
+    aside, 
+    header, 
+    .no-print, 
+    button, 
+    .ActionBar, 
+    [class*="Sidebar"], 
+    [class*="ActionBar"],
+    [class*="Header"] {
+      display: none !important;
+    }
+
+    /* Reset background and text for paper */
+    body, html {
+      background: white !important;
+      color: black !important;
+    }
+
+    /* Ensure specific containers take full width and show content */
+    main,
+    .print-content,
+    [class*="Container"],
+    [class*="Content"] {
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+      box-shadow: none !important;
+      position: static !important;
+      overflow: visible !important;
+    }
+
+    /* Handle page breaks */
+    img, table, pre, blockquote {
+      page-break-inside: avoid;
+    }
+  }
 `;
