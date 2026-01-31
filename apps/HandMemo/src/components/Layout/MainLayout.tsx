@@ -33,7 +33,15 @@ const isImageUrl = (url: string) => {
   return false;
 };
 
-const extractImageUrlFromEvent = (dt: DataTransfer): string | null => {
+const isYoutubeUrl = (url: string) => {
+  if (!url) return false;
+  return url.includes('youtube.com/watch') ||
+    url.includes('youtu.be/') ||
+    url.includes('youtube.com/embed/') ||
+    url.includes('youtube.com/shorts/');
+};
+
+const extractUrlFromEvent = (dt: DataTransfer): string | null => {
   if (!dt) return null;
 
   // 1. Try to get image from HTML (Google Images often sends HTML with <img> tag)
@@ -56,7 +64,7 @@ const extractImageUrlFromEvent = (dt: DataTransfer): string | null => {
     const lines = uriList.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
     if (lines.length > 0) {
       const cleaned = cleanImageUrl(lines[0]);
-      if (isImageUrl(cleaned)) return cleaned;
+      return cleaned;
     }
   }
 
@@ -64,7 +72,7 @@ const extractImageUrlFromEvent = (dt: DataTransfer): string | null => {
   const plain = dt.getData('text/plain');
   if (plain && (plain.startsWith('http') || plain.startsWith('data:image/'))) {
     const cleaned = cleanImageUrl(plain.trim());
-    if (isImageUrl(cleaned)) return cleaned;
+    return cleaned;
   }
 
   return null;
@@ -318,6 +326,57 @@ export const MainLayout: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const handleShare = async () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const shareTitle = searchParams.get('title');
+      const shareText = searchParams.get('text');
+      const shareUrl = searchParams.get('url');
+
+      if (shareTitle || shareText || shareUrl) {
+        // Clear search params so it doesn't re-trigger on refresh
+        window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+
+        let content = (shareText || '') + (shareUrl && (!shareText || !shareText.includes(shareUrl)) ? (shareText ? '\n\n' : '') + shareUrl : '');
+        if (!content) return;
+
+        // Try to identify if it's a YouTube or Image URL
+        const urls = content.match(/https?:\/\/[^\s]+/g) || [];
+        let identifiedTitle = shareTitle || '공유된 메모';
+        let finalContent = content;
+
+        if (urls.length > 0) {
+          const firstUrl = urls[0];
+          if (firstUrl) {
+            const cleaned = cleanImageUrl(firstUrl);
+            if (isYoutubeUrl(cleaned)) {
+              identifiedTitle = '유튜브 동영상';
+              finalContent = firstUrl;
+            } else if (isImageUrl(cleaned)) {
+              identifiedTitle = '이미지';
+              finalContent = `![](${cleaned})\n\n`;
+              metadataCache.fetchImageMetadata(cleaned);
+            }
+          }
+        }
+
+        const now = new Date();
+        const newId = await db.memos.add({
+          title: identifiedTitle,
+          content: finalContent,
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+          type: 'normal'
+        });
+
+        navigate(`/memo/${newId}`);
+      }
+    };
+
+    handleShare();
+  }, [navigate]);
+
+  useEffect(() => {
     const handleGlobalDrop = async (e: DragEvent) => {
       // Check if we are in a CodeMirror editor area. If so, let the editor handle it.
       const target = e.target as HTMLElement;
@@ -326,19 +385,20 @@ export const MainLayout: React.FC = () => {
       }
 
       if (!e.dataTransfer) return;
-      const imageUrl = extractImageUrlFromEvent(e.dataTransfer);
+      const url = extractUrlFromEvent(e.dataTransfer);
 
-      if (imageUrl && isImageUrl(imageUrl)) {
+      if (url && (isImageUrl(url) || isYoutubeUrl(url))) {
         e.preventDefault();
         e.stopPropagation();
 
-        metadataCache.fetchImageMetadata(imageUrl);
+        const isYoutube = isYoutubeUrl(url);
+        if (!isYoutube) metadataCache.fetchImageMetadata(url);
 
         // Create and save the memo immediately, then navigate to preview
         const now = new Date();
         const newId = await db.memos.add({
-          title: '이미지',
-          content: `![](${imageUrl})\n\n`,
+          title: isYoutube ? '유튜브 동영상' : '이미지',
+          content: isYoutube ? url : `![](${url})\n\n`,
           tags: [],
           createdAt: now,
           updatedAt: now,
@@ -359,19 +419,20 @@ export const MainLayout: React.FC = () => {
       }
 
       if (!e.clipboardData) return;
-      const imageUrl = extractImageUrlFromEvent(e.clipboardData);
+      const url = extractUrlFromEvent(e.clipboardData);
 
-      if (imageUrl && isImageUrl(imageUrl)) {
+      if (url && (isImageUrl(url) || isYoutubeUrl(url))) {
         e.preventDefault();
         e.stopPropagation();
 
-        metadataCache.fetchImageMetadata(imageUrl);
+        const isYoutube = isYoutubeUrl(url);
+        if (!isYoutube) metadataCache.fetchImageMetadata(url);
 
         // Create and save the memo
         const now = new Date();
         const newId = await db.memos.add({
-          title: '이미지',
-          content: `![](${imageUrl})\n\n`,
+          title: isYoutube ? '유튜브 동영상' : '이미지',
+          content: isYoutube ? url : `![](${url})\n\n`,
           tags: [],
           createdAt: now,
           updatedAt: now,

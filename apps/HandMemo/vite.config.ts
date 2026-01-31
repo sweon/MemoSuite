@@ -47,7 +47,16 @@ export default defineConfig({
             type: 'image/png',
             purpose: 'maskable'
           }
-        ]
+        ],
+        share_target: {
+          action: '/MemoSuite/HandMemo/',
+          method: 'GET',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url'
+          }
+        }
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 10000000, // 10MB

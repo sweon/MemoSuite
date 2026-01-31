@@ -429,6 +429,58 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
         remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeKatex]}
         components={{
+          a: ({ href, children }: any) => {
+            if (href && (
+              href.includes('youtube.com/watch') ||
+              href.includes('youtu.be/') ||
+              href.includes('youtube.com/embed/') ||
+              href.includes('youtube.com/shorts/')
+            )) {
+              let videoId = '';
+              try {
+                if (href.includes('youtu.be/')) {
+                  videoId = href.split('youtu.be/')[1].split(/[?#]/)[0];
+                } else if (href.includes('youtube.com/shorts/')) {
+                  videoId = href.split('youtube.com/shorts/')[1].split(/[?#]/)[0];
+                } else if (href.includes('embed/')) {
+                  videoId = href.split('embed/')[1].split(/[?#]/)[0];
+                } else {
+                  const urlObj = new URL(href);
+                  videoId = urlObj.searchParams.get('v') || '';
+                }
+              } catch (e) { }
+
+              if (videoId) {
+                return (
+                  <div style={{
+                    position: 'relative',
+                    paddingBottom: '56.25%', // 16:9
+                    height: 0,
+                    overflow: 'hidden',
+                    borderRadius: '8px',
+                    margin: '16px 0',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                  }}>
+                    <iframe
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        border: 0
+                      }}
+                      src={`https://www.youtube.com/embed/${videoId}`}
+                      title="YouTube video player"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                );
+              }
+            }
+            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+          },
           img: ({ src, alt }: any) => {
             const meta = metadataCache.get(src || '');
             if (meta) {

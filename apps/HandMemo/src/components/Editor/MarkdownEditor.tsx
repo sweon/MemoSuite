@@ -45,7 +45,15 @@ const isImageUrl = (url: string) => {
   return false;
 };
 
-const extractImageUrlFromEvent = (dt: DataTransfer): string | null => {
+const isYoutubeUrl = (url: string) => {
+  if (!url) return false;
+  return url.includes('youtube.com/watch') ||
+    url.includes('youtu.be/') ||
+    url.includes('youtube.com/embed/') ||
+    url.includes('youtube.com/shorts/');
+};
+
+const extractUrlFromEvent = (dt: DataTransfer): string | null => {
   if (!dt) return null;
 
   // 1. Try to get image from HTML (Google Images often sends HTML with <img> tag)
@@ -68,7 +76,7 @@ const extractImageUrlFromEvent = (dt: DataTransfer): string | null => {
     const lines = uriList.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
     if (lines.length > 0) {
       const cleaned = cleanImageUrl(lines[0]);
-      if (isImageUrl(cleaned)) return cleaned;
+      return cleaned;
     }
   }
 
@@ -76,7 +84,7 @@ const extractImageUrlFromEvent = (dt: DataTransfer): string | null => {
   const plain = dt.getData('text/plain');
   if (plain && (plain.startsWith('http') || plain.startsWith('data:image/'))) {
     const cleaned = cleanImageUrl(plain.trim());
-    if (isImageUrl(cleaned)) return cleaned;
+    return cleaned;
   }
 
   return null;
@@ -584,42 +592,44 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
             const wrapper = cm.getWrapperElement();
             const handleDrop = (e: DragEvent) => {
               if (!e.dataTransfer) return;
-              const imageUrl = extractImageUrlFromEvent(e.dataTransfer);
+              const url = extractUrlFromEvent(e.dataTransfer);
 
-              if (imageUrl && isImageUrl(imageUrl)) {
+              if (url && (isImageUrl(url) || isYoutubeUrl(url))) {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
 
                 const pos = cm.coordsChar({ left: e.clientX, top: e.clientY });
-                const imageMarkdown = `![](${imageUrl})`;
+                const isYoutube = isYoutubeUrl(url);
+                const content = isYoutube ? url : `![](${url})`;
 
                 // Focus and insert
                 cm.focus();
                 cm.setCursor(pos);
-                cm.replaceRange(imageMarkdown, pos);
+                cm.replaceRange(content, pos);
 
-                metadataCache.fetchImageMetadata(imageUrl);
+                if (!isYoutube) metadataCache.fetchImageMetadata(url);
                 onChange(cm.getValue());
               }
             };
 
             const handlePaste = (e: ClipboardEvent) => {
               if (!e.clipboardData) return;
-              const imageUrl = extractImageUrlFromEvent(e.clipboardData);
+              const url = extractUrlFromEvent(e.clipboardData);
 
-              if (imageUrl && isImageUrl(imageUrl)) {
+              if (url && (isImageUrl(url) || isYoutubeUrl(url))) {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
 
                 const pos = cm.getCursor();
-                const imageMarkdown = `![](${imageUrl})`;
+                const isYoutube = isYoutubeUrl(url);
+                const content = isYoutube ? url : `![](${url})`;
 
                 cm.focus();
-                cm.replaceRange(imageMarkdown, pos);
+                cm.replaceRange(content, pos);
 
-                metadataCache.fetchImageMetadata(imageUrl);
+                if (!isYoutube) metadataCache.fetchImageMetadata(url);
                 onChange(cm.getValue());
               }
             };
