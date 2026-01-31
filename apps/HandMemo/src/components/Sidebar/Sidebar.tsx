@@ -191,14 +191,14 @@ const AppVersion = styled.span`
 
 interface SidebarProps {
   onCloseMobile: (skipHistory?: boolean) => void;
-  isDirty?: boolean;
+  isEditing?: boolean;
   movingMemoId?: number | null;
   setMovingMemoId?: (id: number | null) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
-  isDirty = false,
+  isEditing = false,
   movingMemoId,
   setMovingMemoId
 }) => {
@@ -216,7 +216,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isEditing = isDirty;
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);

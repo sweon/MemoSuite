@@ -421,7 +421,7 @@ export const MainLayout: React.FC = () => {
     return Math.max(minW, parsed);
   });
   const [isResizing, setIsResizing] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [movingMemoId, setMovingMemoId] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -891,7 +891,7 @@ export const MainLayout: React.FC = () => {
       <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
         <Sidebar
           onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)}
-          isDirty={isDirty}
+          isEditing={isEditing}
           movingMemoId={movingMemoId}
           setMovingMemoId={setMovingMemoId}
         />
@@ -908,7 +908,7 @@ export const MainLayout: React.FC = () => {
           {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
           <h3>HandMemo</h3>
         </MobileHeader>
-        <Outlet context={{ setIsDirty, movingMemoId, setMovingMemoId }} />
+        <Outlet context={{ setIsEditing, movingMemoId, setMovingMemoId }} />
       </ContentWrapper>
 
       {pasteButton && (

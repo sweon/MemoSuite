@@ -348,8 +348,8 @@ export const MemoDetail: React.FC = () => {
         [id]
     );
 
-    const { setIsDirty, movingMemoId, setMovingMemoId } = useOutletContext<{
-        setIsDirty: (d: boolean) => void,
+    const { setIsEditing: setAppIsEditing, movingMemoId, setMovingMemoId } = useOutletContext<{
+        setIsEditing: (active: boolean) => void,
         movingMemoId: number | null,
         setMovingMemoId: (id: number | null) => void
     }>();
@@ -366,9 +366,9 @@ export const MemoDetail: React.FC = () => {
         )));
 
     useEffect(() => {
-        setIsDirty(isEditing || hasDraftChanges);
-        return () => setIsDirty(false);
-    }, [isEditing, hasDraftChanges, setIsDirty]);
+        setAppIsEditing(isEditing);
+        return () => setAppIsEditing(false);
+    }, [isEditing, setAppIsEditing]);
 
     const loadedIdRef = useRef<string | null>(null);
 
