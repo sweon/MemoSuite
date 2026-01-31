@@ -76,7 +76,7 @@ const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => v
             fontWeight: 600,
             pointerEvents: 'none'
           }}>
-            {language === 'ko' ? '두 손가락으로 조작' : 'Use two fingers to interact'}
+            {language === 'ko' ? '두 손가락으로 스크롤' : 'Use two fingers to scroll'}
           </div>
         )}
       </div>
