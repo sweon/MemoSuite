@@ -23,6 +23,7 @@ const Container = styled.div`
   overflow-x: hidden;
   padding: 0;
   width: 100%;
+  -webkit-overflow-scrolling: touch;
 `;
 
 const Header = styled.div`
@@ -688,7 +689,7 @@ export const MemoDetail: React.FC = () => {
     if (!isNew && !memo) return <Container>{t.memo_detail.loading}</Container>;
 
     return (
-        <Container>
+        <Container className="memo-detail-container" onClick={(e) => e.stopPropagation()}>
             <Header>
                 {isEditing ? (
                     <TitleInput

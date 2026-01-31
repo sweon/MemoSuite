@@ -11,8 +11,79 @@ import 'katex/dist/katex.min.css';
 import styled, { useTheme } from 'styled-components';
 import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
+
+const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => void; isIframe?: boolean }> = ({ children, onClick, isIframe }) => {
+  const [isTwoFingers, setIsTwoFingers] = React.useState(false);
+  const [showHint, setShowHint] = React.useState(false);
+  const { language } = useLanguage();
+  const timerRef = React.useRef<any>(null);
+  const hintTimerRef = React.useRef<any>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length >= 2) {
+      setIsTwoFingers(true);
+      setShowHint(false);
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && !isTwoFingers) {
+      if (!showHint && !hintTimerRef.current) {
+        hintTimerRef.current = setTimeout(() => setShowHint(true), 300);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setIsTwoFingers(false);
+      setShowHint(false);
+      hintTimerRef.current = null;
+    }, 500);
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
+      <div
+        style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 10,
+          pointerEvents: isTwoFingers ? 'none' : 'auto',
+          touchAction: 'pan-y', // Native parent scroll for 1 finger
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: showHint ? 'rgba(0,0,0,0.15)' : 'transparent',
+          transition: 'background 0.3s'
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={onClick}
+      >
+        {showHint && (
+          <div style={{
+            background: 'rgba(0,0,0,0.7)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            fontWeight: 600,
+            pointerEvents: 'none'
+          }}>
+            {language === 'ko' ? '두 손가락으로 조작' : 'Use two fingers to interact'}
+          </div>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+};
 
 const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
   line-height: 1.6;
@@ -351,56 +422,50 @@ const SpreadsheetPreview = ({ json, onClick }: { json: string; onClick?: () => v
         }
       });
 
-      maxRow = displayMaxRow;
       maxCol = displayMaxCol;
     }
 
     return (
-      <div
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick?.();
-        }}
-        style={{
-          overflow: 'auto',
-          maxHeight: '400px',
-          margin: '16px 0',
-          border: '1px solid #d1d5db',
-          borderRadius: '4px',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-          cursor: onClick ? 'pointer' : 'default',
-          backgroundColor: '#fff'
-        }}
-        title={onClick ? "Click to edit spreadsheet" : undefined}
-      >
-        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '13px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', lineHeight: '20px' }}>
-          <thead>
-            <tr>
-              <th style={{ background: '#f8f9fa', border: '1px solid #d1d5db', width: '32px', height: '20px', textAlign: 'center', color: '#666', padding: '0 4px', fontWeight: 500 }}>#</th>
-              {Array.from({ length: maxCol + 1 }).map((_, c) => (
-                <th key={c} style={{ background: '#f8f9fa', border: '1px solid #d1d5db', height: '20px', padding: '0 8px', fontWeight: 500, color: '#666', textAlign: 'center' }}>
-                  {String.fromCharCode(65 + c)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {grid.map((row, r) => (
-              <tr key={r}>
-                <td style={{ background: '#f8f9fa', border: '1px solid #d1d5db', textAlign: 'center', color: '#666', fontSize: '11px', padding: '0 4px', height: '20px' }}>{r + 1}</td>
-                {row.map((val, c) => (
-                  <td key={c} style={{ border: '1px solid #d1d5db', height: '20px', padding: '0 6px', minWidth: '60px', color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px', verticalAlign: 'middle' }}>{val}</td>
+      <MobileObjectGuard onClick={onClick}>
+        <div
+          style={{
+            overflow: 'auto',
+            maxHeight: '400px',
+            margin: '0',
+            border: 'none',
+            cursor: onClick ? 'pointer' : 'default',
+            backgroundColor: '#fff'
+          }}
+        >
+          <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '13px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', lineHeight: '20px' }}>
+            <thead>
+              <tr>
+                <th style={{ background: '#f8f9fa', border: '1px solid #d1d5db', width: '32px', height: '20px', textAlign: 'center', color: '#666', padding: '0 4px', fontWeight: 500 }}>#</th>
+                {Array.from({ length: maxCol + 1 }).map((_, c) => (
+                  <th key={c} style={{ background: '#f8f9fa', border: '1px solid #d1d5db', height: '20px', padding: '0 8px', fontWeight: 500, color: '#666', textAlign: 'center' }}>
+                    {String.fromCharCode(65 + c)}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {(maxRow >= 100 || maxCol >= 20) && (
-          <div style={{ padding: '8px', textAlign: 'center', color: '#666', fontSize: '11px', background: '#f8f9fa', borderTop: '1px solid #d1d5db', position: 'sticky', bottom: 0, left: 0, width: '100%', boxSizing: 'border-box' }}>
-            {language === 'ko' ? '... 항목 더 있음 (편집기에서 확인 가능) ...' : '... more data available in editor ...'}
-          </div>
-        )}
-      </div>
+            </thead>
+            <tbody>
+              {grid.map((row, r) => (
+                <tr key={r}>
+                  <td style={{ background: '#f8f9fa', border: '1px solid #d1d5db', textAlign: 'center', color: '#666', fontSize: '11px', padding: '0 4px', height: '20px' }}>{r + 1}</td>
+                  {row.map((val, c) => (
+                    <td key={c} style={{ border: '1px solid #d1d5db', height: '20px', padding: '0 6px', minWidth: '60px', color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px', verticalAlign: 'middle' }}>{val}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {(maxRow >= 100 || maxCol >= 20) && (
+            <div style={{ padding: '8px', textAlign: 'center', color: '#666', fontSize: '11px', background: '#f8f9fa', borderTop: '1px solid #d1d5db', position: 'sticky', bottom: 0, left: 0, width: '100%', boxSizing: 'border-box' }}>
+              {language === 'ko' ? '... 항목 더 있음 (편집기에서 확인 가능) ...' : '... more data available in editor ...'}
+            </div>
+          )}
+        </div>
+      </MobileObjectGuard>
     );
   } catch (e) {
     return <div style={{ color: 'red', fontSize: '12px' }}>Failed to render spreadsheet preview</div>;
@@ -479,52 +544,54 @@ const WebPreview = ({ url }: { url: string }) => {
       </div>
 
       {/* Preview Area with Fallback Message */}
-      <div style={{
-        height: '480px',
-        width: '100%',
-        position: 'relative',
-        background: '#f8f9fa'
-      }}>
-        {/* Fallback message shown if iframe is blocked or loading */}
+      <MobileObjectGuard isIframe>
         <div style={{
-          position: 'absolute',
-          top: 0, left: 0, right: 0, bottom: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px',
-          textAlign: 'center',
-          color: '#868e96'
+          height: '480px',
+          width: '100%',
+          position: 'relative',
+          background: '#f8f9fa'
         }}>
-          <div style={{ fontSize: '24px', marginBottom: '10px' }}>🌐</div>
-          <div style={{ fontSize: '14px', fontWeight: 500 }}>
-            {language === 'ko'
-              ? '일부 사이트는 보안 정책상 미리보기를 허용하지 않습니다.'
-              : 'Some sites may block previews due to security policies.'}
+          {/* Fallback message shown if iframe is blocked or loading */}
+          <div style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            textAlign: 'center',
+            color: '#868e96'
+          }}>
+            <div style={{ fontSize: '24px', marginBottom: '10px' }}>🌐</div>
+            <div style={{ fontSize: '14px', fontWeight: 500 }}>
+              {language === 'ko'
+                ? '일부 사이트는 보안 정책상 미리보기를 허용하지 않습니다.'
+                : 'Some sites may block previews due to security policies.'}
+            </div>
+            <div style={{ fontSize: '12px', marginTop: '4px' }}>
+              {language === 'ko'
+                ? '내용이 보이지 않으면 상단 버튼을 눌러 새 창에서 확인해주세요.'
+                : 'If you cannot see the content, please use the button above to open it.'}
+            </div>
           </div>
-          <div style={{ fontSize: '12px', marginTop: '4px' }}>
-            {language === 'ko'
-              ? '내용이 보이지 않으면 상단 버튼을 눌러 새 창에서 확인해주세요.'
-              : 'If you cannot see the content, please use the button above to open it.'}
-          </div>
-        </div>
 
-        <iframe
-          src={url}
-          style={{
-            width: '100%',
-            height: '100%',
-            border: 'none',
-            position: 'relative',
-            zIndex: 1,
-            backgroundColor: '#ffffff' // Opaque background to cover fallback if successful
-          }}
-          title="Web Preview"
-          loading="lazy"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-        />
-      </div>
+          <iframe
+            src={url}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              position: 'relative',
+              zIndex: 1,
+              backgroundColor: '#ffffff' // Opaque background to cover fallback if successful
+            }}
+            title="Web Preview"
+            loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          />
+        </div>
+      </MobileObjectGuard>
     </div>
   );
 };
