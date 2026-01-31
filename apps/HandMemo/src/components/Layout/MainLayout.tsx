@@ -2,8 +2,8 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { Sidebar } from '../Sidebar/Sidebar';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { FiMenu } from 'react-icons/fi';
-import { metadataCache } from '@memosuite/shared';
+import { FiMenu, FiSave } from 'react-icons/fi';
+import { metadataCache, useColorTheme, useLanguage } from '@memosuite/shared';
 import { db } from '../../db';
 
 const cleanImageUrl = (url: string): string => {
@@ -41,11 +41,24 @@ const isYoutubeUrl = (url: string) => {
     url.includes('youtube.com/shorts/');
 };
 
-const extractUrlFromEvent = (dt: DataTransfer): { url: string; title?: string } | null => {
+const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: string; title?: string; file?: File } | null => {
   if (!dt) return null;
 
-  // 1. Try to get image/link from HTML
+  // 1. Try to get files first (e.g. dropped markdown or image)
+  // Check types first as files access can sometimes be restricted in dragover
+  if (dt.files && dt.files.length > 0) {
+    const file = dt.files[0];
+    if (file.type.startsWith('image/') || file.name.endsWith('.md') || file.type === 'text/markdown' || file.type === 'text/plain') {
+      return { file };
+    }
+  }
+
+  // Synchronously read all data before any potential async gaps
   const html = dt.getData('text/html');
+  const uriList = dt.getData('text/uri-list');
+  const plain = dt.getData('text/plain')?.trim();
+
+  // 2. Try to get image/link from HTML
   if (html) {
     try {
       const parser = new DOMParser();
@@ -59,30 +72,34 @@ const extractUrlFromEvent = (dt: DataTransfer): { url: string; title?: string } 
         const url = cleanImageUrl(link.href);
         // Prioritize title attribute, then innerText, then img alt
         const title = link.title || link.innerText?.trim() || (img ? (img.alt || img.title) : undefined);
-        if (url) return { url, title: title?.trim() || undefined };
+        if (url && (url.startsWith('http') || url.startsWith('data:image/'))) {
+          return { url, title: title?.trim() || undefined };
+        }
       }
 
       // Fallback to image if no link found
       if (img && img.src) {
         const url = cleanImageUrl(img.src);
         const title = img.alt || img.title || undefined;
-        if (url) return { url, title: title?.trim() || undefined };
+        if (url && (url.startsWith('http') || url.startsWith('data:image/'))) {
+          return { url, title: title?.trim() || undefined };
+        }
       }
     } catch (err) { }
   }
 
-  // 2. Try text/uri-list
-  const uriList = dt.getData('text/uri-list');
+  // 3. Try text/uri-list
   if (uriList) {
     const lines = uriList.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
     if (lines.length > 0) {
       const url = cleanImageUrl(lines[0]);
-      return { url };
+      if (url.startsWith('http') || url.startsWith('data:image/')) {
+        return { url };
+      }
     }
   }
 
-  // 3. Try text/plain
-  const plain = dt.getData('text/plain')?.trim();
+  // 4. Try text/plain
   if (plain) {
     const lines = plain.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length >= 2) {
@@ -100,48 +117,60 @@ const extractUrlFromEvent = (dt: DataTransfer): { url: string; title?: string } 
       const cleaned = cleanImageUrl(plain);
       return { url: cleaned };
     }
+
+    // Default to just text
+    return { text: plain };
   }
 
   return null;
 };
 
-const getBestTitle = (url: string, suggestedTitle?: string): string => {
-  const isYoutube = isYoutubeUrl(url);
-  const isImage = isImageUrl(url);
+const getBestTitle = (url?: string, suggestedTitle?: string, text?: string): string => {
+  const isYoutube = url ? isYoutubeUrl(url) : false;
+  const isImage = url ? isImageUrl(url) : false;
 
   let title = suggestedTitle?.trim() || '';
 
   // If title is just the URL, empty, or generic, try to generate one
-  if (!title || title.startsWith('http') || title === '공유된 메모' || title === '유튜브' || title === 'YouTube') {
+  if (!title || (url && title === url) || title === '공유된 메모' || title === '유튜브' || title === 'YouTube' || title === '웹 페이지') {
     try {
-      const urlObj = new URL(url);
-      if (isYoutube) {
-        // We set it to generic fallback first; calling code may try to fetch a better one
-        if (!title || title.startsWith('http')) title = '유튜브 동영상';
-      } else if (isImage) {
-        if (!title || title.startsWith('http')) title = '이미지';
-      } else {
-        // Try to get a meaningful title from the path
-        const pathParts = urlObj.pathname.split('/').filter(Boolean);
-        if (pathParts.length > 0) {
-          const lastPart = pathParts[pathParts.length - 1];
-          // Clean up slug
-          let generated = decodeURIComponent(lastPart)
-            .replace(/[-_]/g, ' ')
-            .replace(/\.[^/.]+$/, '') // Remove extension if any
-            .trim();
+      if (url) {
+        const urlObj = new URL(url);
+        if (isYoutube) {
+          // We set it to generic fallback first; calling code may try to fetch a better one
+          if (!title || title === url || title === '웹 페이지') title = '유튜브 동영상';
+        } else if (isImage) {
+          if (!title || title === url || title === '웹 페이지') title = '이미지';
+        } else {
+          // Try to get a meaningful title from the path
+          const pathParts = urlObj.pathname.split('/').filter(Boolean);
+          if (pathParts.length > 0) {
+            const lastPart = pathParts[pathParts.length - 1];
+            // Clean up slug
+            let generated = decodeURIComponent(lastPart)
+              .replace(/[-_]/g, ' ')
+              .replace(/\.[^/.]+$/, '') // Remove extension if any
+              .trim();
 
-          if (generated.length > 1) {
-            title = generated.charAt(0).toUpperCase() + generated.slice(1);
+            if (generated.length > 1) {
+              title = generated.charAt(0).toUpperCase() + generated.slice(1);
+            }
+          }
+
+          if (!title || title.length < 2 || title === url || title === '웹 페이지') {
+            title = urlObj.hostname.replace('www.', '');
           }
         }
-
-        if (!title || title.length < 2 || title.startsWith('http')) {
-          title = urlObj.hostname.replace('www.', '');
+      } else if (text) {
+        // For plain text, use first line or first few words
+        const lines = text.split('\n').filter(Boolean);
+        if (lines.length > 0) {
+          const firstLine = lines[0].trim();
+          title = firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine;
         }
       }
     } catch (e) {
-      if (!title || title.startsWith('http')) {
+      if (!title || (url && title === url) || title === '웹 페이지') {
         title = isYoutube ? '유튜브 동영상' : isImage ? '이미지' : '웹 페이지';
       }
     }
@@ -287,6 +316,8 @@ const MIN_WIDTH_MOBILE = 280;
 const MAX_WIDTH_MOBILE = Math.min(450, window.innerWidth * 0.95);
 
 export const MainLayout: React.FC = () => {
+  const { theme } = useColorTheme();
+  const { language } = useLanguage();
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -303,6 +334,8 @@ export const MainLayout: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const containerRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<any>(null);
+  const globalLongPressTimer = useRef<any>(null);
+  const [pasteButton, setPasteButton] = useState<{ x: number, y: number } | null>(null);
 
   // Track mobile state
   useEffect(() => {
@@ -375,6 +408,89 @@ export const MainLayout: React.FC = () => {
       window.removeEventListener('touchend', stopResizing);
     };
   }, [isResizing, handleMouseMove, handleTouchMove, stopResizing]);
+
+  // Global long press for paste
+  const handleGlobalTouchStart = useCallback((e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    // Don't trigger on interactive elements or editors
+    if (target.closest('.CodeMirror') || target.closest('.EasyMDEContainer') ||
+      target.closest('input') || target.closest('textarea') || target.closest('button') ||
+      target.closest('a') || target.closest('[role="button"]')) {
+      return;
+    }
+
+    const touch = e.touches[0];
+    const x = touch.clientX;
+    const y = touch.clientY;
+
+    if (globalLongPressTimer.current) clearTimeout(globalLongPressTimer.current);
+
+    globalLongPressTimer.current = setTimeout(() => {
+      setPasteButton({ x, y });
+      if (navigator.vibrate) navigator.vibrate(50);
+      globalLongPressTimer.current = null;
+    }, 600); // Slightly faster than 700ms
+  }, []);
+
+  const handleGlobalTouchMove = useCallback(() => {
+    if (globalLongPressTimer.current) {
+      clearTimeout(globalLongPressTimer.current);
+      globalLongPressTimer.current = null;
+    }
+  }, []);
+
+  const handleGlobalTouchEnd = useCallback(() => {
+    if (globalLongPressTimer.current) {
+      clearTimeout(globalLongPressTimer.current);
+      globalLongPressTimer.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = () => setPasteButton(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const triggerPaste = async () => {
+    setPasteButton(null);
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        const urlMatch = text.match(/^https?:\/\/[^\s]+$/);
+        const url = urlMatch ? urlMatch[0] : undefined;
+        let title = getBestTitle(url, undefined, text);
+        let content = text;
+
+        if (url) {
+          const cleaned = cleanImageUrl(url);
+          if (isImageUrl(cleaned)) {
+            content = `![](${cleaned})\n\n`;
+            metadataCache.fetchImageMetadata(cleaned);
+            title = '이미지';
+          } else if (isYoutubeUrl(cleaned)) {
+            const fetched = await fetchYoutubeTitle(cleaned);
+            if (fetched) title = fetched;
+          }
+        }
+
+        const now = new Date();
+        const newId = await db.memos.add({
+          title: title || '붙여넣은 메모',
+          content: content,
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+          type: 'normal'
+        });
+
+        await db.autosaves.where('originalId').equals(newId).delete();
+        navigate(`/memo/${newId}`);
+      }
+    } catch (err) {
+      console.error('Failed to read clipboard', err);
+    }
+  };
 
   // Handle sidebar toggle with history on mobile
   const toggleSidebar = useCallback((open: boolean, skipHistory = false) => {
@@ -462,7 +578,7 @@ export const MainLayout: React.FC = () => {
             }
 
             // Get the best possible title
-            identifiedTitle = getBestTitle(cleaned, identifiedTitle);
+            identifiedTitle = getBestTitle(cleaned, identifiedTitle, shareText || undefined);
 
             // Special async fetch for YouTube titles if we still have a generic fallback
             if (isYoutubeUrl(cleaned) && (identifiedTitle === '유튜브 동영상' || identifiedTitle === '공유된 메모')) {
@@ -490,34 +606,50 @@ export const MainLayout: React.FC = () => {
     };
 
     handleShare();
-  }, [navigate]);
+  }, [navigate, location.search]);
 
   useEffect(() => {
     const handleGlobalDrop = async (e: DragEvent) => {
       // Check if we are in a CodeMirror editor area. If so, let the editor handle it.
       const target = e.target as HTMLElement;
-      if (target.closest?.('.CodeMirror') || target.closest?.('.EasyMDEContainer')) {
+      if (target.closest?.('.CodeMirror') || target.closest?.('.EasyMDEContainer') ||
+        target.closest?.('input') || target.closest?.('textarea')) {
         return; // Editor will handle it
       }
 
       if (!e.dataTransfer) return;
-      const extracted = extractUrlFromEvent(e.dataTransfer);
+      const extracted = extractContentFromEvent(e.dataTransfer);
 
-      if (extracted && (extracted.url.startsWith('http') || extracted.url.startsWith('data:image/'))) {
+      if (extracted) {
         e.preventDefault();
         e.stopPropagation();
 
-        const { url, title: extractedTitle } = extracted;
-        let title = getBestTitle(url, extractedTitle);
-        let content = url;
+        const { url, text, title: extractedTitle, file } = extracted;
+        let title = '';
+        let content = '';
 
-        if (isImageUrl(url)) {
-          content = `![](${url})\n\n`;
-          metadataCache.fetchImageMetadata(url);
+        if (file) {
+          title = file.name.replace(/\.[^/.]+$/, '');
+          if (file.type.startsWith('image/')) {
+            // Handle image file? For now keep it simple or convert to base64 if small?
+            // Actually, we usually want to upload, but this app is local-first.
+            // Let's create a temporary object URL or just say "Image File"
+            content = `[Image File: ${file.name}]`;
+          } else {
+            content = await file.text();
+          }
+        } else {
+          title = getBestTitle(url, extractedTitle, text);
+          content = url || text || '';
+
+          if (url && isImageUrl(url)) {
+            content = `![](${url})\n\n`;
+            metadataCache.fetchImageMetadata(url);
+          }
         }
 
         // Special async fetch for YouTube titles
-        if (isYoutubeUrl(url) && (title === '유튜브 동영상' || title === '공유된 메모')) {
+        if (url && isYoutubeUrl(url) && (title === '유튜브 동영상' || title === '공유된 메모')) {
           const fetched = await fetchYoutubeTitle(url);
           if (fetched) title = fetched;
         }
@@ -525,7 +657,7 @@ export const MainLayout: React.FC = () => {
         // Create and save the memo immediately, then navigate to preview
         const now = new Date();
         const newId = await db.memos.add({
-          title,
+          title: title || '공유된 메모',
           content,
           tags: [],
           createdAt: now,
@@ -545,28 +677,40 @@ export const MainLayout: React.FC = () => {
       // Same target detection as drop
       const target = e.target as HTMLElement;
       if (target.closest?.('.CodeMirror') || target.closest?.('.EasyMDEContainer') ||
-        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        target.closest?.('input') || target.closest?.('textarea')) {
         return;
       }
 
       if (!e.clipboardData) return;
-      const extracted = extractUrlFromEvent(e.clipboardData);
+      const extracted = extractContentFromEvent(e.clipboardData);
 
-      if (extracted && (extracted.url.startsWith('http') || extracted.url.startsWith('data:image/'))) {
+      if (extracted) {
         e.preventDefault();
         e.stopPropagation();
 
-        const { url, title: extractedTitle } = extracted;
-        let title = getBestTitle(url, extractedTitle);
-        let content = url;
+        const { url, text, title: extractedTitle, file } = extracted;
+        let title = '';
+        let content = '';
 
-        if (isImageUrl(url)) {
-          content = `![](${url})\n\n`;
-          metadataCache.fetchImageMetadata(url);
+        if (file) {
+          title = file.name.replace(/\.[^/.]+$/, '');
+          if (file.type.startsWith('image/')) {
+            content = `[Image File: ${file.name}]`;
+          } else {
+            content = await file.text();
+          }
+        } else {
+          title = getBestTitle(url, extractedTitle, text);
+          content = url || text || '';
+
+          if (url && isImageUrl(url)) {
+            content = `![](${url})\n\n`;
+            metadataCache.fetchImageMetadata(url);
+          }
         }
 
         // Special async fetch for YouTube titles
-        if (isYoutubeUrl(url) && (title === '유튜브 동영상' || title === '공유된 메모')) {
+        if (url && isYoutubeUrl(url) && (title === '유튜브 동영상' || title === '공유된 메모' || title === '웹 페이지')) {
           const fetched = await fetchYoutubeTitle(url);
           if (fetched) title = fetched;
         }
@@ -574,7 +718,7 @@ export const MainLayout: React.FC = () => {
         // Create and save the memo
         const now = new Date();
         const newId = await db.memos.add({
-          title,
+          title: title || '공유된 메모',
           content,
           tags: [],
           createdAt: now,
@@ -613,7 +757,14 @@ export const MainLayout: React.FC = () => {
   const isResizeHandleVisible = !isMobile || isSidebarOpen;
 
   return (
-    <Container ref={containerRef} $isResizing={isResizing}>
+    <Container
+      ref={containerRef}
+      $isResizing={isResizing}
+      onTouchStart={handleGlobalTouchStart}
+      onTouchMove={handleGlobalTouchMove}
+      onTouchEnd={handleGlobalTouchEnd}
+      onTouchCancel={handleGlobalTouchEnd}
+    >
       <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
       <SidebarWrapper $isOpen={isSidebarOpen} $width={sidebarWidth}>
         <Sidebar
@@ -637,6 +788,36 @@ export const MainLayout: React.FC = () => {
         </MobileHeader>
         <Outlet context={{ setIsDirty, movingMemoId, setMovingMemoId }} />
       </ContentWrapper>
+
+      {pasteButton && (
+        <div
+          style={{
+            position: 'fixed',
+            left: pasteButton.x,
+            top: pasteButton.y - 50,
+            transform: 'translateX(-50%)',
+            zIndex: 10000,
+            background: theme.colors.surface,
+            border: `1px solid ${theme.colors.border}`,
+            borderRadius: '8px',
+            boxShadow: theme.shadows.medium,
+            padding: '8px 16px',
+            cursor: 'pointer',
+            fontWeight: 600,
+            color: theme.colors.primary,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            triggerPaste();
+          }}
+        >
+          <FiSave size={14} /> {language === 'ko' ? '붙여넣기' : 'Paste'}
+        </div>
+      )}
     </Container>
   );
 };
