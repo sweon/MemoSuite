@@ -682,6 +682,7 @@ export const MemoDetail: React.FC = () => {
 
         await db.memos.delete(Number(id));
         await db.comments.where('memoId').equals(Number(id)).delete();
+        await db.autosaves.where('originalId').equals(Number(id)).delete();
 
         setIsDeleteModalOpen(false);
         navigate('/', { replace: true });

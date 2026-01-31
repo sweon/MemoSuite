@@ -41,19 +41,32 @@ const isYoutubeUrl = (url: string) => {
     url.includes('youtube.com/shorts/');
 };
 
-const extractUrlFromEvent = (dt: DataTransfer): string | null => {
+const extractUrlFromEvent = (dt: DataTransfer): { url: string; title?: string } | null => {
   if (!dt) return null;
 
-  // 1. Try to get image from HTML (Google Images often sends HTML with <img> tag)
+  // 1. Try to get image/link from HTML
   const html = dt.getData('text/html');
   if (html) {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
+
       const img = doc.querySelector('img');
+      const link = doc.querySelector('a');
+
+      // If we find a link first, it might contain an image and have a better title
+      if (link && link.href) {
+        const url = cleanImageUrl(link.href);
+        // Prioritize title attribute, then innerText, then img alt
+        const title = link.title || link.innerText?.trim() || (img ? (img.alt || img.title) : undefined);
+        if (url) return { url, title: title?.trim() || undefined };
+      }
+
+      // Fallback to image if no link found
       if (img && img.src) {
-        const cleaned = cleanImageUrl(img.src);
-        if (cleaned) return cleaned;
+        const url = cleanImageUrl(img.src);
+        const title = img.alt || img.title || undefined;
+        if (url) return { url, title: title?.trim() || undefined };
       }
     } catch (err) { }
   }
@@ -63,18 +76,90 @@ const extractUrlFromEvent = (dt: DataTransfer): string | null => {
   if (uriList) {
     const lines = uriList.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
     if (lines.length > 0) {
-      const cleaned = cleanImageUrl(lines[0]);
-      return cleaned;
+      const url = cleanImageUrl(lines[0]);
+      return { url };
     }
   }
 
   // 3. Try text/plain
-  const plain = dt.getData('text/plain');
-  if (plain && (plain.startsWith('http') || plain.startsWith('data:image/'))) {
-    const cleaned = cleanImageUrl(plain.trim());
-    return cleaned;
+  const plain = dt.getData('text/plain')?.trim();
+  if (plain) {
+    const lines = plain.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length >= 2) {
+      // Look for a URL in the lines
+      const urlIndex = lines.findIndex(l => l.startsWith('http') || l.startsWith('data:image/'));
+      if (urlIndex !== -1) {
+        const url = cleanImageUrl(lines[urlIndex]);
+        // Use the non-URL line as title
+        const title = lines[urlIndex === 0 ? 1 : 0];
+        return { url, title: title.length < 200 ? title : undefined };
+      }
+    }
+
+    if (plain.startsWith('http') || plain.startsWith('data:image/')) {
+      const cleaned = cleanImageUrl(plain);
+      return { url: cleaned };
+    }
   }
 
+  return null;
+};
+
+const getBestTitle = (url: string, suggestedTitle?: string): string => {
+  const isYoutube = isYoutubeUrl(url);
+  const isImage = isImageUrl(url);
+
+  let title = suggestedTitle?.trim() || '';
+
+  // If title is just the URL, empty, or generic, try to generate one
+  if (!title || title.startsWith('http') || title === '공유된 메모' || title === '유튜브' || title === 'YouTube') {
+    try {
+      const urlObj = new URL(url);
+      if (isYoutube) {
+        // We set it to generic fallback first; calling code may try to fetch a better one
+        if (!title || title.startsWith('http')) title = '유튜브 동영상';
+      } else if (isImage) {
+        if (!title || title.startsWith('http')) title = '이미지';
+      } else {
+        // Try to get a meaningful title from the path
+        const pathParts = urlObj.pathname.split('/').filter(Boolean);
+        if (pathParts.length > 0) {
+          const lastPart = pathParts[pathParts.length - 1];
+          // Clean up slug
+          let generated = decodeURIComponent(lastPart)
+            .replace(/[-_]/g, ' ')
+            .replace(/\.[^/.]+$/, '') // Remove extension if any
+            .trim();
+
+          if (generated.length > 1) {
+            title = generated.charAt(0).toUpperCase() + generated.slice(1);
+          }
+        }
+
+        if (!title || title.length < 2 || title.startsWith('http')) {
+          title = urlObj.hostname.replace('www.', '');
+        }
+      }
+    } catch (e) {
+      if (!title || title.startsWith('http')) {
+        title = isYoutube ? '유튜브 동영상' : isImage ? '이미지' : '웹 페이지';
+      }
+    }
+  }
+
+  if (!title) title = isYoutube ? '유튜브 동영상' : isImage ? '이미지' : '웹 페이지';
+
+  return title;
+};
+
+const fetchYoutubeTitle = async (url: string): Promise<string | null> => {
+  try {
+    const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.title || null;
+    }
+  } catch (e) { }
   return null;
 };
 
@@ -341,20 +426,47 @@ export const MainLayout: React.FC = () => {
 
         // Try to identify if it's a YouTube or Image URL
         const urls = content.match(/https?:\/\/[^\s]+/g) || [];
-        let identifiedTitle = shareTitle || '공유된 메모';
+        let identifiedTitle = shareTitle || '';
         let finalContent = content;
+
+        // If title is missing or generic, try to extract it from shareText
+        if (!identifiedTitle || identifiedTitle === '공유된 메모' || identifiedTitle === '유튜브' || identifiedTitle === 'YouTube') {
+          if (shareText && urls.length > 0) {
+            const firstUrl = urls[0];
+            if (firstUrl) {
+              const parts = shareText.split(firstUrl);
+              const textBefore = parts[0]?.trim();
+              const textAfter = parts[1]?.trim();
+              const candidate = textBefore || textAfter;
+              if (candidate && candidate.length > 2) {
+                identifiedTitle = candidate;
+              }
+            }
+          }
+        }
+
+        if (!identifiedTitle) identifiedTitle = '공유된 메모';
 
         if (urls.length > 0) {
           const firstUrl = urls[0];
           if (firstUrl) {
             const cleaned = cleanImageUrl(firstUrl);
             if (isYoutubeUrl(cleaned)) {
-              identifiedTitle = '유튜브 동영상';
               finalContent = firstUrl;
             } else if (isImageUrl(cleaned)) {
-              identifiedTitle = '이미지';
               finalContent = `![](${cleaned})\n\n`;
               metadataCache.fetchImageMetadata(cleaned);
+            } else if (cleaned.startsWith('http')) {
+              finalContent = cleaned;
+            }
+
+            // Get the best possible title
+            identifiedTitle = getBestTitle(cleaned, identifiedTitle);
+
+            // Special async fetch for YouTube titles if we still have a generic fallback
+            if (isYoutubeUrl(cleaned) && (identifiedTitle === '유튜브 동영상' || identifiedTitle === '공유된 메모')) {
+              const fetched = await fetchYoutubeTitle(cleaned);
+              if (fetched) identifiedTitle = fetched;
             }
           }
         }
@@ -368,6 +480,9 @@ export const MainLayout: React.FC = () => {
           updatedAt: now,
           type: 'normal'
         });
+
+        // Cleanup any stale autosave for this ID (extra safety)
+        await db.autosaves.where('originalId').equals(newId).delete();
 
         navigate(`/memo/${newId}`);
       }
@@ -385,25 +500,40 @@ export const MainLayout: React.FC = () => {
       }
 
       if (!e.dataTransfer) return;
-      const url = extractUrlFromEvent(e.dataTransfer);
+      const extracted = extractUrlFromEvent(e.dataTransfer);
 
-      if (url && (isImageUrl(url) || isYoutubeUrl(url))) {
+      if (extracted && (extracted.url.startsWith('http') || extracted.url.startsWith('data:image/'))) {
         e.preventDefault();
         e.stopPropagation();
 
-        const isYoutube = isYoutubeUrl(url);
-        if (!isYoutube) metadataCache.fetchImageMetadata(url);
+        const { url, title: extractedTitle } = extracted;
+        let title = getBestTitle(url, extractedTitle);
+        let content = url;
+
+        if (isImageUrl(url)) {
+          content = `![](${url})\n\n`;
+          metadataCache.fetchImageMetadata(url);
+        }
+
+        // Special async fetch for YouTube titles
+        if (isYoutubeUrl(url) && (title === '유튜브 동영상' || title === '공유된 메모')) {
+          const fetched = await fetchYoutubeTitle(url);
+          if (fetched) title = fetched;
+        }
 
         // Create and save the memo immediately, then navigate to preview
         const now = new Date();
         const newId = await db.memos.add({
-          title: isYoutube ? '유튜브 동영상' : '이미지',
-          content: isYoutube ? url : `![](${url})\n\n`,
+          title,
+          content,
           tags: [],
           createdAt: now,
           updatedAt: now,
           type: 'normal'
         });
+
+        // Cleanup any stale autosave for this ID (extra safety)
+        await db.autosaves.where('originalId').equals(newId).delete();
 
         // Navigate to the saved memo's preview (not edit mode)
         navigate(`/memo/${newId}`);
@@ -419,25 +549,40 @@ export const MainLayout: React.FC = () => {
       }
 
       if (!e.clipboardData) return;
-      const url = extractUrlFromEvent(e.clipboardData);
+      const extracted = extractUrlFromEvent(e.clipboardData);
 
-      if (url && (isImageUrl(url) || isYoutubeUrl(url))) {
+      if (extracted && (extracted.url.startsWith('http') || extracted.url.startsWith('data:image/'))) {
         e.preventDefault();
         e.stopPropagation();
 
-        const isYoutube = isYoutubeUrl(url);
-        if (!isYoutube) metadataCache.fetchImageMetadata(url);
+        const { url, title: extractedTitle } = extracted;
+        let title = getBestTitle(url, extractedTitle);
+        let content = url;
+
+        if (isImageUrl(url)) {
+          content = `![](${url})\n\n`;
+          metadataCache.fetchImageMetadata(url);
+        }
+
+        // Special async fetch for YouTube titles
+        if (isYoutubeUrl(url) && (title === '유튜브 동영상' || title === '공유된 메모')) {
+          const fetched = await fetchYoutubeTitle(url);
+          if (fetched) title = fetched;
+        }
 
         // Create and save the memo
         const now = new Date();
         const newId = await db.memos.add({
-          title: isYoutube ? '유튜브 동영상' : '이미지',
-          content: isYoutube ? url : `![](${url})\n\n`,
+          title,
+          content,
           tags: [],
           createdAt: now,
           updatedAt: now,
           type: 'normal'
         });
+
+        // Cleanup any stale autosave for this ID (extra safety)
+        await db.autosaves.where('originalId').equals(newId).delete();
 
         navigate(`/memo/${newId}`);
       }

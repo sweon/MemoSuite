@@ -407,6 +407,128 @@ const SpreadsheetPreview = ({ json, onClick }: { json: string; onClick?: () => v
   }
 };
 
+const WebPreview = ({ url }: { url: string }) => {
+  const { language } = useLanguage();
+  const domain = new URL(url).hostname;
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+
+  return (
+    <div style={{
+      margin: '20px 0',
+      border: '1px solid #e1e4e8',
+      borderRadius: '16px',
+      overflow: 'hidden',
+      background: '#ffffff',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
+      {/* Bookmark Header */}
+      <div style={{
+        padding: '14px 18px',
+        background: '#fcfcfd',
+        borderBottom: '1px solid #e1e4e8',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+      }}>
+        <img
+          src={faviconUrl}
+          alt="icon"
+          style={{ width: '20px', height: '20px', borderRadius: '4px' }}
+          onError={(e: any) => e.target.style.display = 'none'}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: '13px',
+            fontWeight: 700,
+            color: '#1a1d21',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}>
+            {domain}
+          </div>
+          <div style={{
+            fontSize: '11px',
+            color: '#6a737d',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}>
+            {url}
+          </div>
+        </div>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: '#ffffff',
+            textDecoration: 'none',
+            fontWeight: 600,
+            background: '#ef8e13',
+            padding: '6px 14px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            boxShadow: '0 2px 4px rgba(239, 142, 19, 0.2)',
+            flexShrink: 0
+          }}
+        >
+          {language === 'ko' ? '사이트 방문' : 'Visit Site'}
+        </a>
+      </div>
+
+      {/* Preview Area with Fallback Message */}
+      <div style={{
+        height: '480px',
+        width: '100%',
+        position: 'relative',
+        background: '#f8f9fa'
+      }}>
+        {/* Fallback message shown if iframe is blocked or loading */}
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          textAlign: 'center',
+          color: '#868e96'
+        }}>
+          <div style={{ fontSize: '24px', marginBottom: '10px' }}>🌐</div>
+          <div style={{ fontSize: '14px', fontWeight: 500 }}>
+            {language === 'ko'
+              ? '일부 사이트는 보안 정책상 미리보기를 허용하지 않습니다.'
+              : 'Some sites may block previews due to security policies.'}
+          </div>
+          <div style={{ fontSize: '12px', marginTop: '4px' }}>
+            {language === 'ko'
+              ? '내용이 보이지 않으면 상단 버튼을 눌러 새 창에서 확인해주세요.'
+              : 'If you cannot see the content, please use the button above to open it.'}
+          </div>
+        </div>
+
+        <iframe
+          src={url}
+          style={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            position: 'relative',
+            zIndex: 1,
+            backgroundColor: '#ffffff' // Opaque background to cover fallback if successful
+          }}
+          title="Web Preview"
+          loading="lazy"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+        />
+      </div>
+    </div>
+  );
+};
+
 interface MarkdownViewProps {
   content: string;
   tableHeaderBg?: string;
@@ -429,13 +551,16 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
         remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeKatex]}
         components={{
-          a: ({ href, children }: any) => {
-            if (href && (
+          a: ({ href, children, ...props }: any) => {
+            if (!href) return <a {...props}>{children}</a>;
+
+            const isYoutube =
               href.includes('youtube.com/watch') ||
               href.includes('youtu.be/') ||
               href.includes('youtube.com/embed/') ||
-              href.includes('youtube.com/shorts/')
-            )) {
+              href.includes('youtube.com/shorts/');
+
+            if (isYoutube) {
               let videoId = '';
               try {
                 if (href.includes('youtu.be/')) {
@@ -479,6 +604,13 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
                 );
               }
             }
+
+            // General Web Preview for standalone links (links that match children or are on their own)
+            const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
+            if (isStandalone && href.startsWith('http')) {
+              return <WebPreview url={href} />;
+            }
+
             return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
           },
           img: ({ src, alt }: any) => {

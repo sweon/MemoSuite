@@ -45,27 +45,29 @@ const isImageUrl = (url: string) => {
   return false;
 };
 
-const isYoutubeUrl = (url: string) => {
-  if (!url) return false;
-  return url.includes('youtube.com/watch') ||
-    url.includes('youtu.be/') ||
-    url.includes('youtube.com/embed/') ||
-    url.includes('youtube.com/shorts/');
-};
 
-const extractUrlFromEvent = (dt: DataTransfer): string | null => {
+const extractUrlFromEvent = (dt: DataTransfer): { url: string; title?: string } | null => {
   if (!dt) return null;
 
-  // 1. Try to get image from HTML (Google Images often sends HTML with <img> tag)
+  // 1. Try to get image/link from HTML
   const html = dt.getData('text/html');
   if (html) {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
+
+      // Check for image
       const img = doc.querySelector('img');
       if (img && img.src) {
         const cleaned = cleanImageUrl(img.src);
-        if (cleaned) return cleaned;
+        if (cleaned) return { url: cleaned, title: img.alt || img.title || undefined };
+      }
+
+      // Check for link
+      const link = doc.querySelector('a');
+      if (link && link.href) {
+        const cleaned = cleanImageUrl(link.href);
+        if (cleaned) return { url: cleaned, title: link.innerText?.trim() || undefined };
       }
     } catch (err) { }
   }
@@ -76,7 +78,7 @@ const extractUrlFromEvent = (dt: DataTransfer): string | null => {
     const lines = uriList.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
     if (lines.length > 0) {
       const cleaned = cleanImageUrl(lines[0]);
-      return cleaned;
+      return { url: cleaned };
     }
   }
 
@@ -84,7 +86,7 @@ const extractUrlFromEvent = (dt: DataTransfer): string | null => {
   const plain = dt.getData('text/plain');
   if (plain && (plain.startsWith('http') || plain.startsWith('data:image/'))) {
     const cleaned = cleanImageUrl(plain.trim());
-    return cleaned;
+    return { url: cleaned };
   }
 
   return null;
@@ -592,44 +594,46 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
             const wrapper = cm.getWrapperElement();
             const handleDrop = (e: DragEvent) => {
               if (!e.dataTransfer) return;
-              const url = extractUrlFromEvent(e.dataTransfer);
+              const extracted = extractUrlFromEvent(e.dataTransfer);
 
-              if (url && (isImageUrl(url) || isYoutubeUrl(url))) {
+              if (extracted && (extracted.url.startsWith('http') || extracted.url.startsWith('data:image/'))) {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
 
+                const { url } = extracted;
                 const pos = cm.coordsChar({ left: e.clientX, top: e.clientY });
-                const isYoutube = isYoutubeUrl(url);
-                const content = isYoutube ? url : `![](${url})`;
+                const isImage = isImageUrl(url);
+                const content = isImage ? `![](${url})` : url;
 
                 // Focus and insert
                 cm.focus();
                 cm.setCursor(pos);
                 cm.replaceRange(content, pos);
 
-                if (!isYoutube) metadataCache.fetchImageMetadata(url);
+                if (isImage) metadataCache.fetchImageMetadata(url);
                 onChange(cm.getValue());
               }
             };
 
             const handlePaste = (e: ClipboardEvent) => {
               if (!e.clipboardData) return;
-              const url = extractUrlFromEvent(e.clipboardData);
+              const extracted = extractUrlFromEvent(e.clipboardData);
 
-              if (url && (isImageUrl(url) || isYoutubeUrl(url))) {
+              if (extracted && (extracted.url.startsWith('http') || extracted.url.startsWith('data:image/'))) {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
 
+                const { url } = extracted;
                 const pos = cm.getCursor();
-                const isYoutube = isYoutubeUrl(url);
-                const content = isYoutube ? url : `![](${url})`;
+                const isImage = isImageUrl(url);
+                const content = isImage ? `![](${url})` : url;
 
                 cm.focus();
                 cm.replaceRange(content, pos);
 
-                if (!isYoutube) metadataCache.fetchImageMetadata(url);
+                if (isImage) metadataCache.fetchImageMetadata(url);
                 onChange(cm.getValue());
               }
             };
