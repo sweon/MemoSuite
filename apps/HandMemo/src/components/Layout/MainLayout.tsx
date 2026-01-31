@@ -503,6 +503,11 @@ export const MainLayout: React.FC = () => {
 
   // Global long press for paste
   const handleGlobalTouchStart = useCallback((e: React.TouchEvent) => {
+    // Dismiss existing paste button on ANY new touch
+    if (pasteButton) {
+      setPasteButton(null);
+    }
+
     const target = e.target as HTMLElement;
     // Don't trigger on interactive elements or editors
     if (target.closest('.CodeMirror') || target.closest('.EasyMDEContainer') ||
@@ -521,8 +526,8 @@ export const MainLayout: React.FC = () => {
       setPasteButton({ x, y });
       if (navigator.vibrate) navigator.vibrate(50);
       globalLongPressTimer.current = null;
-    }, 600); // Slightly faster than 700ms
-  }, []);
+    }, 600);
+  }, [pasteButton]);
 
   const handleGlobalTouchMove = useCallback(() => {
     if (globalLongPressTimer.current) {
@@ -539,9 +544,13 @@ export const MainLayout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = () => setPasteButton(null);
-    window.addEventListener('click', handleClickOutside);
-    return () => window.removeEventListener('click', handleClickOutside);
+    const dismissPaste = () => setPasteButton(null);
+    window.addEventListener('click', dismissPaste);
+    window.addEventListener('touchstart', dismissPaste);
+    return () => {
+      window.removeEventListener('click', dismissPaste);
+      window.removeEventListener('touchstart', dismissPaste);
+    };
   }, []);
 
   const triggerPaste = async () => {
@@ -926,6 +935,7 @@ export const MainLayout: React.FC = () => {
             e.stopPropagation();
             triggerPaste();
           }}
+          onTouchStart={(e) => e.stopPropagation()}
         >
           <FiSave size={14} /> {language === 'ko' ? '붙여넣기' : 'Paste'}
         </div>
