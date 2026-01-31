@@ -255,9 +255,9 @@ export const MainLayout: React.FC = () => {
   const isResizeHandleVisible = !isMobile || isSidebarOpen;
 
   return (
-    <Container ref={containerRef} $isResizing={isResizing}>
+    <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
       <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
-      <SidebarWrapper $isOpen={isSidebarOpen} $width={sidebarWidth}>
+      <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
         <Sidebar onCloseMobile={(skip) => toggleSidebar(false, skip)} isDirty={isDirty} />
         <ResizeHandle
           $isResizing={isResizing}
@@ -267,7 +267,7 @@ export const MainLayout: React.FC = () => {
           onTouchEnd={stopResizing}
         />
       </SidebarWrapper>
-      <ContentWrapper>
+      <ContentWrapper id="app-content-wrapper-area">
         <MobileHeader>
           {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
           <h3>BookMemo</h3>

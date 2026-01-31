@@ -212,9 +212,9 @@ export const MainLayout: React.FC = () => {
   }, [location.pathname]);
 
   return (
-    <Container ref={containerRef} $isResizing={isResizing}>
+    <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
       <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
-      <SidebarWrapper $isOpen={isSidebarOpen} $width={sidebarWidth}>
+      <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
         <Sidebar onCloseMobile={() => setSidebarOpen(false)} isDirty={isDirty} />
         <ResizeHandle
           $isResizing={isResizing}
@@ -224,7 +224,7 @@ export const MainLayout: React.FC = () => {
         />
       </SidebarWrapper>
 
-      <ContentWrapper>
+      <ContentWrapper id="app-content-wrapper-area">
         <MobileHeader>
           <FiMenu
             size={24}

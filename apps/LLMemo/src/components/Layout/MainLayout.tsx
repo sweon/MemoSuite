@@ -216,9 +216,9 @@ export const MainLayout: React.FC = () => {
   }, [location.pathname]);
 
   return (
-    <Container ref={containerRef} $isResizing={isResizing}>
+    <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
       <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
-      <SidebarWrapper $isOpen={isSidebarOpen} $width={sidebarWidth}>
+      <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
         <Sidebar onCloseMobile={() => setSidebarOpen(false)} isDirty={isDirty} />
         {/* Resize handle - always attached to the right edge of sidebar */}
         <ResizeHandle
@@ -228,7 +228,7 @@ export const MainLayout: React.FC = () => {
           onTouchEnd={stopResizing}
         />
       </SidebarWrapper>
-      <ContentWrapper>
+      <ContentWrapper id="app-content-wrapper-area">
         <MobileHeader>
           <FiMenu size={24} onClick={() => setSidebarOpen(true)} />
           <h3>LLMemo</h3>

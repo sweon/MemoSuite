@@ -879,6 +879,7 @@ export const MainLayout: React.FC = () => {
 
   return (
     <Container
+      id="app-main-layout-container"
       ref={containerRef}
       $isResizing={isResizing}
       onTouchStart={handleGlobalTouchStart}
@@ -887,7 +888,7 @@ export const MainLayout: React.FC = () => {
       onTouchCancel={handleGlobalTouchEnd}
     >
       <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
-      <SidebarWrapper $isOpen={isSidebarOpen} $width={sidebarWidth}>
+      <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
         <Sidebar
           onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)}
           isDirty={isDirty}
@@ -902,7 +903,7 @@ export const MainLayout: React.FC = () => {
           onTouchEnd={stopResizing}
         />
       </SidebarWrapper>
-      <ContentWrapper>
+      <ContentWrapper id="app-content-wrapper-area">
         <MobileHeader>
           {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
           <h3>HandMemo</h3>
