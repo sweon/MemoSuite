@@ -783,6 +783,7 @@ export const MemoDetail: React.FC = () => {
                                 if (searchParams.get('edit')) {
                                     navigate(`/memo/${id}`, { replace: true });
                                 }
+                                setCommentDraft(null);
                                 setIsEditing(false);
                             }}>
                                 <FiX size={14} /> {t.memo_detail.cancel}
