@@ -24,6 +24,12 @@ const Container = styled.div`
   padding: 0;
   width: 100%;
   -webkit-overflow-scrolling: touch;
+
+  @media print {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
 `;
 
 const Header = styled.div`
@@ -34,6 +40,10 @@ const Header = styled.div`
 
   @media (max-width: 768px) {
     padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.sm}`};
+  }
+
+  @media print {
+    display: none !important;
   }
 `;
 
@@ -151,6 +161,10 @@ const ActionBar = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   margin-top: ${({ theme }) => theme.spacing.lg};
+
+  @media print {
+    display: none !important;
+  }
 `;
 
 const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' }>`

@@ -294,6 +294,13 @@ const Container = styled.div<{ $isResizing: boolean }>`
     user-select: none;
     -webkit-user-select: none;
   `}
+
+  @media print {
+    height: auto !important;
+    width: 100% !important;
+    overflow: visible !important;
+    display: block !important;
+  }
 `;
 
 const SidebarWrapper = styled.div<{ $isOpen: boolean; $width: number }>`
@@ -316,6 +323,10 @@ const SidebarWrapper = styled.div<{ $isOpen: boolean; $width: number }>`
     transform: translateX(${({ $isOpen }) => ($isOpen ? '0' : '-110%')});
     box-shadow: ${({ $isOpen, theme }) => $isOpen ? theme.shadows.large : 'none'};
   }
+
+  @media print {
+    display: none !important;
+  }
 `;
 
 const ContentWrapper = styled.div`
@@ -326,6 +337,13 @@ const ContentWrapper = styled.div`
   overflow: hidden;
   position: relative;
   background-color: ${({ theme }) => theme.colors.background};
+
+  @media print {
+    height: auto !important;
+    width: 100% !important;
+    overflow: visible !important;
+    display: block !important;
+  }
 `;
 
 const ResizeHandle = styled.div<{ $isResizing: boolean; $isVisible: boolean }>`
@@ -354,6 +372,10 @@ const ResizeHandle = styled.div<{ $isResizing: boolean; $isVisible: boolean }>`
     background: ${({ theme }) => theme.colors.primary};
     opacity: 0.6;
   }
+
+  @media print {
+    display: none !important;
+  }
 `;
 
 const MobileHeader = styled.div`
@@ -379,6 +401,10 @@ const MobileHeader = styled.div`
   @media (max-width: 768px) {
     display: flex;
   }
+
+  @media print {
+    display: none !important;
+  }
 `;
 
 const Overlay = styled.div<{ $isOpen: boolean }>`
@@ -396,6 +422,10 @@ const Overlay = styled.div<{ $isOpen: boolean }>`
     opacity: ${({ $isOpen }) => ($isOpen ? 1 : 0)};
     pointer-events: ${({ $isOpen }) => ($isOpen ? 'auto' : 'none')};
     transition: opacity 0.3s ease;
+  }
+
+  @media print {
+    display: none !important;
   }
 `;
 
