@@ -13,6 +13,12 @@ import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
 import { AndroidExitHandler } from './components/AndroidExitHandler';
 import { db } from './db';
+import { useParams } from 'react-router-dom';
+
+const MemoDetailWrapper = () => {
+  const { id } = useParams();
+  return <MemoDetail key={id} />;
+};
 
 function AppContent() {
   const { t } = useLanguage();
@@ -72,8 +78,8 @@ function AppContent() {
               <Routes>
                 <Route path="/" element={<MainLayout />}>
                   <Route index element={<EmptyState />} />
-                  <Route path="memo/new" element={<MemoDetail />} />
-                  <Route path="memo/:id" element={<MemoDetail />} />
+                  <Route path="memo/new" element={<MemoDetail key="new" />} />
+                  <Route path="memo/:id" element={<MemoDetailWrapper />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Route>

@@ -334,15 +334,7 @@ export const MemoDetail: React.FC = () => {
     const [tags, setTags] = useState('');
     const [date, setDate] = useState('');
 
-    const [prevId, setPrevId] = useState(id);
-    if (id !== prevId) {
-        setPrevId(id);
-        setTitle('');
-        setContent('');
-        setTags('');
-        setCommentDraft(null);
-        setIsEditingInternal(!id);
-    }
+    // State reset on ID change is now handled by the 'key' prop in App.tsx
 
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
     const contentDrawingData = React.useMemo(() => {
