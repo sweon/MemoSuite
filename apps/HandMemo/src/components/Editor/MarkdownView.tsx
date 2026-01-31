@@ -14,7 +14,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
 
-const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => void; isIframe?: boolean }> = ({ children, onClick, isIframe }) => {
+const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => {
   const [isTwoFingers, setIsTwoFingers] = React.useState(false);
   const [showHint, setShowHint] = React.useState(false);
   const { language } = useLanguage();
@@ -544,7 +544,7 @@ const WebPreview = ({ url }: { url: string }) => {
       </div>
 
       {/* Preview Area with Fallback Message */}
-      <MobileObjectGuard isIframe>
+      <MobileObjectGuard>
         <div style={{
           height: '480px',
           width: '100%',
