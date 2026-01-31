@@ -64,6 +64,11 @@ const CommentsWrapper = styled.div`
   @media (max-width: 768px) {
     padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.sm};
   }
+
+  @media print {
+    border-top: none;
+    padding-top: 0;
+  }
 `;
 
 const TitleInput = styled.input`

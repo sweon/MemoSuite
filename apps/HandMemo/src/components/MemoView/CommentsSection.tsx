@@ -17,6 +17,11 @@ const Section = styled.div`
   border-top: 1px solid ${({ theme }) => theme.colors.border};
   padding-top: 1.5rem;
   padding-bottom: 1.5rem;
+
+  @media print {
+    border-top: none;
+    padding-top: 0;
+  }
 `;
 
 const SectionHeader = styled.div`
@@ -42,6 +47,10 @@ const SectionHeader = styled.div`
     font-size: 0.75rem;
     font-weight: 700;
   }
+
+  @media print {
+    display: none !important;
+  }
 `;
 
 const CommentList = styled.div`
@@ -57,9 +66,15 @@ const CommentItem = styled.div`
   border-radius: 0 8px 8px 0;
   transition: all 0.15s ease;
 
-  &:hover {
     border-left-color: ${({ theme }) => theme.colors.primary};
     background: ${({ theme }) => theme.colors.surface};
+  }
+
+  @media print {
+    border-left: none;
+    background: transparent;
+    padding: 0;
+    margin-bottom: 1rem;
   }
 `;
 
@@ -70,6 +85,10 @@ const CommentHeader = styled.div`
   margin-bottom: 0.5rem;
   font-size: 0.75rem;
   color: ${({ theme }) => theme.colors.textSecondary};
+
+  @media print {
+    display: none !important;
+  }
 `;
 
 const Actions = styled.div`
@@ -156,10 +175,12 @@ const AddButton = styled.button`
   font-weight: 500;
   transition: all 0.15s;
 
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
     color: ${({ theme }) => theme.colors.primary};
     background: ${({ theme }) => theme.colors.primary}08;
+  }
+
+  @media print {
+    display: none !important;
   }
 `;
 
