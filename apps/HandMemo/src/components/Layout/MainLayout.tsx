@@ -41,11 +41,94 @@ const isYoutubeUrl = (url: string) => {
     url.includes('youtube.com/shorts/');
 };
 
-const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: string; title?: string; file?: File } | null => {
+const parseHtmlTableToFortuneSheet = (html: string) => {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const table = doc.querySelector('table');
+    if (!table) return null;
+
+    const sheets = [{
+      name: "Sheet1",
+      celldata: [] as any[],
+      row: 60,
+      column: 26,
+      index: "0",
+      status: 1,
+      order: 0,
+      config: {},
+    }];
+
+    const rows = table.querySelectorAll('tr');
+    let maxR = 0;
+    let maxC = 0;
+
+    rows.forEach((tr, r) => {
+      maxR = Math.max(maxR, r);
+      const cells = tr.querySelectorAll('td, th');
+      cells.forEach((td, c) => {
+        maxC = Math.max(maxC, c);
+        const text = td.textContent?.trim();
+        if (text) {
+          sheets[0].celldata.push({
+            r, c, v: { v: text, m: text }
+          });
+        }
+      });
+    });
+
+    sheets[0].row = Math.max(60, maxR + 10);
+    sheets[0].column = Math.max(26, maxC + 5);
+
+    return sheets;
+  } catch (e) {
+    return null;
+  }
+};
+
+const parseTsvToFortuneSheet = (text: string) => {
+  try {
+    const lines = text.trim().split('\n');
+    if (lines.length === 0) return null;
+
+    const sheets = [{
+      name: "Sheet1",
+      celldata: [] as any[],
+      row: 60,
+      column: 26,
+      index: "0",
+      status: 1,
+      order: 0,
+      config: {},
+    }];
+
+    let maxC = 0;
+    lines.forEach((line, r) => {
+      const cells = line.split('\t');
+      cells.forEach((cell, c) => {
+        maxC = Math.max(maxC, c);
+        const text = cell.trim();
+        if (text) {
+          sheets[0].celldata.push({
+            r, c, v: { v: text, m: text }
+          });
+        }
+      });
+    });
+
+    sheets[0].row = Math.max(60, lines.length + 10);
+    sheets[0].column = Math.max(26, maxC + 5);
+
+    return sheets;
+  } catch (e) {
+    return null;
+  }
+};
+
+const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: string; title?: string; file?: File; spreadsheet?: any } | null => {
   if (!dt) return null;
 
   // 1. Try to get files first (e.g. dropped markdown or image)
-  // Check types first as files access can sometimes be restricted in dragover
   if (dt.files && dt.files.length > 0) {
     const file = dt.files[0];
     if (file.type.startsWith('image/') || file.name.endsWith('.md') || file.type === 'text/markdown' || file.type === 'text/plain') {
@@ -53,10 +136,18 @@ const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: strin
     }
   }
 
-  // Synchronously read all data before any potential async gaps
+  // Synchronously read all data
   const html = dt.getData('text/html');
   const uriList = dt.getData('text/uri-list');
   const plain = dt.getData('text/plain')?.trim();
+
+  // 1.5 Try to detect spreadsheet data from HTML or TSV
+  if (html && (html.includes('<table') || html.includes('luckysheet') || html.includes('fortune'))) {
+    const sheetData = parseHtmlTableToFortuneSheet(html);
+    if (sheetData && sheetData[0].celldata.length > 0) {
+      return { spreadsheet: sheetData, title: '스프레드시트' };
+    }
+  }
 
   // 2. Try to get image/link from HTML
   if (html) {
@@ -67,17 +158,14 @@ const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: strin
       const img = doc.querySelector('img');
       const link = doc.querySelector('a');
 
-      // If we find a link first, it might contain an image and have a better title
       if (link && link.href) {
         const url = cleanImageUrl(link.href);
-        // Prioritize title attribute, then innerText, then img alt
         const title = link.title || link.innerText?.trim() || (img ? (img.alt || img.title) : undefined);
         if (url && (url.startsWith('http') || url.startsWith('data:image/'))) {
           return { url, title: title?.trim() || undefined };
         }
       }
 
-      // Fallback to image if no link found
       if (img && img.src) {
         const url = cleanImageUrl(img.src);
         const title = img.alt || img.title || undefined;
@@ -103,11 +191,9 @@ const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: strin
   if (plain) {
     const lines = plain.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length >= 2) {
-      // Look for a URL in the lines
       const urlIndex = lines.findIndex(l => l.startsWith('http') || l.startsWith('data:image/'));
       if (urlIndex !== -1) {
         const url = cleanImageUrl(lines[urlIndex]);
-        // Use the non-URL line as title
         const title = lines[urlIndex === 0 ? 1 : 0];
         return { url, title: title.length < 200 ? title : undefined };
       }
@@ -118,7 +204,13 @@ const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: strin
       return { url: cleaned };
     }
 
-    // Default to just text
+    if (plain.includes('\t') && plain.includes('\n')) {
+      const sheetData = parseTsvToFortuneSheet(plain);
+      if (sheetData && sheetData[0].celldata.length > 0) {
+        return { spreadsheet: sheetData, title: '스프레드시트' };
+      }
+    }
+
     return { text: plain };
   }
 
@@ -613,7 +705,8 @@ export const MainLayout: React.FC = () => {
       // Check if we are in a CodeMirror editor area. If so, let the editor handle it.
       const target = e.target as HTMLElement;
       if (target.closest?.('.CodeMirror') || target.closest?.('.EasyMDEContainer') ||
-        target.closest?.('input') || target.closest?.('textarea')) {
+        target.closest?.('input') || target.closest?.('textarea') ||
+        target.closest?.('.fortune-container') || target.closest?.('.luckysheet')) {
         return; // Editor will handle it
       }
 
@@ -624,11 +717,14 @@ export const MainLayout: React.FC = () => {
         e.preventDefault();
         e.stopPropagation();
 
-        const { url, text, title: extractedTitle, file } = extracted;
+        const { url, text, title: extractedTitle, file, spreadsheet } = extracted;
         let title = '';
         let content = '';
 
-        if (file) {
+        if (spreadsheet) {
+          title = extractedTitle || '스프레드시트';
+          content = `\`\`\`spreadsheet\n${JSON.stringify(spreadsheet)}\n\`\`\``;
+        } else if (file) {
           title = file.name.replace(/\.[^/.]+$/, '');
           if (file.type.startsWith('image/')) {
             // Handle image file? For now keep it simple or convert to base64 if small?
@@ -677,7 +773,8 @@ export const MainLayout: React.FC = () => {
       // Same target detection as drop
       const target = e.target as HTMLElement;
       if (target.closest?.('.CodeMirror') || target.closest?.('.EasyMDEContainer') ||
-        target.closest?.('input') || target.closest?.('textarea')) {
+        target.closest?.('input') || target.closest?.('textarea') ||
+        target.closest?.('.fortune-container') || target.closest?.('.luckysheet')) {
         return;
       }
 
@@ -688,11 +785,14 @@ export const MainLayout: React.FC = () => {
         e.preventDefault();
         e.stopPropagation();
 
-        const { url, text, title: extractedTitle, file } = extracted;
+        const { url, text, title: extractedTitle, file, spreadsheet } = extracted;
         let title = '';
         let content = '';
 
-        if (file) {
+        if (spreadsheet) {
+          title = extractedTitle || '스프레드시트';
+          content = `\`\`\`spreadsheet\n${JSON.stringify(spreadsheet)}\n\`\`\``;
+        } else if (file) {
           title = file.name.replace(/\.[^/.]+$/, '');
           if (file.type.startsWith('image/')) {
             content = `[Image File: ${file.name}]`;

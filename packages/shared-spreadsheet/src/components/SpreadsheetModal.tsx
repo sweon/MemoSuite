@@ -4,6 +4,11 @@ import "@fortune-sheet/react/dist/index.css";
 import styled from 'styled-components';
 import { X, Save, Keyboard } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  exportToolBarItem,
+  importToolBarItem,
+  FortuneExcelHelper,
+} from "@corbe30/fortune-excel";
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -475,12 +480,22 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
             </ButtonGroup>
           </ModalHeader>
           <EditorContainer>
+            <FortuneExcelHelper
+              setKey={() => setMountKey(uuidv4())}
+              setSheets={setWorkbookData}
+              workbookRef={workbookRef}
+              config={{
+                import: { xlsx: true, csv: true },
+                export: { xlsx: true, csv: true },
+              }}
+            />
             {/* @ts-ignore */}
             <Workbook
               key={mountKey}
               ref={workbookRef}
               data={workbookData}
               onChange={handleChange}
+              customToolbarItems={[importToolBarItem(), exportToolBarItem()]}
               {...settings}
             />
           </EditorContainer>
