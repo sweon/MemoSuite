@@ -604,6 +604,26 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
               }
             };
 
+            const handlePaste = (e: ClipboardEvent) => {
+              if (!e.clipboardData) return;
+              const imageUrl = extractImageUrlFromEvent(e.clipboardData);
+
+              if (imageUrl && isImageUrl(imageUrl)) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+
+                const pos = cm.getCursor();
+                const imageMarkdown = `![](${imageUrl})`;
+
+                cm.focus();
+                cm.replaceRange(imageMarkdown, pos);
+
+                metadataCache.fetchImageMetadata(imageUrl);
+                onChange(cm.getValue());
+              }
+            };
+
             const handleDragOver = (e: DragEvent) => {
               const types = e.dataTransfer?.types || [];
               if (types.includes('text/uri-list') || types.includes('text/plain') || types.includes('text/html')) {
@@ -615,6 +635,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
 
             wrapper.addEventListener('drop', handleDrop, true);
             wrapper.addEventListener('dragover', handleDragOver, true);
+            wrapper.addEventListener('paste', handlePaste, true);
           }}
         />
       </EditorWrapper>

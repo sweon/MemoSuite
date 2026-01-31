@@ -350,6 +350,38 @@ export const MainLayout: React.FC = () => {
       }
     };
 
+    const handleGlobalPaste = async (e: ClipboardEvent) => {
+      // Same target detection as drop
+      const target = e.target as HTMLElement;
+      if (target.closest?.('.CodeMirror') || target.closest?.('.EasyMDEContainer') ||
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      if (!e.clipboardData) return;
+      const imageUrl = extractImageUrlFromEvent(e.clipboardData);
+
+      if (imageUrl && isImageUrl(imageUrl)) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        metadataCache.fetchImageMetadata(imageUrl);
+
+        // Create and save the memo
+        const now = new Date();
+        const newId = await db.memos.add({
+          title: '이미지',
+          content: `![](${imageUrl})\n\n`,
+          tags: [],
+          createdAt: now,
+          updatedAt: now,
+          type: 'normal'
+        });
+
+        navigate(`/memo/${newId}`);
+      }
+    };
+
     const handleDragOver = (e: DragEvent) => {
       const types = e.dataTransfer?.types || [];
       if (types.includes('text/uri-list') || types.includes('text/plain') || types.includes('text/html')) {
@@ -360,9 +392,11 @@ export const MainLayout: React.FC = () => {
 
     window.addEventListener('drop', handleGlobalDrop);
     window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('paste', handleGlobalPaste);
     return () => {
       window.removeEventListener('drop', handleGlobalDrop);
       window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('paste', handleGlobalPaste);
     };
   }, [location.pathname, navigate]);
 
