@@ -740,6 +740,106 @@ export const MainLayout: React.FC = () => {
   }, [navigate, location.search]);
 
   useEffect(() => {
+    const handleSWShare = async () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('share-target') === 'true') {
+        window.history.replaceState({}, '', window.location.pathname);
+
+        const getPendingShare = (): Promise<any> => {
+          return new Promise((resolve) => {
+            const req = indexedDB.open('handmemo-share-db', 1);
+            req.onsuccess = (e: any) => {
+              const db = e.target.result;
+              if (!db.objectStoreNames.contains('shares')) { resolve(null); return; }
+              const tx = db.transaction('shares', 'readwrite');
+              const store = tx.objectStore('shares');
+              const getReq = store.get('latest');
+              getReq.onsuccess = () => {
+                const val = getReq.result;
+                if (val) store.delete('latest');
+                resolve(val);
+              };
+              getReq.onerror = () => resolve(null);
+            };
+            req.onerror = () => resolve(null);
+          });
+        };
+
+        const data = await getPendingShare();
+        if (data) {
+          let { title: sTitle, text: sText, url: sUrl, files } = data;
+          let title = typeof sTitle === 'string' ? sTitle : '';
+          let content = '';
+
+          // 1. Handle Files
+          if (files && files.length > 0) {
+            const file = files[0];
+            const fileBlob = file.blob; // Stored as blob in IDB
+
+            if (file.type.startsWith('image/')) {
+              title = title || '공유된 이미지';
+              content = `[Image File: ${file.name}]\n(이미지 파일 공유는 아직 지원되지 않습니다)`;
+            } else if (file.name.endsWith('.md') || file.type === 'text/markdown' || file.type === 'text/plain' || file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+              title = title || file.name.replace(/\.[^/.]+$/, '');
+              if (fileBlob) {
+                content = await new Response(fileBlob).text();
+              }
+            } else if (file.name.endsWith('.xlsx')) {
+              title = title || file.name.replace(/\.[^/.]+$/, '');
+              content = `[Spreadsheet File: ${file.name}]\n(엑셀 파일 공유는 아직 지원되지 않습니다)`;
+            }
+          }
+
+          // 2. Handle Text/URL if no content extracted from files
+          if (!content) {
+            let rawText = (sText || '') + (sUrl && (!sText || !sText.includes(sUrl)) ? (sText ? '\n\n' : '') + sUrl : '');
+            if (rawText) {
+              const urlMatch = rawText.match(/https?:\/\/[^\s]+/);
+              const firstUrl = urlMatch ? urlMatch[0] : undefined;
+
+              content = rawText;
+
+              if (firstUrl) {
+                const cleaned = cleanImageUrl(firstUrl);
+
+                // Try to improve title
+                title = getBestTitle(cleaned, title || undefined, sText || undefined);
+
+                if (isYoutubeUrl(cleaned)) {
+                  content = firstUrl; // Just the URL for youtube embeds
+                  if (title === '유튜브 동영상' || title === '공유된 메모') {
+                    const fetched = await fetchYoutubeTitle(cleaned);
+                    if (fetched) title = fetched;
+                  }
+                } else if (isImageUrl(cleaned)) {
+                  content = `![](${cleaned})\n\n`;
+                  metadataCache.fetchImageMetadata(cleaned);
+                  title = title || '이미지';
+                }
+              }
+            }
+          }
+
+          if (content) {
+            const now = new Date();
+            const newId = await db.memos.add({
+              title: title || '공유된 메모',
+              content: content,
+              tags: [],
+              createdAt: now,
+              updatedAt: now,
+              type: 'normal'
+            });
+            await db.autosaves.where('originalId').equals(newId).delete();
+            navigate(`/memo/${newId}`);
+          }
+        }
+      }
+    };
+    handleSWShare();
+  }, [navigate]);
+
+  useEffect(() => {
     const handleGlobalDrop = async (e: DragEvent) => {
       // Check if we are in a CodeMirror editor area. If so, let the editor handle it.
       const target = e.target as HTMLElement;

@@ -17,16 +17,16 @@ export default defineConfig({
       selfDestroying: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        id: './',
+        id: '/MemoSuite/HandMemo/',
         name: 'HandMemo',
         short_name: 'HandMemo',
         description: 'Local-first Note-taking & Drawing',
         theme_color: '#ef8e13',
         background_color: '#ffffff',
-        start_url: './',
-        scope: './',
+        start_url: '/MemoSuite/HandMemo/',
+        scope: '/MemoSuite/HandMemo/',
         display: 'standalone',
-        display_override: ['window-controls-overlay', 'standalone'],
+        display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
         orientation: 'any',
         categories: ['productivity', 'utilities', 'notes'],
         icons: [
@@ -57,16 +57,33 @@ export default defineConfig({
         ],
         prefer_related_applications: false,
         share_target: {
-          action: './',
-          method: 'GET',
+          action: '/MemoSuite/HandMemo/share-target/',
+          method: 'POST',
+          enctype: 'multipart/form-data',
           params: {
             title: 'title',
             text: 'text',
-            url: 'url'
+            url: 'url',
+            files: [
+              {
+                name: 'files',
+                accept: [
+                  'image/*',
+                  'text/plain',
+                  'text/markdown',
+                  'text/csv',
+                  '.md',
+                  '.csv',
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  'application/vnd.ms-excel'
+                ]
+              }
+            ]
           }
         }
       },
       workbox: {
+        importScripts: ['sw-share.js'],
         maximumFileSizeToCacheInBytes: 10000000, // 10MB
         // Claim clients immediately to ensure the service worker is active and registering the manifest features
         skipWaiting: true,
