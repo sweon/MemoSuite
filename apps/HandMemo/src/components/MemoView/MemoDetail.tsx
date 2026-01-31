@@ -492,7 +492,7 @@ export const MemoDetail: React.FC = () => {
             // Handle dropped image from MainLayout
             const initialImageUrl = location.state?.imageUrl;
             if (initialImageUrl) {
-                setTitle('이미지에 메모');
+                setTitle('이미지');
                 setContent(`![](${initialImageUrl})\n\n`);
                 metadataCache.fetchImageMetadata(initialImageUrl);
             }

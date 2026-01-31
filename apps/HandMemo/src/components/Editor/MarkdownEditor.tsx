@@ -18,8 +18,68 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { metadataCache } from '@memosuite/shared';
 
+const cleanImageUrl = (url: string): string => {
+  if (!url) return '';
+  try {
+    const urlObj = new URL(url);
+    // Handle Google/Bing/etc search result URLs (imgurl=..., imageUrl=..., etc)
+    const imgParam = urlObj.searchParams.get('imgurl') ||
+      urlObj.searchParams.get('imageUrl') ||
+      urlObj.searchParams.get('img_url') ||
+      urlObj.searchParams.get('tbnid');
+    if (imgParam && (imgParam.startsWith('http') || imgParam.startsWith('data:'))) {
+      return decodeURIComponent(imgParam);
+    }
+  } catch (e) { }
+  return url;
+};
+
 const isImageUrl = (url: string) => {
-  return /\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(url) || url.startsWith('data:image/');
+  if (!url) return false;
+  // standard extensions
+  if (/\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(url)) return true;
+  // data urls
+  if (url.startsWith('data:image/')) return true;
+  // common cloud storage / cdn / google-specific paths
+  if (url.includes('googleusercontent.com') || url.includes('.gstatic.com') || url.includes('bing.com/th?')) return true;
+  return false;
+};
+
+const extractImageUrlFromEvent = (dt: DataTransfer): string | null => {
+  if (!dt) return null;
+
+  // 1. Try to get image from HTML (Google Images often sends HTML with <img> tag)
+  const html = dt.getData('text/html');
+  if (html) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const img = doc.querySelector('img');
+      if (img && img.src) {
+        const cleaned = cleanImageUrl(img.src);
+        if (cleaned) return cleaned;
+      }
+    } catch (err) { }
+  }
+
+  // 2. Try text/uri-list
+  const uriList = dt.getData('text/uri-list');
+  if (uriList) {
+    const lines = uriList.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    if (lines.length > 0) {
+      const cleaned = cleanImageUrl(lines[0]);
+      if (isImageUrl(cleaned)) return cleaned;
+    }
+  }
+
+  // 3. Try text/plain
+  const plain = dt.getData('text/plain');
+  if (plain && (plain.startsWith('http') || plain.startsWith('data:image/'))) {
+    const cleaned = cleanImageUrl(plain.trim());
+    if (isImageUrl(cleaned)) return cleaned;
+  }
+
+  return null;
 };
 
 // Custom styles for the editor to match theme
@@ -437,6 +497,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
     autofocus: false,
     status: false,
     maxHeight: "500px",
+    codeMirrorOptions: {
+      dragDrop: false
+    }
   }), [t, language]);
 
   useEffect(() => {
@@ -517,24 +580,41 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
             cmRef.current = cm;
             if (updateWidgetsRef.current) setTimeout(() => updateWidgetsRef.current(cm), 100);
 
-            // Add drop handler
-            cm.on('drop', (_, e) => {
-              const imageUrl = e.dataTransfer?.getData('text/uri-list')?.split('\n')[0] || e.dataTransfer?.getData('text/plain');
+            // Add drop handler with capturing phase to prevent EasyMDE's default behavior
+            const wrapper = cm.getWrapperElement();
+            const handleDrop = (e: DragEvent) => {
+              if (!e.dataTransfer) return;
+              const imageUrl = extractImageUrlFromEvent(e.dataTransfer);
 
               if (imageUrl && isImageUrl(imageUrl)) {
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
 
                 const pos = cm.coordsChar({ left: e.clientX, top: e.clientY });
                 const imageMarkdown = `![](${imageUrl})`;
 
-                // If we are dropping onto a line, let's see where to insert.
+                // Focus and insert
+                cm.focus();
+                cm.setCursor(pos);
                 cm.replaceRange(imageMarkdown, pos);
 
                 metadataCache.fetchImageMetadata(imageUrl);
                 onChange(cm.getValue());
               }
-            });
+            };
+
+            const handleDragOver = (e: DragEvent) => {
+              const types = e.dataTransfer?.types || [];
+              if (types.includes('text/uri-list') || types.includes('text/plain') || types.includes('text/html')) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer!.dropEffect = 'copy';
+              }
+            };
+
+            wrapper.addEventListener('drop', handleDrop, true);
+            wrapper.addEventListener('dragover', handleDragOver, true);
           }}
         />
       </EditorWrapper>

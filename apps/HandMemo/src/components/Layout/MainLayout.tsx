@@ -6,8 +6,68 @@ import { FiMenu } from 'react-icons/fi';
 import { metadataCache } from '@memosuite/shared';
 import { db } from '../../db';
 
+const cleanImageUrl = (url: string): string => {
+  if (!url) return '';
+  try {
+    const urlObj = new URL(url);
+    // Handle Google/Bing/etc search result URLs (imgurl=..., imageUrl=..., etc)
+    const imgParam = urlObj.searchParams.get('imgurl') ||
+      urlObj.searchParams.get('imageUrl') ||
+      urlObj.searchParams.get('img_url') ||
+      urlObj.searchParams.get('tbnid');
+    if (imgParam && (imgParam.startsWith('http') || imgParam.startsWith('data:'))) {
+      return decodeURIComponent(imgParam);
+    }
+  } catch (e) { }
+  return url;
+};
+
 const isImageUrl = (url: string) => {
-  return /\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(url) || url.startsWith('data:image/');
+  if (!url) return false;
+  // standard extensions
+  if (/\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(url)) return true;
+  // data urls
+  if (url.startsWith('data:image/')) return true;
+  // common cloud storage / cdn / google-specific paths
+  if (url.includes('googleusercontent.com') || url.includes('.gstatic.com') || url.includes('bing.com/th?')) return true;
+  return false;
+};
+
+const extractImageUrlFromEvent = (dt: DataTransfer): string | null => {
+  if (!dt) return null;
+
+  // 1. Try to get image from HTML (Google Images often sends HTML with <img> tag)
+  const html = dt.getData('text/html');
+  if (html) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const img = doc.querySelector('img');
+      if (img && img.src) {
+        const cleaned = cleanImageUrl(img.src);
+        if (cleaned) return cleaned;
+      }
+    } catch (err) { }
+  }
+
+  // 2. Try text/uri-list
+  const uriList = dt.getData('text/uri-list');
+  if (uriList) {
+    const lines = uriList.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    if (lines.length > 0) {
+      const cleaned = cleanImageUrl(lines[0]);
+      if (isImageUrl(cleaned)) return cleaned;
+    }
+  }
+
+  // 3. Try text/plain
+  const plain = dt.getData('text/plain');
+  if (plain && (plain.startsWith('http') || plain.startsWith('data:image/'))) {
+    const cleaned = cleanImageUrl(plain.trim());
+    if (isImageUrl(cleaned)) return cleaned;
+  }
+
+  return null;
 };
 
 const Container = styled.div<{ $isResizing: boolean }>`
@@ -260,12 +320,13 @@ export const MainLayout: React.FC = () => {
   useEffect(() => {
     const handleGlobalDrop = async (e: DragEvent) => {
       // Check if we are in a CodeMirror editor area. If so, let the editor handle it.
-      const editorElement = document.querySelector('.CodeMirror');
-      if (editorElement && editorElement.contains(e.target as Node)) {
+      const target = e.target as HTMLElement;
+      if (target.closest?.('.CodeMirror') || target.closest?.('.EasyMDEContainer')) {
         return; // Editor will handle it
       }
 
-      const imageUrl = e.dataTransfer?.getData('text/uri-list')?.split('\n')[0] || e.dataTransfer?.getData('text/plain');
+      if (!e.dataTransfer) return;
+      const imageUrl = extractImageUrlFromEvent(e.dataTransfer);
 
       if (imageUrl && isImageUrl(imageUrl)) {
         e.preventDefault();
@@ -276,7 +337,7 @@ export const MainLayout: React.FC = () => {
         // Create and save the memo immediately, then navigate to preview
         const now = new Date();
         const newId = await db.memos.add({
-          title: '이미지에 메모',
+          title: '이미지',
           content: `![](${imageUrl})\n\n`,
           tags: [],
           createdAt: now,
@@ -291,7 +352,7 @@ export const MainLayout: React.FC = () => {
 
     const handleDragOver = (e: DragEvent) => {
       const types = e.dataTransfer?.types || [];
-      if (types.includes('text/uri-list') || types.includes('text/plain')) {
+      if (types.includes('text/uri-list') || types.includes('text/plain') || types.includes('text/html')) {
         e.preventDefault();
         e.dataTransfer!.dropEffect = 'copy';
       }
