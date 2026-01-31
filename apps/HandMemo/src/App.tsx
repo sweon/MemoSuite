@@ -51,11 +51,11 @@ function AppContent() {
     recoverAutosaves();
   }, [isLocked, isLoading]);
 
-  // Reset to home on initial startup or update refresh
+  // No longer reset hash to home on startup, as it breaks deep links and share targets.
+  // The app should honor the current URL.
   useLayoutEffect(() => {
-    if (window.location.hash !== '' && window.location.hash !== '#/') {
-      window.location.hash = '#/';
-    }
+    // If we have search params but NO hash, we might want to ensure we're at root
+    // But HashRouter handles this usually.
   }, []);
 
   if (isLoading) return null;

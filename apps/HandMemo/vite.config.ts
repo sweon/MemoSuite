@@ -22,10 +22,11 @@ export default defineConfig({
         description: 'Local-first Note-taking & Drawing',
         theme_color: '#ef8e13',
         background_color: '#ffffff',
-        start_url: './',
+        start_url: '/MemoSuite/HandMemo/',
+        scope: '/MemoSuite/HandMemo/',
         display: 'standalone',
         orientation: 'any',
-        categories: ['productivity', 'utilities'],
+        categories: ['productivity', 'utilities', 'notes'],
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -53,8 +54,9 @@ export default defineConfig({
           }
         ],
         share_target: {
-          action: './',
+          action: '/MemoSuite/HandMemo/',
           method: 'GET',
+          enctype: 'application/x-www-form-urlencoded',
           params: {
             title: 'title',
             text: 'text',
