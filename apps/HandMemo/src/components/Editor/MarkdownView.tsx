@@ -144,6 +144,8 @@ const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
   img {
     max-width: 100%;
     border-radius: 6px;
+    display: block;
+    margin: 1em auto;
   }
 
   table {
@@ -693,12 +695,13 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
                     aspectRatio: `${meta.width} / ${meta.height}`,
                     height: 'auto',
                     maxWidth: '100%',
-                    display: 'block'
+                    display: 'block',
+                    margin: '1em auto'
                   }}
                 />
               );
             }
-            return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px' }} />;
+            return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px', display: 'block', margin: '1em auto' }} />;
           },
           pre: ({ children, ...props }: any) => {
             const child = Array.isArray(children) ? children[0] : children;
