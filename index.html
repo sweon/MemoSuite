@@ -47,9 +47,19 @@
             src: url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css');
         }
 
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
         body {
+            overflow-x: hidden;
+            width: 100%;
             margin: 0;
             padding: 0;
+        }
+
+        body {
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
             background-color: var(--bg);
             background-image:
