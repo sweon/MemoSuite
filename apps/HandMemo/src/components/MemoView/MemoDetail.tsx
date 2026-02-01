@@ -109,6 +109,36 @@ const MetaRow = styled.div`
   font-size: 0.9rem;
   flex-wrap: wrap;
   font-weight: 500;
+  width: 100%;
+`;
+
+const MetaActions = styled.div`
+  display: none;
+  
+  @media (max-width: 768px) {
+    display: flex;
+    align-items: center;
+    gap: ${({ theme }) => theme.spacing.md};
+    margin-left: auto;
+  }
+`;
+
+const MetaIconButton = styled.button`
+  background: transparent;
+  border: none;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: ${({ theme }) => theme.radius.small};
+  transition: ${({ theme }) => theme.effects.transition};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.primary};
+    background: ${({ theme }) => theme.colors.background};
+  }
 `;
 
 const TagInput = styled.input`
@@ -172,7 +202,7 @@ const ActionBar = styled.div`
   }
 `;
 
-const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' }>`
+const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' | 'pdf' | 'print' }>`
   display: flex;
   align-items: center;
   gap: 4px;
@@ -211,6 +241,12 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' 
     opacity: 0.4;
     cursor: not-allowed;
     transform: none;
+  }
+
+  @media (max-width: 768px) {
+    &.hide-on-mobile {
+      display: none !important;
+    }
   }
 `;
 
@@ -755,6 +791,14 @@ export const MemoDetail: React.FC = () => {
                                     {t}
                                 </span>
                             ))}
+                            <MetaActions>
+                                <MetaIconButton onClick={() => window.print()} title="PDF">
+                                    <FiFileText size={18} />
+                                </MetaIconButton>
+                                <MetaIconButton onClick={() => window.print()} title={language === 'ko' ? '인쇄' : 'Print'}>
+                                    <FiPrinter size={18} />
+                                </MetaIconButton>
+                            </MetaActions>
                         </>
                     )}
                 </MetaRow>
@@ -818,10 +862,10 @@ export const MemoDetail: React.FC = () => {
                             <ActionButton onClick={() => setIsShareModalOpen(true)}>
                                 <FiShare2 size={14} /> {t.memo_detail.share_memo}
                             </ActionButton>
-                            <ActionButton onClick={() => window.print()}>
+                            <ActionButton $variant="pdf" onClick={() => window.print()} className="hide-on-mobile">
                                 <FiFileText size={14} /> {language === 'ko' ? 'PDF' : 'PDF'}
                             </ActionButton>
-                            <ActionButton onClick={() => window.print()}>
+                            <ActionButton $variant="print" onClick={() => window.print()} className="hide-on-mobile">
                                 <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                             </ActionButton>
                         </>
