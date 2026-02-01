@@ -251,28 +251,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
   }, [needRefresh]);
 
   const handleUpdateCheck = async () => {
-    if (!updateCheckedManually) {
-      setUpdateCheckedManually(true);
-      setIsCheckingUpdate(true);
-      if (needRefresh) {
-        setIsCheckingUpdate(false);
-        setToastMessage(t.sidebar.update_found);
-        return;
-      }
-    }
-
-    if (needRefresh) {
+    const installUpdate = () => {
       setToastMessage(t.sidebar.install_update);
       setTimeout(() => {
         updateServiceWorker(true);
         setTimeout(() => window.location.reload(), 3000);
       }, 500);
+    };
+
+    if (needRefresh) {
+      installUpdate();
       return;
     }
 
-    if (isCheckingUpdate && updateCheckedManually) return;
+    if (isCheckingUpdate) return;
 
     setIsCheckingUpdate(true);
+    setUpdateCheckedManually(true);
+
     if ('serviceWorker' in navigator) {
       try {
         const registration = await navigator.serviceWorker.getRegistration();
@@ -283,24 +279,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
           await new Promise(resolve => setTimeout(resolve, 1500));
 
           if (registration.waiting || needRefreshRef.current) {
-            setToastMessage(t.sidebar.update_found);
+            installUpdate();
           } else {
             setToastMessage(t.sidebar.up_to_date);
           }
         } else {
           setToastMessage(t.sidebar.check_failed);
         }
-        setIsCheckingUpdate(false);
-        setUpdateCheckedManually(true);
       } catch (error) {
         console.error('Error checking for updates:', error);
-        setIsCheckingUpdate(false);
         setToastMessage(t.sidebar.check_failed);
       }
     } else {
-      setIsCheckingUpdate(false);
       setToastMessage(t.sidebar.pwa_not_supported);
     }
+    setIsCheckingUpdate(false);
   };
 
   const allBooks = useLiveQuery(() => db.books.toArray());
