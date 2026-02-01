@@ -1000,11 +1000,11 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 </ActionButton>
 
                                 <StarButton
-                                    $active={!!log.isStarred}
+                                    $active={!!log?.isStarred}
                                     onClick={handleToggleStar}
                                     style={{ padding: '6px', marginLeft: 'auto' }}
                                 >
-                                    <FiStar fill={log.isStarred ? 'currentColor' : 'none'} size={15} />
+                                    <FiStar fill={log?.isStarred ? 'currentColor' : 'none'} size={15} />
                                 </StarButton>
                             </div>
                         </ResponsiveGroup>
