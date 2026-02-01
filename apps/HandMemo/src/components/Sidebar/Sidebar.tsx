@@ -263,7 +263,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     needRefreshRef.current = needRefresh;
   }, [needRefresh]);
 
-  const handleUpdateCheck = async () => {
+  useEffect(() => {
+    // Check for updates automatically on app startup
+    handleUpdateCheck(true);
+  }, []);
+
+  const handleUpdateCheck = async (isSilent = false) => {
     const installUpdate = () => {
       setToastMessage(t.sidebar.install_update);
       setTimeout(() => {
@@ -279,8 +284,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     if (isCheckingUpdate) return;
 
-    setIsCheckingUpdate(true);
-    setUpdateCheckedManually(true);
+    if (!isSilent) {
+      setIsCheckingUpdate(true);
+      setUpdateCheckedManually(true);
+    }
 
     if ('serviceWorker' in navigator) {
       try {
@@ -293,20 +300,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           if (registration.waiting || needRefreshRef.current) {
             installUpdate();
-          } else {
+          } else if (!isSilent) {
             setToastMessage(t.sidebar.up_to_date);
           }
-        } else {
+        } else if (!isSilent) {
           setToastMessage(t.sidebar.check_failed);
         }
       } catch (error) {
         console.error('Error checking for updates:', error);
-        setToastMessage(t.sidebar.check_failed);
+        if (!isSilent) setToastMessage(t.sidebar.check_failed);
       }
-    } else {
+    } else if (!isSilent) {
       setToastMessage(t.sidebar.pwa_not_supported);
     }
-    setIsCheckingUpdate(false);
+
+    if (!isSilent) setIsCheckingUpdate(false);
   };
 
   const allMemos = useLiveQuery(() => db.memos.toArray());
@@ -676,7 +684,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <Tooltip content={showUpdateIndicator ? t.sidebar.install_update : t.sidebar.check_updates}>
               <IconButton
-                onClick={handleUpdateCheck}
+                onClick={() => handleUpdateCheck()}
                 style={{ position: 'relative' }}
               >
                 <FiArrowUpCircle size={18} className={isCheckingUpdate ? 'spin' : ''} />
