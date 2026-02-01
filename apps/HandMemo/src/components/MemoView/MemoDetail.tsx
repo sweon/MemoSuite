@@ -461,10 +461,20 @@ export const MemoDetail: React.FC = () => {
 
             // Restoration prompt for existing memo
             const checkExistingAutosave = async () => {
-                if (!isEditing && !shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
+                const autoEditId = sessionStorage.getItem('handmemo_auto_edit');
+                const isAutoEdit = autoEditId === String(id);
+                if (isAutoEdit) {
+                    sessionStorage.removeItem('handmemo_auto_edit');
+                }
+
+                if (!isEditing && !shouldEdit && !isAutoEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
 
                 // Don't restore if we already restored/checked in this edit session
                 if (isEditing && restoredIdRef.current === id) return;
+
+                if (isAutoEdit && !isEditing) {
+                    setIsEditing(true);
+                }
 
                 const existing = await db.autosaves
                     .where('originalId')
@@ -740,7 +750,9 @@ export const MemoDetail: React.FC = () => {
                 threadOrder
             });
 
-            navigate(`/memo/${newMemoId}?edit=true`, { replace: true });
+            // Set trigger for auto-editing on the new memo
+            sessionStorage.setItem('handmemo_auto_edit', String(newMemoId));
+            navigate(`/memo/${newMemoId}`);
         } catch (error) {
             console.error("Failed to add thread:", error);
         }
