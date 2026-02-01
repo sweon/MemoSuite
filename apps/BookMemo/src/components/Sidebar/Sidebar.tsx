@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiArrowUpCircle, FiMinus } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus } from 'react-icons/fi';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
 
@@ -208,7 +208,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-  const [updateCheckedManually, setUpdateCheckedManually] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -251,8 +250,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
   }, [needRefresh]);
 
   useEffect(() => {
-    // Check for updates automatically on app startup
-    handleUpdateCheck(true);
+    // Check for updates automatically on app startup if enabled
+    const autoUpdate = localStorage.getItem('auto_update_enabled') === 'true';
+    if (autoUpdate) {
+      handleUpdateCheck(true);
+    }
   }, []);
 
   const handleUpdateCheck = async (isSilent = false) => {
@@ -273,7 +275,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
 
     if (!isSilent) {
       setIsCheckingUpdate(true);
-      setUpdateCheckedManually(true);
     }
 
     if ('serviceWorker' in navigator) {
@@ -367,8 +368,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
     });
   }, [allBooks, allMemos, allComments, searchQuery, sortBy]);
 
-  const showUpdateIndicator = needRefresh && updateCheckedManually;
-
   return (
     <SidebarContainer>
       <BrandHeader>
@@ -407,27 +406,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
                 onCloseMobile(true);
               }}>
                 <FiRefreshCw size={18} />
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip content={showUpdateIndicator ? t.sidebar.install_update : t.sidebar.check_updates}>
-              <IconButton
-                onClick={() => handleUpdateCheck()}
-                style={{ position: 'relative' }}
-              >
-                <FiArrowUpCircle size={18} className={isCheckingUpdate ? 'spin' : ''} />
-                {showUpdateIndicator && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ef4444',
-                    border: '1px solid white'
-                  }} />
-                )}
               </IconButton>
             </Tooltip>
 

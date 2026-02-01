@@ -4,7 +4,9 @@ import { AppLockSettings, DataManagementSection, LanguageSettings, ThemeSettings
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { FiTrash2, FiPlus, FiChevronRight, FiArrowLeft, FiDatabase, FiCpu, FiGlobe, FiInfo, FiShare2, FiLock, FiEdit3 } from 'react-icons/fi';
+import { FiTrash2, FiPlus, FiChevronRight, FiArrowLeft, FiDatabase, FiCpu, FiGlobe, FiInfo, FiShare2, FiLock, FiEdit3, FiArrowUpCircle } from 'react-icons/fi';
+import { useRegisterSW } from 'virtual:pwa-register/react';
+import { Toast } from '../components/UI/Toast';
 import { MdDragIndicator } from 'react-icons/md';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
@@ -146,10 +148,10 @@ const ModelItem = styled.li<{ $isDragging?: boolean }>`
   gap: 1rem;
   margin-bottom: 0.5rem;
   padding: 0.75rem;
-  background: ${({ theme, $isDragging }) => $isDragging ? theme.colors.border : theme.colors.surface};
+  background: ${({ theme, $isDragging }) => ($isDragging ? theme.colors.border : theme.colors.surface)};
   border-radius: 8px;
-  border: 1px solid ${({ theme, $isDragging }) => $isDragging ? theme.colors.primary : 'transparent'};
-  box-shadow: ${({ $isDragging }) => $isDragging ? '0 5px 15px rgba(0,0,0,0.15)' : 'none'};
+  border: 1px solid ${({ theme, $isDragging }) => ($isDragging ? theme.colors.primary : 'transparent')};
+  box-shadow: ${({ $isDragging }) => ($isDragging ? '0 5px 15px rgba(0,0,0,0.15)' : 'none')};
   transition: background-color 0.2s, box-shadow 0.2s;
 `;
 
@@ -215,8 +217,8 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'success' | 'seconda
     $variant === 'success' ? '#10b981' :
       $variant === 'secondary' ? 'transparent' :
         theme.colors.primary};
-  color: ${({ $variant }) => $variant === 'secondary' ? 'inherit' : 'white'};
-  border: ${({ $variant, theme }) => $variant === 'secondary' ? `1px solid ${theme.colors.border}` : 'none'};
+  color: ${({ $variant }) => ($variant === 'secondary' ? 'inherit' : 'white')};
+  border: ${({ $variant, theme }) => ($variant === 'secondary' ? `1px solid ${theme.colors.border}` : 'none')};
   border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
@@ -231,7 +233,9 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'success' | 'seconda
   &:hover:not(:disabled) {
     filter: brightness(1.1);
     transform: translateY(-1px);
-    ${({ $variant, theme }) => $variant === 'secondary' && `
+    ${({ $variant, theme }) =>
+    $variant === 'secondary' &&
+    `
       background: ${theme.colors.border};
       border-color: ${theme.colors.textSecondary};
     `}
@@ -265,9 +269,9 @@ const HelpList = styled.ul`
 const TabButton = styled.button<{ active: boolean }>`
   padding: 0.5rem 1rem;
   border-radius: 8px;
-  border: 1px solid ${({ theme, active }) => active ? theme.colors.primary : theme.colors.border};
-  background: ${({ theme, active }) => active ? theme.colors.primary : 'transparent'};
-  color: ${({ active }) => active ? '#fff' : 'inherit'};
+  border: 1px solid ${({ theme, active }) => (active ? theme.colors.primary : theme.colors.border)};
+  background: ${({ theme, active }) => (active ? theme.colors.primary : 'transparent')};
+  color: ${({ active }) => (active ? '#fff' : 'inherit')};
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s;
@@ -280,9 +284,9 @@ const TabButton = styled.button<{ active: boolean }>`
 const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolean; onChange: () => void }> = ({ title, desc, checked, onChange }) => (
   <div style={{
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    padding: '0.75rem 1rem',
+    padding: '1rem',
     background: 'var(--surface-color)',
     border: '1px solid var(--border-color)',
     borderRadius: '12px'
@@ -295,12 +299,12 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
       type="checkbox"
       checked={checked}
       onChange={onChange}
-      style={{ width: '24px', height: '24px', cursor: 'pointer', accentColor: 'var(--primary-color)' }}
+      style={{ width: '28px', height: '28px', cursor: 'pointer', accentColor: 'var(--primary-color)', marginTop: '2px' }}
     />
   </div>
 );
 
-type SubMenu = 'main' | 'models' | 'data' | 'editor' | 'theme' | 'language' | 'about' | 'appLock';
+type SubMenu = 'main' | 'models' | 'data' | 'editor' | 'theme' | 'language' | 'about' | 'appLock' | 'updates';
 
 
 
@@ -316,6 +320,60 @@ export const SettingsPage: React.FC = () => {
   const [tabSize, setTabSize] = useState(() => Number(localStorage.getItem('editor_tab_size')) || 4);
   const [largeSize, setLargeSize] = useState(() => localStorage.getItem('editor_large_size') === 'true');
   const [advancedToolbar, setAdvancedToolbar] = useState(() => localStorage.getItem('editor_advanced_toolbar') !== 'false');
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(() => localStorage.getItem('auto_update_enabled') === 'true');
+
+  const {
+    needRefresh: [needRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    immediate: false,
+  });
+
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleUpdateCheck = async () => {
+    const installUpdate = () => {
+      setToastMessage(t.sidebar.install_update);
+      setTimeout(() => {
+        updateServiceWorker(true);
+        setTimeout(() => window.location.reload(), 3000);
+      }, 500);
+    };
+
+    if (needRefresh) {
+      installUpdate();
+      return;
+    }
+
+    if (isCheckingUpdate) return;
+
+    setIsCheckingUpdate(true);
+
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          await registration.update();
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          const updatedRegistration = await navigator.serviceWorker.getRegistration();
+          if (updatedRegistration?.waiting || needRefresh) {
+            installUpdate();
+          } else {
+            setToastMessage(t.sidebar.up_to_date);
+          }
+        } else {
+          setToastMessage(t.sidebar.check_failed);
+        }
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+        setToastMessage(t.sidebar.check_failed);
+      }
+    } else {
+      setToastMessage(t.sidebar.pwa_not_supported);
+    }
+    setIsCheckingUpdate(false);
+  };
 
 
 
@@ -346,6 +404,12 @@ export const SettingsPage: React.FC = () => {
     const next = !advancedToolbar;
     setAdvancedToolbar(next);
     localStorage.setItem('editor_advanced_toolbar', String(next));
+  };
+
+  const toggleAutoUpdate = () => {
+    const next = !autoUpdateEnabled;
+    setAutoUpdateEnabled(next);
+    localStorage.setItem('auto_update_enabled', String(next));
   };
 
   useEffect(() => {
@@ -504,6 +568,15 @@ export const SettingsPage: React.FC = () => {
               <FiChevronRight className="chevron" />
             </MenuButton>
 
+            <MenuButton onClick={() => setCurrentSubMenu('updates')}>
+              <div className="icon-wrapper"><FiArrowUpCircle /></div>
+              <div className="label-wrapper">
+                <span className="title">{t.settings.updates}</span>
+                <span className="desc">{t.settings.updates_desc}</span>
+              </div>
+              <FiChevronRight className="chevron" />
+            </MenuButton>
+
             <MenuButton onClick={() => setCurrentSubMenu('about')}>
               <div className="icon-wrapper"><FiInfo /></div>
               <div className="label-wrapper">
@@ -651,6 +724,30 @@ export const SettingsPage: React.FC = () => {
         </Section>
       )}
 
+      {currentSubMenu === 'updates' && (
+        <Section>
+          {renderHeader(t.settings.updates)}
+          <EditorSettingItem
+            title={t.settings.auto_update}
+            desc={t.settings.auto_update_desc}
+            checked={autoUpdateEnabled}
+            onChange={toggleAutoUpdate}
+          />
+          <div style={{ marginTop: '2rem', padding: '1rem', background: 'var(--surface-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <h4 style={{ margin: 0, color: 'var(--text-color)' }}>{t.settings.manual_update_title}</h4>
+            </div>
+            <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+              {t.settings.manual_update_desc}
+            </p>
+            <ActionButton onClick={handleUpdateCheck} disabled={isCheckingUpdate} style={{ width: '100%' }}>
+              <FiArrowUpCircle className={isCheckingUpdate ? 'spin' : ''} />
+              {isCheckingUpdate ? t.sidebar.checking : t.sidebar.check_updates}
+            </ActionButton>
+          </div>
+        </Section>
+      )}
+
       {currentSubMenu === 'about' && (
         <Section>
           {renderHeader(t.settings.help_title)}
@@ -691,6 +788,12 @@ export const SettingsPage: React.FC = () => {
       )}
 
       {/* Export Modal moved to shared component */}
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          onClose={() => setToastMessage(null)}
+        />
+      )}
     </Container>
   );
 };

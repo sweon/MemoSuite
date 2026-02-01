@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
 
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Log } from '../../db';
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiArrowUpCircle, FiMinus } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiMinus } from 'react-icons/fi';
 import { Tooltip } from '../UI/Tooltip';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-
 import type { DropResult, DragUpdate } from '@hello-pangea/dnd';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Toast } from '../UI/Toast';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
@@ -19,8 +18,8 @@ import { useSearch } from '../../contexts/SearchContext';
 import { useStudyMode } from '../../contexts/StudyModeContext';
 import { format } from 'date-fns';
 import { SidebarMemoItem } from './SidebarMemoItem';
-import { StarButton } from './itemStyles';
 import { SidebarThreadItem } from './SidebarThreadItem';
+import { StarButton } from './itemStyles';
 import pkg from '../../../package.json';
 
 const SidebarContainer = styled.div`
@@ -244,7 +243,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false }) => {
   const { searchQuery, setSearchQuery } = useSearch();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'source-desc' | 'source-asc' | 'comment-desc' | 'alpha' | 'starred'>('date-desc');
   const [starredOnly, setStarredOnly] = useState(false);
   const { studyMode, setStudyMode } = useStudyMode();
@@ -259,6 +258,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
     else newSet.add(threadId);
     setExpandedThreads(newSet);
   };
+
   const { mode, theme, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -266,6 +266,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
   const { id } = useParams<{ id: string }>();
 
   const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && isDirty && location.pathname !== '/';
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
@@ -283,7 +284,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
   });
 
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-  const [updateCheckedManually, setUpdateCheckedManually] = useState(false);
 
   // Use useRef to track the latest needRefresh boolean to avoid stale closures in timeouts
   const needRefreshRef = React.useRef(needRefresh);
@@ -292,8 +292,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
   }, [needRefresh]);
 
   useEffect(() => {
-    // Check for updates automatically on app startup
-    handleUpdateCheck(true);
+    // Check for updates automatically on app startup if enabled
+    const autoUpdate = localStorage.getItem('auto_update_enabled') === 'true';
+    if (autoUpdate) {
+      handleUpdateCheck(true);
+    }
   }, []);
 
   const handleUpdateCheck = async (isSilent = false) => {
@@ -314,7 +317,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
 
     if (!isSilent) {
       setIsCheckingUpdate(true);
-      setUpdateCheckedManually(true);
     }
 
     if ('serviceWorker' in navigator) {
@@ -437,100 +439,111 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
       return true;
     };
 
-    const finalGroups = new Map<string, Log[]>();
-    const finalSingles: Log[] = [];
-
-    // Filter threads: include if ANY member matches the filter
-    threadMap.forEach((members, tid) => {
-      if (members.some(m => isMatched(m))) {
-        finalGroups.set(tid, members);
+    const finalSingles = singles.filter(isMatched);
+    const finalThreads = new Map<string, Log[]>();
+    threadMap.forEach((logs, tid) => {
+      const filtered = logs.filter(isMatched);
+      if (filtered.length > 0) {
+        finalThreads.set(tid, logs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
       }
     });
 
-    // Filter singles
-    singles.forEach(l => {
-      if (isMatched(l)) {
-        finalSingles.push(l);
+    // 3. Flatten
+    const items: FlatItem[] = [];
+
+    // First, process threads
+    finalThreads.forEach((logs, tid) => {
+      const sorted = logs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      items.push({ type: 'thread-header', log: sorted[0], threadId: tid, threadLogs: sorted });
+      if (expandedThreads.has(tid)) {
+        sorted.slice(1).forEach(l => {
+          items.push({ type: 'thread-child', log: l, threadId: tid });
+        });
       }
     });
 
-    // Sort sources
-    const sourceOrderMap = new Map<number, number>();
-    allSources.forEach(s => sourceOrderMap.set(s.id!, s.order ?? 999));
+    // Then, add singles
+    finalSingles.forEach(l => {
+      items.push({ type: 'single', log: l });
+    });
 
-    finalGroups.forEach(g => g.sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0)));
-
-    type SortableGroup = {
-      type: 'single', log: Log, lastDate: Date
-    } | {
-      type: 'thread', logs: Log[], threadId: string, lastDate: Date
-    };
-
-    const sortableGroups: SortableGroup[] = [
-      ...finalSingles.map(l => ({ type: 'single' as const, log: l, lastDate: l.createdAt })),
-      ...Array.from(finalGroups.entries()).map(([tid, g]) => {
-        const latest = g.reduce((p, c) => (new Date(p.createdAt) > new Date(c.createdAt) ? p : c), g[0]);
-        return { type: 'thread' as const, logs: g, threadId: tid, lastDate: latest.createdAt };
-      })
-    ];
-
-    sortableGroups.sort((a, b) => {
-      if (sortBy === 'date-desc') return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
-      if (sortBy === 'date-asc') return new Date(a.lastDate).getTime() - new Date(b.lastDate).getTime();
-
-      if (sortBy === 'source-desc' || sortBy === 'source-asc') {
-        const aLog = a.type === 'single' ? a.log : a.logs[0];
-        const bLog = b.type === 'single' ? b.log : b.logs[0];
-        const aSourceOrder = aLog.sourceId ? (sourceOrderMap.get(aLog.sourceId) ?? 999) : 999;
-        const bSourceOrder = bLog.sourceId ? (sourceOrderMap.get(bLog.sourceId) ?? 999) : 999;
-
-        if (sortBy === 'source-desc') {
-          // Lower order number = higher priority = show first
-          if (aSourceOrder !== bSourceOrder) return aSourceOrder - bSourceOrder;
-          // Same source order: sort by date (newest first)
-          return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
-        } else {
-          // source-asc: Higher order = show first
-          if (aSourceOrder !== bSourceOrder) return bSourceOrder - aSourceOrder;
-          // Same source order: sort by date (newest first)
-          return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
-        }
-      }
-
-      if (sortBy === 'alpha') {
-        const aTitle = (a.type === 'single' ? a.log.title : a.logs[0].title).toLowerCase() || 'z';
-        const bTitle = (b.type === 'single' ? b.log.title : b.logs[0].title).toLowerCase() || 'z';
-        return aTitle.localeCompare(bTitle);
-      }
-
+    // 4. Sort Flattened List
+    return items.sort((a, b) => {
       if (sortBy === 'starred') {
-        const aStarred = a.type === 'single' ? (a.log.isStarred || 0) : (a.logs[0].isStarred || 0);
-        const bStarred = b.type === 'single' ? (b.log.isStarred || 0) : (b.logs[0].isStarred || 0);
-        if (aStarred !== bStarred) return bStarred - aStarred;
-        // If star status is same, fallback to date
-        return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
+        if (a.log.isStarred && !b.log.isStarred) return -1;
+        if (!a.log.isStarred && b.log.isStarred) return 1;
+      }
+      if (sortBy === 'date-desc') return b.log.createdAt.getTime() - a.log.createdAt.getTime();
+      if (sortBy === 'date-asc') return a.log.createdAt.getTime() - b.log.createdAt.getTime();
+      if (sortBy === 'source-desc') return (sourceNameMap.get(b.log.sourceId!) || '').localeCompare(sourceNameMap.get(a.log.sourceId!) || '');
+      if (sortBy === 'source-asc') return (sourceNameMap.get(a.log.sourceId!) || '').localeCompare(sourceNameMap.get(b.log.sourceId!) || '');
+      if (sortBy === 'alpha') return a.log.title.localeCompare(b.log.title);
+      if (sortBy === 'comment-desc') {
+        const aCount = allComments?.filter(oc => oc.logId === a.log.id).length || 0;
+        const bCount = allComments?.filter(oc => oc.logId === b.log.id).length || 0;
+        return bCount - aCount;
+      }
+      return b.log.createdAt.getTime() - a.log.createdAt.getTime();
+    });
+  }, [allLogs, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap]);
+
+  const onDragEnd = async (result: DropResult) => {
+    const { source, destination, combine, draggableId } = result;
+    setCombineTargetId(null);
+
+    // 1. Handle Combination (Merging threads or adding to thread)
+    if (combine) {
+      const sourceId = Number(draggableId.replace('log-', ''));
+      const targetId = Number(combine.draggableId.replace('log-', ''));
+
+      if (sourceId === targetId) return;
+
+      const sourceLog = await db.logs.get(sourceId);
+      const targetLog = await db.logs.get(targetId);
+
+      if (!sourceLog || !targetLog) return;
+
+      const targetThreadId = targetLog.threadId || `thread-${Date.now()}`;
+
+      // If target wasn't in a thread, update it
+      if (!targetLog.threadId) {
+        await db.logs.update(targetId, { threadId: targetThreadId });
       }
 
-      return 0;
-    });
-
-    const flat: FlatItem[] = [];
-    sortableGroups.forEach(g => {
-      if (g.type === 'single') {
-        flat.push({ type: 'single', log: g.log });
-      } else {
-        const header = g.logs[0];
-        flat.push({ type: 'thread-header', log: header, threadId: g.threadId, threadLogs: g.logs });
-        if (expandedThreads.has(g.threadId)) {
-          g.logs.slice(1).forEach(child => {
-            flat.push({ type: 'thread-child', log: child, threadId: g.threadId });
-          });
+      // If source was in a different thread, move ALL of its siblings
+      if (sourceLog.threadId) {
+        const siblings = await db.logs.where('threadId').equals(sourceLog.threadId).toArray();
+        for (const s of siblings) {
+          await db.logs.update(s.id!, { threadId: targetThreadId });
         }
+      } else {
+        await db.logs.update(sourceId, { threadId: targetThreadId });
       }
-    });
 
-    return flat;
-  }, [allLogs, allSources, allComments, searchQuery, sortBy, expandedThreads, starredOnly]);
+      setExpandedThreads(prev => new Set([...Array.from(prev), targetThreadId]));
+      setListKey(v => v + 1);
+      return;
+    }
+
+    // 2. Handle Reordering (Extraction from thread)
+    if (!destination) return;
+    if (source.index === destination.index) return;
+
+    const draggedItem = flatItems[source.index];
+    if (draggedItem.type === 'thread-child') {
+      // If a child is dragged out of its thread boundaries, extract it
+      const threadBoundaryIds = flatItems
+        .filter(it => (it.type === 'thread-header' || it.type === 'thread-child') && it.threadId === draggedItem.threadId)
+        .map(it => it.log.id);
+
+      const targetId = flatItems[destination.index].log.id;
+
+      if (!threadBoundaryIds.includes(targetId)) {
+        await db.logs.update(draggedItem.log.id!, { threadId: undefined });
+        setListKey(v => v + 1);
+      }
+    }
+  };
 
   const onDragUpdate = (update: DragUpdate) => {
     if (update.combine) {
@@ -540,108 +553,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
     }
   };
 
-  const onDragEnd = async (result: DropResult) => {
-    setCombineTargetId(null);
-    const { source, destination, combine, draggableId } = result;
-    if (!combine && (!destination || (source.index === destination.index))) return;
-
-    // Small delay to let library finish its visual drop animation
-    // This prevents the "messy" glitch where React and DnD fight over DOM positions
-    setTimeout(async () => {
-      const parseLogId = (dId: string) => {
-        if (dId.startsWith('thread-header-')) return Number(dId.replace('thread-header-', ''));
-        if (dId.startsWith('thread-child-')) return Number(dId.replace('thread-child-', ''));
-        return Number(dId);
-      };
-
-      const sourceId = parseLogId(draggableId);
-
-      if (combine) {
-        const targetId = parseLogId(combine.draggableId);
-        if (sourceId === targetId) return;
-
-        await db.transaction('rw', db.logs, async () => {
-          const sLog = await db.logs.get(sourceId);
-          const tLog = await db.logs.get(targetId);
-          if (!sLog || !tLog) return;
-
-          if (sLog.threadId && sLog.threadId === tLog.threadId) {
-            // Extraction via drop on own thread member
-            await db.logs.update(sourceId, { threadId: undefined, threadOrder: undefined });
-            // Join existing
-            const members = await db.logs.where('threadId').equals(tLog.threadId).toArray();
-            members.sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0));
-            const newIds = members.filter(m => m.id !== sourceId).map(m => m.id!);
-            newIds.push(sourceId);
-            for (let i = 0; i < newIds.length; i++) {
-              await db.logs.update(newIds[i], { threadId: tLog.threadId, threadOrder: i });
-            }
-          } else {
-            // New thread
-            const tid = crypto.randomUUID();
-            await db.logs.update(targetId, { threadId: tid, threadOrder: 0 });
-            await db.logs.update(sourceId, { threadId: tid, threadOrder: 1 });
-          }
-        });
-      } else if (destination) {
-        const movedFlatItem = flatItems[source.index];
-        if (!movedFlatItem) return;
-
-        const nextList = [...flatItems];
-        const [removed] = nextList.splice(source.index, 1);
-        nextList.splice(destination.index, 0, removed);
-
-        const prevItem = nextList[destination.index - 1];
-        const nextItem = nextList[destination.index + 1];
-
-        const getTid = (item: any) => (item && item.type !== 'single' ? item.threadId : undefined);
-
-        // "Sandwich" rule: Only join a thread if dropped between two members of the same thread.
-        // This prevents "sucking" into a thread when dropping at boundaries (e.g. above/below a header).
-        // To explicitly join a thread or header, use the "drop on top" (combine) feature.
-        let targetThreadId = undefined;
-        const prevTid = getTid(prevItem);
-        const nextTid = getTid(nextItem);
-
-        if (prevTid && prevTid === nextTid) {
-          targetThreadId = prevTid;
-        }
-
-        await db.transaction('rw', db.logs, async () => {
-          if (targetThreadId) {
-            const allMembers = await db.logs.where('threadId').equals(targetThreadId).toArray();
-            const threadLogIds = new Set(allMembers.map(m => m.id!));
-            threadLogIds.add(sourceId);
-
-            const idsInOrder: number[] = [];
-            const seen = new Set<number>();
-            nextList.forEach(item => {
-              if (threadLogIds.has(item.log.id!) && !seen.has(item.log.id!)) {
-                idsInOrder.push(item.log.id!);
-                seen.add(item.log.id!);
-              }
-            });
-            allMembers.forEach(m => {
-              if (!seen.has(m.id!)) idsInOrder.push(m.id!);
-            });
-
-            for (let i = 0; i < idsInOrder.length; i++) {
-              await db.logs.update(idsInOrder[i], { threadId: targetThreadId, threadOrder: i });
-            }
-          } else {
-            // Standalone or Extraction
-            await db.logs.update(sourceId, { threadId: undefined, threadOrder: undefined });
-          }
-        });
-      }
-
-      // Final punch: increment key to force remount of list and clean up any DnD residual styles
-      setListKey(k => k + 1);
-      triggerRefresh();
-    }, 150);
-  };
-
-  const showUpdateIndicator = needRefresh && updateCheckedManually;
+  const formatDate = (date: Date) => format(date, language === 'ko' ? 'yyyy.MM.dd' : 'MMM d, yyyy');
 
   return (
     <SidebarContainer>
@@ -651,16 +563,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
       </BrandHeader>
       <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
         <TopActions>
-          <Tooltip content={t.sidebar.new}>
-            <Button onClick={() => {
-              const isDetail = location.pathname !== '/' && location.pathname !== '';
-              navigate('/new', { replace: isDetail });
-              onCloseMobile();
-            }}>
-              <FiPlus />
-            </Button>
-          </Tooltip>
-          <div style={{ display: 'flex', gap: '0rem', alignItems: 'center', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}>
+          <Button onClick={() => {
+            navigate('/new', { replace: true, state: { isGuard: true } });
+            onCloseMobile();
+          }}>
+            <FiPlus size={20} />
+          </Button>
+          <div style={{ display: 'flex', gap: '0rem', alignItems: 'center' }}>
 
             <Tooltip content={t.sidebar.decrease_font}>
               <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
@@ -680,27 +589,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
               </IconButton>
             </Tooltip>
 
-            <Tooltip content={showUpdateIndicator ? t.sidebar.install_update : t.sidebar.check_updates}>
-              <IconButton
-                onClick={() => handleUpdateCheck()}
-                style={{ position: 'relative' }}
-              >
-                <FiArrowUpCircle size={18} className={isCheckingUpdate ? 'spin' : ''} />
-                {showUpdateIndicator && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ef4444',
-                    border: '1px solid white'
-                  }} />
-                )}
-              </IconButton>
-            </Tooltip>
-
             <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
               <IconButton onClick={toggleTheme}>
                 {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
@@ -709,8 +597,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
 
             <Tooltip content={t.sidebar.settings}>
               <IconButton onClick={() => {
-                const isDetail = location.pathname !== '/' && location.pathname !== '';
-                navigate('/settings', { replace: isDetail });
+                navigate('/settings', { replace: true, state: { isGuard: true } });
                 onCloseMobile();
               }}>
                 <FiSettings size={18} />
@@ -722,162 +609,122 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
         <SearchInputWrapper>
           <SearchIcon size={16} />
           <SearchInput
-            $hasStarred={true}
             placeholder={t.sidebar.search}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            $hasStarred={sortBy !== 'starred'}
           />
-          <StarFilterButton
-            $active={starredOnly}
-            onClick={() => setStarredOnly(!starredOnly)}
-            title={t.sidebar.starred_only}
-          >
-            <FiStar size={14} fill={starredOnly ? "#f59e0b" : "none"} />
-          </StarFilterButton>
+          {sortBy !== 'starred' && (
+            <StarFilterButton
+              $active={starredOnly}
+              onClick={() => setStarredOnly(!starredOnly)}
+              title={starredOnly ? t.sidebar.show_all : t.sidebar.show_starred}
+            >
+              <FiStar size={16} fill={starredOnly ? '#E69F00' : 'none'} />
+            </StarFilterButton>
+          )}
           {searchQuery && (
             <ClearButton onClick={() => setSearchQuery('')}>
               <FiX size={14} />
             </ClearButton>
           )}
         </SearchInputWrapper>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <StudyModeGroup>
+            <StudyModeOption $active={studyMode === 'none'} onClick={() => setStudyMode('none')}>
+              {t.sidebar.study_mode_normal}
+            </StudyModeOption>
+            <StudyModeOption $active={studyMode === 'hide-meanings'} onClick={() => setStudyMode('hide-meanings')}>
+              <FiEyeOff /> {t.sidebar.study_mode_hide}
+            </StudyModeOption>
+            <StudyModeOption $active={studyMode === 'hide-words'} onClick={() => setStudyMode('hide-words')}>
+              <FiEyeOff /> {t.sidebar.study_mode_word}
+            </StudyModeOption>
+          </StudyModeGroup>
+
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
             style={{
-              flex: 1,
-              padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-              fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
+              width: '100%',
+              padding: '8px',
               borderRadius: '6px',
               border: `1px solid ${theme.colors.border}`,
               background: theme.colors.surface,
-              color: theme.colors.text
+              color: theme.colors.text,
+              fontSize: '0.85rem'
             }}
           >
             <option value="date-desc">{t.sidebar.newest}</option>
             <option value="date-asc">{t.sidebar.oldest}</option>
-            <option value="starred">{t.sidebar.sort_starred}</option>
-            <option value="alpha">{t.sidebar.alphabetical}</option>
-            <option value="source-desc">{t.sidebar.source_newest}</option>
-            <option value="source-asc">{t.sidebar.source_oldest}</option>
-            <option value="comment-desc">{t.sidebar.last_commented}</option>
+            <option value="alpha">{t.sidebar.title_asc}</option>
+            <option value="starred">{t.sidebar.starred_first}</option>
+            <option value="comment-desc">{t.sidebar.most_commented}</option>
+            <option value="source-desc">{t.sidebar.source_desc}</option>
+            <option value="source-asc">{t.sidebar.source_asc}</option>
           </select>
-        </div>
-
-        <div style={{ marginTop: '0.6rem' }}>
-          <StudyModeGroup>
-            {[
-              { value: 'hide-meanings', label: t.sidebar.study_hide_meanings, icon: <FiEyeOff /> },
-              { value: 'hide-words', label: t.sidebar.study_hide_words, icon: <FiEyeOff /> }
-            ].map((option) => {
-              const isActive = studyMode === option.value;
-              return (
-                <StudyModeOption
-                  key={option.value}
-                  $active={isActive}
-                  title={option.label}
-                  onClick={() => {
-                    const newVal = (isActive ? 'none' : option.value) as any;
-                    setStudyMode(newVal);
-                  }}
-                >
-                  {option.icon}
-                  <span>{option.label}</span>
-                </StudyModeOption>
-              );
-            })}
-          </StudyModeGroup>
         </div>
       </Header>
 
-      <DragDropContext
-        onDragEnd={onDragEnd}
-        onDragUpdate={onDragUpdate}
-      >
-        <Droppable droppableId="root" isCombineEnabled type="LOG_LIST">
-          {(provided) => (
-            <LogList
-              key={`list-${listKey}`}
-              id="sidebar-log-list"
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}
-            >
-              <div style={{ display: 'none' }}>{listKey}</div>
-              {flatItems.map((item, index) => {
-                if (item.type === 'single') {
-                  const logId = item.log.id!;
+      <LogList id="sidebar-log-list" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+        <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
+          <Droppable droppableId="sidebar-droppable" isCombineEnabled>
+            {(provided) => (
+              <div {...provided.droppableProps} ref={provided.innerRef} key={listKey}>
+                {flatItems.map((item, index) => {
+                  if (item.type === 'thread-header') {
+                    return (
+                      <SidebarThreadItem
+                        key={item.log.id}
+                        threadId={item.threadId}
+                        logs={item.threadLogs}
+                        index={index}
+                        collapsed={!expandedThreads.has(item.threadId)}
+                        onToggle={toggleThread}
+                        activeLogId={Number(id)}
+                        sourceMap={sourceNameMap}
+                        formatDate={formatDate}
+                        untitledText={t.sidebar.untitled}
+                        onLogClick={onCloseMobile}
+                        isCombineTarget={combineTargetId === `log-${item.log.id}`}
+                        t={t}
+                        studyMode={studyMode}
+                      />
+                    );
+                  }
                   return (
                     <SidebarMemoItem
-                      key={logId}
+                      key={item.log.id}
                       log={item.log}
                       index={index}
-                      isActive={Number(id) === logId}
+                      isActive={Number(id) === item.log.id}
                       onClick={onCloseMobile}
-                      sourceName={sourceNameMap.get(item.log.sourceId!)}
-                      formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
+                      formatDate={formatDate}
                       untitledText={t.sidebar.untitled}
-                      isCombineTarget={combineTargetId === String(logId)}
+                      inThread={item.type === 'thread-child'}
+                      isCombineTarget={combineTargetId === `log-${item.log.id}`}
                       studyMode={studyMode}
                     />
                   );
-                } else if (item.type === 'thread-header') {
-                  const logId = item.log.id!;
-                  return (
-                    <SidebarThreadItem
-                      key={`header-${item.threadId}`}
-                      threadId={item.threadId}
-                      logs={item.threadLogs}
-                      index={index}
-                      collapsed={!expandedThreads.has(item.threadId)}
-                      onToggle={toggleThread}
-                      activeLogId={Number(id)}
-                      sourceMap={sourceNameMap}
-                      formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
-                      untitledText={t.sidebar.untitled}
-                      onLogClick={() => onCloseMobile()}
-                      isCombineTarget={combineTargetId === `thread-header-${logId}`}
-                      t={t}
-                      studyMode={studyMode}
-                    />
-                  );
-                } else if (item.type === 'thread-child') {
-                  const logId = item.log.id!;
-                  return (
-                    <SidebarMemoItem
-                      key={logId}
-                      log={item.log}
-                      index={index}
-                      isActive={Number(id) === logId}
-                      onClick={onCloseMobile}
-                      sourceName={sourceNameMap.get(item.log.sourceId!)}
-                      formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
-                      untitledText={t.sidebar.untitled}
-                      inThread={true}
-                      isCombineTarget={combineTargetId === `thread-child-${logId}`}
-                      studyMode={studyMode}
-                    />
-                  );
-                }
-                return null;
-              })}
-              {provided.placeholder}
-            </LogList>
-          )}
-        </Droppable>
-      </DragDropContext>
+                })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </LogList>
 
-      {
-        toastMessage && (
-          <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-        )
-      }
+      {toastMessage && (
+        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      )}
+
       <SyncModal
         isOpen={isSyncModalOpen}
         onClose={() => setIsSyncModalOpen(false)}
         adapter={wordMemoSyncAdapter}
         t={t}
-        language={useLanguage().language}
+        language={language}
       />
     </SidebarContainer>
   );
