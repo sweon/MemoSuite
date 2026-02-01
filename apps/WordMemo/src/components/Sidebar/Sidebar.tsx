@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Log } from '../../db';
-import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiMinus } from 'react-icons/fi';
 import { Tooltip } from '../UI/Tooltip';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
@@ -246,11 +246,10 @@ const StudyModeOption = styled.label<{ $active: boolean }>`
 
 interface SidebarProps {
   onCloseMobile: () => void;
-  isDirty?: boolean;
   isEditing?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false, isEditing = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = false }) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'source-desc' | 'source-asc' | 'comment-desc' | 'alpha' | 'starred'>('date-desc');
@@ -270,8 +269,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
 
   const { mode, theme, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);

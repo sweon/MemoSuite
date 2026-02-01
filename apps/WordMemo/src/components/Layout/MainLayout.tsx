@@ -217,7 +217,7 @@ export const MainLayout: React.FC = () => {
     <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
       <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
       <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
-        <Sidebar onCloseMobile={() => setSidebarOpen(false)} isDirty={isDirty} isEditing={isAppEditing} />
+        <Sidebar onCloseMobile={() => setSidebarOpen(false)} isEditing={isAppEditing || isDirty} />
         <ResizeHandle
           $isResizing={isResizing}
           onMouseDown={startResizing}
