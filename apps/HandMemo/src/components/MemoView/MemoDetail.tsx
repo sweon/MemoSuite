@@ -123,17 +123,19 @@ const MetaActions = styled.div`
   }
 `;
 
-const MetaIconButton = styled.button`
+const MetaActionBtn = styled.button`
   background: transparent;
   border: none;
   color: ${({ theme }) => theme.colors.textSecondary};
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 4px;
+  gap: 4px;
+  padding: 4px 6px;
   border-radius: ${({ theme }) => theme.radius.small};
   transition: ${({ theme }) => theme.effects.transition};
+  font-size: 0.8rem;
+  font-weight: 600;
 
   &:hover {
     color: ${({ theme }) => theme.colors.primary};
@@ -792,12 +794,12 @@ export const MemoDetail: React.FC = () => {
                                 </span>
                             ))}
                             <MetaActions>
-                                <MetaIconButton onClick={() => window.print()} title="PDF">
-                                    <FiFileText size={18} />
-                                </MetaIconButton>
-                                <MetaIconButton onClick={() => window.print()} title={language === 'ko' ? '인쇄' : 'Print'}>
-                                    <FiPrinter size={18} />
-                                </MetaIconButton>
+                                <MetaActionBtn onClick={() => window.print()} title="PDF">
+                                    <FiFileText size={16} /> PDF
+                                </MetaActionBtn>
+                                <MetaActionBtn onClick={() => window.print()} title={language === 'ko' ? '인쇄' : 'Print'}>
+                                    <FiPrinter size={16} /> {language === 'ko' ? '인쇄' : 'Print'}
+                                </MetaActionBtn>
                             </MetaActions>
                         </>
                     )}
