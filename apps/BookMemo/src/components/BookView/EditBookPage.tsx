@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { db } from '../../db';
 import { FiCheck, FiCalendar, FiArrowLeft } from 'react-icons/fi';
 import { format } from 'date-fns';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 const Container = styled.div`
@@ -170,6 +170,7 @@ export const EditBookPage: React.FC = () => {
   const { bookId } = useParams<{ bookId: string }>();
   const { t, language } = useLanguage();
   const navigate = useNavigate();
+  const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>() || {};
 
   const book = useLiveQuery(() => db.books.get(Number(bookId)), [bookId]);
 
@@ -190,6 +191,22 @@ export const EditBookPage: React.FC = () => {
       );
     }
   }, [book, language]);
+
+  const isDirty = !!(book && (
+    title !== book.title ||
+    author !== (book.author || '') ||
+    totalPages !== String(book.totalPages) ||
+    startDate !== (language === 'ko' ? format(book.startDate, 'yyyy. MM. dd.') : formatDateForInput(book.startDate))
+  ));
+
+  useEffect(() => {
+    if (setIsDirty) setIsDirty(isDirty);
+    if (setAppIsEditing) setAppIsEditing(true);
+    return () => {
+      if (setIsDirty) setIsDirty(false);
+      if (setAppIsEditing) setAppIsEditing(false);
+    };
+  }, [isDirty, setIsDirty, setAppIsEditing]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

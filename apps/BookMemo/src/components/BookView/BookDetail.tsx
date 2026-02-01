@@ -3,7 +3,7 @@ import { ThreadableList, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useParams, useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Outlet, useOutletContext } from 'react-router-dom';
 import { db } from '../../db';
 import { FiEdit2, FiEdit3, FiTrash2, FiRotateCcw, FiMaximize, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { format } from 'date-fns';
@@ -301,6 +301,7 @@ export const BookDetail: React.FC = () => {
   // Hover state for global memos tooltip
   const [hoveredGlobalMemo, setHoveredGlobalMemo] = useState<{ data: any, top: number, left: number } | null>(null);
   const graphContainerRef = useRef<HTMLDivElement>(null);
+  const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>() || {};
 
   const numericBookId = Number(bookId);
   const book = useLiveQuery(() => isNaN(numericBookId) ? undefined : db.books.get(numericBookId), [numericBookId]);
@@ -867,7 +868,7 @@ export const BookDetail: React.FC = () => {
 
       {isMemoOpen && (
         <RightPane>
-          <Outlet />
+          <Outlet context={{ setIsDirty, setAppIsEditing }} />
         </RightPane>
       )}
     </Container>

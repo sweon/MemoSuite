@@ -4,7 +4,7 @@ import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus } from 'react-icons/fi';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
@@ -164,7 +164,7 @@ const IconButton = styled.button`
 
 interface SidebarProps {
   onCloseMobile: (skipHistory?: boolean) => void;
-  isDirty?: boolean;
+  isEditing?: boolean;
 }
 
 const BrandHeader = styled.div`
@@ -194,7 +194,7 @@ const AppVersion = styled.span`
   border: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = false }) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-comment-desc'>('date-desc');
@@ -202,9 +202,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-
-  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && isDirty && location.pathname !== '/';
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
