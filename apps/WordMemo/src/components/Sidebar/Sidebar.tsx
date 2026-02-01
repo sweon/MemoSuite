@@ -638,7 +638,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
           )}
         </SearchInputWrapper>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            style={{
+              flex: 1,
+              width: '100%',
+              padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
+              fontSize: window.innerWidth <= 768 ? '14px' : '0.85rem',
+              borderRadius: '6px',
+              border: `1px solid ${theme.colors.border}`,
+              background: theme.colors.surface,
+              color: theme.colors.text
+            }}
+          >
+            <option value="date-desc">{language === 'ko' ? '최신순' : 'Newest'}</option>
+            <option value="date-asc">{language === 'ko' ? '오래된순' : 'Oldest'}</option>
+            <option value="alpha">{language === 'ko' ? '제목순' : 'Title A-Z'}</option>
+            <option value="starred">{language === 'ko' ? '중요한 것 먼저' : 'Starred First'}</option>
+            <option value="comment-desc">{language === 'ko' ? '댓글 많은 순' : 'Most Commented'}</option>
+            <option value="source-desc">{language === 'ko' ? '출처 (내림차순)' : 'Source (Desc)'}</option>
+            <option value="source-asc">{language === 'ko' ? '출처 (오름차순)' : 'Source (Asc)'}</option>
+          </select>
+        </div>
+
+        <div style={{ marginTop: '0.6rem' }}>
           <StudyModeGroup>
             <StudyModeOption
               $active={studyMode === 'hide-meanings'}
@@ -653,28 +678,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
               {language === 'ko' ? '단어' : 'Word'} <FiEyeOff />
             </StudyModeOption>
           </StudyModeGroup>
-
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              borderRadius: '6px',
-              border: `1px solid ${theme.colors.border}`,
-              background: theme.colors.surface,
-              color: theme.colors.text,
-              fontSize: '0.85rem'
-            }}
-          >
-            <option value="date-desc">{t.sidebar.newest}</option>
-            <option value="date-asc">{t.sidebar.oldest}</option>
-            <option value="alpha">{t.sidebar.title_asc}</option>
-            <option value="starred">{t.sidebar.starred_first}</option>
-            <option value="comment-desc">{t.sidebar.most_commented}</option>
-            <option value="source-desc">{t.sidebar.source_desc}</option>
-            <option value="source-asc">{t.sidebar.source_asc}</option>
-          </select>
         </div>
       </Header>
 
