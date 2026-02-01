@@ -5781,7 +5781,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                                                 justifyContent: 'center',
                                                 background: tempDrawWithFinger ? '#333' : 'transparent'
                                             }}>
-                                                {tempDrawWithFinger && <div style={{ width: '8px', height: '8px', background: 'white', borderRadius: '1px' }} />}
+                                                {tempDrawWithFinger && <FiCheck color="white" size={14} />}
                                             </div>
                                             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                             <span style={{ fontSize: '0.85rem' }}>{(t.drawing as any)?.draw_with_finger || 'Draw with Finger'}</span>
