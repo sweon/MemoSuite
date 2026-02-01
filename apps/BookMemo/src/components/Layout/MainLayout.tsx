@@ -240,13 +240,8 @@ export const MainLayout: React.FC = () => {
 
   const location = useLocation();
   useEffect(() => {
-    if (isMobile) {
-      const isRoot = location.pathname === '/' || location.pathname === '/index.html';
-      const isBookList = location.pathname.startsWith('/book/') && !location.pathname.includes('/memo/');
-
-      if (isRoot || isBookList) {
-        setSidebarOpen(true);
-      }
+    if (isMobile && (location.pathname === '/' || location.pathname === '/index.html')) {
+      setSidebarOpen(true);
     }
   }, [location.pathname, isMobile]);
 
