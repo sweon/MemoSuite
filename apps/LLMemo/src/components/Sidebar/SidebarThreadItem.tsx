@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Log } from '../../db';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { LogItemLink, LogTitle, LogDate, ThreadToggleBtn } from './itemStyles';
 import { FiCornerDownRight } from 'react-icons/fi';
 import { TouchDelayDraggable } from './TouchDelayDraggable';
@@ -18,14 +19,28 @@ interface Props {
     onLogClick?: () => void;
     isCombineTarget?: boolean;
     t: TranslationKeys;
-    replace?: boolean;
 }
 
 export const SidebarThreadItem: React.FC<Props> = ({
     threadId, logs, index, collapsed, onToggle,
     activeLogId, modelMap, formatDate, untitledText, onLogClick,
-    isCombineTarget, t, replace
+    isCombineTarget, t
 }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const handleLogClick = (e: React.MouseEvent, logId: number) => {
+        e.preventDefault();
+
+        if (onLogClick && window.innerWidth <= 768) {
+            onLogClick();
+        }
+
+        navigate(`/log/${logId}`, {
+            replace: location.pathname !== '/' && location.pathname !== '/index.html'
+        });
+    };
+
     const headLog = logs[0];
     const bodyLogs = logs.slice(1);
 
@@ -49,10 +64,9 @@ export const SidebarThreadItem: React.FC<Props> = ({
                     <div {...provided.dragHandleProps} style={{ position: 'relative' }}>
                         <LogItemLink
                             to={`/log/${headLog.id}`}
-                            replace={replace}
                             $isActive={activeLogId === headLog.id}
                             $inThread={false}
-                            onClick={onLogClick}
+                            onClick={(e) => handleLogClick(e, headLog.id!)}
                         >
                             <LogTitle title={headLog.title || untitledText}>
                                 {headLog.title || untitledText}

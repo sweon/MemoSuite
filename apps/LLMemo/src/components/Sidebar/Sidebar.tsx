@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Log } from '../../db';
-import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom'; // Ensure react-router-dom is installed
+import { useNavigate, useParams, useLocation } from 'react-router-dom'; // Ensure react-router-dom is installed
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus } from 'react-icons/fi';
 
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -184,10 +184,10 @@ const IconButton = styled.button`
 
 interface SidebarProps {
   onCloseMobile: () => void;
-  isDirty?: boolean;
+  isEditing?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = false }) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'model-desc' | 'model-asc' | 'comment-desc'>('date-desc');
@@ -204,10 +204,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
   const { theme, mode, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
-
-  const isEditing = (location.pathname.endsWith('/new') || searchParams.get('edit') === 'true') && isDirty && location.pathname !== '/';
 
   // Decide whether to replace history or push.
   // We only replace if we are already in a sub-page (log detail or settings).
@@ -654,7 +651,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
                 formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
                 untitledText={t.sidebar.untitled}
                 isCombineTarget={isCombineTarget}
-                replace={isAtSubPage}
               />
             );
           } else if (item.type === 'thread-header') {
@@ -673,7 +669,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
                 onLogClick={onCloseMobile}
                 isCombineTarget={isCombineTarget}
                 t={t}
-                replace={isAtSubPage}
               />
             );
           } else if (item.type === 'thread-child') {
@@ -688,7 +683,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
                 untitledText={t.sidebar.untitled}
                 inThread={true}
                 isCombineTarget={isCombineTarget}
-                replace={isAtSubPage}
               />
             );
           }

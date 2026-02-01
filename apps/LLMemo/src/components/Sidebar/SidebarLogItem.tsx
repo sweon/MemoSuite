@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Log } from '../../db';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { LogItemLink, LogTitle, LogDate } from './itemStyles';
 
 interface Props {
@@ -11,7 +12,6 @@ interface Props {
     inThread?: boolean;
     untitledText: string;
     isCombineTarget?: boolean;
-    replace?: boolean;
 }
 export const SidebarLogItem: React.FC<Props> = ({
     log,
@@ -21,9 +21,23 @@ export const SidebarLogItem: React.FC<Props> = ({
     formatDate,
     inThread,
     untitledText,
-    isCombineTarget,
-    replace
+    isCombineTarget
 }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const handleLogClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+
+        if (onClick && window.innerWidth <= 768) {
+            onClick();
+        }
+
+        navigate(`/log/${log.id}`, {
+            replace: location.pathname !== '/' && location.pathname !== '/index.html'
+        });
+    };
+
     return (
         <div
             style={{
@@ -36,10 +50,9 @@ export const SidebarLogItem: React.FC<Props> = ({
         >
             <LogItemLink
                 to={`/log/${log.id}`}
-                replace={replace}
                 $isActive={isActive}
                 $inThread={inThread}
-                onClick={onClick}
+                onClick={handleLogClick}
             >
                 <LogTitle title={log.title || untitledText}>
                     {log.title || untitledText}
@@ -53,6 +66,6 @@ export const SidebarLogItem: React.FC<Props> = ({
                     )}
                 </LogDate>
             </LogItemLink>
-        </div>
+        </div >
     );
 };
