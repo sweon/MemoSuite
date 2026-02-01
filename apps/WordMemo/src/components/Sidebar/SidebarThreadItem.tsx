@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Log } from '../../db';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LogItemLink, LogTitle, LogDate, ThreadToggleBtn, LogTitleRow, SpeakButton, BlurredText, StarButton } from './itemStyles';
 import { FiCornerDownRight, FiVolume2, FiStar } from 'react-icons/fi';
 import { TouchDelayDraggable } from './TouchDelayDraggable';
@@ -31,6 +31,7 @@ export const SidebarThreadItem: React.FC<Props> = ({
     studyMode
 }) => {
     const location = useLocation();
+    const navigate = useNavigate();
     const headLog = logs[0];
     const bodyLogs = logs.slice(1);
 
@@ -55,7 +56,14 @@ export const SidebarThreadItem: React.FC<Props> = ({
             }
         }
 
+        // Default behavior for navigation
+        e.preventDefault();
+
         if (onLogClick && window.innerWidth <= 768) onLogClick();
+
+        navigate(`/log/${headLog.id}`, {
+            replace: location.pathname !== '/' && location.pathname !== ''
+        });
     };
 
     const handleToggleStar = async (e: React.MouseEvent) => {

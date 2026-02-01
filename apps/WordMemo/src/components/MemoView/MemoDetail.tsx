@@ -292,7 +292,7 @@ export const MemoDetail: React.FC = () => {
         [id]
     );
 
-    const { setIsDirty } = useOutletContext<{ setIsDirty: (d: boolean) => void }>();
+    const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>();
 
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
@@ -307,8 +307,12 @@ export const MemoDetail: React.FC = () => {
 
     useEffect(() => {
         setIsDirty(isEditing || hasDraftChanges);
-        return () => setIsDirty(false);
-    }, [isEditing, hasDraftChanges, setIsDirty]);
+        if (setAppIsEditing) setAppIsEditing(isEditing);
+        return () => {
+            setIsDirty(false);
+            if (setAppIsEditing) setAppIsEditing(false);
+        };
+    }, [isEditing, hasDraftChanges, setIsDirty, setAppIsEditing]);
 
     const isPlaceholder = !isNew && id && !log?.title && !log?.content;
 

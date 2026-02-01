@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Log } from '../../db';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LogItemLink, LogTitle, LogDate, LogTitleRow, SpeakButton, BlurredText, StarButton } from './itemStyles';
 import { TouchDelayDraggable } from './TouchDelayDraggable';
 import { FiVolume2, FiStar } from 'react-icons/fi';
@@ -33,6 +33,7 @@ export const SidebarMemoItem: React.FC<Props> = ({
     studyMode
 }) => {
     const location = useLocation();
+    const navigate = useNavigate();
     const [isRevealed, setIsRevealed] = React.useState(false);
     const draggableId = inThread ? `thread-child-${log.id}` : String(log.id);
 
@@ -66,10 +67,18 @@ export const SidebarMemoItem: React.FC<Props> = ({
             }
         }
 
+
+        // Always prevent default link behavior to control navigation
+        e.preventDefault();
+
         // Default behavior: call onClick (onCloseMobile) only on mobile devices
         if (onClick && window.innerWidth <= 768) {
             onClick();
         }
+
+        navigate(`/log/${log.id}`, {
+            replace: !location.pathname.endsWith('/') && location.pathname !== '/'
+        });
     };
 
     return (

@@ -137,11 +137,13 @@ export const MainLayout: React.FC = () => {
     return Math.max(MIN_WIDTH, parsed);
   });
   const [isResizing, setIsResizing] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  const [isDirty, setIsDirty] = useState(false); // Kept for legacy compatibility if needed
+  const [isAppEditing, setAppIsEditing] = useState(false); // Added for strict synchronization
   const containerRef = useRef<HTMLDivElement>(null);
   const longPressTimer = useRef<any>(null);
 
   const startResizing = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    // ... (resizing logic omitted for brevity in replace, but needed in context)
     // Prevent default to stop text selection etc.
     // e.preventDefault(); // Don't prevent default on touchstart to allow scrolling if needed, but here it's a handle
 
@@ -215,7 +217,7 @@ export const MainLayout: React.FC = () => {
     <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
       <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
       <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
-        <Sidebar onCloseMobile={() => setSidebarOpen(false)} isDirty={isDirty} />
+        <Sidebar onCloseMobile={() => setSidebarOpen(false)} isDirty={isDirty} isEditing={isAppEditing} />
         <ResizeHandle
           $isResizing={isResizing}
           onMouseDown={startResizing}
@@ -235,7 +237,7 @@ export const MainLayout: React.FC = () => {
             <h3 style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>WordMemo</h3>
           </div>
         </MobileHeader>
-        <Outlet context={{ setIsDirty }} />
+        <Outlet context={{ setIsDirty, setAppIsEditing }} />
       </ContentWrapper>
     </Container>
   );
