@@ -210,7 +210,6 @@ const StudyModeGroup = styled.div`
 `;
 
 const StudyModeOption = styled.label<{ $active: boolean }>`
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -219,20 +218,29 @@ const StudyModeOption = styled.label<{ $active: boolean }>`
   border-radius: ${({ theme }) => theme.radius.medium};
   border: 1px solid ${({ theme, $active }) => $active ? theme.colors.primary : theme.colors.border};
   background: ${({ theme, $active }) => $active ? `${theme.colors.primary}11` : theme.colors.background};
-  color: ${({ theme, $active }) => $active ? theme.colors.primary : theme.colors.textSecondary};
+  
+  /* Force text visibility */
+  color: ${({ theme, $active }) => $active ? theme.colors.primary : theme.colors.textSecondary} !important;
+  
   cursor: pointer;
   font-size: 0.75rem;
   font-weight: 600;
   transition: ${({ theme }) => theme.effects.transition};
   white-space: nowrap;
+  
+  /* Flexbox child handling */
+  flex: 1;
+  min-width: 0; /* Allow shrinking if needed, but flex:1 should distribute space */
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     background: ${({ theme, $active }) => $active ? `${theme.colors.primary}18` : theme.colors.surface};
+    color: ${({ theme }) => theme.colors.primary} !important;
   }
 
   svg {
     font-size: 0.95rem;
+    flex-shrink: 0;
   }
 `;
 
@@ -632,14 +640,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <StudyModeGroup>
-            <StudyModeOption $active={studyMode === 'none'} onClick={() => setStudyMode('none')}>
-              {t.sidebar.study_mode_normal}
+            <StudyModeOption
+              $active={studyMode === 'hide-meanings'}
+              onClick={() => setStudyMode(studyMode === 'hide-meanings' ? 'none' : 'hide-meanings')}
+            >
+              {language === 'ko' ? '의미' : 'Meaning'} <FiEyeOff />
             </StudyModeOption>
-            <StudyModeOption $active={studyMode === 'hide-meanings'} onClick={() => setStudyMode('hide-meanings')}>
-              <FiEyeOff /> {t.sidebar.study_mode_hide}
-            </StudyModeOption>
-            <StudyModeOption $active={studyMode === 'hide-words'} onClick={() => setStudyMode('hide-words')}>
-              <FiEyeOff /> {t.sidebar.study_mode_word}
+            <StudyModeOption
+              $active={studyMode === 'hide-words'}
+              onClick={() => setStudyMode(studyMode === 'hide-words' ? 'none' : 'hide-words')}
+            >
+              {language === 'ko' ? '단어' : 'Word'} <FiEyeOff />
             </StudyModeOption>
           </StudyModeGroup>
 
