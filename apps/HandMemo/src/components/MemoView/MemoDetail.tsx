@@ -9,7 +9,7 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiArrowRightCircle, FiPrinter, FiFileText } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiArrowRightCircle, FiPrinter, FiFileText, FiGitMerge } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -706,6 +706,46 @@ export const MemoDetail: React.FC = () => {
         }
     };
 
+    const handleAddThread = async () => {
+        if (!memo || !id) return;
+
+        const now = new Date();
+        let threadId = memo.threadId;
+        let threadOrder = 0;
+
+        try {
+            if (!threadId) {
+                // Create new thread for current log
+                threadId = crypto.randomUUID();
+                await db.memos.update(Number(id), {
+                    threadId,
+                    threadOrder: 0
+                });
+                threadOrder = 1;
+            } else {
+                // Find max order in this thread
+                const threadMemos = await db.memos.where('threadId').equals(threadId).toArray();
+                const maxOrder = Math.max(...threadMemos.map(l => l.threadOrder || 0));
+                threadOrder = maxOrder + 1;
+            }
+
+            // Create new memo in thread
+            const newMemoId = await db.memos.add({
+                title: '', // Empty title implies continuation
+                content: '',
+                tags: memo.tags, // Inherit tags
+                createdAt: now,
+                updatedAt: now,
+                threadId,
+                threadOrder
+            });
+
+            navigate(`/memo/${newMemoId}?edit=true`, { replace: true });
+        } catch (error) {
+            console.error("Failed to add thread:", error);
+        }
+    };
+
     const handleDelete = async () => {
         if (!id) return;
         setIsDeleteModalOpen(true);
@@ -842,6 +882,9 @@ export const MemoDetail: React.FC = () => {
                         <>
                             <ActionButton onClick={() => setIsEditing(true)}>
                                 <FiEdit2 size={14} /> {t.memo_detail.edit}
+                            </ActionButton>
+                            <ActionButton onClick={handleAddThread}>
+                                <FiGitMerge size={14} /> {t.memo_detail.add_thread}
                             </ActionButton>
                             <ActionButton $variant="danger" onClick={handleDelete}>
                                 <FiTrash2 size={14} /> {t.memo_detail.delete}

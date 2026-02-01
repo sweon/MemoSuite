@@ -539,7 +539,7 @@ export const translations = {
             delete_thread_entire: "전체 스레드 삭제",
             delete_memo_only: "이 메모만 삭제",
             delete_thread_confirm: "이 메모는 스레드의 일부입니다. 어떻게 삭제하시겠습니까?",
-            add_thread: "이어서 추가",
+            add_thread: "이어서 넣기",
             untitled: "제목 없음",
             share_memo: "공유",
             empty_state_title: "메모를 선택하거나 새로 만드세요",
