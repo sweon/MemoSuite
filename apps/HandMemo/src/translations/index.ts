@@ -27,7 +27,8 @@ export const translations = {
             title_asc: "Title (A-Z)",
             drawing_memo: "Drawing",
             text_memo: "Text",
-            sheet_memo: "Sheet"
+            sheet_memo: "Sheet",
+            app_updated: "App updated!"
         },
         settings: {
             title: "Settings",
@@ -388,7 +389,8 @@ export const translations = {
             title_asc: "가나다순",
             drawing_memo: "그리기",
             text_memo: "글",
-            sheet_memo: "시트"
+            sheet_memo: "시트",
+            app_updated: "앱이 업데이트되었습니다!"
         },
         settings: {
             title: "설정",

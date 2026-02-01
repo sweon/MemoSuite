@@ -625,6 +625,175 @@ const WebPreview = ({ url }: { url: string }) => {
   );
 };
 
+const YouTubePlayer = ({ videoId }: { videoId: string }) => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const playerRef = React.useRef<any>(null);
+  const intervalRef = React.useRef<any>(null);
+  const isMounted = React.useRef(true);
+  const [hasError, setHasError] = React.useState(false);
+  const [isReady, setIsReady] = React.useState(false);
+
+  React.useEffect(() => {
+    isMounted.current = true;
+
+    const savedTime = localStorage.getItem(`yt_progress_${videoId}`);
+    const startSeconds = savedTime ? parseInt(savedTime) : 0;
+
+    const initPlayer = () => {
+      if (!isMounted.current || !containerRef.current || playerRef.current) return;
+
+      try {
+        const YT = (window as any).YT;
+        if (!YT || !YT.Player) return;
+
+        playerRef.current = new YT.Player(containerRef.current, {
+          videoId,
+          playerVars: {
+            start: startSeconds > 10 ? startSeconds - 2 : startSeconds,
+            origin: window.location.origin,
+            modestbranding: 1,
+            enablejsapi: 1,
+          },
+          events: {
+            onReady: () => {
+              if (isMounted.current) setIsReady(true);
+            },
+            onStateChange: (event: any) => {
+              if (!isMounted.current) return;
+              if (event.data === 1) { // playing
+                if (!intervalRef.current) {
+                  intervalRef.current = setInterval(() => {
+                    if (playerRef.current && playerRef.current.getCurrentTime) {
+                      const currentTime = Math.floor(playerRef.current.getCurrentTime());
+                      if (currentTime > 0) {
+                        localStorage.setItem(`yt_progress_${videoId}`, String(currentTime));
+                      }
+                    }
+                  }, 4000);
+                }
+              } else { // paused/ended/etc
+                if (intervalRef.current) {
+                  clearInterval(intervalRef.current);
+                  intervalRef.current = null;
+                }
+                if (playerRef.current && playerRef.current.getCurrentTime) {
+                  const currentTime = Math.floor(playerRef.current.getCurrentTime());
+                  if (currentTime > 0) {
+                    localStorage.setItem(`yt_progress_${videoId}`, String(currentTime));
+                  }
+                }
+              }
+            },
+            onError: () => {
+              if (isMounted.current) setHasError(true);
+            }
+          }
+        });
+      } catch (err) {
+        console.error('YT init fail', err);
+        if (isMounted.current) setHasError(true);
+      }
+    };
+
+    const handleAPIReady = () => {
+      if (isMounted.current) initPlayer();
+    };
+
+    const checkAndInit = () => {
+      if ((window as any).YT && (window as any).YT.Player) {
+        initPlayer();
+      } else {
+        if (!(window as any).onYouTubeIframeAPIReady) {
+          (window as any).onYouTubeIframeAPIReady = () => {
+            window.dispatchEvent(new CustomEvent('youtubeAPIReady'));
+          };
+
+          if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+          }
+        }
+        window.addEventListener('youtubeAPIReady', handleAPIReady);
+      }
+    };
+
+    checkAndInit();
+
+    return () => {
+      isMounted.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      window.removeEventListener('youtubeAPIReady', handleAPIReady);
+
+      if (playerRef.current) {
+        try {
+          if (playerRef.current.destroy) {
+            playerRef.current.destroy();
+          }
+        } catch (e) {
+          // cleanup fail is okay
+        }
+        playerRef.current = null;
+      }
+    };
+  }, [videoId]);
+
+  if (hasError) {
+    return (
+      <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+        <iframe
+          width="100%"
+          height="315"
+          src={`https://www.youtube.com/embed/${videoId}`}
+          title="YouTube Video Fallback"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      position: 'relative',
+      paddingBottom: '56.25%',
+      height: 0,
+      overflow: 'hidden',
+      borderRadius: '12px',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+      background: '#000',
+      transition: 'opacity 0.5s'
+    }}>
+      {!isReady && (
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#ffffff',
+          fontSize: '11px',
+          background: '#111'
+        }}>
+          YouTube Loading...
+        </div>
+      )}
+      <div ref={containerRef} style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+      }} />
+    </div>
+  );
+};
+
 interface MarkdownViewProps {
   content: string;
   tableHeaderBg?: string;
@@ -648,127 +817,123 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
         rehypePlugins={[rehypeKatex]}
         components={{
           a: ({ href, children, ...props }: any) => {
-            if (!href) return <a {...props}>{children}</a>;
+            try {
+              if (!href) return <a {...props}>{children}</a>;
 
-            const isYoutube =
-              href.includes('youtube.com/watch') ||
-              href.includes('youtu.be/') ||
-              href.includes('youtube.com/embed/') ||
-              href.includes('youtube.com/shorts/');
+              const isYoutube =
+                href.includes('youtube.com/watch') ||
+                href.includes('youtu.be/') ||
+                href.includes('youtube.com/embed/') ||
+                href.includes('youtube.com/shorts/');
 
-            if (isYoutube) {
-              let videoId = '';
-              try {
-                if (href.includes('youtu.be/')) {
-                  videoId = href.split('youtu.be/')[1].split(/[?#]/)[0];
-                } else if (href.includes('youtube.com/shorts/')) {
-                  videoId = href.split('youtube.com/shorts/')[1].split(/[?#]/)[0];
-                } else if (href.includes('embed/')) {
-                  videoId = href.split('embed/')[1].split(/[?#]/)[0];
-                } else {
-                  const urlObj = new URL(href);
-                  videoId = urlObj.searchParams.get('v') || '';
+              if (isYoutube) {
+                let videoId = '';
+                try {
+                  if (href.includes('youtu.be/')) {
+                    videoId = href.split('youtu.be/')[1].split(/[?#]/)[0];
+                  } else if (href.includes('youtube.com/shorts/')) {
+                    videoId = href.split('youtube.com/shorts/')[1].split(/[?#]/)[0];
+                  } else if (href.includes('embed/')) {
+                    videoId = href.split('embed/')[1].split(/[?#]/)[0];
+                  } else {
+                    const urlObj = new URL(href);
+                    videoId = urlObj.searchParams.get('v') || '';
+                  }
+                } catch (e) { }
+
+                if (videoId) {
+                  return (
+                    <div key={videoId} style={{ margin: '16px 0' }}>
+                      <YouTubePlayer videoId={videoId} />
+                    </div>
+                  );
                 }
-              } catch (e) { }
-
-              if (videoId) {
-                return (
-                  <div style={{
-                    position: 'relative',
-                    paddingBottom: '56.25%', // 16:9
-                    height: 0,
-                    overflow: 'hidden',
-                    borderRadius: '8px',
-                    margin: '16px 0',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                  }}>
-                    <iframe
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        border: 0
-                      }}
-                      src={`https://www.youtube.com/embed/${videoId}`}
-                      title="YouTube video player"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                  </div>
-                );
               }
-            }
 
-            // General Web Preview for standalone links (links that match children or are on their own)
-            const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
-            if (isStandalone && href.startsWith('http')) {
-              return <WebPreview url={href} />;
-            }
+              // General Web Preview for standalone links (links that match children or are on their own)
+              const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
+              if (isStandalone && href.startsWith('http')) {
+                return <WebPreview url={href} />;
+              }
 
-            return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+              return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+            } catch (err) {
+              console.error('Link render error', err);
+              return <a href={href} {...props}>{children}</a>;
+            }
           },
           img: ({ src, alt }: any) => {
-            const meta = metadataCache.get(src || '');
-            if (meta) {
-              return (
-                <img
-                  src={src}
-                  alt={alt}
-                  width={meta.width}
-                  height={meta.height}
-                  style={{
-                    aspectRatio: `${meta.width} / ${meta.height}`,
-                    height: 'auto',
-                    maxWidth: '100%',
-                    display: 'block',
-                    margin: '1em auto'
-                  }}
-                />
-              );
+            try {
+              const meta = metadataCache.get(src || '');
+              if (meta) {
+                return (
+                  <img
+                    src={src}
+                    alt={alt}
+                    width={meta.width}
+                    height={meta.height}
+                    style={{
+                      aspectRatio: `${meta.width} / ${meta.height}`,
+                      height: 'auto',
+                      maxWidth: '100%',
+                      display: 'block',
+                      margin: '1em auto'
+                    }}
+                  />
+                );
+              }
+              return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px', display: 'block', margin: '1em auto' }} />;
+            } catch (err) {
+              return <img src={src} alt={alt} style={{ maxWidth: '100%' }} />;
             }
-            return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px', display: 'block', margin: '1em auto' }} />;
           },
           pre: ({ children, ...props }: any) => {
-            const child = Array.isArray(children) ? children[0] : children;
-            if (React.isValidElement(child) &&
-              (child.props as any).className?.includes('language-fabric')) {
-              return <>{children}</>;
+            try {
+              const child = Array.isArray(children) ? children[0] : children;
+              if (React.isValidElement(child) &&
+                (child.props as any).className?.includes('language-fabric')) {
+                return <>{children}</>;
+              }
+              if (React.isValidElement(child) &&
+                (child.props as any).className?.includes('language-spreadsheet')) {
+                return <>{children}</>;
+              }
+              return <div {...props}>{children}</div>;
+            } catch (err) {
+              return <pre {...props}>{children}</pre>;
             }
-            if (React.isValidElement(child) &&
-              (child.props as any).className?.includes('language-spreadsheet')) {
-              return <>{children}</>;
-            }
-            return <div {...props}>{children}</div>;
           },
           code({ node, inline, className, children, ...props }: any) {
-            const match = /language-(\w+)/.exec(className || '');
-            const language = match ? match[1] : '';
-            const json = String(children).replace(/\n$/, '');
+            try {
+              const match = /language-(\w+)/.exec(className || '');
+              const language = match ? match[1] : '';
+              const json = String(children).replace(/\n$/, '');
 
-            if (!inline && language === 'fabric') {
-              return <FabricPreview json={json} onClick={onEditDrawing ? () => onEditDrawing(json) : undefined} />;
+              if (!inline && language === 'fabric') {
+                return <FabricPreview json={json} onClick={onEditDrawing ? () => onEditDrawing(json) : undefined} />;
+              }
+
+              if (!inline && language === 'spreadsheet') {
+                return <SpreadsheetPreview json={json} onClick={onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
+              }
+
+              if (!inline) {
+                return (
+                  <SyntaxHighlighter
+                    style={isDark ? vscDarkPlus : vs}
+                    language={language || 'text'}
+                    PreTag="div"
+                    {...props}
+                  >
+                    {json}
+                  </SyntaxHighlighter>
+                );
+              }
+
+              return <code className={className} {...props}>{children}</code>;
+            } catch (err) {
+              return <code className={className} {...props}>{children}</code>;
             }
-
-            if (!inline && language === 'spreadsheet') {
-              return <SpreadsheetPreview json={json} onClick={onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
-            }
-
-            if (!inline) {
-              return (
-                <SyntaxHighlighter
-                  style={isDark ? vscDarkPlus : vs}
-                  language={language || 'text'}
-                  PreTag="div"
-                  {...props}
-                >
-                  {json}
-                </SyntaxHighlighter>
-              );
-            }
-
-            return <code className={className} {...props}>{children}</code>;
           }
         }}
       >
