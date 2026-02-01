@@ -30,55 +30,70 @@ const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => v
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    // Only show hint after a significant delay of one-finger touch
+    // This avoids showing it during normal page scrolling
     if (e.touches.length === 1 && !isTwoFingers) {
       if (!showHint && !hintTimerRef.current) {
-        hintTimerRef.current = setTimeout(() => setShowHint(true), 300);
+        hintTimerRef.current = setTimeout(() => setShowHint(true), 1500);
       }
     }
   };
 
   const handleTouchEnd = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
+    if (hintTimerRef.current) {
+      clearTimeout(hintTimerRef.current);
+      hintTimerRef.current = null;
+    }
+
     timerRef.current = setTimeout(() => {
       setIsTwoFingers(false);
       setShowHint(false);
-      hintTimerRef.current = null;
     }, 500);
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', width: '100%', borderRadius: '12px', overflow: 'hidden' }}>
       <div
         style={{
           position: 'absolute',
           top: 0, left: 0, right: 0, bottom: 0,
           zIndex: 10,
           pointerEvents: isTwoFingers ? 'none' : 'auto',
-          touchAction: 'pan-y', // Native parent scroll for 1 finger
+          touchAction: 'pan-y', // Allows parent page to scroll with 1 finger
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-end', // More subtle bottom position
           justifyContent: 'center',
-          background: showHint ? 'rgba(0,0,0,0.15)' : 'transparent',
-          transition: 'background 0.3s'
+          background: 'transparent',
+          transition: 'all 0.3s'
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onClick={onClick}
       >
-        {showHint && (
-          <div style={{
-            background: 'rgba(0,0,0,0.7)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '20px',
-            fontSize: '12px',
-            fontWeight: 600,
-            pointerEvents: 'none'
-          }}>
-            {language === 'ko' ? '두 손가락으로 스크롤' : 'Use two fingers to scroll'}
-          </div>
-        )}
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          opacity: showHint ? 1 : 0,
+          transform: `translateY(${showHint ? '0' : '10px'})`,
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          pointerEvents: 'none',
+          background: 'rgba(0,0,0,0.8)',
+          backdropFilter: 'blur(4px)',
+          color: 'white',
+          padding: '6px 14px',
+          borderRadius: '20px',
+          fontSize: '11px',
+          fontWeight: 500,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <span style={{ fontSize: '14px' }}>✌️</span>
+          {language === 'ko' ? '두 손가락으로 내부 스크롤' : 'Use two fingers to scroll inside'}
+        </div>
       </div>
       {children}
     </div>
