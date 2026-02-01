@@ -369,14 +369,24 @@
             }
 
             .grid {
+                grid-template-columns: repeat(2, 1fr);
                 gap: 1rem;
             }
 
             .card {
-                padding: 1.5rem;
+                padding: 1rem;
+                aspect-ratio: auto;
+                min-height: 180px;
+            }
+
+            .card .icon {
+                width: 60px;
+                height: 60px;
+                margin-bottom: 0.75rem;
             }
 
             .features {
+                margin-top: 4rem;
                 padding: var(--space-lg);
             }
 
@@ -389,6 +399,31 @@
                 right: 1rem;
                 font-size: 0.75rem;
                 padding: 0.4rem 0.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                min-height: auto;
+                aspect-ratio: auto;
+                padding: 1.5rem;
+                flex-direction: row;
+                justify-content: flex-start;
+                gap: 1.5rem;
+            }
+
+            .card .icon {
+                margin-bottom: 0;
+                width: 64px;
+                height: 64px;
+            }
+
+            .card .text-content {
+                text-align: left;
             }
         }
     </style>
@@ -407,29 +442,37 @@
                 <div class="icon">
                     <img src="./HandMemo/pwa-192x192.png" alt="HandMemo Icon">
                 </div>
-                <h2>HandMemo</h2>
-                <p>범용 노트앱</p>
+                <div class="text-content">
+                    <h2>HandMemo</h2>
+                    <p>범용 노트앱</p>
+                </div>
             </a>
             <a href="./BookMemo/" class="card" style="--brand: #2D6E7E;">
                 <div class="icon">
                     <img src="./BookMemo/pwa-192x192.png" alt="BookMemo Icon">
                 </div>
-                <h2>BookMemo</h2>
-                <p>독서 기록 및 책 메모장</p>
+                <div class="text-content">
+                    <h2>BookMemo</h2>
+                    <p>독서 기록 및 책 메모장</p>
+                </div>
             </a>
             <a href="./WordMemo/" class="card" style="--brand: #ABDF94;">
                 <div class="icon">
                     <img src="./WordMemo/pwa-192x192.png" alt="WordMemo Icon">
                 </div>
-                <h2>WordMemo</h2>
-                <p>AI를 활용한 단어 공부</p>
+                <div class="text-content">
+                    <h2>WordMemo</h2>
+                    <p>AI를 활용한 단어 공부</p>
+                </div>
             </a>
             <a href="./LLMemo/" class="card" style="--brand: #5995E2;">
                 <div class="icon">
                     <img src="./LLMemo/pwa-192x192.png" alt="LLMemo Icon">
                 </div>
-                <h2>LLMemo</h2>
-                <p>LLM과의 대화 기록</p>
+                <div class="text-content">
+                    <h2>LLMemo</h2>
+                    <p>LLM과의 대화 기록</p>
+                </div>
             </a>
         </div>
 
