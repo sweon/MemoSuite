@@ -647,13 +647,49 @@ export const MemoDetail: React.FC = () => {
             const contentText = currentContent.trim();
 
             if (contentText) {
-                // Filter out markdown code blocks (like ```fabric ... ```) for title generation
-                const filteredText = contentText
+                // Filter out markdown code blocks for title generation
+                let filteredText = contentText
                     .replace(/```[\s\S]*?```/g, '') // Remove code blocks
                     .trim();
 
                 if (filteredText) {
-                    finalTitle = filteredText.slice(0, 30) + (filteredText.length > 30 ? '...' : '');
+                    // Check if it starts with an image markdown: ![] (URL)
+                    const imgMatch = filteredText.match(/^!\[(.*?)\]\((.*?)\)/);
+                    if (imgMatch) {
+                        const alt = imgMatch[1].trim();
+                        const url = imgMatch[2].trim();
+
+                        if (alt && alt !== '이미지' && alt !== 'Image') {
+                            finalTitle = alt;
+                        } else {
+                            try {
+                                const urlObj = new URL(url);
+                                const pathParts = urlObj.pathname.split('/').filter(Boolean);
+                                if (pathParts.length > 0) {
+                                    const lastPart = pathParts[pathParts.length - 1];
+                                    let filename = decodeURIComponent(lastPart)
+                                        .replace(/\.[^/.]+$/, '')
+                                        .replace(/[-_]/g, ' ')
+                                        .trim();
+                                    if (filename.length > 1) {
+                                        finalTitle = filename.charAt(0).toUpperCase() + filename.slice(1);
+                                    }
+                                }
+                            } catch (e) { }
+                        }
+
+                        if (!finalTitle) {
+                            finalTitle = language === 'ko' ? '이미지' : 'Image';
+                        }
+                    } else {
+                        // Check if it starts with a markdown link: [text] (URL)
+                        const linkMatch = filteredText.match(/^\[(.*?)\]\((.*?)\)/);
+                        if (linkMatch && linkMatch[1].trim()) {
+                            finalTitle = linkMatch[1].trim();
+                        } else {
+                            finalTitle = filteredText.slice(0, 30) + (filteredText.length > 30 ? '...' : '');
+                        }
+                    }
                 } else {
                     finalTitle = t.memo_detail.untitled;
                 }
