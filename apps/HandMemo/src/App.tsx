@@ -12,6 +12,8 @@ import { MemoDetail } from './components/MemoView/MemoDetail';
 import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
 import { AndroidExitHandler } from './components/AndroidExitHandler';
+import { Toast } from './components/UI/Toast';
+import pkg from '../package.json';
 import { db } from './db';
 import { useParams } from 'react-router-dom';
 
@@ -67,6 +69,10 @@ function AppContent() {
   if (isLoading) return null;
   if (isLocked) return <LockScreen appName="HandMemo" />;
 
+  const currentVersion = pkg.version;
+  const lastVersion = localStorage.getItem('handmemo_version');
+  const isUpdated = lastVersion && lastVersion !== currentVersion;
+
   return (
     <ExitGuardProvider>
       <ColorThemeProvider storageKeyPrefix="handmemo" GlobalStyleComponent={GlobalStyle}>
@@ -75,6 +81,13 @@ function AppContent() {
             <HashRouter>
               <AndroidExitHandler />
               <InstallPrompt appName="HandMemo" t={t} iconPath="./pwa-192x192.png" />
+              {isUpdated && (
+                <Toast
+                  message={`${t.sidebar.app_updated} (v${currentVersion})`}
+                  onClose={() => localStorage.setItem('handmemo_version', currentVersion)}
+                  duration={5000}
+                />
+              )}
               <Routes>
                 <Route path="/" element={<MainLayout />}>
                   <Route index element={<EmptyState />} />
