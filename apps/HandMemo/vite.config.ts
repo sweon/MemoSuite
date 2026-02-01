@@ -27,7 +27,6 @@ export default defineConfig({
         scope: '/MemoSuite/HandMemo/',
         display: 'standalone',
         display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
-        orientation: 'natural',
         categories: ['productivity', 'utilities', 'notes'],
         icons: [
           {
