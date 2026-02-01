@@ -34,12 +34,12 @@ const Container = styled.div`
 
 const Header = styled.div`
   margin: 0;
-  padding: ${({ theme }) => `${theme.spacing.lg} ${theme.spacing.xl} ${theme.spacing.md}`};
+  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.xl} 2px`};
   background: ${({ theme }) => theme.colors.surface};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 
   @media (max-width: 768px) {
-    padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.sm}`};
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.sm} 2px`};
   }
 
   @media print {
@@ -78,7 +78,7 @@ const TitleInput = styled.input`
   border: none;
   background: transparent;
   color: ${({ theme }) => theme.colors.text};
-  margin-bottom: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: 2px;
   letter-spacing: -0.04em;
   
   &:focus {
@@ -93,7 +93,7 @@ const TitleInput = styled.input`
 const TitleDisplay = styled.h1`
   font-size: 2.25rem;
   font-weight: 900;
-  margin: 0 0 ${({ theme }) => theme.spacing.sm} 0;
+  margin: 0 0 2px 0;
   color: ${({ theme }) => theme.colors.text};
   letter-spacing: -0.04em;
   background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary})`};
@@ -106,7 +106,7 @@ const MetaRow = styled.div`
   align-items: center;
   gap: ${({ theme }) => theme.spacing.md};
   color: ${({ theme }) => theme.colors.textSecondary};
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   flex-wrap: wrap;
   font-weight: 500;
   width: 100%;
@@ -149,7 +149,7 @@ const TagInput = styled.input`
   color: ${({ theme }) => theme.colors.text};
   padding: 6px 12px;
   border-radius: ${({ theme }) => theme.radius.medium};
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   transition: ${({ theme }) => theme.effects.transition};
 
   &:focus {
@@ -166,7 +166,7 @@ const DateInput = styled.input`
     padding: 6px 36px 6px 12px;
     border-radius: ${({ theme }) => theme.radius.medium};
     width: 210px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     transition: ${({ theme }) => theme.effects.transition};
 
     &:focus {
