@@ -26,15 +26,25 @@ const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => v
       setIsTwoFingers(true);
       setShowHint(false);
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    } else if (e.touches.length === 1) {
+      // Start hint timer on first touch if not already showing
+      if (!showHint && !hintTimerRef.current) {
+        hintTimerRef.current = setTimeout(() => setShowHint(true), 600);
+      }
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    // Only show hint after a significant delay of one-finger touch
-    // This avoids showing it during normal page scrolling
     if (e.touches.length === 1 && !isTwoFingers) {
       if (!showHint && !hintTimerRef.current) {
-        hintTimerRef.current = setTimeout(() => setShowHint(true), 1500);
+        hintTimerRef.current = setTimeout(() => setShowHint(true), 600);
+      }
+    } else if (e.touches.length >= 2) {
+      setIsTwoFingers(true);
+      setShowHint(false);
+      if (hintTimerRef.current) {
+        clearTimeout(hintTimerRef.current);
+        hintTimerRef.current = null;
       }
     }
   };
@@ -75,21 +85,23 @@ const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => v
         <div style={{
           position: 'absolute',
           bottom: '20px',
+          zIndex: 20, // Ensure it's above the guard layer
           opacity: showHint ? 1 : 0,
           transform: `translateY(${showHint ? '0' : '10px'})`,
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           pointerEvents: 'none',
-          background: 'rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(4px)',
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255,255,255,0.1)', // Add subtle border for visibility
           color: 'white',
-          padding: '6px 14px',
-          borderRadius: '20px',
+          padding: '8px 16px',
+          borderRadius: '24px',
           fontSize: '11px',
-          fontWeight: 500,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          fontWeight: 600,
+          boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
           display: 'flex',
           alignItems: 'center',
-          gap: '6px'
+          gap: '8px'
         }}>
           <span style={{ fontSize: '14px' }}>✌️</span>
           {language === 'ko' ? '두 손가락으로 내부 스크롤' : 'Use two fingers to scroll inside'}
