@@ -542,7 +542,7 @@ export const MainLayout: React.FC = () => {
     // Don't trigger on interactive elements or editors
     if (target.closest('.CodeMirror') || target.closest('.EasyMDEContainer') ||
       target.closest('input') || target.closest('textarea') || target.closest('button') ||
-      target.closest('a') || target.closest('[role="button"]')) {
+      target.closest('a') || target.closest('[role="button"]') || target.closest('canvas')) {
       return;
     }
 
