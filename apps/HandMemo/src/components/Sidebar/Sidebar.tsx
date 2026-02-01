@@ -659,7 +659,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </Button>
             </Tooltip>
           </div>
-          <div style={{ display: 'flex', gap: '0rem', alignItems: 'center', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}>
 
             <Tooltip content={t.sidebar.decrease_font}>
               <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>

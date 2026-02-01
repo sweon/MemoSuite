@@ -569,7 +569,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isDirty = false
           }}>
             <FiPlus size={20} />
           </Button>
-          <div style={{ display: 'flex', gap: '0rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
 
             <Tooltip content={t.sidebar.decrease_font}>
               <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
