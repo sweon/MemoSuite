@@ -9,7 +9,7 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiArrowRightCircle, FiPrinter, FiFileText, FiGitMerge } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiArrowRightCircle, FiPrinter, FiGitMerge } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -882,9 +882,7 @@ export const MemoDetail: React.FC = () => {
                                 </span>
                             ))}
                             <MetaActions>
-                                <MetaActionBtn onClick={() => window.print()} title="PDF">
-                                    <FiFileText size={16} /> PDF
-                                </MetaActionBtn>
+
                                 <MetaActionBtn onClick={() => window.print()} title={language === 'ko' ? '인쇄' : 'Print'}>
                                     <FiPrinter size={16} /> {language === 'ko' ? '인쇄' : 'Print'}
                                 </MetaActionBtn>
@@ -955,9 +953,7 @@ export const MemoDetail: React.FC = () => {
                             <ActionButton onClick={() => setIsShareModalOpen(true)}>
                                 <FiShare2 size={14} /> {t.memo_detail.share_memo}
                             </ActionButton>
-                            <ActionButton $variant="pdf" onClick={() => window.print()} className="hide-on-mobile">
-                                <FiFileText size={14} /> {language === 'ko' ? 'PDF' : 'PDF'}
-                            </ActionButton>
+
                             <ActionButton $variant="print" onClick={() => window.print()} className="hide-on-mobile">
                                 <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                             </ActionButton>

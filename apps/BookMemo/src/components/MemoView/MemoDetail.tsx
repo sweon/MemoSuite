@@ -9,7 +9,7 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiFileText } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -949,9 +949,6 @@ export const MemoDetail: React.FC = () => {
                             </ActionButton>
                             <ActionButton onClick={() => setIsShareModalOpen(true)}>
                                 <FiShare2 size={14} /> {t.memo_detail.share_memo}
-                            </ActionButton>
-                            <ActionButton onClick={() => window.print()}>
-                                <FiFileText size={14} /> {language === 'ko' ? 'PDF' : 'PDF'}
                             </ActionButton>
                             <ActionButton onClick={() => window.print()}>
                                 <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}

@@ -12,7 +12,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
-import { FiSave, FiEdit2, FiTrash2, FiX, FiCoffee, FiStar, FiList, FiGitMerge, FiShare2, FiBookOpen, FiPlus, FiPrinter, FiFileText } from 'react-icons/fi';
+import { FiSave, FiEdit2, FiTrash2, FiX, FiCoffee, FiStar, FiList, FiGitMerge, FiShare2, FiBookOpen, FiPlus, FiPrinter } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
@@ -105,6 +105,20 @@ const ActionBar = styled.div`
   margin-top: ${({ theme }) => theme.spacing.lg};
 `;
 
+const ResponsiveGroup = styled.div`
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  gap: 1rem;
+  align-items: center;
+
+  @media (max-width: 1100px) {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+`;
+
 const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' }>`
   display: flex;
   align-items: center;
@@ -165,11 +179,6 @@ const SourceSelect = styled.select`
   }
 `;
 
-const TopRightActions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
-`;
 
 const HeaderRow = styled.div`
   display: flex;
@@ -919,23 +928,6 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                             </>
                         )}
                     </MetaRow>
-                    {!isEditing && log && (
-                        <TopRightActions>
-                            <ActionButton onClick={() => setShowShareModal(true)} style={{ padding: '0.35rem 0.7rem', fontSize: '13px' }}>
-                                <FiShare2 size={13} /> {t.log_detail.share_log}
-                            </ActionButton>
-                            <ActionButton $variant="danger" onClick={handleDelete} style={{ padding: '0.35rem 0.7rem', fontSize: '13px' }}>
-                                <FiTrash2 size={13} /> {t.log_detail.delete}
-                            </ActionButton>
-                            <StarButton
-                                $active={!!log.isStarred}
-                                onClick={handleToggleStar}
-                                style={{ padding: '4px' }}
-                            >
-                                <FiStar fill={log.isStarred ? 'currentColor' : 'none'} />
-                            </StarButton>
-                        </TopRightActions>
-                    )}
                 </HeaderRow>
 
                 <ActionBar>
@@ -978,107 +970,129 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                             </ActionButton>
                         </>
                     ) : (
-                        <>
-                            <ActionButton onClick={() => setIsEditing(true)}>
-                                <FiEdit2 size={14} /> {t.log_detail.edit}
-                            </ActionButton>
-                            <ActionButton onClick={handleMeaning}>
-                                <FiBookOpen size={14} /> {t.log_detail.meaning_button}
-                            </ActionButton>
-                            <ActionButton onClick={handleExample}>
-                                <FiCoffee size={14} /> {t.log_detail.example_button}
-                            </ActionButton>
-                            <ActionButton onClick={handleAddThread}>
-                                <FiGitMerge size={14} /> {t.log_detail.add_thread}
-                            </ActionButton>
-                            <ActionButton onClick={() => window.print()}>
-                                <FiFileText size={14} /> {language === 'ko' ? 'PDF' : 'PDF'}
-                            </ActionButton>
-                            <ActionButton onClick={() => window.print()}>
-                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
-                            </ActionButton>
-                        </>
+                        <ResponsiveGroup>
+                            {/* Group 1: Edit, Meaning, Example, Add Thread */}
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <ActionButton onClick={() => setIsEditing(true)}>
+                                    <FiEdit2 size={14} /> {t.log_detail.edit}
+                                </ActionButton>
+                                <ActionButton onClick={handleMeaning}>
+                                    <FiBookOpen size={14} /> {t.log_detail.meaning_button}
+                                </ActionButton>
+                                <ActionButton onClick={handleExample}>
+                                    <FiCoffee size={14} /> {t.log_detail.example_button}
+                                </ActionButton>
+                                <ActionButton onClick={handleAddThread}>
+                                    <FiGitMerge size={14} /> {t.log_detail.add_thread}
+                                </ActionButton>
+                            </div>
+
+                            {/* Group 2: Share, Delete, Print ... Star */}
+                            <div style={{ display: 'flex', flex: 1, gap: '0.5rem', alignItems: 'center' }}>
+                                <ActionButton onClick={() => setShowShareModal(true)}>
+                                    <FiShare2 size={13} /> {t.log_detail.share_log}
+                                </ActionButton>
+                                <ActionButton $variant="danger" onClick={handleDelete}>
+                                    <FiTrash2 size={13} /> {t.log_detail.delete}
+                                </ActionButton>
+                                <ActionButton onClick={() => window.print()}>
+                                    <FiPrinter size={13} /> {t.log_detail.print || 'Print'}
+                                </ActionButton>
+
+                                <StarButton
+                                    $active={!!log.isStarred}
+                                    onClick={handleToggleStar}
+                                    style={{ padding: '6px', marginLeft: 'auto' }}
+                                >
+                                    <FiStar fill={log.isStarred ? 'currentColor' : 'none'} size={15} />
+                                </StarButton>
+                            </div>
+                        </ResponsiveGroup>
                     )}
                 </ActionBar>
             </Header>
 
-            {isEditing ? (
-                <ContentPadding>
-                    <MarkdownEditor value={content} onChange={setContent} />
-                </ContentPadding>
-            ) : (
-                <ContentPadding>
-                    <ContentWrapper $isBlurred={studyMode === 'hide-meanings'}>
-                        <MarkdownView
-                            content={content}
-                            onEditDrawing={(json) => {
-                                setEditingDrawingData(json);
-                                setIsFabricModalOpen(true);
-                            }}
-                            onEditSpreadsheet={(json) => {
-                                try {
-                                    setEditingSpreadsheetData(JSON.parse(json));
-                                    setIsSpreadsheetModalOpen(true);
-                                } catch (e) {
-                                    console.error('Failed to parse spreadsheet JSON for editing', e);
+            {
+                isEditing ? (
+                    <ContentPadding>
+                        <MarkdownEditor value={content} onChange={setContent} />
+                    </ContentPadding>
+                ) : (
+                    <ContentPadding>
+                        <ContentWrapper $isBlurred={studyMode === 'hide-meanings'}>
+                            <MarkdownView
+                                content={content}
+                                onEditDrawing={(json) => {
+                                    setEditingDrawingData(json);
+                                    setIsFabricModalOpen(true);
+                                }}
+                                onEditSpreadsheet={(json) => {
+                                    try {
+                                        setEditingSpreadsheetData(JSON.parse(json));
+                                        setIsSpreadsheetModalOpen(true);
+                                    } catch (e) {
+                                        console.error('Failed to parse spreadsheet JSON for editing', e);
+                                    }
+                                }}
+                            />
+                        </ContentWrapper>
+                        {!isNew && log && (
+                            <CommentsSection
+                                logId={log.id!}
+                                initialEditingState={commentDraft}
+                                onEditingChange={setCommentDraft}
+                            />
+                        )}
+                    </ContentPadding>
+                )
+            }
+
+            {
+                isFabricModalOpen && (
+                    <FabricCanvasModal
+                        key={tParam || 'default'} // Force re-mount on new requests
+                        language={language}
+                        initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
+                        onSave={async (json: string) => {
+                            const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                            let found = false;
+                            const newContent = content.replace(fabricRegex, (match, p1) => {
+                                if (!found && p1.trim() === editingDrawingData?.trim()) {
+                                    found = true;
+                                    return `\`\`\`fabric\n${json}\n\`\`\``;
                                 }
-                            }}
-                        />
-                    </ContentWrapper>
-                    {!isNew && log && (
-                        <CommentsSection
-                            logId={log.id!}
-                            initialEditingState={commentDraft}
-                            onEditingChange={setCommentDraft}
-                        />
-                    )}
-                </ContentPadding>
-            )}
-
-            {isFabricModalOpen && (
-                <FabricCanvasModal
-                    key={tParam || 'default'} // Force re-mount on new requests
-                    language={language}
-                    initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
-                    onSave={async (json: string) => {
-                        const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
-                        let found = false;
-                        const newContent = content.replace(fabricRegex, (match, p1) => {
-                            if (!found && p1.trim() === editingDrawingData?.trim()) {
-                                found = true;
-                                return `\`\`\`fabric\n${json}\n\`\`\``;
-                            }
-                            return match;
-                        });
-
-                        setContent(newContent);
-                        if (id) {
-                            await db.logs.update(Number(id), {
-                                content: newContent,
-                                updatedAt: new Date()
+                                return match;
                             });
-                        }
-                        setIsFabricModalOpen(false);
-                        setEditingDrawingData(undefined);
-                    }}
-                    onAutosave={(json) => {
-                        const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
-                        let found = false;
-                        const newContent = content.replace(fabricRegex, (match, p1) => {
-                            if (!found && p1.trim() === editingDrawingData?.trim()) {
-                                found = true;
-                                return `\`\`\`fabric\n${json}\n\`\`\``;
+
+                            setContent(newContent);
+                            if (id) {
+                                await db.logs.update(Number(id), {
+                                    content: newContent,
+                                    updatedAt: new Date()
+                                });
                             }
-                            return match;
-                        });
-                        if (newContent !== content) setContent(newContent);
-                    }}
-                    onClose={() => {
-                        setIsFabricModalOpen(false);
-                        setEditingDrawingData(undefined);
-                    }}
-                />
-            )}
+                            setIsFabricModalOpen(false);
+                            setEditingDrawingData(undefined);
+                        }}
+                        onAutosave={(json) => {
+                            const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                            let found = false;
+                            const newContent = content.replace(fabricRegex, (match, p1) => {
+                                if (!found && p1.trim() === editingDrawingData?.trim()) {
+                                    found = true;
+                                    return `\`\`\`fabric\n${json}\n\`\`\``;
+                                }
+                                return match;
+                            });
+                            if (newContent !== content) setContent(newContent);
+                        }}
+                        onClose={() => {
+                            setIsFabricModalOpen(false);
+                            setEditingDrawingData(undefined);
+                        }}
+                    />
+                )
+            }
 
             <SpreadsheetModal
                 isOpen={isSpreadsheetModalOpen}
@@ -1129,34 +1143,42 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 language={language as 'en' | 'ko'}
             />
 
-            {isDeleteModalOpen && (
-                <DeleteChoiceModal
-                    onClose={() => setIsDeleteModalOpen(false)}
-                    onDeleteLogOnly={performDeleteLogOnly}
-                    onDeleteThread={performDeleteThread}
-                    isThreadHead={isDeletingThreadHead}
-                />
-            )}
-            {toastMessage && (
-                <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-            )}
-            {showBulkAdd && (
-                <BulkAddModal
-                    onClose={() => setShowBulkAdd(false)}
-                    onConfirm={handleBulkConfirm}
-                    isInThread={!!log?.threadId}
-                />
-            )}
-            {showShareModal && log?.id && (
-                <SyncModal
-                    isOpen={showShareModal}
-                    onClose={() => setShowShareModal(false)}
-                    adapter={wordMemoSyncAdapter}
-                    initialItemId={log.id}
-                    t={t}
-                    language={language}
-                />
-            )}
-        </Container>
+            {
+                isDeleteModalOpen && (
+                    <DeleteChoiceModal
+                        onClose={() => setIsDeleteModalOpen(false)}
+                        onDeleteLogOnly={performDeleteLogOnly}
+                        onDeleteThread={performDeleteThread}
+                        isThreadHead={isDeletingThreadHead}
+                    />
+                )
+            }
+            {
+                toastMessage && (
+                    <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+                )
+            }
+            {
+                showBulkAdd && (
+                    <BulkAddModal
+                        onClose={() => setShowBulkAdd(false)}
+                        onConfirm={handleBulkConfirm}
+                        isInThread={!!log?.threadId}
+                    />
+                )
+            }
+            {
+                showShareModal && log?.id && (
+                    <SyncModal
+                        isOpen={showShareModal}
+                        onClose={() => setShowShareModal(false)}
+                        adapter={wordMemoSyncAdapter}
+                        initialItemId={log.id}
+                        t={t}
+                        language={language}
+                    />
+                )
+            }
+        </Container >
     );
 };
