@@ -12,6 +12,47 @@ import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { format } from 'date-fns';
 
+const YOUTUBE_TITLE_CACHE: Record<string, string> = {};
+
+function findCommonPrefix(strings: string[]): string {
+    if (strings.length === 0) return "";
+    let prefix = strings[0];
+    for (let i = 1; i < strings.length; i++) {
+        while (strings[i].indexOf(prefix) !== 0) {
+            prefix = prefix.substring(0, prefix.length - 1);
+            if (prefix === "") return "";
+        }
+    }
+    return prefix;
+}
+
+function findCommonSuffix(strings: string[]): string {
+    if (strings.length === 0) return "";
+    let suffix = strings[0];
+    for (let i = 1; i < strings.length; i++) {
+        while (!strings[i].endsWith(suffix)) {
+            suffix = suffix.substring(1);
+            if (suffix === "") return "";
+        }
+    }
+    return suffix;
+}
+
+const fetchYoutubeTitle = async (videoId: string): Promise<string> => {
+    if (YOUTUBE_TITLE_CACHE[videoId]) return YOUTUBE_TITLE_CACHE[videoId];
+    try {
+        const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.title) {
+                YOUTUBE_TITLE_CACHE[videoId] = data.title;
+                return data.title;
+            }
+        }
+    } catch (e) { }
+    return '';
+};
+
 const Section = styled.div`
   margin-top: 0;
   border-top: 1px solid ${({ theme }) => theme.colors.border};
@@ -292,13 +333,44 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
             const lastActiveStr = localStorage.getItem('yt_last_active');
             if (!lastActiveStr) return;
 
-            const { videoId, time, timestamp } = JSON.parse(lastActiveStr);
+            const { videoId: activeVideoId, time, timestamp } = JSON.parse(lastActiveStr);
             // Ignore if more than 30 minutes old
             if (Date.now() - timestamp > 30 * 60 * 1000) return;
 
             // Verify if this video is in the current memo
             const memo = await db.memos.get(memoId);
-            if (!memo || !memo.content.includes(videoId)) return;
+            if (!memo || !memo.content.includes(activeVideoId)) return;
+
+            // Check if there are other YouTube videos in the memo
+            const ytRegex = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/g;
+            const allVideoIds = Array.from(new Set(Array.from(memo.content.matchAll(ytRegex)).map(m => m[1])));
+
+            let prefixLabel = '';
+            if (allVideoIds.length > 1) {
+                // Fetch titles for all videos to find unique parts
+                const titles: Record<string, string> = {};
+                await Promise.all(allVideoIds.map(async (id) => {
+                    titles[id] = await fetchYoutubeTitle(id);
+                }));
+
+                const validTitles = allVideoIds.map(id => titles[id]).filter(Boolean);
+                if (validTitles.length > 1) {
+                    const commonPrefix = findCommonPrefix(validTitles);
+                    const commonSuffix = findCommonSuffix(validTitles.map(t => t.substring(commonPrefix.length)));
+
+                    const activeTitle = titles[activeVideoId] || '';
+                    if (activeTitle) {
+                        let unique = activeTitle.substring(commonPrefix.length);
+                        if (commonSuffix.length > 0) {
+                            unique = unique.substring(0, unique.length - commonSuffix.length);
+                        }
+                        unique = unique.trim();
+                        if (unique) {
+                            prefixLabel = unique.substring(0, 10).trim() + ' ';
+                        }
+                    }
+                }
+            }
 
             // Format time
             const hours = Math.floor(time / 3600);
@@ -308,7 +380,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                 ? `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
                 : `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
-            const link = `[${timeStr}](https://youtu.be/${videoId}?t=${time}) `;
+            const link = `[${prefixLabel}${timeStr}](https://youtu.be/${activeVideoId}?t=${time}) `;
             setNewContent(prev => (prev.trim() ? link + '\n\n' + prev : link));
         } catch (e) {
             console.error('Failed to auto-insert YT link', e);
