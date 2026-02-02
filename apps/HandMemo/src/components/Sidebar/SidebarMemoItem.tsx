@@ -4,6 +4,7 @@ import { MemoItemLink, MemoTitle, MemoDate, ThreadToggleBtn } from './itemStyles
 import { FiCornerDownRight, FiPenTool } from 'react-icons/fi';
 import { BsKeyboard } from 'react-icons/bs';
 import { RiTable2 } from 'react-icons/ri';
+import { FaYoutube } from 'react-icons/fa';
 import styled from 'styled-components';
 
 const TypeIcon = styled.div<{ $color: string }>`
@@ -72,6 +73,7 @@ export const SidebarMemoItem: React.FC<Props> = ({
 
     const isDrawing = memo.content.includes('```fabric');
     const isSpreadsheet = memo.content.includes('```spreadsheet');
+    const isYoutube = /youtube\.com|youtu\.be/.test(memo.content);
 
     return (
         <div
@@ -102,6 +104,10 @@ export const SidebarMemoItem: React.FC<Props> = ({
                     ) : isDrawing ? (
                         <TypeIcon $color="#D55E00" title="Drawing">
                             <FiPenTool />
+                        </TypeIcon>
+                    ) : isYoutube ? (
+                        <TypeIcon $color="#FF0000" title="YouTube">
+                            <FaYoutube />
                         </TypeIcon>
                     ) : (
                         <TypeIcon $color="#0072B2" title="Text">
