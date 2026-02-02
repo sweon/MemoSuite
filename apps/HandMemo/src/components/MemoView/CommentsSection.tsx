@@ -250,6 +250,35 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
         setIsAdding(false);
     };
 
+    const handleStartAdding = async () => {
+        setIsAdding(true);
+        try {
+            const lastActiveStr = localStorage.getItem('yt_last_active');
+            if (!lastActiveStr) return;
+
+            const { videoId, time, timestamp } = JSON.parse(lastActiveStr);
+            // Ignore if more than 30 minutes old
+            if (Date.now() - timestamp > 30 * 60 * 1000) return;
+
+            // Verify if this video is in the current memo
+            const memo = await db.memos.get(memoId);
+            if (!memo || !memo.content.includes(videoId)) return;
+
+            // Format time
+            const hours = Math.floor(time / 3600);
+            const mins = Math.floor((time % 3600) / 60);
+            const secs = time % 60;
+            const timeStr = hours > 0
+                ? `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+                : `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+            const link = `[${timeStr}](https://youtu.be/${videoId}?t=${time}) `;
+            setNewContent(prev => (prev.trim() ? link + '\n\n' + prev : link));
+        } catch (e) {
+            console.error('Failed to auto-insert YT link', e);
+        }
+    };
+
     const handleDelete = async (id: number) => {
         if (await confirm({ message: t.comments.delete_confirm, isDestructive: true })) {
             await db.comments.delete(id);
@@ -356,7 +385,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                     />
                 </EditorContainer>
             ) : (
-                <AddButton onClick={() => setIsAdding(true)}>
+                <AddButton onClick={handleStartAdding}>
                     <FiPlus /> {t.comments.add_button}
                 </AddButton>
             )}

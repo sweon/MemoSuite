@@ -195,6 +195,19 @@ const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
 
 const PREVIEW_CACHE = new Map<string, string>();
 
+// Global registry for YT players to enable internal seeking
+const YT_PLAYERS = new Map<string, any>();
+
+const seekYouTubePlayer = (videoId: string, seconds: number) => {
+  const player = YT_PLAYERS.get(videoId);
+  if (player && player.seekTo) {
+    player.seekTo(seconds, true);
+    player.playVideo();
+    return true;
+  }
+  return false;
+};
+
 const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: () => void }) => {
   const [imgSrc, setImgSrc] = React.useState<string | null>(PREVIEW_CACHE.get(json) || null);
   const [loading, setLoading] = React.useState(!imgSrc);
@@ -667,9 +680,10 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
                       const currentTime = Math.floor(playerRef.current.getCurrentTime());
                       if (currentTime > 0) {
                         localStorage.setItem(`yt_progress_${videoId}`, String(currentTime));
+                        localStorage.setItem(`yt_last_active`, JSON.stringify({ videoId, time: currentTime, timestamp: Date.now() }));
                       }
                     }
-                  }, 4000);
+                  }, 2000); // More frequent updates for better accuracy
                 }
               } else { // paused/ended/etc
                 if (intervalRef.current) {
@@ -680,6 +694,7 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
                   const currentTime = Math.floor(playerRef.current.getCurrentTime());
                   if (currentTime > 0) {
                     localStorage.setItem(`yt_progress_${videoId}`, String(currentTime));
+                    localStorage.setItem(`yt_last_active`, JSON.stringify({ videoId, time: currentTime, timestamp: Date.now() }));
                   }
                 }
               }
@@ -723,6 +738,7 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
 
     return () => {
       isMounted.current = false;
+      if (videoId) YT_PLAYERS.delete(videoId);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -741,6 +757,13 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
       }
     };
   }, [videoId]);
+
+  // Handle registration when ready
+  React.useEffect(() => {
+    if (isReady && playerRef.current && videoId) {
+      YT_PLAYERS.set(videoId, playerRef.current);
+    }
+  }, [isReady, videoId]);
 
   if (hasError) {
     return (
@@ -828,20 +851,51 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
 
               if (isYoutube) {
                 let videoId = '';
+                let timestamp = 0;
                 try {
                   if (href.includes('youtu.be/')) {
-                    videoId = href.split('youtu.be/')[1].split(/[?#]/)[0];
+                    const parts = href.split('youtu.be/')[1].split(/[?#]/);
+                    videoId = parts[0];
+                    const urlObj = new URL(href.replace('youtu.be/', 'youtube.com/watch?v='));
+                    timestamp = parseInt(urlObj.searchParams.get('t') || '0');
                   } else if (href.includes('youtube.com/shorts/')) {
                     videoId = href.split('youtube.com/shorts/')[1].split(/[?#]/)[0];
+                    const urlObj = new URL(href);
+                    timestamp = parseInt(urlObj.searchParams.get('t') || '0');
                   } else if (href.includes('embed/')) {
                     videoId = href.split('embed/')[1].split(/[?#]/)[0];
+                    const urlObj = new URL(href);
+                    timestamp = parseInt(urlObj.searchParams.get('t') || '0');
                   } else {
                     const urlObj = new URL(href);
                     videoId = urlObj.searchParams.get('v') || '';
+                    timestamp = parseInt(urlObj.searchParams.get('t') || '0');
                   }
                 } catch (e) { }
 
                 if (videoId) {
+                  // Internal seek behavior if the link has a timestamp
+                  if (timestamp > 0 || href.includes('t=')) {
+                    return (
+                      <a
+                        href={href}
+                        onClick={(e) => {
+                          if (seekYouTubePlayer(videoId, timestamp)) {
+                            e.preventDefault();
+                          }
+                        }}
+                        style={{
+                          color: '#065fd4', // YouTube-style link color
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        {children}
+                      </a>
+                    );
+                  }
+
                   return (
                     <div key={videoId} style={{ margin: '16px 0' }}>
                       <YouTubePlayer videoId={videoId} />
