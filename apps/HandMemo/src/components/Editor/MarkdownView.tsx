@@ -13,6 +13,7 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
+import { FiArrowDown } from 'react-icons/fi';
 
 const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => {
   const [isTwoFingers, setIsTwoFingers] = React.useState(false);
@@ -111,6 +112,37 @@ const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => v
     </div>
   );
 };
+
+const JumpBackButton = styled.button`
+  position: absolute;
+  top: -34px;
+  right: 0;
+  z-index: 1000;
+  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)'};
+  color: ${({ theme }) => theme.colors.primary};
+  border: 1px solid ${({ theme }) => theme.colors.primary}40;
+  padding: 5px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.23s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+
+  &:hover {
+    transform: translateY(-1px);
+    background: ${({ theme }) => theme.colors.primary};
+    color: white;
+    box-shadow: 0 4px 12px ${({ theme }) => theme.colors.primary}40;
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
 
 const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
   line-height: 1.6;
@@ -758,6 +790,29 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
     };
   }, [videoId]);
 
+  const [jumpedCommentId, setJumpedCommentId] = React.useState<number | null>(null);
+  const { language, t } = useLanguage();
+
+  React.useEffect(() => {
+    const handleJump = (e: any) => {
+      if (e.detail?.videoId === videoId) {
+        setJumpedCommentId(e.detail.commentId);
+      } else {
+        setJumpedCommentId(null);
+      }
+    };
+    window.addEventListener('yt-jump-success', handleJump);
+    return () => window.removeEventListener('yt-jump-success', handleJump);
+  }, [videoId]);
+
+  const handleReturn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (jumpedCommentId !== null) {
+      window.dispatchEvent(new CustomEvent('return-to-comment', { detail: { commentId: jumpedCommentId } }));
+      setJumpedCommentId(null);
+    }
+  };
+
   // Handle registration when ready
   React.useEffect(() => {
     if (isReady && playerRef.current && videoId) {
@@ -782,39 +837,51 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
   }
 
   return (
-    <div
-      id={`yt-player-${videoId}`}
-      style={{
-        position: 'relative',
-        paddingBottom: '56.25%',
-        height: 0,
-        overflow: 'hidden',
-        borderRadius: '12px',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-        background: '#000',
-        transition: 'opacity 0.5s'
-      }}>
-      {!isReady && (
-        <div style={{
-          position: 'absolute',
-          top: 0, left: 0, right: 0, bottom: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#ffffff',
-          fontSize: '11px',
-          background: '#111'
-        }}>
-          YouTube Loading...
-        </div>
+    <div style={{
+      position: 'relative',
+      margin: '16px 0',
+      marginTop: jumpedCommentId !== null ? '40px' : '16px',
+      transition: 'margin-top 0.3s ease'
+    }}>
+      {jumpedCommentId !== null && (
+        <JumpBackButton onClick={handleReturn} title={t.comments.scroll_to_comment}>
+          <FiArrowDown /> {language === 'ko' ? '댓글로 돌아가기' : 'Back to Comment'}
+        </JumpBackButton>
       )}
-      <div ref={containerRef} style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-      }} />
+      <div
+        id={`yt-player-${videoId}`}
+        style={{
+          position: 'relative',
+          paddingBottom: '56.25%',
+          height: 0,
+          overflow: 'hidden',
+          borderRadius: '12px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          background: '#000',
+          transition: 'opacity 0.5s'
+        }}>
+        {!isReady && (
+          <div style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#ffffff',
+            fontSize: '11px',
+            background: '#111'
+          }}>
+            YouTube Loading...
+          </div>
+        )}
+        <div ref={containerRef} style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+        }} />
+      </div>
     </div>
   );
 };
@@ -954,7 +1021,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
         return <pre {...props}>{children}</pre>;
       }
     },
-    code({ node, inline, className, children, ...props }: any) {
+    code: ({ node, inline, className, children, ...props }: any) => {
       try {
         const match = /language-(\w+)/.exec(className || '');
         const language = match ? match[1] : '';

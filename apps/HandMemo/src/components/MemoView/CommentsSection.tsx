@@ -9,7 +9,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
-import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare, FiArrowUp } from 'react-icons/fi';
 import { format } from 'date-fns';
 
 const YOUTUBE_TITLE_CACHE: Record<string, string> = {};
@@ -225,6 +225,7 @@ const AddButton = styled.button`
   }
 `;
 
+
 export interface CommentsSectionProps {
     memoId: number;
     initialEditingState?: CommentDraft | null;
@@ -279,18 +280,28 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
             if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 setLastJumpedCommentId(commentId);
+                // Notify the player to show return button
+                window.dispatchEvent(new CustomEvent('yt-jump-success', { detail: { videoId, commentId } }));
             }
         }
     };
 
-    const scrollToComment = () => {
-        if (lastJumpedCommentId) {
-            const el = document.getElementById(`comment-${lastJumpedCommentId}`);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+    const scrollToComment = (targetId?: number) => {
+        const id = targetId ?? lastJumpedCommentId;
+        if (!id) return;
+        const el = document.getElementById(id === -1 ? 'new-comment-editor' : `comment-${id}`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     };
+
+    useEffect(() => {
+        const handleReturn = (e: any) => {
+            if (e.detail?.commentId) scrollToComment(e.detail.commentId);
+        };
+        window.addEventListener('return-to-comment', handleReturn);
+        return () => window.removeEventListener('return-to-comment', handleReturn);
+    }, [lastJumpedCommentId]);
 
     // Sync editing state up to parent for autosave
     const onEditingChangeRef = useRef(onEditingChange);
@@ -410,7 +421,6 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
     };
 
 
-
     return (
         <Section>
             <SectionHeader>
@@ -418,15 +428,6 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                 <h3>{t.comments.title}</h3>
                 {comments && comments.length > 0 && (
                     <span className="count">{comments.length}</span>
-                )}
-                {lastJumpedCommentId && (
-                    <ActionIcon
-                        onClick={scrollToComment}
-                        title={t.comments.scroll_to_comment}
-                        style={{ marginLeft: 'auto', opacity: 1 }}
-                    >
-                        <FiArrowDown />
-                    </ActionIcon>
                 )}
             </SectionHeader>
 
@@ -501,7 +502,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
             </CommentList>
 
             {isAdding ? (
-                <EditorContainer>
+                <EditorContainer id="new-comment-editor">
                     <EditorHeader>
                         {newContent.match(/youtube\.com|youtu\.be/) && (
                             <HeaderButton onClick={() => scrollToPlayer(newContent, -1)} title={t.comments.scroll_to_video} $variant="secondary">
