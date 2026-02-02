@@ -15,7 +15,7 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
-import { FiArrowDown, FiExternalLink, FiMaximize, FiSettings, FiVolume2, FiX } from 'react-icons/fi';
+import { FiArrowDown, FiExternalLink, FiMaximize, FiSettings, FiSun, FiVolume2, FiX } from 'react-icons/fi';
 
 import { FaYoutube } from 'react-icons/fa';
 
@@ -691,6 +691,18 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const [isMouseIdle, setIsMouseIdle] = React.useState(false);
   const mouseIdleTimerRef = React.useRef<any>(null);
   const [isMobilePortrait, setIsMobilePortrait] = React.useState(false);
+  const [brightness, setBrightness] = React.useState(1);
+  const [brightnessToast, setBrightnessToast] = React.useState<number | null>(null);
+
+  const touchStartRef = React.useRef<{
+    x: number;
+    y: number;
+    vol: number;
+    bright: number;
+    currentTime: number;
+    side: 'left' | 'right';
+  } | null>(null);
+  const touchTypeRef = React.useRef<'none' | 'vertical' | 'horizontal'>('none');
 
   React.useEffect(() => {
     const checkPortrait = () => {
@@ -1210,6 +1222,17 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
           justifyContent: isFullScreen ? 'center' : 'initial',
           cursor: (isFullScreen && isMouseIdle) ? 'none' : 'auto'
         }}>
+        {/* Brightness Overlay */}
+        {isFullScreen && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'black',
+            opacity: 1 - brightness,
+            pointerEvents: 'none',
+            zIndex: 15
+          }} />
+        )}
         {!isReady && (
           <div style={{
             position: 'absolute',
@@ -1274,6 +1297,65 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
               justifyContent: 'center',
               alignItems: 'center',
               background: 'transparent',
+              touchAction: isFullScreen ? 'none' : 'auto'
+            }}
+            onTouchStart={(e) => {
+              if (!isFullScreen) return;
+              const touch = e.touches[0];
+              const rect = e.currentTarget.getBoundingClientRect();
+              const x = touch.clientX - rect.left;
+
+              touchStartRef.current = {
+                x: touch.clientX,
+                y: touch.clientY,
+                vol: playerRef.current?.getVolume() || 0,
+                bright: brightness,
+                currentTime: playerRef.current?.getCurrentTime() || 0,
+                side: x < rect.width / 2 ? 'left' : 'right'
+              };
+              touchTypeRef.current = 'none';
+            }
+            }
+            onTouchMove={(e) => {
+              if (!isFullScreen || !touchStartRef.current) return;
+              const touch = e.touches[0];
+              const dx = touch.clientX - touchStartRef.current.x;
+              const dy = touch.clientY - touchStartRef.current.y;
+
+              if (touchTypeRef.current === 'none') {
+                if (Math.abs(dx) > 10) touchTypeRef.current = 'horizontal';
+                else if (Math.abs(dy) > 10) touchTypeRef.current = 'vertical';
+              }
+
+              if (touchTypeRef.current === 'horizontal') {
+                // Seek logic: 1 pixel = 0.5 seconds (adjust sensitivity)
+                const seekDelta = dx * 0.5;
+                const target = Math.max(0, Math.min(duration, touchStartRef.current.currentTime + seekDelta));
+                setCurrentTime(target);
+                playerRef.current?.seekTo(target, true);
+              } else if (touchTypeRef.current === 'vertical') {
+                if (touchStartRef.current.side === 'right') {
+                  // Volume logic: swipe up (dy negative) increases volume
+                  const volDelta = -dy * 0.5;
+                  const newVol = Math.max(0, Math.min(100, touchStartRef.current.vol + volDelta));
+                  playerRef.current?.setVolume(newVol);
+                  setVolumeToast(Math.round(newVol));
+                  if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+                  toastTimerRef.current = setTimeout(() => setVolumeToast(null), 1500);
+                } else {
+                  // Brightness logic
+                  const brightDelta = -dy * 0.005;
+                  const newBright = Math.max(0.1, Math.min(1, touchStartRef.current.bright + brightDelta));
+                  setBrightness(newBright);
+                  setBrightnessToast(newBright);
+                  if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+                  toastTimerRef.current = setTimeout(() => setBrightnessToast(null), 1500);
+                }
+              }
+            }}
+            onTouchEnd={() => {
+              touchStartRef.current = null;
+              touchTypeRef.current = 'none';
             }}
           >
             {/* Subtitle Settings Overlay */}
@@ -1424,6 +1506,27 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                 gap: '8px'
               }}>
                 <FiVolume2 size={16} /> {volumeToast}%
+              </div>
+            )}
+
+            {/* Brightness Toast Notification */}
+            {brightnessToast !== null && (
+              <div style={{
+                position: 'absolute',
+                top: '20%',
+                background: 'rgba(0,0,0,0.7)',
+                color: '#fff',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                pointerEvents: 'none',
+                zIndex: 20,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <FiSun size={16} /> {Math.round(brightnessToast * 100)}%
               </div>
             )}
 
