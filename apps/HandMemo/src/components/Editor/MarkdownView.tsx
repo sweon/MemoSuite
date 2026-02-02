@@ -863,7 +863,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
 
   if (hasError) {
     return (
-      <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+      <div style={{ borderRadius: '4px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
         <iframe
           width="100%"
           height="315"
@@ -910,7 +910,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
           paddingBottom: '56.25%',
           height: 0,
           overflow: 'hidden',
-          borderRadius: '12px',
+          borderRadius: '4px',
           boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
           background: '#000'
         }}>
