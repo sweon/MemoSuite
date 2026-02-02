@@ -1297,7 +1297,9 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
               justifyContent: 'center',
               alignItems: 'center',
               background: 'transparent',
-              touchAction: isFullScreen ? 'none' : 'auto'
+              touchAction: isFullScreen ? 'none' : 'auto',
+              WebkitTapHighlightColor: 'transparent',
+              transition: 'none'
             }}
             onTouchStart={(e) => {
               if (!isFullScreen) return;
@@ -1530,126 +1532,127 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
               </div>
             )}
 
-            {!isPlaying && (
-              <>
-                {/* Control Bar shown only when paused */}
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    position: 'absolute',
-                    bottom: 0, left: 0, right: 0,
-                    height: '40px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0 12px',
-                    gap: '12px',
-                    color: '#fff',
-                    cursor: 'default'
-                  }}
-                >
-                  <input
-                    type="range"
-                    min={0}
-                    max={duration || 100}
-                    value={currentTime}
-                    onChange={(e) => {
-                      const time = parseFloat(e.target.value);
-                      setCurrentTime(time);
-                      ACTIVE_YT_VIDEO_ID = videoId;
-                      playerRef.current?.seekTo(time);
-                    }}
-                    style={{
-                      flex: 1,
-                      height: '3px',
-                      cursor: 'pointer',
-                      accentColor: '#ef8e13'
-                    }}
-                  />
-                  <div style={{ fontSize: '11px', fontFamily: 'monospace', minWidth: '75px', textAlign: 'right' }}>
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </div>
+            {/* Control Bar - Using opacity to avoid flicker on play/pause */}
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: 'absolute',
+                bottom: 0, left: 0, right: 0,
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 12px',
+                gap: '12px',
+                color: '#fff',
+                cursor: 'default',
+                opacity: isPlaying ? 0 : 1,
+                pointerEvents: isPlaying ? 'none' : 'auto',
+                transition: 'opacity 0.2s ease',
+                background: 'linear-gradient(transparent, rgba(0,0,0,0.5))',
+                zIndex: 20
+              }}
+            >
+              <input
+                type="range"
+                min={0}
+                max={duration || 100}
+                value={currentTime}
+                onChange={(e) => {
+                  const time = parseFloat(e.target.value);
+                  setCurrentTime(time);
+                  ACTIVE_YT_VIDEO_ID = videoId;
+                  playerRef.current?.seekTo(time);
+                }}
+                style={{
+                  flex: 1,
+                  height: '3px',
+                  cursor: 'pointer',
+                  accentColor: '#ef8e13'
+                }}
+              />
+              <div style={{ fontSize: '11px', fontFamily: 'monospace', minWidth: '75px', textAlign: 'right' }}>
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </div>
 
-                  <a
-                    href={`https://www.youtube.com/watch?v=${videoId}${currentTime > 0 ? `&t=${Math.floor(currentTime)}` : ''}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '10px',
-                      color: isMobilePortrait ? '#ff0000' : '#ddd',
-                      textDecoration: 'none',
-                      padding: isMobilePortrait ? '4px' : '4px 8px',
-                      borderRadius: '4px',
-                      background: 'rgba(255,255,255,0.1)',
-                      whiteSpace: 'nowrap',
-                      marginLeft: '4px',
-                      transition: 'all 0.2s'
-                    }}
-                    title={language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
-                  >
-                    {isMobilePortrait ? (
-                      <FaYoutube size={18} />
-                    ) : (
-                      <>
-                        <FiExternalLink size={12} />
-                        {language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
-                      </>
-                    )}
-                  </a>
+              <a
+                href={`https://www.youtube.com/watch?v=${videoId}${currentTime > 0 ? `&t=${Math.floor(currentTime)}` : ''}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '10px',
+                  color: isMobilePortrait ? '#ff0000' : '#ddd',
+                  textDecoration: 'none',
+                  padding: isMobilePortrait ? '4px' : '4px 8px',
+                  borderRadius: '4px',
+                  background: 'rgba(255,255,255,0.1)',
+                  whiteSpace: 'nowrap',
+                  marginLeft: '4px',
+                  transition: 'all 0.2s'
+                }}
+                title={language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
+              >
+                {isMobilePortrait ? (
+                  <FaYoutube size={18} />
+                ) : (
+                  <>
+                    <FiExternalLink size={12} />
+                    {language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
+                  </>
+                )}
+              </a>
 
 
-                  <button
-                    onClick={toggleCaptions}
-                    onDoubleClick={toggleCCSettings}
-                    title={language === 'ko' ? '자막 (더블클릭: 설정)' : 'Subtitles (Double-click: Settings)'}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: isCaptionsOn ? '#ef8e13' : '#ddd',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '4px',
-                      marginLeft: '4px',
-                      transition: 'color 0.2s'
-                    }}
-                  >
-                    <div style={{
-                      border: `1.5px solid ${isCaptionsOn ? '#ef8e13' : '#ddd'}`,
-                      borderRadius: '2px',
-                      padding: '1px 3px',
-                      fontSize: '9px',
-                      fontWeight: 'bold',
-                      lineHeight: 1,
-                      color: isCaptionsOn ? '#ef8e13' : '#ddd',
-                      transition: 'all 0.2s'
-                    }}>
-                      CC
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={toggleFullScreen}
-                    title={language === 'ko' ? '전체 화면' : 'Full Screen'}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#ddd',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '4px',
-                      marginLeft: '4px'
-                    }}
-                  >
-                    <FiMaximize size={16} />
-                  </button>
+              <button
+                onClick={toggleCaptions}
+                onDoubleClick={toggleCCSettings}
+                title={language === 'ko' ? '자막 (더블클릭: 설정)' : 'Subtitles (Double-click: Settings)'}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: isCaptionsOn ? '#ef8e13' : '#ddd',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px',
+                  marginLeft: '4px',
+                  transition: 'color 0.2s'
+                }}
+              >
+                <div style={{
+                  border: `1.5px solid ${isCaptionsOn ? '#ef8e13' : '#ddd'}`,
+                  borderRadius: '2px',
+                  padding: '1px 3px',
+                  fontSize: '9px',
+                  fontWeight: 'bold',
+                  lineHeight: 1,
+                  color: isCaptionsOn ? '#ef8e13' : '#ddd',
+                  transition: 'all 0.2s'
+                }}>
+                  CC
                 </div>
-              </>
-            )}
+              </button>
+
+              <button
+                onClick={toggleFullScreen}
+                title={language === 'ko' ? '전체 화면' : 'Full Screen'}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#ddd',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px',
+                  marginLeft: '4px'
+                }}
+              >
+                <FiMaximize size={16} />
+              </button>
+            </div>
           </div>
         )}
       </div>
