@@ -914,12 +914,14 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
         e.preventDefault();
         const skip = key === 'j' ? 10 : 5;
         const target = Math.max(0, player.getCurrentTime() - skip);
+        setCurrentTime(target);
         player.seekTo(target, true);
       }
       else if (key === 'l' || e.key === 'ArrowRight') {
         e.preventDefault();
         const skip = key === 'l' ? 10 : 5;
         const target = Math.min(player.getDuration(), player.getCurrentTime() + skip);
+        setCurrentTime(target);
         player.seekTo(target, true);
       }
       // Volume
@@ -936,6 +938,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
         e.preventDefault();
         const percent = parseInt(e.key) * 10;
         const target = (player.getDuration() * percent) / 100;
+        setCurrentTime(target);
         player.seekTo(target, true);
       }
       // Playback Speed: Shift + > ('.') and Shift + < (',')
