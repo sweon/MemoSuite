@@ -51,14 +51,6 @@ const isYoutubePlaylistUrl = (url: string) => {
     if (u.pathname.toLowerCase().includes('/playlist')) return true;
 
     return true;
-
-    // For youtu.be, the pathname is the video ID
-    if (host.includes('youtu.be')) {
-      const path = u.pathname.slice(1);
-      if (path && path !== 'playlist') return false;
-    }
-
-    return true;
   } catch (e) { return false; }
 };
 
@@ -383,13 +375,26 @@ const fetchYoutubePlaylistData = async (url: string): Promise<{ title: string, i
     }
 
     if (items.length === 0) {
-      const vRegex = /"videoId":"([a-zA-Z0-9_-]{11})"(?:[^}]*?"title":\{"runs":\[\{"text":"(.*?)"\}\])?/g;
+      // Improved regex to catch titles in various formats (runs or simpleText)
+      const vRegex = /"videoId":"([a-zA-Z0-9_-]{11})".*?"title":\{(?:[^}]*?"runs":\[\{"text":"(.*?)"\}\]|"simpleText":"(.*?)"\})/g;
       let m;
       while ((m = vRegex.exec(html)) !== null) {
         const id = m[1];
-        let t = m[2] || '영상 제목 없음';
+        let t = m[2] || m[3] || '영상 제목 없음';
         t = t.replace(/\\u0026/g, '&').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
         if (!items.find(it => it.videoId === id)) items.push({ videoId: id, title: t });
+      }
+    }
+
+    // Absolute fallback: if still zero, just search for videoIds alone
+    if (items.length === 0) {
+      const idRegex = /"videoId":"([a-zA-Z0-9_-]{11})"/g;
+      let m;
+      while ((m = idRegex.exec(html)) !== null) {
+        const id = m[1];
+        if (!items.find(it => it.videoId === id)) {
+          items.push({ videoId: id, title: '영상 제목 없음' });
+        }
       }
     }
 
@@ -863,11 +868,12 @@ export const MainLayout: React.FC = () => {
             }
 
             // Get the best possible title if not playlist (playlist sets its own)
-            if (!isYoutubePlaylistUrl(cleaned)) {
+            // Get the best possible title if it wasn't already set by a successful playlist extraction
+            if (!finalContent.includes('\nhttps://www.youtube.com/watch?v=')) {
               identifiedTitle = getBestTitle(cleaned, identifiedTitle, shareText || undefined);
 
               // Special async fetch for YouTube titles if we still have a generic fallback
-              if (isYoutubeUrl(cleaned) && (identifiedTitle === '유튜브 동영상' || identifiedTitle === '공유된 메모')) {
+              if (isVideo && (identifiedTitle === '유튜브 동영상' || identifiedTitle === '공유된 메모')) {
                 const fetched = await fetchYoutubeTitle(cleaned);
                 if (fetched) identifiedTitle = fetched;
               }

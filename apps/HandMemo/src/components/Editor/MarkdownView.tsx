@@ -937,17 +937,30 @@ const YoutubePlaylistView = ({ playlistId }: { playlistId: string }) => {
         const html = data.contents || '';
 
         const videos: { id: string, title: string }[] = [];
-        // Enhanced regex to match both formats
-        const regex = /"videoId":"([a-zA-Z0-9_-]{11})"(?:[^}]*?"title":\{"runs":\[\{"text":"(.*?)"\}\])?/g;
+        // Enhanced regex to match both formats (runs and simpleText)
+        const regex = /"videoId":"([a-zA-Z0-9_-]{11})".*?"title":\{(?:[^}]*?"runs":\[\{"text":"(.*?)"\}\]|"simpleText":"(.*?)"\})/g;
         let match;
         const seen = new Set();
         while ((match = regex.exec(html)) !== null) {
           const id = match[1];
-          let title = match[2] || 'Untitled Video';
+          let title = match[2] || match[3] || '영상 제목 없음';
           title = title.replace(/\\u0026/g, '&').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
           if (!seen.has(id)) {
             seen.add(id);
             videos.push({ id, title });
+          }
+        }
+
+        // Absolute fallback: if still zero, just search for videoIds alone
+        if (videos.length === 0) {
+          const idRegex = /"videoId":"([a-zA-Z0-9_-]{11})"/g;
+          let m;
+          while ((m = idRegex.exec(html)) !== null) {
+            const id = m[1];
+            if (!seen.has(id)) {
+              seen.add(id);
+              videos.push({ id, title: '영상 제목 없음' });
+            }
           }
         }
 
