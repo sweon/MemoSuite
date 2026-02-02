@@ -230,15 +230,7 @@ const PREVIEW_CACHE = new Map<string, string>();
 // Global registry for YT players to enable internal seeking
 const YT_PLAYERS = new Map<string, any>();
 
-const seekYouTubePlayer = (videoId: string, seconds: number) => {
-  const player = YT_PLAYERS.get(videoId);
-  if (player && player.seekTo) {
-    player.seekTo(seconds, true);
-    player.playVideo();
-    return true;
-  }
-  return false;
-};
+
 
 const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: () => void }) => {
   const [imgSrc, setImgSrc] = React.useState<string | null>(PREVIEW_CACHE.get(json) || null);
@@ -670,7 +662,7 @@ const WebPreview = ({ url }: { url: string }) => {
   );
 };
 
-const YouTubePlayer = ({ videoId }: { videoId: string }) => {
+const YouTubePlayer = ({ videoId, startTimestamp }: { videoId: string; startTimestamp?: number }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const playerRef = React.useRef<any>(null);
   const intervalRef = React.useRef<any>(null);
@@ -682,7 +674,10 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
     isMounted.current = true;
 
     const savedTime = localStorage.getItem(`yt_progress_${videoId}`);
-    const startSeconds = savedTime ? parseInt(savedTime) : 0;
+    const resumeTime = savedTime ? parseInt(savedTime) : 0;
+
+    // Priority: Explicit URL timestamp > Saved progress
+    const startSeconds = startTimestamp !== undefined ? startTimestamp : (resumeTime > 10 ? resumeTime - 2 : resumeTime);
 
     const initPlayer = () => {
       if (!isMounted.current || !containerRef.current || playerRef.current) return;
@@ -694,7 +689,7 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
         playerRef.current = new YT.Player(containerRef.current, {
           videoId,
           playerVars: {
-            start: startSeconds > 10 ? startSeconds - 2 : startSeconds,
+            start: startSeconds,
             origin: window.location.origin,
             modestbranding: 1,
             enablejsapi: 1,
@@ -788,7 +783,7 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
         playerRef.current = null;
       }
     };
-  }, [videoId]);
+  }, [videoId, startTimestamp]);
 
   const [jumpedCommentId, setJumpedCommentId] = React.useState<number | null>(null);
   const { language, t } = useLanguage();
@@ -826,7 +821,7 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
         <iframe
           width="100%"
           height="315"
-          src={`https://www.youtube.com/embed/${videoId}`}
+          src={`https://www.youtube.com/embed/${videoId}${startTimestamp ? `?start=${startTimestamp}` : ''}`}
           title="YouTube Video Fallback"
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -849,7 +844,6 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
         </JumpBackButton>
       )}
       <div
-        id={`yt-player-${videoId}`}
         style={{
           position: 'relative',
           paddingBottom: '56.25%',
@@ -945,31 +939,9 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
           }
 
           if (videoId) {
-            // Internal seek behavior if the link has a timestamp
-            if (timestamp > 0) {
-              return (
-                <a
-                  href={href}
-                  onClick={(e) => {
-                    if (seekYouTubePlayer(videoId, timestamp)) {
-                      e.preventDefault();
-                    }
-                  }}
-                  style={{
-                    color: '#065fd4', // YouTube-style link color
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    textDecoration: 'none'
-                  }}
-                >
-                  {children}
-                </a>
-              );
-            }
-
             return (
               <div key={videoId} style={{ margin: '16px 0' }}>
-                <YouTubePlayer videoId={videoId} />
+                <YouTubePlayer videoId={videoId} startTimestamp={timestamp > 0 ? timestamp : undefined} />
               </div>
             );
           }
