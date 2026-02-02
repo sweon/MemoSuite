@@ -394,6 +394,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                         {editingId === c.id ? (
                             <div style={{ marginTop: '0.5rem' }}>
                                 <EditorHeader style={{ padding: '0.5rem', borderRadius: '8px 8px 0 0' }}>
+                                    {editContent.match(/youtube\.com|youtu\.be/) && (
+                                        <HeaderButton onClick={() => scrollToPlayer(editContent, editingId!)} title={t.comments.scroll_to_video} $variant="secondary">
+                                            <FiArrowUp />
+                                        </HeaderButton>
+                                    )}
                                     <HeaderButton onClick={() => setEditingId(null)} $variant="secondary">{t.comments.cancel}</HeaderButton>
                                     <HeaderButton onClick={saveEdit} $variant="primary">{t.comments.save_comment}</HeaderButton>
                                 </EditorHeader>
@@ -426,6 +431,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
             {isAdding ? (
                 <EditorContainer>
                     <EditorHeader>
+                        {newContent.match(/youtube\.com|youtu\.be/) && (
+                            <HeaderButton onClick={() => scrollToPlayer(newContent, -1)} title={t.comments.scroll_to_video} $variant="secondary">
+                                <FiArrowUp />
+                            </HeaderButton>
+                        )}
                         <HeaderButton onClick={() => setIsAdding(false)} $variant="secondary">{t.comments.cancel}</HeaderButton>
                         <HeaderButton onClick={handleAdd} $variant="primary">{t.comments.save_comment}</HeaderButton>
                     </EditorHeader>
