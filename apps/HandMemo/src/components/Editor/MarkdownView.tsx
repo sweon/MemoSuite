@@ -680,21 +680,18 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const [isCCSettingsOpen, setIsCCSettingsOpen] = React.useState(false);
   const [ccTracks, setCCTracks] = React.useState<any[]>([]);
   const [ccFontSize, setCCFontSize] = React.useState(0);
-  const [ccTextColor, setCCTextColor] = React.useState('#FFFFFF');
   const toastTimerRef = React.useRef<any>(null);
 
-  const applyCaptionStyles = React.useCallback(() => {
+  const applyCaptionStyles = React.useCallback((overrideFontSize?: number) => {
     const player = playerRef.current;
     if (!player || !player.setOption) return;
     try {
+      const fontSize = overrideFontSize !== undefined ? overrideFontSize : ccFontSize;
       player.setOption('captions', 'backgroundOpacity', 0);
       player.setOption('captions', 'windowOpacity', 0);
-      player.setOption('captions', 'backgroundColor', '#00000000');
-      player.setOption('captions', 'windowColor', '#00000000');
-      player.setOption('captions', 'fontSize', ccFontSize);
-      player.setOption('captions', 'textColor', ccTextColor);
+      player.setOption('captions', 'fontSize', fontSize);
     } catch (e) { }
-  }, [ccFontSize, ccTextColor, videoId]);
+  }, [ccFontSize]);
 
   React.useEffect(() => {
     isMounted.current = true;
@@ -1272,9 +1269,8 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                         <button
                           key={size.val}
                           onClick={() => {
-                            playerRef.current?.setOption('captions', 'fontSize', size.val);
                             setCCFontSize(size.val);
-                            setTimeout(applyCaptionStyles, 50);
+                            applyCaptionStyles(size.val);
                           }}
                           style={{
                             flex: 1,
@@ -1294,47 +1290,6 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                         </button>
                       );
                     })}
-                  </div>
-                </div>
-
-                {/* Text Color */}
-                <div>
-                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {language === 'ko' ? '글자 색상' : 'Text Color'}
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {[
-                      { name: 'White', color: '#FFFFFF' },
-                      { name: 'Yellow', color: '#FFFF00' },
-                      { name: 'Green', color: '#00FF00' },
-                      { name: 'Cyan', color: '#00FFFF' },
-                      { name: 'Blue', color: '#0000FF' },
-                      { name: 'Magenta', color: '#FF00FF' },
-                      { name: 'Red', color: '#FF0000' }
-                    ].map(c => (
-                      <button
-                        key={c.color}
-                        onClick={() => {
-                          playerRef.current?.setOption('captions', 'textColor', c.color);
-                          setCCTextColor(c.color);
-                          setTimeout(applyCaptionStyles, 50);
-                        }}
-                        style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          background: c.color,
-                          border: ccTextColor === c.color ? '2px solid #fff' : '2px solid transparent',
-                          cursor: 'pointer',
-                          padding: 0,
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                          transition: 'transform 0.1s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                        title={c.name}
-                      />
-                    ))}
                   </div>
                 </div>
               </div>
