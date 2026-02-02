@@ -231,6 +231,7 @@ const PREVIEW_CACHE = new Map<string, string>();
 
 // Global registry for YT players to enable internal seeking
 const YT_PLAYERS = new Map<string, any>();
+let ACTIVE_YT_VIDEO_ID: string | null = null;
 
 
 
@@ -712,12 +713,14 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
               if (isMounted.current) {
                 setIsReady(true);
                 if (playerRef.current.getDuration) setDuration(playerRef.current.getDuration());
+                if (!ACTIVE_YT_VIDEO_ID) ACTIVE_YT_VIDEO_ID = videoId;
               }
             },
             onStateChange: (event: any) => {
               if (!isMounted.current) return;
               setIsPlaying(event.data === 1);
               if (event.data === 1) { // playing
+                ACTIVE_YT_VIDEO_ID = videoId;
                 if (!intervalRef.current) {
                   intervalRef.current = setInterval(() => {
                     if (playerRef.current && playerRef.current.getCurrentTime) {
@@ -785,6 +788,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
     return () => {
       isMounted.current = false;
       if (videoId) YT_PLAYERS.delete(videoId);
+      if (ACTIVE_YT_VIDEO_ID === videoId) ACTIVE_YT_VIDEO_ID = null;
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -823,6 +827,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
     const handleJump = (e: any) => {
       if (e.detail?.videoId === videoId) {
         setJumpedCommentId(e.detail.commentId);
+        ACTIVE_YT_VIDEO_ID = videoId;
       } else {
         setJumpedCommentId(null);
       }
@@ -854,6 +859,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   React.useEffect(() => {
     if (isReady && playerRef.current && videoId) {
       YT_PLAYERS.set(videoId, playerRef.current);
+      if (!ACTIVE_YT_VIDEO_ID) ACTIVE_YT_VIDEO_ID = videoId;
     }
   }, [isReady, videoId]);
 
@@ -867,6 +873,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
 
   const toggleFullScreen = (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    ACTIVE_YT_VIDEO_ID = videoId;
     const elem = document.getElementById(containerId);
     if (!elem) return;
 
@@ -883,6 +890,8 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
+
+      if (ACTIVE_YT_VIDEO_ID !== videoId) return;
 
       const player = playerRef.current;
       if (!player) return;
@@ -1082,7 +1091,10 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
         {/* Interaction Layer */}
         {isReady && (
           <div
-            onClick={() => isPlaying ? playerRef.current?.pauseVideo() : playerRef.current?.playVideo()}
+            onClick={() => {
+              ACTIVE_YT_VIDEO_ID = videoId;
+              isPlaying ? playerRef.current?.pauseVideo() : playerRef.current?.playVideo();
+            }}
             style={{
               position: 'absolute',
               top: 0, left: 0, right: 0, bottom: 0,
@@ -1139,6 +1151,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                     onChange={(e) => {
                       const time = parseFloat(e.target.value);
                       setCurrentTime(time);
+                      ACTIVE_YT_VIDEO_ID = videoId;
                       playerRef.current?.seekTo(time);
                     }}
                     style={{
