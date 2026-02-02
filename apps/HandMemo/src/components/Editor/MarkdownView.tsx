@@ -15,7 +15,8 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
-import { FiArrowDown, FiExternalLink, FiMaximize, FiSettings, FiX } from 'react-icons/fi';
+import { FiArrowDown, FiExternalLink, FiMaximize, FiSettings, FiVolume2, FiX } from 'react-icons/fi';
+
 import { FaYoutube } from 'react-icons/fa';
 
 
@@ -682,6 +683,8 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const [isCCSettingsOpen, setIsCCSettingsOpen] = React.useState(false);
   const [ccTracks, setCCTracks] = React.useState<any[]>([]);
   const [ccFontSize, setCCFontSize] = React.useState(0);
+  const [volumeToast, setVolumeToast] = React.useState<number | null>(null);
+
   const toastTimerRef = React.useRef<any>(null);
   const clickTimerRef = React.useRef<any>(null);
   const [isFullScreen, setIsFullScreen] = React.useState(false);
@@ -1057,12 +1060,25 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
       // Volume
       else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        player.setVolume(Math.min(100, player.getVolume() + 5));
+        const newVol = Math.min(100, player.getVolume() + 5);
+        player.setVolume(newVol);
+        setVolumeToast(newVol);
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+          if (isMounted.current) setVolumeToast(null);
+        }, 1000);
       }
       else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        player.setVolume(Math.max(0, player.getVolume() - 5));
+        const newVol = Math.max(0, player.getVolume() - 5);
+        player.setVolume(newVol);
+        setVolumeToast(newVol);
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+          if (isMounted.current) setVolumeToast(null);
+        }, 1000);
       }
+
       // Percent Jump: 0-9
       else if (/^[0-9]$/.test(e.key)) {
         e.preventDefault();
@@ -1378,6 +1394,27 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                 {playbackRateToast}x
               </div>
             )}
+            {/* Volume Toast Notification */}
+            {volumeToast !== null && (
+              <div style={{
+                position: 'absolute',
+                top: '20%',
+                background: 'rgba(0,0,0,0.7)',
+                color: '#fff',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                pointerEvents: 'none',
+                zIndex: 20,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <FiVolume2 size={16} /> {volumeToast}%
+              </div>
+            )}
+
             {!isPlaying && (
               <>
                 {/* Control Bar shown only when paused */}
