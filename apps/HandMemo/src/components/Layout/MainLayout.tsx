@@ -33,12 +33,26 @@ const isImageUrl = (url: string) => {
   return false;
 };
 
+const isYoutubePlaylistUrl = (url: string) => {
+  if (!url) return false;
+  try {
+    const u = url.toLowerCase();
+    return u.includes('youtube.com/playlist') ||
+      (u.includes('youtube.com/watch') && u.includes('list=')) ||
+      u.includes('youtu.be/') && u.includes('list=');
+  } catch (e) { return false; }
+};
+
 const isYoutubeUrl = (url: string) => {
   if (!url) return false;
-  return url.includes('youtube.com/watch') ||
-    url.includes('youtu.be/') ||
-    url.includes('youtube.com/embed/') ||
-    url.includes('youtube.com/shorts/');
+  try {
+    const u = url.toLowerCase();
+    if (isYoutubePlaylistUrl(url)) return false;
+    return u.includes('youtube.com/watch') ||
+      u.includes('youtu.be/') ||
+      u.includes('youtube.com/embed/') ||
+      u.includes('youtube.com/shorts/');
+  } catch (e) { return false; }
 };
 
 const parseHtmlTableToFortuneSheet = (html: string) => {
@@ -218,43 +232,40 @@ const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: strin
 };
 
 const getBestTitle = (url?: string, suggestedTitle?: string, text?: string): string => {
+  const isPlaylist = url ? isYoutubePlaylistUrl(url) : false;
   const isYoutube = url ? isYoutubeUrl(url) : false;
   const isImage = url ? isImageUrl(url) : false;
 
   let title = suggestedTitle?.trim() || '';
 
-  // If title is just the URL, empty, or generic, try to generate one
   if (!title || (url && title === url) || title === '공유된 메모' || title === '유튜브' || title === 'YouTube' || title === '웹 페이지') {
     try {
       if (url) {
         const urlObj = new URL(url);
-        if (isYoutube) {
-          // We set it to generic fallback first; calling code may try to fetch a better one
-          if (!title || title === url || title === '웹 페이지') title = '유튜브 동영상';
+        if (isPlaylist) {
+          title = '유튜브 재생목록';
+        } else if (isYoutube) {
+          title = '유튜브 동영상';
         } else if (isImage) {
-          if (!title || title === url || title === '웹 페이지') title = '이미지';
+          title = '이미지';
         } else {
           // Try to get a meaningful title from the path
           const pathParts = urlObj.pathname.split('/').filter(Boolean);
           if (pathParts.length > 0) {
             const lastPart = pathParts[pathParts.length - 1];
-            // Clean up slug
             let generated = decodeURIComponent(lastPart)
               .replace(/[-_]/g, ' ')
-              .replace(/\.[^/.]+$/, '') // Remove extension if any
+              .replace(/\.[^/.]+$/, '')
               .trim();
-
             if (generated.length > 1) {
               title = generated.charAt(0).toUpperCase() + generated.slice(1);
             }
           }
-
           if (!title || title.length < 2 || title === url || title === '웹 페이지') {
             title = urlObj.hostname.replace('www.', '');
           }
         }
       } else if (text) {
-        // For plain text, use first line or first few words
         const lines = text.split('\n').filter(Boolean);
         if (lines.length > 0) {
           const firstLine = lines[0].trim();
@@ -263,13 +274,12 @@ const getBestTitle = (url?: string, suggestedTitle?: string, text?: string): str
       }
     } catch (e) {
       if (!title || (url && title === url) || title === '웹 페이지') {
-        title = isYoutube ? '유튜브 동영상' : isImage ? '이미지' : '웹 페이지';
+        title = isPlaylist ? '유튜브 재생목록' : isYoutube ? '유튜브 동영상' : isImage ? '이미지' : '웹 페이지';
       }
     }
   }
 
-  if (!title) title = isYoutube ? '유튜브 동영상' : isImage ? '이미지' : '웹 페이지';
-
+  if (!title) title = isPlaylist ? '유튜브 재생목록' : isYoutube ? '유튜브 동영상' : isImage ? '이미지' : '웹 페이지';
   return title;
 };
 
@@ -281,6 +291,86 @@ const fetchYoutubeTitle = async (url: string): Promise<string | null> => {
       return data.title || null;
     }
   } catch (e) { }
+  return null;
+};
+
+const fetchYoutubePlaylistData = async (url: string): Promise<{ title: string, items: { videoId: string, title: string }[] } | null> => {
+  try {
+    const listId = new URL(url).searchParams.get('list');
+    if (!listId) return null;
+
+    let playlistTitle = '유튜브 재생목록';
+    let html = '';
+
+    // 1. Try to get title via oEmbed first (fastest)
+    try {
+      const oRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/playlist?list=${listId}&format=json`);
+      if (oRes.ok) {
+        const d = await oRes.json();
+        if (d.title) playlistTitle = d.title;
+      }
+    } catch (e) { }
+
+    // 2. Try Primary Proxy (AllOrigins)
+    try {
+      const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.youtube.com/playlist?list=${listId}`)}`);
+      if (res.ok) {
+        const d = await res.json();
+        html = d.contents || '';
+      }
+    } catch (e) { }
+
+    // 3. Try Secondary Proxy if first fails
+    if (!html) {
+      try {
+        const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(`https://www.youtube.com/playlist?list=${listId}`)}`);
+        if (res.ok) html = await res.text();
+      } catch (e) { }
+    }
+
+    if (!html) return { title: playlistTitle, items: [] };
+
+    // Update title from HTML if generic
+    if (playlistTitle === '유튜브 재생목록') {
+      const tMatch = html.match(/<title>(.*?)<\/title>/i);
+      if (tMatch) playlistTitle = tMatch[1].replace(' - YouTube', '').trim();
+    }
+
+    const items: { videoId: string, title: string }[] = [];
+    const match = html.match(/var ytInitialData = (\{.*?\});/);
+    if (match) {
+      try {
+        const json = JSON.parse(match[1]);
+        const videos = json.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents?.[0]?.playlistVideoListRenderer?.contents;
+        if (Array.isArray(videos)) {
+          videos.forEach((it: any) => {
+            const v = it.playlistVideoRenderer;
+            if (v && v.videoId) {
+              items.push({
+                videoId: v.videoId,
+                title: v.title?.runs?.[0]?.text || v.title?.simpleText || '영상 제목 없음'
+              });
+            }
+          });
+        }
+      } catch (e) { }
+    }
+
+    if (items.length === 0) {
+      const vRegex = /"videoId":"([a-zA-Z0-9_-]{11})"(?:[^}]*?"title":\{"runs":\[\{"text":"(.*?)"\}\])?/g;
+      let m;
+      while ((m = vRegex.exec(html)) !== null) {
+        const id = m[1];
+        let t = m[2] || '영상 제목 없음';
+        t = t.replace(/\\u0026/g, '&').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+        if (!items.find(it => it.videoId === id)) items.push({ videoId: id, title: t });
+      }
+    }
+
+    return { title: playlistTitle, items: items.slice(0, 500) };
+  } catch (e) {
+    console.error('Failed to fetch playlist items', e);
+  }
   return null;
 };
 
@@ -592,37 +682,49 @@ export const MainLayout: React.FC = () => {
     setPasteButton(null);
     try {
       const text = await navigator.clipboard.readText();
-      if (text) {
-        const urlMatch = text.match(/^https?:\/\/[^\s]+$/);
-        const url = urlMatch ? urlMatch[0] : undefined;
-        let title = getBestTitle(url, undefined, text);
-        let content = text;
+      if (!text) return;
 
-        if (url) {
-          const cleaned = cleanImageUrl(url);
-          if (isImageUrl(cleaned)) {
-            content = `![](${cleaned})\n\n`;
-            metadataCache.fetchImageMetadata(cleaned);
-            title = '이미지';
-          } else if (isYoutubeUrl(cleaned)) {
-            const fetched = await fetchYoutubeTitle(cleaned);
-            if (fetched) title = fetched;
+      const urlMatch = text.match(/https?:\/\/[^\s]+/);
+      const url = urlMatch ? urlMatch[0] : undefined;
+      const cleaned = url ? cleanImageUrl(url) : undefined;
+
+      let title = getBestTitle(cleaned, undefined, text);
+      let content = text;
+
+      if (cleaned) {
+        if (isImageUrl(cleaned)) {
+          content = `![](${cleaned})\n\n`;
+          metadataCache.fetchImageMetadata(cleaned);
+          title = '이미지';
+        } else if (isYoutubePlaylistUrl(cleaned)) {
+          const playlistData = await fetchYoutubePlaylistData(cleaned);
+          if (playlistData) {
+            title = playlistData.title;
+            if (playlistData.items.length > 0) {
+              content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+            } else {
+              content = cleaned; // Fallback to just the URL if items failed but it's a playlist
+            }
           }
+        } else if (isYoutubeUrl(cleaned)) {
+          content = cleaned;
+          const fetched = await fetchYoutubeTitle(cleaned);
+          if (fetched) title = fetched;
         }
-
-        const now = new Date();
-        const newId = await db.memos.add({
-          title: title || '붙여넣은 메모',
-          content: content,
-          tags: [],
-          createdAt: now,
-          updatedAt: now,
-          type: 'normal'
-        });
-
-        await db.autosaves.where('originalId').equals(newId).delete();
-        navigate(`/memo/${newId}`);
       }
+
+      const now = new Date();
+      const newId = await db.memos.add({
+        title: title || '붙여넣은 메모',
+        content: content,
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+        type: 'normal'
+      });
+
+      await db.autosaves.where('originalId').equals(newId).delete();
+      navigate(`/memo/${newId}`);
     } catch (err) {
       console.error('Failed to read clipboard', err);
     }
@@ -704,7 +806,13 @@ export const MainLayout: React.FC = () => {
           const firstUrl = urls[0];
           if (firstUrl) {
             const cleaned = cleanImageUrl(firstUrl);
-            if (isYoutubeUrl(cleaned)) {
+            if (isYoutubePlaylistUrl(cleaned)) {
+              const playlistData = await fetchYoutubePlaylistData(cleaned);
+              if (playlistData) {
+                identifiedTitle = playlistData.title;
+                finalContent = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+              }
+            } else if (isYoutubeUrl(cleaned)) {
               finalContent = firstUrl;
             } else if (isImageUrl(cleaned)) {
               finalContent = `![](${cleaned})\n\n`;
@@ -713,13 +821,15 @@ export const MainLayout: React.FC = () => {
               finalContent = cleaned;
             }
 
-            // Get the best possible title
-            identifiedTitle = getBestTitle(cleaned, identifiedTitle, shareText || undefined);
+            // Get the best possible title if not playlist (playlist sets its own)
+            if (!isYoutubePlaylistUrl(cleaned)) {
+              identifiedTitle = getBestTitle(cleaned, identifiedTitle, shareText || undefined);
 
-            // Special async fetch for YouTube titles if we still have a generic fallback
-            if (isYoutubeUrl(cleaned) && (identifiedTitle === '유튜브 동영상' || identifiedTitle === '공유된 메모')) {
-              const fetched = await fetchYoutubeTitle(cleaned);
-              if (fetched) identifiedTitle = fetched;
+              // Special async fetch for YouTube titles if we still have a generic fallback
+              if (isYoutubeUrl(cleaned) && (identifiedTitle === '유튜브 동영상' || identifiedTitle === '공유된 메모')) {
+                const fetched = await fetchYoutubeTitle(cleaned);
+                if (fetched) identifiedTitle = fetched;
+              }
             }
           }
         }
@@ -807,19 +917,28 @@ export const MainLayout: React.FC = () => {
               if (firstUrl) {
                 const cleaned = cleanImageUrl(firstUrl);
 
-                // Try to improve title
-                title = getBestTitle(cleaned, title || undefined, sText || undefined);
-
-                if (isYoutubeUrl(cleaned)) {
-                  content = firstUrl; // Just the URL for youtube embeds
-                  if (title === '유튜브 동영상' || title === '공유된 메모') {
-                    const fetched = await fetchYoutubeTitle(cleaned);
-                    if (fetched) title = fetched;
+                // Check for playlist FIRST
+                if (isYoutubePlaylistUrl(cleaned)) {
+                  const playlistData = await fetchYoutubePlaylistData(cleaned);
+                  if (playlistData) {
+                    title = playlistData.title;
+                    content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
                   }
-                } else if (isImageUrl(cleaned)) {
-                  content = `![](${cleaned})\n\n`;
-                  metadataCache.fetchImageMetadata(cleaned);
-                  title = title || '이미지';
+                } else {
+                  // Try to improve title
+                  title = getBestTitle(cleaned, title || undefined, sText || undefined);
+
+                  if (isYoutubeUrl(cleaned)) {
+                    content = firstUrl; // Just the URL for youtube embeds
+                    if (title === '유튜브 동영상' || title === '공유된 메모') {
+                      const fetched = await fetchYoutubeTitle(cleaned);
+                      if (fetched) title = fetched;
+                    }
+                  } else if (isImageUrl(cleaned)) {
+                    content = `![](${cleaned})\n\n`;
+                    metadataCache.fetchImageMetadata(cleaned);
+                    title = title || '이미지';
+                  }
                 }
               }
             }
@@ -879,19 +998,25 @@ export const MainLayout: React.FC = () => {
             content = await file.text();
           }
         } else {
-          title = getBestTitle(url, extractedTitle, text);
+          title = getBestTitle(url, extractedTitle, text || undefined);
           content = url || text || '';
 
-          if (url && isImageUrl(url)) {
-            content = `![](${url})\n\n`;
-            metadataCache.fetchImageMetadata(url);
+          if (url) {
+            const cleaned = cleanImageUrl(url);
+            if (isImageUrl(cleaned)) {
+              content = `![](${cleaned})\n\n`;
+              metadataCache.fetchImageMetadata(cleaned);
+            } else if (isYoutubePlaylistUrl(cleaned)) {
+              const playlistData = await fetchYoutubePlaylistData(cleaned);
+              if (playlistData) {
+                title = playlistData.title;
+                content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+              }
+            } else if (isYoutubeUrl(cleaned) && (title === '유튜브 동영상' || title === '공유된 메모' || title === '웹 페이지')) {
+              const fetched = await fetchYoutubeTitle(cleaned);
+              if (fetched) title = fetched;
+            }
           }
-        }
-
-        // Special async fetch for YouTube titles
-        if (url && isYoutubeUrl(url) && (title === '유튜브 동영상' || title === '공유된 메모')) {
-          const fetched = await fetchYoutubeTitle(url);
-          if (fetched) title = fetched;
         }
 
         // Create and save the memo immediately, then navigate to preview
@@ -944,19 +1069,25 @@ export const MainLayout: React.FC = () => {
             content = await file.text();
           }
         } else {
-          title = getBestTitle(url, extractedTitle, text);
+          title = getBestTitle(url, extractedTitle, text || undefined);
           content = url || text || '';
 
-          if (url && isImageUrl(url)) {
-            content = `![](${url})\n\n`;
-            metadataCache.fetchImageMetadata(url);
+          if (url) {
+            const cleaned = cleanImageUrl(url);
+            if (isImageUrl(cleaned)) {
+              content = `![](${cleaned})\n\n`;
+              metadataCache.fetchImageMetadata(cleaned);
+            } else if (isYoutubePlaylistUrl(cleaned)) {
+              const playlistData = await fetchYoutubePlaylistData(cleaned);
+              if (playlistData) {
+                title = playlistData.title;
+                content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+              }
+            } else if (isYoutubeUrl(cleaned) && (title === '유튜브 동영상' || title === '공유된 메모' || title === '웹 페이지')) {
+              const fetched = await fetchYoutubeTitle(cleaned);
+              if (fetched) title = fetched;
+            }
           }
-        }
-
-        // Special async fetch for YouTube titles
-        if (url && isYoutubeUrl(url) && (title === '유튜브 동영상' || title === '공유된 메모' || title === '웹 페이지')) {
-          const fetched = await fetchYoutubeTitle(url);
-          if (fetched) title = fetched;
         }
 
         // Create and save the memo
