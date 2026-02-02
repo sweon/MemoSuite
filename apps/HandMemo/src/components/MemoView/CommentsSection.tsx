@@ -480,6 +480,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                         ) : (
                             <MarkdownView
                                 content={c.content}
+                                isComment={true}
                                 tableHeaderBg={theme.colors.border}
                                 onEditDrawing={(json) => {
                                     setActiveCommentId(c.id!);

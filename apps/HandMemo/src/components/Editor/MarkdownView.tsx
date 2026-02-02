@@ -844,6 +844,7 @@ const YouTubePlayer = ({ videoId, startTimestamp }: { videoId: string; startTime
         </JumpBackButton>
       )}
       <div
+        id={`yt-player-${videoId}`}
         style={{
           position: 'relative',
           paddingBottom: '56.25%',
@@ -974,13 +975,15 @@ interface MarkdownViewProps {
   tableHeaderBg?: string;
   onEditDrawing?: (json: string) => void;
   onEditSpreadsheet?: (json: string) => void;
+  isComment?: boolean;
 }
 
 export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
   content,
   tableHeaderBg,
   onEditDrawing,
-  onEditSpreadsheet
+  onEditSpreadsheet,
+  isComment
 }) => {
   const theme = useTheme() as any;
   const isDark = theme.mode === 'dark';
@@ -1002,8 +1005,8 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
           .replace(/&#x26;/g, '&');
 
         const isYoutube =
-          cleanHref.includes('youtube.com') ||
-          cleanHref.includes('youtu.be');
+          (cleanHref.includes('youtube.com') ||
+            cleanHref.includes('youtu.be')) && !isComment;
 
         if (isYoutube) {
           let videoId = '';
