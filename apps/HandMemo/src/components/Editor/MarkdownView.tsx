@@ -1078,7 +1078,19 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
           if (isMounted.current) setVolumeToast(null);
         }, 1000);
       }
-
+      // Home / End
+      else if (e.key === 'Home') {
+        e.preventDefault();
+        const target = 0;
+        setCurrentTime(target);
+        player.seekTo(target, true);
+      }
+      else if (e.key === 'End') {
+        e.preventDefault();
+        const target = player.getDuration();
+        setCurrentTime(target);
+        player.seekTo(target, true);
+      }
       // Percent Jump: 0-9
       else if (/^[0-9]$/.test(e.key)) {
         e.preventDefault();
