@@ -45,24 +45,52 @@ const isYoutubePlaylistUrl = (url: string) => {
     // Handle new format: /show/VL[ID]
     if (u.pathname.includes('/show/VL')) return true;
 
-    if (!listId) return false;
+    if (listId) return true;
 
     // If it's the dedicated /playlist path, it's a playlist
-    if (u.pathname.toLowerCase().includes('/playlist')) return true;
+    const path = u.pathname.toLowerCase();
+    if (path.includes('/playlist') || path.includes('/view_as_playlist')) return true;
 
-    return true;
+    return false;
   } catch (e) { return false; }
 };
 
 const isYoutubeUrl = (url: string) => {
   if (!url) return false;
   try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (!host.includes('youtube.com') && !host.includes('youtu.be')) return false;
+
+    const path = u.pathname.toLowerCase();
+    return path.includes('/watch') ||
+      path.includes('/embed/') ||
+      path.includes('/shorts/') ||
+      path.includes('/playlist') ||
+      path.includes('/v/') ||
+      host.includes('youtu.be');
+  } catch (e) {
     const u = url.toLowerCase();
     return u.includes('youtube.com/watch') ||
       u.includes('youtu.be/') ||
       u.includes('youtube.com/embed/') ||
-      u.includes('youtube.com/shorts/');
-  } catch (e) { return false; }
+      u.includes('youtube.com/shorts/') ||
+      u.includes('youtube.com/playlist');
+  }
+};
+
+const hasYoutubeVideoId = (url: string) => {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    return !!u.searchParams.get('v') ||
+      u.pathname.includes('/embed/') ||
+      u.pathname.includes('/shorts/') ||
+      u.pathname.includes('/v/') ||
+      (u.hostname.toLowerCase().includes('youtu.be') && u.pathname.length > 1);
+  } catch (e) {
+    return url.includes('v=') || url.includes('youtu.be/') || url.includes('embed/') || url.includes('shorts/');
+  }
 };
 
 const parseHtmlTableToFortuneSheet = (html: string) => {
@@ -904,7 +932,7 @@ export const MainLayout: React.FC = () => {
             const isVideo = isYoutubeUrl(cleaned);
             let usePlaylist = isPlaylist;
 
-            if (isPlaylist && isVideo) {
+            if (isPlaylist && isVideo && hasYoutubeVideoId(cleaned)) {
               usePlaylist = await confirm({
                 message: language === 'ko'
                   ? "동영상과 재생목록이 모두 포함되어 있습니다. 재생목록 전체를 등록하시겠습니까?"
@@ -1130,7 +1158,7 @@ export const MainLayout: React.FC = () => {
               const isVideo = isYoutubeUrl(cleaned);
               let usePlaylist = isPlaylist;
 
-              if (isPlaylist && isVideo) {
+              if (isPlaylist && isVideo && hasYoutubeVideoId(cleaned)) {
                 usePlaylist = await confirm({
                   message: language === 'ko'
                     ? "동영상과 재생목록이 모두 포함되어 있습니다. 재생목록 전체를 등록하시겠습니까?"
@@ -1222,7 +1250,7 @@ export const MainLayout: React.FC = () => {
               const isVideo = isYoutubeUrl(cleaned);
               let usePlaylist = isPlaylist;
 
-              if (isPlaylist && isVideo) {
+              if (isPlaylist && isVideo && hasYoutubeVideoId(cleaned)) {
                 usePlaylist = await confirm({
                   message: language === 'ko'
                     ? "동영상과 재생목록이 모두 포함되어 있습니다. 재생목록 전체를 등록하시겠습니까?"
