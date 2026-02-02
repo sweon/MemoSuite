@@ -16,6 +16,8 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
 import { FiArrowDown, FiExternalLink, FiMaximize, FiSettings, FiX } from 'react-icons/fi';
+import { FaYoutube } from 'react-icons/fa';
+
 
 const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => {
   const [isTwoFingers, setIsTwoFingers] = React.useState(false);
@@ -685,6 +687,18 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const [isFullScreen, setIsFullScreen] = React.useState(false);
   const [isMouseIdle, setIsMouseIdle] = React.useState(false);
   const mouseIdleTimerRef = React.useRef<any>(null);
+  const [isMobilePortrait, setIsMobilePortrait] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkPortrait = () => {
+      // Typically consider mobile as width < 768
+      setIsMobilePortrait(window.innerWidth < 768 && window.innerHeight > window.innerWidth);
+    };
+    checkPortrait();
+    window.addEventListener('resize', checkPortrait);
+    return () => window.removeEventListener('resize', checkPortrait);
+  }, []);
+
 
   const applyCaptionStyles = React.useCallback((overrideFontSize?: number) => {
     const player = playerRef.current;
@@ -1413,19 +1427,27 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                       alignItems: 'center',
                       gap: '4px',
                       fontSize: '10px',
-                      color: '#ddd',
+                      color: isMobilePortrait ? '#ff0000' : '#ddd',
                       textDecoration: 'none',
-                      padding: '4px 8px',
+                      padding: isMobilePortrait ? '4px' : '4px 8px',
                       borderRadius: '4px',
                       background: 'rgba(255,255,255,0.1)',
                       whiteSpace: 'nowrap',
                       marginLeft: '4px',
                       transition: 'all 0.2s'
                     }}
+                    title={language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
                   >
-                    <FiExternalLink size={12} />
-                    {language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
+                    {isMobilePortrait ? (
+                      <FaYoutube size={18} />
+                    ) : (
+                      <>
+                        <FiExternalLink size={12} />
+                        {language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
+                      </>
+                    )}
                   </a>
+
 
                   <button
                     onClick={toggleCaptions}
