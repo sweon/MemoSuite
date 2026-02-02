@@ -15,7 +15,7 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
-import { FiArrowDown, FiExternalLink, FiMaximize } from 'react-icons/fi';
+import { FiArrowDown, FiExternalLink, FiMaximize, FiSettings, FiX } from 'react-icons/fi';
 
 const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => {
   const [isTwoFingers, setIsTwoFingers] = React.useState(false);
@@ -677,7 +677,24 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const [duration, setDuration] = React.useState(0);
   const [playbackRateToast, setPlaybackRateToast] = React.useState<number | null>(null);
   const [isCaptionsOn, setIsCaptionsOn] = React.useState(true);
+  const [isCCSettingsOpen, setIsCCSettingsOpen] = React.useState(false);
+  const [ccTracks, setCCTracks] = React.useState<any[]>([]);
+  const [ccFontSize, setCCFontSize] = React.useState(0);
+  const [ccTextColor, setCCTextColor] = React.useState('#FFFFFF');
   const toastTimerRef = React.useRef<any>(null);
+
+  const applyCaptionStyles = React.useCallback(() => {
+    const player = playerRef.current;
+    if (!player || !player.setOption) return;
+    try {
+      player.setOption('captions', 'backgroundOpacity', 0);
+      player.setOption('captions', 'windowOpacity', 0);
+      player.setOption('captions', 'backgroundColor', '#00000000');
+      player.setOption('captions', 'windowColor', '#00000000');
+      player.setOption('captions', 'fontSize', ccFontSize);
+      player.setOption('captions', 'textColor', ccTextColor);
+    } catch (e) { }
+  }, [ccFontSize, ccTextColor, videoId]);
 
   React.useEffect(() => {
     isMounted.current = true;
@@ -716,6 +733,11 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                 setIsReady(true);
                 if (playerRef.current.getDuration) setDuration(playerRef.current.getDuration());
                 if (!ACTIVE_YT_VIDEO_ID) ACTIVE_YT_VIDEO_ID = videoId;
+
+                // Set default caption styles to transparent background
+                setTimeout(() => {
+                  applyCaptionStyles();
+                }, 1500);
               }
             },
             onStateChange: (event: any) => {
@@ -889,12 +911,30 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
           if (player.setOption) {
             player.setOption('captions', 'track', { languageCode: 'ko' });
           }
-        }, 150);
+          applyCaptionStyles();
+        }, 500); // Wait longer for module load
         setIsCaptionsOn(true);
       }
     } catch (err) {
       console.error('Captions toggle failed', err);
     }
+    ACTIVE_YT_VIDEO_ID = videoId;
+  };
+
+  const toggleCCSettings = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const player = playerRef.current;
+    if (!player) return;
+
+    if (!isCCSettingsOpen) {
+      try {
+        const tracks = player.getOption('captions', 'tracklist') || [];
+        setCCTracks(tracks);
+      } catch (err) {
+        console.error('Failed to get tracks', err);
+      }
+    }
+    setIsCCSettingsOpen(!isCCSettingsOpen);
     ACTIVE_YT_VIDEO_ID = videoId;
   };
 
@@ -1124,6 +1164,10 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
         {isReady && (
           <div
             onClick={() => {
+              if (isCCSettingsOpen) {
+                setIsCCSettingsOpen(false);
+                return;
+              }
               ACTIVE_YT_VIDEO_ID = videoId;
               isPlaying ? playerRef.current?.pauseVideo() : playerRef.current?.playVideo();
             }}
@@ -1140,6 +1184,161 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
               transition: 'background 0.3s'
             }}
           >
+            {/* Subtitle Settings Overlay */}
+            {isCCSettingsOpen && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'absolute',
+                  bottom: '50px',
+                  right: '12px',
+                  background: 'rgba(28, 28, 28, 0.95)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  width: '240px',
+                  zIndex: 100,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  backdropFilter: 'blur(10px)',
+                  color: '#fff',
+                  fontSize: '13px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                    <FiSettings size={14} />
+                    {language === 'ko' ? '자막 설정' : 'Caption Settings'}
+                  </div>
+                  <button
+                    onClick={() => setIsCCSettingsOpen(false)}
+                    style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '4px' }}
+                  >
+                    <FiX size={16} />
+                  </button>
+                </div>
+
+                {/* Tracks Selection */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {language === 'ko' ? '언어 선택' : 'Language'}
+                  </div>
+                  <div style={{ maxHeight: '100px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {ccTracks.length > 0 ? ccTracks.map((track: any) => (
+                      <button
+                        key={track.languageCode}
+                        onClick={() => {
+                          playerRef.current?.setOption('captions', 'track', { languageCode: track.languageCode });
+                          setIsCCSettingsOpen(false);
+                        }}
+                        style={{
+                          textAlign: 'left',
+                          padding: '6px 8px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#ddd',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        {track.displayName}
+                      </button>
+                    )) : (
+                      <div style={{ fontSize: '11px', color: '#666', padding: '4px 8px' }}>
+                        {language === 'ko' ? '사용 가능한 자막 없음' : 'No tracks available'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Font Size */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {language === 'ko' ? '글자 크기' : 'Font Size'}
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {[
+                      { label: '50%', val: -1 },
+                      { label: '100%', val: 0 },
+                      { label: '150%', val: 1 },
+                      { label: '200%', val: 2 },
+                      { label: '300%', val: 3 }
+                    ].map(size => {
+                      const isActive = ccFontSize === size.val;
+                      return (
+                        <button
+                          key={size.val}
+                          onClick={() => {
+                            playerRef.current?.setOption('captions', 'fontSize', size.val);
+                            setCCFontSize(size.val);
+                            setTimeout(applyCaptionStyles, 50);
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '5px 0',
+                            background: isActive ? 'rgba(239, 142, 19, 0.2)' : 'rgba(255,255,255,0.08)',
+                            border: isActive ? '1px solid #ef8e13' : '1px solid transparent',
+                            borderRadius: '4px',
+                            color: isActive ? '#ef8e13' : '#ddd',
+                            fontSize: '10px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
+                          onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                        >
+                          {size.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Text Color */}
+                <div>
+                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {language === 'ko' ? '글자 색상' : 'Text Color'}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {[
+                      { name: 'White', color: '#FFFFFF' },
+                      { name: 'Yellow', color: '#FFFF00' },
+                      { name: 'Green', color: '#00FF00' },
+                      { name: 'Cyan', color: '#00FFFF' },
+                      { name: 'Blue', color: '#0000FF' },
+                      { name: 'Magenta', color: '#FF00FF' },
+                      { name: 'Red', color: '#FF0000' }
+                    ].map(c => (
+                      <button
+                        key={c.color}
+                        onClick={() => {
+                          playerRef.current?.setOption('captions', 'textColor', c.color);
+                          setCCTextColor(c.color);
+                          setTimeout(applyCaptionStyles, 50);
+                        }}
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: c.color,
+                          border: ccTextColor === c.color ? '2px solid #fff' : '2px solid transparent',
+                          cursor: 'pointer',
+                          padding: 0,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                          transition: 'transform 0.1s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        title={c.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Speed Toast Notification */}
             {playbackRateToast !== null && (
               <div style={{
@@ -1223,7 +1422,8 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
 
                   <button
                     onClick={toggleCaptions}
-                    title={language === 'ko' ? '자막' : 'Subtitles'}
+                    onDoubleClick={toggleCCSettings}
+                    title={language === 'ko' ? '자막 (더블클릭: 설정)' : 'Subtitles (Double-click: Settings)'}
                     style={{
                       background: 'none',
                       border: 'none',
