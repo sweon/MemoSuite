@@ -297,7 +297,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
 
     useEffect(() => {
         const handleReturn = (e: any) => {
-            if (e.detail?.commentId) scrollToComment(e.detail.commentId);
+            if (e.detail?.commentId !== undefined) scrollToComment(e.detail.commentId);
         };
         window.addEventListener('return-to-comment', handleReturn);
         return () => window.removeEventListener('return-to-comment', handleReturn);
