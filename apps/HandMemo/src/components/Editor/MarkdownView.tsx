@@ -826,7 +826,7 @@ interface MarkdownViewProps {
   onEditSpreadsheet?: (json: string) => void;
 }
 
-export const MarkdownView: React.FC<MarkdownViewProps> = ({
+export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
   content,
   tableHeaderBg,
   onEditDrawing,
@@ -835,166 +835,175 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
   const theme = useTheme() as any;
   const isDark = theme.mode === 'dark';
 
+  const components = React.useMemo(() => ({
+    a: ({ href, children, ...props }: any) => {
+      try {
+        if (!href) return <a {...props}>{children}</a>;
+
+        const isYoutube =
+          href.includes('youtube.com/watch') ||
+          href.includes('youtu.be/') ||
+          href.includes('youtube.com/embed/') ||
+          href.includes('youtube.com/shorts/');
+
+        if (isYoutube) {
+          let videoId = '';
+          let timestamp = 0;
+          try {
+            if (href.includes('youtu.be/')) {
+              const parts = href.split('youtu.be/')[1].split(/[?#]/);
+              videoId = parts[0];
+              const urlObj = new URL(href.replace('youtu.be/', 'youtube.com/watch?v='));
+              timestamp = parseInt(urlObj.searchParams.get('t') || '0');
+            } else if (href.includes('youtube.com/shorts/')) {
+              videoId = href.split('youtube.com/shorts/')[1].split(/[?#]/)[0];
+              const urlObj = new URL(href);
+              timestamp = parseInt(urlObj.searchParams.get('t') || '0');
+            } else if (href.includes('embed/')) {
+              videoId = href.split('embed/')[1].split(/[?#]/)[0];
+              const urlObj = new URL(href);
+              timestamp = parseInt(urlObj.searchParams.get('t') || '0');
+            } else {
+              const urlObj = new URL(href);
+              videoId = urlObj.searchParams.get('v') || '';
+              timestamp = parseInt(urlObj.searchParams.get('t') || '0');
+            }
+          } catch (e) { }
+
+          if (videoId) {
+            // Internal seek behavior if the link has a timestamp
+            if (timestamp > 0 || href.includes('t=')) {
+              return (
+                <a
+                  href={href}
+                  onClick={(e) => {
+                    if (seekYouTubePlayer(videoId, timestamp)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  style={{
+                    color: '#065fd4', // YouTube-style link color
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    textDecoration: 'none'
+                  }}
+                >
+                  {children}
+                </a>
+              );
+            }
+
+            return (
+              <div key={videoId} style={{ margin: '16px 0' }}>
+                <YouTubePlayer videoId={videoId} />
+              </div>
+            );
+          }
+        }
+
+        // General Web Preview for standalone links (links that match children or are on their own)
+        const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
+        if (isStandalone && href.startsWith('http')) {
+          return <WebPreview url={href} />;
+        }
+
+        return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+      } catch (err) {
+        console.error('Link render error', err);
+        return <a href={href} {...props}>{children}</a>;
+      }
+    },
+    img: ({ src, alt }: any) => {
+      try {
+        const meta = metadataCache.get(src || '');
+        if (meta) {
+          return (
+            <img
+              src={src}
+              alt={alt}
+              width={meta.width}
+              height={meta.height}
+              style={{
+                aspectRatio: `${meta.width} / ${meta.height}`,
+                height: 'auto',
+                maxWidth: '100%',
+                display: 'block',
+                margin: '1em auto'
+              }}
+            />
+          );
+        }
+        return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px', display: 'block', margin: '1em auto' }} />;
+      } catch (err) {
+        return <img src={src} alt={alt} style={{ maxWidth: '100%' }} />;
+      }
+    },
+    pre: ({ children, ...props }: any) => {
+      try {
+        const child = Array.isArray(children) ? children[0] : children;
+        if (React.isValidElement(child) &&
+          (child.props as any).className?.includes('language-fabric')) {
+          return <>{children}</>;
+        }
+        if (React.isValidElement(child) &&
+          (child.props as any).className?.includes('language-spreadsheet')) {
+          return <>{children}</>;
+        }
+        return <div {...props}>{children}</div>;
+      } catch (err) {
+        return <pre {...props}>{children}</pre>;
+      }
+    },
+    code({ node, inline, className, children, ...props }: any) {
+      try {
+        const match = /language-(\w+)/.exec(className || '');
+        const language = match ? match[1] : '';
+        const json = String(children).replace(/\n$/, '');
+
+        if (!inline && language === 'fabric') {
+          return <FabricPreview json={json} onClick={onEditDrawing ? () => onEditDrawing(json) : undefined} />;
+        }
+
+        if (!inline && language === 'spreadsheet') {
+          return <SpreadsheetPreview json={json} onClick={onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
+        }
+
+        if (!inline) {
+          return (
+            <SyntaxHighlighter
+              style={isDark ? vscDarkPlus : vs}
+              language={language || 'text'}
+              PreTag="div"
+              {...props}
+            >
+              {json}
+            </SyntaxHighlighter>
+          );
+        }
+
+        return <code className={className} {...props}>{children}</code>;
+      } catch (err) {
+        return <code className={className} {...props}>{children}</code>;
+      }
+    }
+  }), [onEditDrawing, onEditSpreadsheet, isDark]);
+
   return (
     <MarkdownContainer $tableHeaderBg={tableHeaderBg}>
       <ReactMarkdown
         remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeKatex]}
-        components={{
-          a: ({ href, children, ...props }: any) => {
-            try {
-              if (!href) return <a {...props}>{children}</a>;
-
-              const isYoutube =
-                href.includes('youtube.com/watch') ||
-                href.includes('youtu.be/') ||
-                href.includes('youtube.com/embed/') ||
-                href.includes('youtube.com/shorts/');
-
-              if (isYoutube) {
-                let videoId = '';
-                let timestamp = 0;
-                try {
-                  if (href.includes('youtu.be/')) {
-                    const parts = href.split('youtu.be/')[1].split(/[?#]/);
-                    videoId = parts[0];
-                    const urlObj = new URL(href.replace('youtu.be/', 'youtube.com/watch?v='));
-                    timestamp = parseInt(urlObj.searchParams.get('t') || '0');
-                  } else if (href.includes('youtube.com/shorts/')) {
-                    videoId = href.split('youtube.com/shorts/')[1].split(/[?#]/)[0];
-                    const urlObj = new URL(href);
-                    timestamp = parseInt(urlObj.searchParams.get('t') || '0');
-                  } else if (href.includes('embed/')) {
-                    videoId = href.split('embed/')[1].split(/[?#]/)[0];
-                    const urlObj = new URL(href);
-                    timestamp = parseInt(urlObj.searchParams.get('t') || '0');
-                  } else {
-                    const urlObj = new URL(href);
-                    videoId = urlObj.searchParams.get('v') || '';
-                    timestamp = parseInt(urlObj.searchParams.get('t') || '0');
-                  }
-                } catch (e) { }
-
-                if (videoId) {
-                  // Internal seek behavior if the link has a timestamp
-                  if (timestamp > 0 || href.includes('t=')) {
-                    return (
-                      <a
-                        href={href}
-                        onClick={(e) => {
-                          if (seekYouTubePlayer(videoId, timestamp)) {
-                            e.preventDefault();
-                          }
-                        }}
-                        style={{
-                          color: '#065fd4', // YouTube-style link color
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                          textDecoration: 'none'
-                        }}
-                      >
-                        {children}
-                      </a>
-                    );
-                  }
-
-                  return (
-                    <div key={videoId} style={{ margin: '16px 0' }}>
-                      <YouTubePlayer videoId={videoId} />
-                    </div>
-                  );
-                }
-              }
-
-              // General Web Preview for standalone links (links that match children or are on their own)
-              const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
-              if (isStandalone && href.startsWith('http')) {
-                return <WebPreview url={href} />;
-              }
-
-              return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
-            } catch (err) {
-              console.error('Link render error', err);
-              return <a href={href} {...props}>{children}</a>;
-            }
-          },
-          img: ({ src, alt }: any) => {
-            try {
-              const meta = metadataCache.get(src || '');
-              if (meta) {
-                return (
-                  <img
-                    src={src}
-                    alt={alt}
-                    width={meta.width}
-                    height={meta.height}
-                    style={{
-                      aspectRatio: `${meta.width} / ${meta.height}`,
-                      height: 'auto',
-                      maxWidth: '100%',
-                      display: 'block',
-                      margin: '1em auto'
-                    }}
-                  />
-                );
-              }
-              return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px', display: 'block', margin: '1em auto' }} />;
-            } catch (err) {
-              return <img src={src} alt={alt} style={{ maxWidth: '100%' }} />;
-            }
-          },
-          pre: ({ children, ...props }: any) => {
-            try {
-              const child = Array.isArray(children) ? children[0] : children;
-              if (React.isValidElement(child) &&
-                (child.props as any).className?.includes('language-fabric')) {
-                return <>{children}</>;
-              }
-              if (React.isValidElement(child) &&
-                (child.props as any).className?.includes('language-spreadsheet')) {
-                return <>{children}</>;
-              }
-              return <div {...props}>{children}</div>;
-            } catch (err) {
-              return <pre {...props}>{children}</pre>;
-            }
-          },
-          code({ node, inline, className, children, ...props }: any) {
-            try {
-              const match = /language-(\w+)/.exec(className || '');
-              const language = match ? match[1] : '';
-              const json = String(children).replace(/\n$/, '');
-
-              if (!inline && language === 'fabric') {
-                return <FabricPreview json={json} onClick={onEditDrawing ? () => onEditDrawing(json) : undefined} />;
-              }
-
-              if (!inline && language === 'spreadsheet') {
-                return <SpreadsheetPreview json={json} onClick={onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
-              }
-
-              if (!inline) {
-                return (
-                  <SyntaxHighlighter
-                    style={isDark ? vscDarkPlus : vs}
-                    language={language || 'text'}
-                    PreTag="div"
-                    {...props}
-                  >
-                    {json}
-                  </SyntaxHighlighter>
-                );
-              }
-
-              return <code className={className} {...props}>{children}</code>;
-            } catch (err) {
-              return <code className={className} {...props}>{children}</code>;
-            }
-          }
-        }}
+        components={components}
       >
         {content}
       </ReactMarkdown>
     </MarkdownContainer>
   );
-};
+}, (prev, next) => {
+  // Only re-render if the content or visual style actually changes.
+  // We ignore functional props (onEditDrawing, etc) because they are typically
+  // inline-defined in parents and would otherwise trigger unnecessary re-renders
+  // and remounts of heavy components like YouTube players.
+  return prev.content === next.content &&
+    prev.tableHeaderBg === next.tableHeaderBg;
+});
