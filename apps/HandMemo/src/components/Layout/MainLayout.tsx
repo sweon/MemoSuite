@@ -36,10 +36,28 @@ const isImageUrl = (url: string) => {
 const isYoutubePlaylistUrl = (url: string) => {
   if (!url) return false;
   try {
-    const u = url.toLowerCase();
-    return u.includes('youtube.com/playlist') ||
-      (u.includes('youtube.com/watch') && u.includes('list=')) ||
-      u.includes('youtu.be/') && u.includes('list=');
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (!host.includes('youtube.com') && !host.includes('youtu.be')) return false;
+
+    const listId = u.searchParams.get('list');
+    const videoId = u.searchParams.get('v');
+
+    if (!listId) return false;
+
+    // If it's the dedicated /playlist path, it's a playlist
+    if (u.pathname.toLowerCase().includes('/playlist')) return true;
+
+    // If it's a watch URL with a video ID, treat it as a video even if part of a list
+    if (videoId) return false;
+
+    // For youtu.be, the pathname is the video ID
+    if (host.includes('youtu.be')) {
+      const path = u.pathname.slice(1);
+      if (path && path !== 'playlist') return false;
+    }
+
+    return true;
   } catch (e) { return false; }
 };
 
