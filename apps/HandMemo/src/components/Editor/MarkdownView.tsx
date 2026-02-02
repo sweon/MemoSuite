@@ -682,6 +682,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const [ccFontSize, setCCFontSize] = React.useState(0);
   const toastTimerRef = React.useRef<any>(null);
   const clickTimerRef = React.useRef<any>(null);
+  const [isFullScreen, setIsFullScreen] = React.useState(false);
 
   const applyCaptionStyles = React.useCallback((overrideFontSize?: number) => {
     const player = playerRef.current;
@@ -693,6 +694,14 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
       player.setOption('captions', 'fontSize', fontSize);
     } catch (e) { }
   }, [ccFontSize]);
+
+  React.useEffect(() => {
+    const handleFullScreenChange = () => {
+      setIsFullScreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
+  }, []);
 
   React.useEffect(() => {
     isMounted.current = true;
@@ -1120,12 +1129,15 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
         id={`yt-player-container-${videoId}`}
         style={{
           position: 'relative',
-          paddingBottom: '56.25%',
-          height: 0,
+          paddingBottom: isFullScreen ? 0 : '56.25%',
+          height: isFullScreen ? '100%' : 0,
           overflow: 'hidden',
-          borderRadius: '4px',
+          borderRadius: isFullScreen ? 0 : '4px',
           boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-          background: '#000'
+          background: '#000',
+          display: isFullScreen ? 'flex' : 'block',
+          alignItems: isFullScreen ? 'center' : 'justifyContent',
+          justifyContent: isFullScreen ? 'center' : 'initial'
         }}>
         {!isReady && (
           <div style={{
@@ -1145,14 +1157,17 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
         <div
           ref={wrapperRef}
           style={{
-            position: 'absolute',
+            position: isFullScreen ? 'relative' : 'absolute',
             top: 0,
             left: 0,
-            width: '380px',
-            height: '214px',
-            transform: `scale(${scale})`,
+            width: isFullScreen ? '100%' : '380px',
+            height: isFullScreen ? '100%' : '214px',
+            transform: isFullScreen ? 'none' : `scale(${scale})`,
             transformOrigin: 'top left',
-            pointerEvents: 'none'
+            pointerEvents: 'none',
+            aspectRatio: isFullScreen ? '16/9' : 'auto',
+            maxHeight: isFullScreen ? '100vh' : 'none',
+            maxWidth: isFullScreen ? '100vw' : 'none'
           }}
         >
           <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
