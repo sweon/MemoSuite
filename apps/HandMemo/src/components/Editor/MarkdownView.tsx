@@ -107,7 +107,7 @@ const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => v
           gap: '8px'
         }}>
           <span style={{ fontSize: '14px' }}>✌️</span>
-          {language === 'ko' ? '두 손가락으로 내부 스크롤' : 'Use two fingers to scroll inside'}
+          {language === 'ko' ? '두 손가락 터치 후 내부 스크롤' : 'Use two fingers to scroll inside'}
         </div>
       </div>
       {children}
