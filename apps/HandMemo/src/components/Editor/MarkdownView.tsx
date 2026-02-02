@@ -683,6 +683,8 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const toastTimerRef = React.useRef<any>(null);
   const clickTimerRef = React.useRef<any>(null);
   const [isFullScreen, setIsFullScreen] = React.useState(false);
+  const [isMouseIdle, setIsMouseIdle] = React.useState(false);
+  const mouseIdleTimerRef = React.useRef<any>(null);
 
   const applyCaptionStyles = React.useCallback((overrideFontSize?: number) => {
     const player = playerRef.current;
@@ -702,6 +704,32 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
     document.addEventListener('fullscreenchange', handleFullScreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
   }, []);
+
+  // Handle cursor auto-hide in fullscreen
+  React.useEffect(() => {
+    const handleMouseMove = () => {
+      if (!isFullScreen) return;
+      setIsMouseIdle(false);
+      if (mouseIdleTimerRef.current) clearTimeout(mouseIdleTimerRef.current);
+      mouseIdleTimerRef.current = setTimeout(() => {
+        setIsMouseIdle(true);
+      }, 3000);
+    };
+
+    if (isFullScreen) {
+      document.addEventListener('mousemove', handleMouseMove);
+      setIsMouseIdle(false);
+      mouseIdleTimerRef.current = setTimeout(() => setIsMouseIdle(true), 3000);
+    } else {
+      setIsMouseIdle(false);
+      if (mouseIdleTimerRef.current) clearTimeout(mouseIdleTimerRef.current);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      if (mouseIdleTimerRef.current) clearTimeout(mouseIdleTimerRef.current);
+    };
+  }, [isFullScreen]);
 
   React.useEffect(() => {
     isMounted.current = true;
@@ -1136,8 +1164,9 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
           boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
           background: '#000',
           display: isFullScreen ? 'flex' : 'block',
-          alignItems: isFullScreen ? 'center' : 'justifyContent',
-          justifyContent: isFullScreen ? 'center' : 'initial'
+          alignItems: isFullScreen ? 'center' : 'initial',
+          justifyContent: isFullScreen ? 'center' : 'initial',
+          cursor: (isFullScreen && isMouseIdle) ? 'none' : 'auto'
         }}>
         {!isReady && (
           <div style={{
@@ -1160,14 +1189,11 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
             position: isFullScreen ? 'relative' : 'absolute',
             top: 0,
             left: 0,
-            width: isFullScreen ? '100%' : '380px',
-            height: isFullScreen ? '100%' : '214px',
+            width: isFullScreen ? 'min(100vw, calc(100vh * 16 / 9))' : '380px',
+            height: isFullScreen ? 'min(100vh, calc(100vw * 9 / 16))' : '214px',
             transform: isFullScreen ? 'none' : `scale(${scale})`,
             transformOrigin: 'top left',
-            pointerEvents: 'none',
-            aspectRatio: isFullScreen ? '16/9' : 'auto',
-            maxHeight: isFullScreen ? '100vh' : 'none',
-            maxWidth: isFullScreen ? '100vw' : 'none'
+            pointerEvents: 'none'
           }}
         >
           <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
@@ -1200,7 +1226,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
               position: 'absolute',
               top: 0, left: 0, right: 0, bottom: 0,
               zIndex: 10,
-              cursor: 'pointer',
+              cursor: (isFullScreen && isMouseIdle) ? 'none' : 'pointer',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
