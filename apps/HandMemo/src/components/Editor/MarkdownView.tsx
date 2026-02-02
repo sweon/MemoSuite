@@ -907,39 +907,46 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
       try {
         if (!href) return <a {...props}>{children}</a>;
 
+        let cleanHref = href;
+        try {
+          cleanHref = decodeURIComponent(href);
+        } catch (e) { }
+
+        // Clean common HTML entities
+        cleanHref = (cleanHref || '')
+          .replace(/&amp;/g, '&')
+          .replace(/&#38;/g, '&')
+          .replace(/&#x26;/g, '&');
+
         const isYoutube =
-          href.includes('youtube.com/watch') ||
-          href.includes('youtu.be/') ||
-          href.includes('youtube.com/embed/') ||
-          href.includes('youtube.com/shorts/');
+          cleanHref.includes('youtube.com') ||
+          cleanHref.includes('youtu.be');
 
         if (isYoutube) {
           let videoId = '';
           let timestamp = 0;
-          try {
-            if (href.includes('youtu.be/')) {
-              const parts = href.split('youtu.be/')[1].split(/[?#]/);
-              videoId = parts[0];
-              const urlObj = new URL(href.replace('youtu.be/', 'youtube.com/watch?v='));
-              timestamp = parseInt(urlObj.searchParams.get('t') || '0');
-            } else if (href.includes('youtube.com/shorts/')) {
-              videoId = href.split('youtube.com/shorts/')[1].split(/[?#]/)[0];
-              const urlObj = new URL(href);
-              timestamp = parseInt(urlObj.searchParams.get('t') || '0');
-            } else if (href.includes('embed/')) {
-              videoId = href.split('embed/')[1].split(/[?#]/)[0];
-              const urlObj = new URL(href);
-              timestamp = parseInt(urlObj.searchParams.get('t') || '0');
-            } else {
-              const urlObj = new URL(href);
-              videoId = urlObj.searchParams.get('v') || '';
-              timestamp = parseInt(urlObj.searchParams.get('t') || '0');
+
+          // 1. Check for 'v=' parameter anywhere in query string
+          const vParamMatch = cleanHref.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+
+          if (vParamMatch && vParamMatch[1]) {
+            videoId = vParamMatch[1];
+          } else {
+            // 2. Check for path-based IDs (youtu.be, embed, shorts, v)
+            const pathMatch = cleanHref.match(/(?:youtu\.be\/|embed\/|shorts\/|v\/)([a-zA-Z0-9_-]{11})/);
+            if (pathMatch && pathMatch[1]) {
+              videoId = pathMatch[1];
             }
-          } catch (e) { }
+          }
+
+          const tMatch = cleanHref.match(/[?&]t=(\d+)/);
+          if (tMatch && tMatch[1]) {
+            timestamp = parseInt(tMatch[1]);
+          }
 
           if (videoId) {
             // Internal seek behavior if the link has a timestamp
-            if (timestamp > 0 || href.includes('t=')) {
+            if (timestamp > 0) {
               return (
                 <a
                   href={href}
