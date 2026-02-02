@@ -345,52 +345,40 @@ const fetchYoutubePlaylistData = async (url: string): Promise<{ title: string, i
 
     if (!listId) return null;
 
+    const targetUrl = `https://www.youtube.com/playlist?list=${listId}`;
     let playlistTitle = '유튜브 재생목록';
     let html = '';
 
-    // 1. Try to get title via oEmbed first (fastest)
-    try {
-      const oRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/playlist?list=${listId}&format=json`);
-      if (oRes.ok) {
-        const d = await oRes.json();
-        if (d.title) playlistTitle = d.title;
-      }
-    } catch (e) { }
+    // 1. Run title fetch and HTML fetch in parallel to maximize speed
+    const [titleResult, htmlResult] = await Promise.allSettled([
+      // Title via oEmbed (usually fastest for title)
+      fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/playlist?list=${listId}&format=json`)
+        .then(res => res.ok ? res.json() : null)
+        .then(d => d?.title || null),
+      // HTML via multiple proxies (first one to respond wins)
+      Promise.any([
+        // corsproxy.io is generally very fast
+        fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`).then(res => res.ok ? res.text() : Promise.reject()),
+        // codetabs is a solid alternative
+        fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`).then(res => res.ok ? res.text() : Promise.reject()),
+        // AllOrigins as a reliable fallback
+        fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`)
+          .then(res => res.ok ? res.json() : Promise.reject())
+          .then(data => data.contents || Promise.reject())
+      ])
+    ]);
 
-    const targetUrl = `https://www.youtube.com/playlist?list=${listId}`;
+    if (titleResult.status === 'fulfilled' && titleResult.value) {
+      playlistTitle = titleResult.value;
+    }
 
-    // 2. Fetch HTML from multiple proxies in parallel to get the fastest response
-    const fetchers = [
-      // corsproxy.io is usually faster
-      (async () => {
-        try {
-          const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
-          if (res.ok) return await res.text();
-        } catch (e) { }
-        throw new Error('corsproxy.io failed');
-      })(),
-      // AllOrigins as backup
-      (async () => {
-        try {
-          const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`);
-          if (res.ok) {
-            const d = await res.json();
-            return d.contents || '';
-          }
-        } catch (e) { }
-        throw new Error('allorigins failed');
-      })()
-    ];
-
-    try {
-      html = await Promise.any(fetchers);
-    } catch (e) {
-      console.error('All playlist proxies failed');
+    if (htmlResult.status === 'fulfilled' && htmlResult.value) {
+      html = htmlResult.value;
     }
 
     if (!html) return { title: playlistTitle, items: [] };
 
-    // Update title from HTML if generic
+    // Update title from HTML if oEmbed failed or was generic
     if (playlistTitle === '유튜브 재생목록') {
       const tMatch = html.match(/<title>(.*?)<\/title>/i);
       if (tMatch) playlistTitle = tMatch[1].replace(' - YouTube', '').trim();

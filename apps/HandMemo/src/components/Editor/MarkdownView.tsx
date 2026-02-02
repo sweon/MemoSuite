@@ -1564,11 +1564,16 @@ const YoutubePlaylistView = ({ playlistId }: { playlistId: string }) => {
     const fetchPlaylist = async () => {
       try {
         setLoading(true);
-        // Use AllOrigins proxy to avoid CORS
-        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.youtube.com/playlist?list=${playlistId}`)}`);
-        if (!res.ok) throw new Error('Proxy fetch failed');
-        const data = await res.json();
-        const html = data.contents || '';
+        const targetUrl = `https://www.youtube.com/playlist?list=${playlistId}`;
+
+        // Use multiple proxies in parallel for maximum speed
+        const html = await Promise.any([
+          fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`).then(res => res.ok ? res.text() : Promise.reject()),
+          fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`).then(res => res.ok ? res.text() : Promise.reject()),
+          fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`)
+            .then(res => res.ok ? res.json() : Promise.reject())
+            .then(data => data.contents || Promise.reject())
+        ]);
 
         const videos: { id: string, title: string }[] = [];
         // Enhanced regex to match both formats (runs and simpleText)

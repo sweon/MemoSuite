@@ -30,7 +30,7 @@ const Content = styled.div`
 
 const Message = styled.div`
   color: ${({ theme }) => theme.colors.text || '#000'};
-  font-size: 1rem;
+  font-size: 0.9rem;
   line-height: 1.4;
 `;
 
@@ -45,7 +45,7 @@ const Button = styled.button<{ $primary?: boolean; $danger?: boolean }>`
   border: none;
   border-right: 1px solid ${({ theme }) => theme.colors.border || '#ccc'};
   padding: 14px;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: ${({ $primary }) => $primary ? '600' : '400'};
   color: ${({ theme, $danger, $primary }) =>
     $danger ? (theme.colors.danger || '#ff3b30') :
