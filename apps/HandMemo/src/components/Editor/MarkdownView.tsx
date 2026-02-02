@@ -880,6 +880,95 @@ const YouTubePlayer = ({ videoId, startTimestamp }: { videoId: string; startTime
   );
 };
 
+const YoutubePlaylistView = ({ playlistId }: { playlistId: string }) => {
+  const [playlistVideos, setPlaylistVideos] = React.useState<{ id: string, title: string }[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    setLoading(true);
+    // Attempt to fetch playlist page to extract video titles
+    const fetchPlaylist = async () => {
+      try {
+        setLoading(true);
+        // Use AllOrigins proxy to avoid CORS
+        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.youtube.com/playlist?list=${playlistId}`)}`);
+        if (!res.ok) throw new Error('Proxy fetch failed');
+        const data = await res.json();
+        const html = data.contents || '';
+
+        const videos: { id: string, title: string }[] = [];
+        // Enhanced regex to match both formats
+        const regex = /"videoId":"([a-zA-Z0-9_-]{11})"(?:[^}]*?"title":\{"runs":\[\{"text":"(.*?)"\}\])?/g;
+        let match;
+        const seen = new Set();
+        while ((match = regex.exec(html)) !== null) {
+          const id = match[1];
+          let title = match[2] || 'Untitled Video';
+          title = title.replace(/\\u0026/g, '&').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+          if (!seen.has(id)) {
+            seen.add(id);
+            videos.push({ id, title });
+          }
+        }
+
+        if (videos.length > 0) {
+          setPlaylistVideos(videos);
+        }
+      } catch (e) {
+        console.error('Playlist fetch failed', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPlaylist();
+  }, [playlistId]);
+
+  if (loading) {
+    return <div style={{ margin: '16px 0', padding: '12px', color: '#868e96', fontSize: '14px', border: '1px solid #e9ecef', borderRadius: '8px' }}>loading playlist...</div>;
+  }
+
+  if (playlistVideos.length > 0) {
+    return (
+      <div style={{ margin: '16px 0', padding: '12px', border: '1px solid #e9ecef', borderRadius: '8px' }}>
+        <div style={{ marginBottom: '12px', fontWeight: 600, fontSize: '14px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>
+          Playlist ({playlistVideos.length})
+        </div>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {playlistVideos.map((v, i) => (
+            <li key={v.id} style={{ marginBottom: '8px', fontSize: '14px' }}>
+              <a
+                href={`https://www.youtube.com/watch?v=${v.id}&list=${playlistId}&index=${i + 1}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: 'none', color: '#065fd4', display: 'flex', gap: '8px', alignItems: 'baseline' }}
+              >
+                <span style={{ color: '#868e96', minWidth: '24px', fontSize: '12px' }}>{i + 1}.</span>
+                <span style={{ lineHeight: '1.4' }}>{v.title}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ margin: '16px 0', padding: '12px', border: '1px solid #e9ecef', borderRadius: '8px' }}>
+      <div style={{ marginBottom: '8px', fontSize: '14px' }}>
+        Unable to extract videos list.
+      </div>
+      <a
+        href={`https://www.youtube.com/playlist?list=${playlistId}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: '#065fd4', textDecoration: 'none', fontSize: '14px' }}
+      >
+        Open Playlist on YouTube ↗
+      </a>
+    </div>
+  );
+};
+
 interface MarkdownViewProps {
   content: string;
   tableHeaderBg?: string;
@@ -944,6 +1033,23 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
                 <YouTubePlayer videoId={videoId} startTimestamp={timestamp > 0 ? timestamp : undefined} />
               </div>
             );
+          } else {
+            // Check for playlist ID if video ID is missing
+            let playlistId = '';
+            const listMatch = cleanHref.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+            if (listMatch) playlistId = listMatch[1];
+            else {
+              const showMatch = cleanHref.match(/\/show\/([a-zA-Z0-9_-]+)/);
+              if (showMatch) playlistId = showMatch[1];
+            }
+
+            if (playlistId) {
+              // Remove 'VL' prefix if present
+              if (playlistId.startsWith('VL')) {
+                playlistId = playlistId.substring(2);
+              }
+              return <YoutubePlaylistView playlistId={playlistId} />;
+            }
           }
         }
 

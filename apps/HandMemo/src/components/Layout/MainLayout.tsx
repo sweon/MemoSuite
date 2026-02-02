@@ -43,6 +43,9 @@ const isYoutubePlaylistUrl = (url: string) => {
     const listId = u.searchParams.get('list');
     const videoId = u.searchParams.get('v');
 
+    // Handle new format: /show/VL[ID]
+    if (u.pathname.includes('/show/VL')) return true;
+
     if (!listId) return false;
 
     // If it's the dedicated /playlist path, it's a playlist
@@ -314,7 +317,15 @@ const fetchYoutubeTitle = async (url: string): Promise<string | null> => {
 
 const fetchYoutubePlaylistData = async (url: string): Promise<{ title: string, items: { videoId: string, title: string }[] } | null> => {
   try {
-    const listId = new URL(url).searchParams.get('list');
+    const u = new URL(url);
+    let listId = u.searchParams.get('list');
+
+    // Support new format: /show/VL[ID]
+    if (!listId && u.pathname.includes('/show/VL')) {
+      const match = u.pathname.match(/\/show\/VL([^/?#]+)/);
+      if (match) listId = match[1];
+    }
+
     if (!listId) return null;
 
     let playlistTitle = '유튜브 재생목록';
