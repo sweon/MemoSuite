@@ -329,21 +329,35 @@ const fetchYoutubePlaylistData = async (url: string): Promise<{ title: string, i
       }
     } catch (e) { }
 
-    // 2. Try Primary Proxy (AllOrigins)
-    try {
-      const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.youtube.com/playlist?list=${listId}`)}`);
-      if (res.ok) {
-        const d = await res.json();
-        html = d.contents || '';
-      }
-    } catch (e) { }
+    const targetUrl = `https://www.youtube.com/playlist?list=${listId}`;
 
-    // 3. Try Secondary Proxy if first fails
-    if (!html) {
-      try {
-        const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(`https://www.youtube.com/playlist?list=${listId}`)}`);
-        if (res.ok) html = await res.text();
-      } catch (e) { }
+    // 2. Fetch HTML from multiple proxies in parallel to get the fastest response
+    const fetchers = [
+      // corsproxy.io is usually faster
+      (async () => {
+        try {
+          const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
+          if (res.ok) return await res.text();
+        } catch (e) { }
+        throw new Error('corsproxy.io failed');
+      })(),
+      // AllOrigins as backup
+      (async () => {
+        try {
+          const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`);
+          if (res.ok) {
+            const d = await res.json();
+            return d.contents || '';
+          }
+        } catch (e) { }
+        throw new Error('allorigins failed');
+      })()
+    ];
+
+    try {
+      html = await Promise.any(fetchers);
+    } catch (e) {
+      console.error('All playlist proxies failed');
     }
 
     if (!html) return { title: playlistTitle, items: [] };
@@ -1127,17 +1141,17 @@ export const MainLayout: React.FC = () => {
               }
 
               if (usePlaylist) {
-              setIsPlaylistExtracting(true);
-              try {
-                const playlistData = await fetchYoutubePlaylistData(cleaned);
-                if (playlistData) {
-                  title = playlistData.title;
-                  content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                setIsPlaylistExtracting(true);
+                try {
+                  const playlistData = await fetchYoutubePlaylistData(cleaned);
+                  if (playlistData) {
+                    title = playlistData.title;
+                    content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                  }
+                } finally {
+                  setIsPlaylistExtracting(false);
                 }
-              } finally {
-                setIsPlaylistExtracting(false);
-              }
-            } else if (isVideo) {
+              } else if (isVideo) {
                 const fetched = await fetchYoutubeTitle(cleaned);
                 if (fetched) title = fetched;
               }
@@ -1219,17 +1233,17 @@ export const MainLayout: React.FC = () => {
               }
 
               if (usePlaylist) {
-              setIsPlaylistExtracting(true);
-              try {
-                const playlistData = await fetchYoutubePlaylistData(cleaned);
-                if (playlistData) {
-                  title = playlistData.title;
-                  content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                setIsPlaylistExtracting(true);
+                try {
+                  const playlistData = await fetchYoutubePlaylistData(cleaned);
+                  if (playlistData) {
+                    title = playlistData.title;
+                    content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                  }
+                } finally {
+                  setIsPlaylistExtracting(false);
                 }
-              } finally {
-                setIsPlaylistExtracting(false);
-              }
-            } else if (isVideo) {
+              } else if (isVideo) {
                 const fetched = await fetchYoutubeTitle(cleaned);
                 if (fetched) title = fetched;
               }
