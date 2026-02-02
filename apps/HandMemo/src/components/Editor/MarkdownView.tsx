@@ -676,6 +676,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const [currentTime, setCurrentTime] = React.useState(0);
   const [duration, setDuration] = React.useState(0);
   const [playbackRateToast, setPlaybackRateToast] = React.useState<number | null>(null);
+  const [isCaptionsOn, setIsCaptionsOn] = React.useState(true);
   const toastTimerRef = React.useRef<any>(null);
 
   React.useEffect(() => {
@@ -706,7 +707,8 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
             controls: 0,
             iv_load_policy: 3,
             fs: 1,
-            disablekb: 1
+            disablekb: 1,
+            cc_load_policy: 1
           },
           events: {
             onReady: () => {
@@ -871,6 +873,31 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
 
   const containerId = `yt-player-container-${videoId}`;
 
+  const toggleCaptions = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const player = playerRef.current;
+    if (!player) return;
+
+    try {
+      if (isCaptionsOn) {
+        player.unloadModule('captions');
+        setIsCaptionsOn(false);
+      } else {
+        player.loadModule('captions');
+        // Small delay helps the module initialize track selection
+        setTimeout(() => {
+          if (player.setOption) {
+            player.setOption('captions', 'track', { languageCode: 'ko' });
+          }
+        }, 150);
+        setIsCaptionsOn(true);
+      }
+    } catch (err) {
+      console.error('Captions toggle failed', err);
+    }
+    ACTIVE_YT_VIDEO_ID = videoId;
+  };
+
   const toggleFullScreen = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     ACTIVE_YT_VIDEO_ID = videoId;
@@ -908,6 +935,11 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
       else if (key === 'f') {
         e.preventDefault();
         toggleFullScreen();
+      }
+      // Subtitles: 'c'
+      else if (key === 'c') {
+        e.preventDefault();
+        toggleCaptions();
       }
       // Mute/Unmute: 'm'
       else if (key === 'm') {
@@ -981,7 +1013,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying]);
+  }, [isPlaying, isCaptionsOn, videoId, language]);
 
   const wrapperRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
@@ -1188,6 +1220,35 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                     <FiExternalLink size={12} />
                     {language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
                   </a>
+
+                  <button
+                    onClick={toggleCaptions}
+                    title={language === 'ko' ? '자막' : 'Subtitles'}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: isCaptionsOn ? '#ef8e13' : '#ddd',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '4px',
+                      marginLeft: '4px',
+                      transition: 'color 0.2s'
+                    }}
+                  >
+                    <div style={{
+                      border: `1.5px solid ${isCaptionsOn ? '#ef8e13' : '#ddd'}`,
+                      borderRadius: '2px',
+                      padding: '1px 3px',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                      lineHeight: 1,
+                      color: isCaptionsOn ? '#ef8e13' : '#ddd',
+                      transition: 'all 0.2s'
+                    }}>
+                      CC
+                    </div>
+                  </button>
 
                   <button
                     onClick={toggleFullScreen}
