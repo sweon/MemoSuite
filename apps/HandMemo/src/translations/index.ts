@@ -194,7 +194,7 @@ export const translations = {
             delete_confirm: "Delete this comment?",
             cancel: "Cancel",
             add_button: "Add Comment",
-            scroll_to_video: "Scroll to Video",
+            scroll_to_video: "Go to Video",
             scroll_to_comment: "Back to Comment"
         },
         sync: {
@@ -558,7 +558,7 @@ export const translations = {
             delete_confirm: "이 댓글을 삭제하시겠습니까?",
             cancel: "취소",
             add_button: "댓글 추가",
-            scroll_to_video: "동영상 위치로 이동",
+            scroll_to_video: "해당 동영상으로 이동",
             scroll_to_comment: "댓글 위치로 돌아가기"
         },
         sync: {

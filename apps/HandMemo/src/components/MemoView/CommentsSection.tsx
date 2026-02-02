@@ -276,7 +276,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
         } catch (e) { }
 
         if (videoId && videoId.length === 11) {
-            const el = document.getElementById(`yt-player-${videoId}`);
+            const el = document.getElementById(`yt-player-container-${videoId}`);
             if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 setLastJumpedCommentId(commentId);
