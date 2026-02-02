@@ -15,7 +15,7 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
-import { FiArrowDown, FiExternalLink } from 'react-icons/fi';
+import { FiArrowDown, FiExternalLink, FiMaximize } from 'react-icons/fi';
 
 const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => {
   const [isTwoFingers, setIsTwoFingers] = React.useState(false);
@@ -674,6 +674,8 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState(0);
   const [duration, setDuration] = React.useState(0);
+  const [playbackRateToast, setPlaybackRateToast] = React.useState<number | null>(null);
+  const toastTimerRef = React.useRef<any>(null);
 
   React.useEffect(() => {
     isMounted.current = true;
@@ -702,7 +704,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
             rel: 0,
             controls: 0,
             iv_load_policy: 3,
-            fs: 0,
+            fs: 1,
             disablekb: 1
           },
           events: {
@@ -861,6 +863,114 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
     return `${mins}:${String(secs).padStart(2, '0')}`;
   };
 
+  const containerId = `yt-player-container-${videoId}`;
+
+  const toggleFullScreen = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const elem = document.getElementById(containerId);
+    if (!elem) return;
+
+    if (!document.fullscreenElement) {
+      elem.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
+
+      const player = playerRef.current;
+      if (!player) return;
+
+      const key = e.key.toLowerCase();
+
+      // Play/Pause: 'k' or 'Space'
+      if (key === 'k' || e.key === ' ') {
+        e.preventDefault();
+        if (isPlaying) player.pauseVideo();
+        else player.playVideo();
+      }
+      // Fullscreen: 'f'
+      else if (key === 'f') {
+        e.preventDefault();
+        toggleFullScreen();
+      }
+      // Mute/Unmute: 'm'
+      else if (key === 'm') {
+        e.preventDefault();
+        if (player.isMuted()) {
+          player.unMute();
+        } else {
+          player.mute();
+        }
+      }
+      // Forward/Backward
+      else if (key === 'j' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const skip = key === 'j' ? 10 : 5;
+        const target = Math.max(0, player.getCurrentTime() - skip);
+        player.seekTo(target, true);
+      }
+      else if (key === 'l' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const skip = key === 'l' ? 10 : 5;
+        const target = Math.min(player.getDuration(), player.getCurrentTime() + skip);
+        player.seekTo(target, true);
+      }
+      // Volume
+      else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        player.setVolume(Math.min(100, player.getVolume() + 5));
+      }
+      else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        player.setVolume(Math.max(0, player.getVolume() - 5));
+      }
+      // Percent Jump: 0-9
+      else if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        const percent = parseInt(e.key) * 10;
+        const target = (player.getDuration() * percent) / 100;
+        player.seekTo(target, true);
+      }
+      // Playback Speed: Shift + > ('.') and Shift + < (',')
+      else if (e.key === '>' || e.key === '<') {
+        e.preventDefault();
+        const rates = player.getAvailablePlaybackRates();
+        const currentRate = player.getPlaybackRate();
+        const currentIndex = rates.indexOf(currentRate);
+
+        let newRate = currentRate;
+        if (e.key === '>') {
+          if (currentIndex < rates.length - 1) {
+            newRate = rates[currentIndex + 1];
+            player.setPlaybackRate(newRate);
+          }
+        } else {
+          if (currentIndex > 0) {
+            newRate = rates[currentIndex - 1];
+            player.setPlaybackRate(newRate);
+          }
+        }
+
+        // Show toast
+        setPlaybackRateToast(newRate);
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+          if (isMounted.current) setPlaybackRateToast(null);
+        }, 1000);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying]);
+
   const wrapperRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
 
@@ -983,6 +1093,23 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
               transition: 'background 0.3s'
             }}
           >
+            {/* Speed Toast Notification */}
+            {playbackRateToast !== null && (
+              <div style={{
+                position: 'absolute',
+                top: '20%',
+                background: 'rgba(0,0,0,0.7)',
+                color: '#fff',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                pointerEvents: 'none',
+                zIndex: 20
+              }}>
+                {playbackRateToast}x
+              </div>
+            )}
             {!isPlaying && (
               <>
                 {/* Control Bar shown only when paused */}
@@ -1045,6 +1172,23 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                     <FiExternalLink size={12} />
                     {language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
                   </a>
+
+                  <button
+                    onClick={toggleFullScreen}
+                    title={language === 'ko' ? '전체 화면' : 'Full Screen'}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#ddd',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '4px',
+                      marginLeft: '4px'
+                    }}
+                  >
+                    <FiMaximize size={16} />
+                  </button>
                 </div>
               </>
             )}
