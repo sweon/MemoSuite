@@ -538,6 +538,11 @@ export const MainLayout: React.FC = () => {
       setPasteButton(null);
     }
 
+    // Check for global inhibit flag (e.g. from Drawing Modal)
+    if ((window as any).__FABRIC_MODAL_OPEN__) {
+      return;
+    }
+
     const target = e.target as HTMLElement;
     // Don't trigger on interactive elements or editors
     if (target.closest('.CodeMirror') || target.closest('.EasyMDEContainer') ||

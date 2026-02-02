@@ -4317,11 +4317,32 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             const docHeight = pageHeightRef.current;
             setTotalPages(Math.max(1, Math.ceil(docHeight / viewportHeight)));
         }
-
         vScroll.addEventListener('scroll', handleScroll, { passive: true });
         return () => {
             vScroll.removeEventListener('scroll', handleScroll);
             if (rafId) cancelAnimationFrame(rafId);
+        };
+    }, []);
+
+    useEffect(() => {
+        // Global inhibit flag for MainLayout's long-press paste
+        (window as any).__FABRIC_MODAL_OPEN__ = true;
+        return () => {
+            (window as any).__FABRIC_MODAL_OPEN__ = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        const vScroll = containerRef.current;
+        if (!vScroll) return;
+
+        const handleInteractionScroll = () => {
+            lastInteractionTimeRef.current = Date.now();
+        };
+
+        vScroll.addEventListener('scroll', handleInteractionScroll, { passive: true });
+        return () => {
+            vScroll.removeEventListener('scroll', handleInteractionScroll);
         };
     }, []);
 
@@ -6489,7 +6510,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                             overflow: 'hidden'
                         }}
                     >
-                        <div style={{ position: 'absolute', top: 0, left: 0 }}>
+                        <div style={{ position: 'absolute', top: 0, left: 0 }} onTouchStart={(e) => e.stopPropagation()}>
                             <canvas ref={canvasRef} />
                         </div>
                     </div>
