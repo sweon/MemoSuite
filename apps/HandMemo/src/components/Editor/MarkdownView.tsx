@@ -1,5 +1,7 @@
 import React from 'react';
 import { useLanguage, metadataCache } from '@memosuite/shared';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, type Comment } from '../../db';
 
 import ReactMarkdown from 'react-markdown';
 
@@ -662,7 +664,7 @@ const WebPreview = ({ url }: { url: string }) => {
   );
 };
 
-const YouTubePlayer = ({ videoId, startTimestamp }: { videoId: string; startTimestamp?: number }) => {
+const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; startTimestamp?: number; memoId?: number }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const playerRef = React.useRef<any>(null);
   const intervalRef = React.useRef<any>(null);
@@ -788,6 +790,18 @@ const YouTubePlayer = ({ videoId, startTimestamp }: { videoId: string; startTime
   const [jumpedCommentId, setJumpedCommentId] = React.useState<number | null>(null);
   const { language, t } = useLanguage();
 
+  const comments = useLiveQuery(
+    () => (memoId ? db.comments.where('memoId').equals(memoId).sortBy('createdAt') : [] as Comment[]),
+    [memoId]
+  );
+
+  const videoComments = React.useMemo(() => {
+    if (!comments) return [];
+    return comments.filter(c => c.content.includes(videoId));
+  }, [comments, videoId]);
+
+  const lastVideoCommentId = videoComments.length > 0 ? videoComments[videoComments.length - 1].id : null;
+
   React.useEffect(() => {
     const handleJump = (e: any) => {
       if (e.detail?.videoId === videoId) {
@@ -805,6 +819,17 @@ const YouTubePlayer = ({ videoId, startTimestamp }: { videoId: string; startTime
     if (jumpedCommentId !== null) {
       window.dispatchEvent(new CustomEvent('return-to-comment', { detail: { commentId: jumpedCommentId } }));
       setJumpedCommentId(null);
+    }
+  };
+
+  const scrollToLastComment = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (lastVideoCommentId) {
+      window.dispatchEvent(new CustomEvent('return-to-comment', { detail: { commentId: lastVideoCommentId } }));
+    } else {
+      // Scroll to the end of ALL comments if none for this video
+      const lastId = (comments && comments.length > 0) ? comments[comments.length - 1].id : -1;
+      window.dispatchEvent(new CustomEvent('return-to-comment', { detail: { commentId: lastId } }));
     }
   };
 
@@ -835,14 +860,28 @@ const YouTubePlayer = ({ videoId, startTimestamp }: { videoId: string; startTime
     <div style={{
       position: 'relative',
       margin: '16px 0',
-      marginTop: jumpedCommentId !== null ? '40px' : '16px',
+      marginTop: (jumpedCommentId !== null || memoId) ? '40px' : '16px',
       transition: 'margin-top 0.3s ease'
     }}>
-      {jumpedCommentId !== null && (
-        <JumpBackButton onClick={handleReturn} title={t.comments.scroll_to_comment}>
-          <FiArrowDown /> {language === 'ko' ? '댓글로 돌아가기' : 'Back to Comment'}
-        </JumpBackButton>
-      )}
+      <div style={{
+        position: 'absolute',
+        top: '-34px',
+        right: 0,
+        display: 'flex',
+        gap: '8px',
+        zIndex: 10
+      }}>
+        {jumpedCommentId !== null && (
+          <JumpBackButton onClick={handleReturn} title={t.comments.scroll_to_comment} style={{ position: 'static' }}>
+            <FiArrowDown /> {language === 'ko' ? '댓글로 돌아가기' : 'Back to Comment'}
+          </JumpBackButton>
+        )}
+        {memoId && (
+          <JumpBackButton onClick={scrollToLastComment} title={lastVideoCommentId ? (language === 'ko' ? '댓글 있음' : 'Comments exist') : (language === 'ko' ? '댓글로 가기' : 'Go to comment')} style={{ position: 'static' }}>
+            <FiArrowDown /> {lastVideoCommentId ? (language === 'ko' ? '댓글 있음' : 'Comments exist') : (language === 'ko' ? '댓글로 가기' : 'Go to comment')}
+          </JumpBackButton>
+        )}
+      </div>
       <div
         id={`yt-player-${videoId}`}
         style={{
@@ -972,6 +1011,7 @@ const YoutubePlaylistView = ({ playlistId }: { playlistId: string }) => {
 
 interface MarkdownViewProps {
   content: string;
+  memoId?: number;
   tableHeaderBg?: string;
   onEditDrawing?: (json: string) => void;
   onEditSpreadsheet?: (json: string) => void;
@@ -980,6 +1020,7 @@ interface MarkdownViewProps {
 
 export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
   content,
+  memoId,
   tableHeaderBg,
   onEditDrawing,
   onEditSpreadsheet,
@@ -1033,7 +1074,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
           if (videoId) {
             return (
               <div key={videoId} style={{ margin: '16px 0' }}>
-                <YouTubePlayer videoId={videoId} startTimestamp={timestamp > 0 ? timestamp : undefined} />
+                <YouTubePlayer videoId={videoId} startTimestamp={timestamp > 0 ? timestamp : undefined} memoId={memoId} />
               </div>
             );
           } else {
