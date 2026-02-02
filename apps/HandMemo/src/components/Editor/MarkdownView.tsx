@@ -1190,8 +1190,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
               flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
-              background: isPlaying ? 'transparent' : 'rgba(0,0,0,0.3)',
-              transition: 'background 0.3s'
+              background: 'transparent',
             }}
           >
             {/* Subtitle Settings Overlay */}
@@ -1333,7 +1332,6 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                     position: 'absolute',
                     bottom: 0, left: 0, right: 0,
                     height: '40px',
-                    background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
                     display: 'flex',
                     alignItems: 'center',
                     padding: '0 12px',
