@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { Sidebar } from '../Sidebar/Sidebar';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FiMenu, FiSave } from 'react-icons/fi';
-import { metadataCache, useColorTheme, useLanguage } from '@memosuite/shared';
+import { metadataCache, useColorTheme, useLanguage, useModal } from '@memosuite/shared';
 import { db } from '../../db';
 
 const cleanImageUrl = (url: string): string => {
@@ -41,7 +41,6 @@ const isYoutubePlaylistUrl = (url: string) => {
     if (!host.includes('youtube.com') && !host.includes('youtu.be')) return false;
 
     const listId = u.searchParams.get('list');
-    const videoId = u.searchParams.get('v');
 
     // Handle new format: /show/VL[ID]
     if (u.pathname.includes('/show/VL')) return true;
@@ -51,8 +50,7 @@ const isYoutubePlaylistUrl = (url: string) => {
     // If it's the dedicated /playlist path, it's a playlist
     if (u.pathname.toLowerCase().includes('/playlist')) return true;
 
-    // If it's a watch URL with a video ID, treat it as a video even if part of a list
-    if (videoId) return false;
+    return true;
 
     // For youtu.be, the pathname is the video ID
     if (host.includes('youtu.be')) {
@@ -68,7 +66,6 @@ const isYoutubeUrl = (url: string) => {
   if (!url) return false;
   try {
     const u = url.toLowerCase();
-    if (isYoutubePlaylistUrl(url)) return false;
     return u.includes('youtube.com/watch') ||
       u.includes('youtu.be/') ||
       u.includes('youtube.com/embed/') ||
@@ -577,6 +574,7 @@ export const MainLayout: React.FC = () => {
   const longPressTimer = useRef<any>(null);
   const globalLongPressTimer = useRef<any>(null);
   const [pasteButton, setPasteButton] = useState<{ x: number, y: number } | null>(null);
+  const { confirm } = useModal();
 
   // Track mobile state
   useEffect(() => {
@@ -835,13 +833,27 @@ export const MainLayout: React.FC = () => {
           const firstUrl = urls[0];
           if (firstUrl) {
             const cleaned = cleanImageUrl(firstUrl);
-            if (isYoutubePlaylistUrl(cleaned)) {
+            const isPlaylist = isYoutubePlaylistUrl(cleaned);
+            const isVideo = isYoutubeUrl(cleaned);
+            let usePlaylist = isPlaylist;
+
+            if (isPlaylist && isVideo) {
+              usePlaylist = await confirm({
+                message: language === 'ko'
+                  ? "동영상과 재생목록이 모두 포함되어 있습니다. 재생목록 전체를 등록하시겠습니까?"
+                  : "Both video and playlist IDs are present. Register the entire playlist?",
+                confirmText: language === 'ko' ? "재생목록 전체" : "Playlist",
+                cancelText: language === 'ko' ? "동영상만" : "Video only"
+              });
+            }
+
+            if (usePlaylist) {
               const playlistData = await fetchYoutubePlaylistData(cleaned);
               if (playlistData) {
                 identifiedTitle = playlistData.title;
                 finalContent = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
               }
-            } else if (isYoutubeUrl(cleaned)) {
+            } else if (isVideo) {
               finalContent = firstUrl;
             } else if (isImageUrl(cleaned)) {
               finalContent = `![](${cleaned})\n\n`;
@@ -1035,15 +1047,31 @@ export const MainLayout: React.FC = () => {
             if (isImageUrl(cleaned)) {
               content = `![](${cleaned})\n\n`;
               metadataCache.fetchImageMetadata(cleaned);
-            } else if (isYoutubePlaylistUrl(cleaned)) {
-              const playlistData = await fetchYoutubePlaylistData(cleaned);
-              if (playlistData) {
-                title = playlistData.title;
-                content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+            } else {
+              const isPlaylist = isYoutubePlaylistUrl(cleaned);
+              const isVideo = isYoutubeUrl(cleaned);
+              let usePlaylist = isPlaylist;
+
+              if (isPlaylist && isVideo) {
+                usePlaylist = await confirm({
+                  message: language === 'ko'
+                    ? "동영상과 재생목록이 모두 포함되어 있습니다. 재생목록 전체를 등록하시겠습니까?"
+                    : "Both video and playlist IDs are present. Register the entire playlist?",
+                  confirmText: language === 'ko' ? "재생목록 전체" : "Playlist",
+                  cancelText: language === 'ko' ? "동영상만" : "Video only"
+                });
               }
-            } else if (isYoutubeUrl(cleaned) && (title === '유튜브 동영상' || title === '공유된 메모' || title === '웹 페이지')) {
-              const fetched = await fetchYoutubeTitle(cleaned);
-              if (fetched) title = fetched;
+
+              if (usePlaylist) {
+                const playlistData = await fetchYoutubePlaylistData(cleaned);
+                if (playlistData) {
+                  title = playlistData.title;
+                  content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                }
+              } else if (isVideo) {
+                const fetched = await fetchYoutubeTitle(cleaned);
+                if (fetched) title = fetched;
+              }
             }
           }
         }
@@ -1106,15 +1134,31 @@ export const MainLayout: React.FC = () => {
             if (isImageUrl(cleaned)) {
               content = `![](${cleaned})\n\n`;
               metadataCache.fetchImageMetadata(cleaned);
-            } else if (isYoutubePlaylistUrl(cleaned)) {
-              const playlistData = await fetchYoutubePlaylistData(cleaned);
-              if (playlistData) {
-                title = playlistData.title;
-                content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+            } else {
+              const isPlaylist = isYoutubePlaylistUrl(cleaned);
+              const isVideo = isYoutubeUrl(cleaned);
+              let usePlaylist = isPlaylist;
+
+              if (isPlaylist && isVideo) {
+                usePlaylist = await confirm({
+                  message: language === 'ko'
+                    ? "동영상과 재생목록이 모두 포함되어 있습니다. 재생목록 전체를 등록하시겠습니까?"
+                    : "Both video and playlist IDs are present. Register the entire playlist?",
+                  confirmText: language === 'ko' ? "재생목록 전체" : "Playlist",
+                  cancelText: language === 'ko' ? "동영상만" : "Video only"
+                });
               }
-            } else if (isYoutubeUrl(cleaned) && (title === '유튜브 동영상' || title === '공유된 메모' || title === '웹 페이지')) {
-              const fetched = await fetchYoutubeTitle(cleaned);
-              if (fetched) title = fetched;
+
+              if (usePlaylist) {
+                const playlistData = await fetchYoutubePlaylistData(cleaned);
+                if (playlistData) {
+                  title = playlistData.title;
+                  content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                }
+              } else if (isVideo) {
+                const fetched = await fetchYoutubeTitle(cleaned);
+                if (fetched) title = fetched;
+              }
             }
           }
         }
