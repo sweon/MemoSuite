@@ -840,13 +840,34 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
     }
   }, [isReady, videoId]);
 
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+  const [scale, setScale] = React.useState(1);
+
+  React.useEffect(() => {
+    if (!wrapperRef.current?.parentElement) return;
+    const updateScale = () => {
+      if (!wrapperRef.current?.parentElement) return;
+      const containerWidth = wrapperRef.current.parentElement.offsetWidth;
+      if (containerWidth > 0) {
+        // Method 44: Force YouTube into 'Mini-Player' mode (< 400px)
+        // At this width, YouTube disables the large 'More videos' shelf on pause
+        setScale(containerWidth / 380);
+      }
+    };
+
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(wrapperRef.current.parentElement);
+    updateScale();
+    return () => observer.disconnect();
+  }, []);
+
   if (hasError) {
     return (
       <div style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
         <iframe
           width="100%"
           height="315"
-          src={`https://www.youtube.com/embed/${videoId}${startTimestamp ? `?start=${startTimestamp}` : ''}`}
+          src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&iv_load_policy=3${startTimestamp ? `&start=${startTimestamp}` : ''}`}
           title="YouTube Video Fallback"
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -883,7 +904,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
         )}
       </div>
       <div
-        id={`yt-player-${videoId}`}
+        id={`yt-player-container-${videoId}`}
         style={{
           position: 'relative',
           paddingBottom: '56.25%',
@@ -891,8 +912,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
           overflow: 'hidden',
           borderRadius: '12px',
           boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-          background: '#000',
-          transition: 'opacity 0.5s'
+          background: '#000'
         }}>
         {!isReady && (
           <div style={{
@@ -903,18 +923,27 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
             justifyContent: 'center',
             color: '#ffffff',
             fontSize: '11px',
-            background: '#111'
+            background: '#111',
+            zIndex: 1
           }}>
             YouTube Loading...
           </div>
         )}
-        <div ref={containerRef} style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-        }} />
+        <div
+          ref={wrapperRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '380px',
+            height: '214px', // 16:9 for 380px
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            pointerEvents: 'auto'
+          }}
+        >
+          <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+        </div>
       </div>
     </div>
   );
