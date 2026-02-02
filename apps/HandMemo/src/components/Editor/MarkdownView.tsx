@@ -15,7 +15,7 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
-import { FiArrowDown } from 'react-icons/fi';
+import { FiArrowDown, FiExternalLink } from 'react-icons/fi';
 
 const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => {
   const [isTwoFingers, setIsTwoFingers] = React.useState(false);
@@ -671,6 +671,9 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const isMounted = React.useRef(true);
   const [hasError, setHasError] = React.useState(false);
   const [isReady, setIsReady] = React.useState(false);
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [currentTime, setCurrentTime] = React.useState(0);
+  const [duration, setDuration] = React.useState(0);
 
   React.useEffect(() => {
     isMounted.current = true;
@@ -690,29 +693,41 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
 
         playerRef.current = new YT.Player(containerRef.current, {
           videoId,
+          host: 'https://www.youtube-nocookie.com',
           playerVars: {
             start: startSeconds,
             origin: window.location.origin,
             modestbranding: 1,
             enablejsapi: 1,
+            rel: 0,
+            controls: 0,
+            iv_load_policy: 3,
+            fs: 0,
+            disablekb: 1
           },
           events: {
             onReady: () => {
-              if (isMounted.current) setIsReady(true);
+              if (isMounted.current) {
+                setIsReady(true);
+                if (playerRef.current.getDuration) setDuration(playerRef.current.getDuration());
+              }
             },
             onStateChange: (event: any) => {
               if (!isMounted.current) return;
+              setIsPlaying(event.data === 1);
               if (event.data === 1) { // playing
                 if (!intervalRef.current) {
                   intervalRef.current = setInterval(() => {
                     if (playerRef.current && playerRef.current.getCurrentTime) {
-                      const currentTime = Math.floor(playerRef.current.getCurrentTime());
-                      if (currentTime > 0) {
-                        localStorage.setItem(`yt_progress_${videoId}`, String(currentTime));
-                        localStorage.setItem(`yt_last_active`, JSON.stringify({ videoId, time: currentTime, timestamp: Date.now() }));
+                      const time = playerRef.current.getCurrentTime();
+                      setCurrentTime(time);
+                      const t = Math.floor(time);
+                      if (t > 0) {
+                        localStorage.setItem(`yt_progress_${videoId}`, String(t));
+                        localStorage.setItem(`yt_last_active`, JSON.stringify({ videoId, time: t, timestamp: Date.now() }));
                       }
                     }
-                  }, 2000); // More frequent updates for better accuracy
+                  }, 500); // Faster updates for progress bar
                 }
               } else { // paused/ended/etc
                 if (intervalRef.current) {
@@ -840,6 +855,12 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
     }
   }, [isReady, videoId]);
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  };
+
   const wrapperRef = React.useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
 
@@ -936,14 +957,99 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
             top: 0,
             left: 0,
             width: '380px',
-            height: '214px', // 16:9 for 380px
+            height: '214px',
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
-            pointerEvents: 'auto'
+            pointerEvents: 'none'
           }}
         >
           <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
         </div>
+
+        {/* Interaction Layer */}
+        {isReady && (
+          <div
+            onClick={() => isPlaying ? playerRef.current?.pauseVideo() : playerRef.current?.playVideo()}
+            style={{
+              position: 'absolute',
+              top: 0, left: 0, right: 0, bottom: 0,
+              zIndex: 10,
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              background: isPlaying ? 'transparent' : 'rgba(0,0,0,0.3)',
+              transition: 'background 0.3s'
+            }}
+          >
+            {!isPlaying && (
+              <>
+                {/* Control Bar shown only when paused */}
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    bottom: 0, left: 0, right: 0,
+                    height: '40px',
+                    background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 12px',
+                    gap: '12px',
+                    color: '#fff',
+                    cursor: 'default'
+                  }}
+                >
+                  <input
+                    type="range"
+                    min={0}
+                    max={duration || 100}
+                    value={currentTime}
+                    onChange={(e) => {
+                      const time = parseFloat(e.target.value);
+                      setCurrentTime(time);
+                      playerRef.current?.seekTo(time);
+                    }}
+                    style={{
+                      flex: 1,
+                      height: '3px',
+                      cursor: 'pointer',
+                      accentColor: '#ef8e13'
+                    }}
+                  />
+                  <div style={{ fontSize: '11px', fontFamily: 'monospace', minWidth: '75px', textAlign: 'right' }}>
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </div>
+
+                  <a
+                    href={`https://www.youtube.com/watch?v=${videoId}${currentTime > 0 ? `&t=${Math.floor(currentTime)}` : ''}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '10px',
+                      color: '#ddd',
+                      textDecoration: 'none',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      background: 'rgba(255,255,255,0.1)',
+                      whiteSpace: 'nowrap',
+                      marginLeft: '4px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <FiExternalLink size={12} />
+                    {language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
+                  </a>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
