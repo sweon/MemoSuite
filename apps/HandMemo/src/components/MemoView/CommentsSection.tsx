@@ -9,7 +9,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
-import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { format } from 'date-fns';
 
 const Section = styled.div`
@@ -214,6 +214,42 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
     const [activeCommentId, setActiveCommentId] = useState<number | null>(null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
+    const [lastJumpedCommentId, setLastJumpedCommentId] = useState<number | null>(null);
+
+    const scrollToPlayer = (content: string, commentId: number) => {
+        let videoId = '';
+        try {
+            // Match youtu.be/ID or youtube.com/...v=ID
+            const ytLike = content.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+            if (ytLike) {
+                videoId = ytLike[1];
+            } else {
+                // Fallback for cases where regex might miss but URL is present
+                const urlStr = content.match(/https?:\/\/[^\s)]+/)?.[0];
+                if (urlStr) {
+                    const url = new URL(urlStr.replace('youtu.be/', 'youtube.com/watch?v='));
+                    videoId = url.searchParams.get('v') || url.pathname.split('/').pop() || '';
+                }
+            }
+        } catch (e) { }
+
+        if (videoId && videoId.length === 11) {
+            const el = document.getElementById(`yt-player-${videoId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setLastJumpedCommentId(commentId);
+            }
+        }
+    };
+
+    const scrollToComment = () => {
+        if (lastJumpedCommentId) {
+            const el = document.getElementById(`comment-${lastJumpedCommentId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    };
 
     // Sync editing state up to parent for autosave
     const onEditingChangeRef = useRef(onEditingChange);
@@ -311,11 +347,20 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                 {comments && comments.length > 0 && (
                     <span className="count">{comments.length}</span>
                 )}
+                {lastJumpedCommentId && (
+                    <ActionIcon
+                        onClick={scrollToComment}
+                        title={t.comments.scroll_to_comment}
+                        style={{ marginLeft: 'auto', opacity: 1 }}
+                    >
+                        <FiArrowDown />
+                    </ActionIcon>
+                )}
             </SectionHeader>
 
             <CommentList>
                 {comments?.map(c => (
-                    <CommentItem key={c.id}>
+                    <CommentItem key={c.id} id={`comment-${c.id}`}>
                         <CommentHeader>
                             <span>{format(c.createdAt, language === 'ko' ? 'yyyy년 M월 d일 HH:mm' : 'MMM d, yyyy HH:mm')}</span>
                             <Actions>
@@ -330,6 +375,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                                     </>
                                 ) : (
                                     <>
+                                        {c.content.match(/youtube\.com|youtu\.be/) && (
+                                            <ActionIcon onClick={() => scrollToPlayer(c.content, c.id!)} title={t.comments.scroll_to_video}>
+                                                <FiArrowUp />
+                                            </ActionIcon>
+                                        )}
                                         <ActionIcon onClick={() => startEdit(c)} title={t.memo_detail.edit}>
                                             <FiEdit2 />
                                         </ActionIcon>

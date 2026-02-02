@@ -193,7 +193,9 @@ export const translations = {
             post: "Post",
             delete_confirm: "Delete this comment?",
             cancel: "Cancel",
-            add_button: "Add Comment"
+            add_button: "Add Comment",
+            scroll_to_video: "Scroll to Video",
+            scroll_to_comment: "Back to Comment"
         },
         sync: {
             title: "Relay Sync (AES Encrypted)",
@@ -555,7 +557,9 @@ export const translations = {
             post: "게시",
             delete_confirm: "이 댓글을 삭제하시겠습니까?",
             cancel: "취소",
-            add_button: "댓글 추가"
+            add_button: "댓글 추가",
+            scroll_to_video: "동영상 위치로 이동",
+            scroll_to_comment: "댓글 위치로 돌아가기"
         },
         sync: {
             title: "기기 동기화 (AES 암호화)",

@@ -782,16 +782,18 @@ const YouTubePlayer = ({ videoId }: { videoId: string }) => {
   }
 
   return (
-    <div style={{
-      position: 'relative',
-      paddingBottom: '56.25%',
-      height: 0,
-      overflow: 'hidden',
-      borderRadius: '12px',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-      background: '#000',
-      transition: 'opacity 0.5s'
-    }}>
+    <div
+      id={`yt-player-${videoId}`}
+      style={{
+        position: 'relative',
+        paddingBottom: '56.25%',
+        height: 0,
+        overflow: 'hidden',
+        borderRadius: '12px',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+        background: '#000',
+        transition: 'opacity 0.5s'
+      }}>
       {!isReady && (
         <div style={{
           position: 'absolute',
