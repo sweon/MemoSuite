@@ -681,6 +681,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
   const [ccTracks, setCCTracks] = React.useState<any[]>([]);
   const [ccFontSize, setCCFontSize] = React.useState(0);
   const toastTimerRef = React.useRef<any>(null);
+  const clickTimerRef = React.useRef<any>(null);
 
   const applyCaptionStyles = React.useCallback((overrideFontSize?: number) => {
     const player = playerRef.current;
@@ -1165,8 +1166,20 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
                 setIsCCSettingsOpen(false);
                 return;
               }
-              ACTIVE_YT_VIDEO_ID = videoId;
-              isPlaying ? playerRef.current?.pauseVideo() : playerRef.current?.playVideo();
+
+              if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+              clickTimerRef.current = setTimeout(() => {
+                ACTIVE_YT_VIDEO_ID = videoId;
+                isPlaying ? playerRef.current?.pauseVideo() : playerRef.current?.playVideo();
+                clickTimerRef.current = null;
+              }, 250);
+            }}
+            onDoubleClick={() => {
+              if (clickTimerRef.current) {
+                clearTimeout(clickTimerRef.current);
+                clickTimerRef.current = null;
+              }
+              toggleFullScreen();
             }}
             style={{
               position: 'absolute',
