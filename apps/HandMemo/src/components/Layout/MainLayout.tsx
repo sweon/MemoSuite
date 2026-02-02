@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { Sidebar } from '../Sidebar/Sidebar';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FiMenu, FiSave } from 'react-icons/fi';
@@ -405,6 +405,48 @@ const fetchYoutubePlaylistData = async (url: string): Promise<{ title: string, i
   return null;
 };
 
+const LoadingOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+  backdrop-filter: blur(2px);
+`;
+
+const LoadingBox = styled.div`
+  background: ${({ theme }) => theme.colors.surface};
+  padding: 24px 32px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-width: 280px;
+`;
+
+const Spinner = keyframes`
+  to { transform: rotate(360deg); }
+`;
+
+const SpinnerIcon = styled.div`
+  width: 32px;
+  height: 32px;
+  border: 3px solid ${({ theme }) => theme.colors.primary}30;
+  border-top-color: ${({ theme }) => theme.colors.primary};
+  border-radius: 50%;
+  animation: ${Spinner} 0.8s linear infinite;
+`;
+
+const LoadingText = styled.div`
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
 const Container = styled.div<{ $isResizing: boolean }>`
   display: flex;
   height: 100vh;
@@ -579,6 +621,7 @@ export const MainLayout: React.FC = () => {
   const longPressTimer = useRef<any>(null);
   const globalLongPressTimer = useRef<any>(null);
   const [pasteButton, setPasteButton] = useState<{ x: number, y: number } | null>(null);
+  const [isPlaylistExtracting, setIsPlaylistExtracting] = useState(false);
   const { confirm } = useModal();
 
   // Track mobile state
@@ -729,14 +772,19 @@ export const MainLayout: React.FC = () => {
           metadataCache.fetchImageMetadata(cleaned);
           title = '이미지';
         } else if (isYoutubePlaylistUrl(cleaned)) {
-          const playlistData = await fetchYoutubePlaylistData(cleaned);
-          if (playlistData) {
-            title = playlistData.title;
-            if (playlistData.items.length > 0) {
-              content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
-            } else {
-              content = cleaned; // Fallback to just the URL if items failed but it's a playlist
+          setIsPlaylistExtracting(true);
+          try {
+            const playlistData = await fetchYoutubePlaylistData(cleaned);
+            if (playlistData) {
+              title = playlistData.title;
+              if (playlistData.items.length > 0) {
+                content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+              } else {
+                content = cleaned; // Fallback to just the URL if items failed but it's a playlist
+              }
             }
+          } finally {
+            setIsPlaylistExtracting(false);
           }
         } else if (isYoutubeUrl(cleaned)) {
           content = cleaned;
@@ -853,10 +901,15 @@ export const MainLayout: React.FC = () => {
             }
 
             if (usePlaylist) {
-              const playlistData = await fetchYoutubePlaylistData(cleaned);
-              if (playlistData) {
-                identifiedTitle = playlistData.title;
-                finalContent = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+              setIsPlaylistExtracting(true);
+              try {
+                const playlistData = await fetchYoutubePlaylistData(cleaned);
+                if (playlistData) {
+                  identifiedTitle = playlistData.title;
+                  finalContent = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                }
+              } finally {
+                setIsPlaylistExtracting(false);
               }
             } else if (isVideo) {
               finalContent = firstUrl;
@@ -966,10 +1019,15 @@ export const MainLayout: React.FC = () => {
 
                 // Check for playlist FIRST
                 if (isYoutubePlaylistUrl(cleaned)) {
-                  const playlistData = await fetchYoutubePlaylistData(cleaned);
-                  if (playlistData) {
-                    title = playlistData.title;
-                    content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                  setIsPlaylistExtracting(true);
+                  try {
+                    const playlistData = await fetchYoutubePlaylistData(cleaned);
+                    if (playlistData) {
+                      title = playlistData.title;
+                      content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                    }
+                  } finally {
+                    setIsPlaylistExtracting(false);
                   }
                 } else {
                   // Try to improve title
@@ -1069,12 +1127,17 @@ export const MainLayout: React.FC = () => {
               }
 
               if (usePlaylist) {
+              setIsPlaylistExtracting(true);
+              try {
                 const playlistData = await fetchYoutubePlaylistData(cleaned);
                 if (playlistData) {
                   title = playlistData.title;
                   content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
                 }
-              } else if (isVideo) {
+              } finally {
+                setIsPlaylistExtracting(false);
+              }
+            } else if (isVideo) {
                 const fetched = await fetchYoutubeTitle(cleaned);
                 if (fetched) title = fetched;
               }
@@ -1156,12 +1219,17 @@ export const MainLayout: React.FC = () => {
               }
 
               if (usePlaylist) {
+              setIsPlaylistExtracting(true);
+              try {
                 const playlistData = await fetchYoutubePlaylistData(cleaned);
                 if (playlistData) {
                   title = playlistData.title;
                   content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
                 }
-              } else if (isVideo) {
+              } finally {
+                setIsPlaylistExtracting(false);
+              }
+            } else if (isVideo) {
                 const fetched = await fetchYoutubeTitle(cleaned);
                 if (fetched) title = fetched;
               }
@@ -1285,6 +1353,16 @@ export const MainLayout: React.FC = () => {
         >
           <FiSave size={14} /> {language === 'ko' ? '붙여넣기' : 'Paste'}
         </div>
+      )}
+      {isPlaylistExtracting && (
+        <LoadingOverlay>
+          <LoadingBox>
+            <SpinnerIcon />
+            <LoadingText>
+              {language === 'ko' ? '유튜브에서 재생목록을 가져오는 중입니다' : 'Fetching playlist from YouTube...'}
+            </LoadingText>
+          </LoadingBox>
+        </LoadingOverlay>
       )}
     </Container >
   );
