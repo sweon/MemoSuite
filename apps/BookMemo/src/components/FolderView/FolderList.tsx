@@ -147,16 +147,17 @@ const FolderGrid = styled.div<{ $viewMode: ViewMode }>`
   display: grid;
   grid-template-columns: ${({ $viewMode }) =>
         $viewMode === 'double-column'
-            ? 'repeat(auto-fill, minmax(320px, 1fr))'
+            ? 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))'
             : '1fr'};
   gap: ${({ theme }) => theme.spacing.md};
+  width: 100%;
 `;
 
 const FolderCard = styled.div<{ $viewMode: ViewMode; $isActive?: boolean; $isReadOnly?: boolean }>`
   display: flex;
   flex-direction: ${({ $viewMode }) => $viewMode === 'single-column' ? 'row' : 'column'};
   align-items: ${({ $viewMode }) => $viewMode === 'single-column' ? 'center' : 'stretch'};
-  padding: ${({ theme, $viewMode }) => $viewMode === 'single-column' ? '12px 20px' : theme.spacing.lg};
+  padding: ${({ theme, $viewMode }) => $viewMode === 'single-column' ? '12px 16px' : theme.spacing.lg};
   background: ${({ theme }) => theme.colors.surface};
   border: 2px solid ${({ theme, $isActive }) => $isActive ? theme.colors.primary : theme.colors.border};
   border-radius: ${({ theme }) => theme.radius.large};
@@ -164,6 +165,10 @@ const FolderCard = styled.div<{ $viewMode: ViewMode; $isActive?: boolean; $isRea
   transition: all 0.2s;
   position: relative;
   gap: ${({ $viewMode, theme }) => $viewMode === 'single-column' ? theme.spacing.md : 0};
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 
   ${({ $isReadOnly, theme }) => $isReadOnly && `
     background: ${theme.colors.background};
@@ -349,7 +354,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         (localStorage.getItem('folder_sortBy') as SortOption) || 'last-edited'
     );
     const [viewMode, setViewMode] = useState<ViewMode>(() =>
-        (localStorage.getItem('folder_viewMode') as ViewMode) || 'single-column'
+        (localStorage.getItem('folder_viewMode') as ViewMode) || 'double-column'
     );
     const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState('');
