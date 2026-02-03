@@ -804,7 +804,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 });
               }}>
               <BsKeyboard />
-              {language === 'ko' ? '+ 글' : '+ Text'}
+              {language === 'ko' ? '글' : 'Text'}
             </Button>
             <Button
               $color="#D55E00"
@@ -815,7 +815,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 });
               }}>
               <FiPenTool />
-              {language === 'ko' ? '+ 그리기' : '+ Drawing'}
+              {language === 'ko' ? '그리기' : 'Drawing'}
             </Button>
             <Button
               $color="#009E73"
@@ -826,7 +826,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 });
               }}>
               <RiTable2 />
-              {language === 'ko' ? '+ 시트' : '+ Sheet'}
+              {language === 'ko' ? '시트' : 'Sheet'}
             </Button>
             <Button
               $color="#f39c12"
