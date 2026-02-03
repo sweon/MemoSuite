@@ -122,7 +122,7 @@ const Button = styled.button`
   border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
-  background: #0072B2;
+  background: #6C3483;
   color: white;
   flex-shrink: 0;
   transition: ${({ theme }) => theme.effects.transition};
@@ -205,9 +205,7 @@ const AppTitle = styled.div`
   font-size: 1.25rem;
   font-weight: 900;
   letter-spacing: -0.03em;
-  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary})`};
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #6C3483;
 `;
 
 const AppVersion = styled.span`

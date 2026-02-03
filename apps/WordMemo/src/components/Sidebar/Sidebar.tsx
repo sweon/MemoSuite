@@ -79,9 +79,7 @@ const AppTitle = styled.div`
   font-size: 1.25rem;
   font-weight: 900;
   letter-spacing: -0.03em;
-  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary})`};
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #117864;
 `;
 
 const AppVersion = styled.span`
@@ -168,7 +166,7 @@ const Button = styled.button`
   border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
-  background: #0072B2;
+  background: #117864;
   color: white;
   flex-shrink: 0;
   transition: ${({ theme }) => theme.effects.transition};
