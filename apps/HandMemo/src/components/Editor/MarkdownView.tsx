@@ -691,6 +691,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
 
   const toastTimerRef = React.useRef<any>(null);
   const clickTimerRef = React.useRef<any>(null);
+  const ccClickTimerRef = React.useRef<any>(null);
   const [isFullScreen, setIsFullScreen] = React.useState(false);
   const [isMouseIdle, setIsMouseIdle] = React.useState(false);
   const mouseIdleTimerRef = React.useRef<any>(null);
@@ -1747,8 +1748,20 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
 
 
               <button
-                onClick={toggleCaptions}
-                onDoubleClick={toggleCCSettings}
+                onClick={(e) => {
+                  if (ccClickTimerRef.current) clearTimeout(ccClickTimerRef.current);
+                  ccClickTimerRef.current = setTimeout(() => {
+                    toggleCaptions(e);
+                    ccClickTimerRef.current = null;
+                  }, 400);
+                }}
+                onDoubleClick={(e) => {
+                  if (ccClickTimerRef.current) {
+                    clearTimeout(ccClickTimerRef.current);
+                    ccClickTimerRef.current = null;
+                  }
+                  toggleCCSettings(e);
+                }}
                 title={language === 'ko' ? '자막 (더블클릭: 설정)' : 'Subtitles (Double-click: Settings)'}
                 style={{
                   background: 'none',
