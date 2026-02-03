@@ -161,8 +161,12 @@ const Button = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
+  // width: 26px;
   height: 26px;
+  padding: 0 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  gap: 6px;
   border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
@@ -725,7 +729,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
               navigate('/new', { replace: true, state: { isGuard: true } });
               onCloseMobile();
             }}>
-              <FiPlus size={20} />
+              <FiPlus size={16} />
+              {language === 'ko' ? '새 단어 추가' : 'New Word'}
             </Button>
           </TopActions>
         </Header>

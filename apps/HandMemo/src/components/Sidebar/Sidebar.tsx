@@ -121,9 +121,13 @@ const ClearButton = styled.button`
 const Button = styled.button<{ $color?: string }>`
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 26px;
+  justify-content: center; // Center align looks better with emphasized icon
+  // width: 26px;
   height: 26px;
+  padding: 0 8px;
+  font-size: 12px; // Adjusted to 12px
+  font-weight: 600;
+  gap: 4px; // Reduce gap
   border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
@@ -134,8 +138,8 @@ const Button = styled.button<{ $color?: string }>`
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   
   svg {
-    width: 14px;
-    height: 14px;
+    width: 15px; // Larger icon
+    height: 15px;
   }
   
   &:hover {
@@ -750,42 +754,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <TopActions>
             <div style={{ display: 'flex', gap: '0.25rem' }}>
-              <Tooltip content={t.sidebar.text_memo || "Text"}>
-                <Button
-                  $color="#0072B2"
-                  onClick={() => {
-                    handleSafeNavigation(() => {
-                      navigate(`/memo/new?t=${Date.now()}`, { replace: true, state: { isGuard: true } });
-                      onCloseMobile(true);
-                    });
-                  }}>
-                  <BsKeyboard />
-                </Button>
-              </Tooltip>
-              <Tooltip content={t.sidebar.drawing_memo || "Drawing"}>
-                <Button
-                  $color="#D55E00"
-                  onClick={() => {
-                    handleSafeNavigation(() => {
-                      navigate(`/memo/new?drawing=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
-                      onCloseMobile(true);
-                    });
-                  }}>
-                  <FiPenTool />
-                </Button>
-              </Tooltip>
-              <Tooltip content={t.sidebar.sheet_memo || "Sheet"}>
-                <Button
-                  $color="#009E73"
-                  onClick={() => {
-                    handleSafeNavigation(() => {
-                      navigate(`/memo/new?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
-                      onCloseMobile(true);
-                    });
-                  }}>
-                  <RiTable2 />
-                </Button>
-              </Tooltip>
+              <Button
+                $color="#0072B2"
+                onClick={() => {
+                  handleSafeNavigation(() => {
+                    navigate(`/memo/new?t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                    onCloseMobile(true);
+                  });
+                }}>
+                <BsKeyboard />
+                {language === 'ko' ? '+ 글' : '+ Text'}
+              </Button>
+              <Button
+                $color="#D55E00"
+                onClick={() => {
+                  handleSafeNavigation(() => {
+                    navigate(`/memo/new?drawing=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                    onCloseMobile(true);
+                  });
+                }}>
+                <FiPenTool />
+                {language === 'ko' ? '+ 그리기' : '+ Drawing'}
+              </Button>
+              <Button
+                $color="#009E73"
+                onClick={() => {
+                  handleSafeNavigation(() => {
+                    navigate(`/memo/new?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                    onCloseMobile(true);
+                  });
+                }}>
+                <RiTable2 />
+                {language === 'ko' ? '+ 시트' : '+ Sheet'}
+              </Button>
             </div>
           </TopActions>
         </Header>

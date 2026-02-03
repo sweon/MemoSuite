@@ -150,12 +150,16 @@ const Button = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
+  // width: 26px;
   height: 26px;
+  padding: 0 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  gap: 6px;
   border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
-  background: ${({ theme }) => theme.colors.primary};
+  background: #1B4F72;
   color: white;
   flex-shrink: 0;
   transition: ${({ theme }) => theme.effects.transition};
@@ -658,14 +662,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
 
         <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <TopActions>
-            <Tooltip content={t.sidebar.new}>
-              <Button onClick={() => {
-                navigate('/new');
-                onCloseMobile();
-              }}>
-                <FiPlus />
-              </Button>
-            </Tooltip>
+            <Button onClick={() => {
+              navigate('/new');
+              onCloseMobile();
+            }}>
+              <FiPlus />
+              {t.sidebar.new || 'New Log'}
+            </Button>
           </TopActions>
         </Header>
 
