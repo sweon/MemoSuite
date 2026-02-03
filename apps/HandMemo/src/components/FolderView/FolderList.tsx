@@ -191,15 +191,21 @@ const FolderHeader = styled.div<{ $viewMode?: ViewMode }>`
   min-width: 0;
 `;
 
-const FolderIcon = styled.div<{ $isReadOnly?: boolean }>`
+const FolderIcon = styled.div<{ $viewMode?: ViewMode; $isReadOnly?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: ${({ $viewMode }) => $viewMode === 'single-line' ? '32px' : '40px'};
+  height: ${({ $viewMode }) => $viewMode === 'single-line' ? '32px' : '40px'};
   border-radius: ${({ theme }) => theme.radius.medium};
   background: ${({ theme, $isReadOnly }) => $isReadOnly ? WARNING_COLOR + '20' : theme.colors.primary + '20'};
   color: ${({ $isReadOnly, theme }) => $isReadOnly ? WARNING_COLOR : theme.colors.primary};
+  flex-shrink: 0;
+
+  svg {
+    width: ${({ $viewMode }) => $viewMode === 'single-line' ? '16px' : '20px'};
+    height: ${({ $viewMode }) => $viewMode === 'single-line' ? '16px' : '20px'};
+  }
 `;
 
 const FolderName = styled.div`
@@ -207,8 +213,10 @@ const FolderName = styled.div`
   font-size: 1.1rem;
   font-weight: 700;
   color: ${({ theme }) => theme.colors.text};
-  white-space: normal;
-  word-break: break-all;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 `;
 
 const FolderNameInput = styled.input`
@@ -234,6 +242,11 @@ const FolderMeta = styled.div<{ $viewMode?: ViewMode }>`
   color: ${({ theme }) => theme.colors.textSecondary};
   margin-bottom: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 0 : theme.spacing.sm};
   white-space: nowrap;
+  flex-shrink: 0;
+
+  @media (max-width: 600px) {
+    display: ${({ $viewMode }) => $viewMode === 'single-line' ? 'none' : 'flex'};
+  }
 `;
 
 const FolderBadges = styled.div`
@@ -267,6 +280,7 @@ const FolderActions = styled.div<{ $viewMode?: ViewMode }>`
   margin-top: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 0 : theme.spacing.sm};
   padding-top: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 0 : theme.spacing.sm};
   border-top: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 'none' : `1px solid ${theme.colors.border}`};
+  flex-shrink: 0;
 `;
 
 const PreviewContainer = styled.div`
@@ -699,8 +713,8 @@ export const FolderList: React.FC<FolderListProps> = ({
                                             }}
                                         >
                                             <FolderHeader $viewMode={viewMode}>
-                                                <FolderIcon $isReadOnly={folder.isReadOnly}>
-                                                    {folder.isReadOnly ? <FiLock size={20} /> : <FiFolder size={20} />}
+                                                <FolderIcon $isReadOnly={folder.isReadOnly} $viewMode={viewMode}>
+                                                    {folder.isReadOnly ? <FiLock /> : <FiFolder />}
                                                 </FolderIcon>
 
                                                 {isEditing ? (
