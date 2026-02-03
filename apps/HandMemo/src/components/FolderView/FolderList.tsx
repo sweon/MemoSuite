@@ -301,6 +301,7 @@ const FolderActions = styled.div<{ $viewMode?: ViewMode }>`
   flex-shrink: 0;
 
   @media (max-width: 480px) {
+    display: ${({ $viewMode }) => $viewMode === 'single-line' ? 'none' : 'flex'};
     gap: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? '2px' : theme.spacing.xs};
   }
 `;

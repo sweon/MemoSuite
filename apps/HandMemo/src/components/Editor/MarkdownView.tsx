@@ -1099,7 +1099,8 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if user is typing in an input
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '')) return;
+      if (document.activeElement?.closest('.CodeMirror')) return;
 
       if (ACTIVE_YT_VIDEO_ID !== videoId) return;
 
@@ -1110,6 +1111,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
 
       // Play/Pause: 'k' or 'Space'
       if (key === 'k' || e.key === ' ') {
+        if (e.key === ' ' && !isFullScreen) return;
         e.preventDefault();
         if (isPlaying) player.pauseVideo();
         else player.playVideo();
@@ -1150,6 +1152,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
       }
       // Volume
       else if (e.key === 'ArrowUp') {
+        if (!isFullScreen) return;
         e.preventDefault();
         const newVol = Math.min(100, player.getVolume() + 5);
         player.setVolume(newVol);
@@ -1160,6 +1163,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
         }, 1000);
       }
       else if (e.key === 'ArrowDown') {
+        if (!isFullScreen) return;
         e.preventDefault();
         const newVol = Math.max(0, player.getVolume() - 5);
         player.setVolume(newVol);
@@ -1171,12 +1175,14 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
       }
       // Home / End
       else if (e.key === 'Home') {
+        if (!isFullScreen) return;
         e.preventDefault();
         const target = 0;
         setCurrentTime(target);
         player.seekTo(target, true);
       }
       else if (e.key === 'End') {
+        if (!isFullScreen) return;
         e.preventDefault();
         const target = player.getDuration();
         setCurrentTime(target);
