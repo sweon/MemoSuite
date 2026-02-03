@@ -369,16 +369,24 @@ export const FolderList: React.FC<FolderListProps> = ({
         if (!globalSearchQuery.trim()) return;
 
         const q = globalSearchQuery.toLowerCase();
+        const isTagSearch = q.startsWith('tag:');
+        const searchTerm = isTagSearch ? q.replace('tag:', '').trim() : q;
+
         const searchableFolderIds = (folders || [])
             .filter(f => !f.excludeFromGlobalSearch)
             .map(f => f.id!);
 
         const matchingMemos = (allMemos || []).filter(memo => {
             if (!searchableFolderIds.includes(memo.folderId!)) return false;
+
+            if (isTagSearch) {
+                return memo.tags?.some(t => t.toLowerCase().includes(searchTerm));
+            }
+
             return (
-                memo.title.toLowerCase().includes(q) ||
-                memo.content.toLowerCase().includes(q) ||
-                memo.tags?.some(t => t.toLowerCase().includes(q))
+                memo.title.toLowerCase().includes(searchTerm) ||
+                memo.content.toLowerCase().includes(searchTerm) ||
+                memo.tags?.some(t => t.toLowerCase().includes(searchTerm))
             );
         });
 
@@ -456,7 +464,7 @@ export const FolderList: React.FC<FolderListProps> = ({
 
     const t = {
         title: language === 'ko' ? '폴더' : 'Folders',
-        searchPlaceholder: language === 'ko' ? '전체 검색...' : 'Search all folders...',
+        searchPlaceholder: language === 'ko' ? '전체 검색... (태그검색 tag:)' : 'Search all... (tags tag:)',
         addFolder: language === 'ko' ? '폴더 추가' : 'Add Folder',
         memoCount: language === 'ko' ? '개 항목' : ' items',
         readOnly: language === 'ko' ? '읽기 전용' : 'Read-only',

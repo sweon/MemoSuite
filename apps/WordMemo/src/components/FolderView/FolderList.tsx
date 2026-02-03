@@ -280,6 +280,7 @@ export const FolderList: React.FC<FolderListProps> = ({
     const folders = useLiveQuery(() => db.folders.toArray());
     const allWords = useLiveQuery(() => db.words.toArray());
     const allComments = useLiveQuery(() => db.comments.toArray());
+    const sources = useLiveQuery(() => db.sources.toArray());
 
     // Calculate memo counts and last edited times per folder
     const wordStats = useMemo(() => {
@@ -365,16 +366,32 @@ export const FolderList: React.FC<FolderListProps> = ({
         if (!globalSearchQuery.trim()) return;
 
         const q = globalSearchQuery.toLowerCase();
+        const isTagSearch = q.startsWith('tag:');
+        const searchTerm = isTagSearch ? q.replace('tag:', '').trim() : q;
+
+        const sourceMap = new Map(sources?.map(s => [s.id, s.name.toLowerCase()]) || []);
+
         const searchableFolderIds = (folders || [])
             .filter(f => !f.excludeFromGlobalSearch)
             .map(f => f.id!);
 
         const matchingMemos = (allWords || []).filter(log => {
             if (!searchableFolderIds.includes(log.folderId!)) return false;
+
+            const sourceName = log.sourceId ? sourceMap.get(log.sourceId) || '' : '';
+
+            if (isTagSearch) {
+                return (
+                    log.tags?.some(t => t.toLowerCase().includes(searchTerm)) ||
+                    sourceName.includes(searchTerm)
+                );
+            }
+
             return (
-                log.title.toLowerCase().includes(q) ||
-                log.content.toLowerCase().includes(q) ||
-                log.tags?.some(t => t.toLowerCase().includes(q))
+                log.title.toLowerCase().includes(searchTerm) ||
+                log.content.toLowerCase().includes(searchTerm) ||
+                log.tags?.some(t => t.toLowerCase().includes(searchTerm)) ||
+                sourceName.includes(searchTerm)
             );
         });
 
@@ -452,7 +469,7 @@ export const FolderList: React.FC<FolderListProps> = ({
 
     const t = {
         title: language === 'ko' ? '폴더' : 'Folders',
-        searchPlaceholder: language === 'ko' ? '전체 검색...' : 'Search all folders...',
+        searchPlaceholder: language === 'ko' ? '전체 검색... (태그/출처는 tag:)' : 'Search all... (tags/source tag:)',
         addFolder: language === 'ko' ? '폴더 추가' : 'Add Folder',
         wordCount: language === 'ko' ? '개 항목' : ' items',
         readOnly: language === 'ko' ? '읽기 전용' : 'Read-only',
