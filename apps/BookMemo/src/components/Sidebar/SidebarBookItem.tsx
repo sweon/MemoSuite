@@ -104,7 +104,7 @@ export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeN
     ? Math.round(((book.currentPage || 0) / book.totalPages) * 100)
     : 0;
 
-  const isActive = activeId === String(book.id);
+  const isActive = activeId === String(book.id) && !activeMemoId;
 
   // Expand automatically if searching and any memo matches
   const q = searchQuery.toLowerCase();
@@ -150,12 +150,13 @@ export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeN
   });
 
   return (
-    <GroupContainer>
+    <GroupContainer data-book-id={book.id}>
       <ItemContainer
         to={`/book/${book.id}`}
         onClick={handleBookClick}
         $isActive={isActive}
         className={isActive ? 'active' : ''}
+        end
       >
         <Info>
           <Title>{book.title}</Title>
@@ -191,6 +192,7 @@ export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeN
             return (
               <MemoItemLink
                 key={memo.id}
+                data-memo-id={memo.id}
                 to={`/book/${book.id}/memo/${memo.id}`}
                 $isActive={activeMemoId === String(memo.id)}
                 $inThread={true}

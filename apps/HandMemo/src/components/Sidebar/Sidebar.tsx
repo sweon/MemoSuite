@@ -4,7 +4,7 @@ import { SyncModal, ThreadableList, useColorTheme, useLanguage } from '@memosuit
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Memo } from '../../db';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiPenTool } from 'react-icons/fi';
 import { BsKeyboard } from 'react-icons/bs';
 import { RiTable2 } from 'react-icons/ri';
@@ -215,6 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const { id } = useParams<{ id: string }>();
 
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
@@ -431,6 +432,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     return items;
   }, [sortedMemos, allMemos, collapsedThreads]);
+
+  const activeId = location.pathname.split('/').pop();
+  useEffect(() => {
+    if (!activeId || activeId === 'new' || activeId === 'settings') return;
+
+    const activeMemoId = parseInt(activeId);
+    if (!isNaN(activeMemoId)) {
+      const isVisible = groupedItems.some(it => it.memo.id === activeMemoId);
+      if (!isVisible && searchQuery) {
+        const exists = allMemos?.some(m => m.id === activeMemoId);
+        if (exists) {
+          setSearchQuery('');
+          return;
+        }
+      }
+    }
+
+    const timer = setTimeout(() => {
+      const element = document.querySelector(`[data-memo-id="${activeId}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [location.pathname, groupedItems.length]);
 
   const onDragEnd = async (result: DropResult) => {
     const { combine, draggableId, destination } = result;
@@ -747,7 +773,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <SidebarMemoItem
             key={item.memo.id}
             memo={item.memo}
-            isActive={location.pathname.includes(`/memo/${item.memo.id}`)}
+            isActive={id !== undefined && id !== 'new' && id !== 'settings' && String(id) === String(item.memo.id)}
             onClick={(skipHistory) => {
               if (movingMemoId) {
                 handleMove(item.memo.id!);

@@ -40,6 +40,7 @@ export const SidebarLogItem: React.FC<Props> = ({
 
     return (
         <div
+            data-log-id={log.id}
             style={{
                 marginBottom: '2px',
                 transition: 'background-color 0.1s ease-out, border-color 0.1s ease-out',

@@ -365,6 +365,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
     });
   }, [allBooks, allMemos, allComments, searchQuery, sortBy]);
 
+  useEffect(() => {
+    const parts = location.pathname.split('/');
+    const isMemo = parts.includes('memo');
+    const targetMemoId = isMemo ? parts[parts.indexOf('memo') + 1] : null;
+    const targetBookId = parts[parts.indexOf('book') + 1];
+
+    if (!targetBookId || targetBookId === 'new' || targetBookId === 'settings') return;
+
+    if (searchQuery) {
+      const isVisible = sortedBooks.some(b => String(b.id) === targetBookId);
+      if (!isVisible) {
+        const exists = allBooks?.some(b => String(b.id) === targetBookId);
+        if (exists) {
+          setSearchQuery('');
+          return;
+        }
+      }
+    }
+
+    const timer = setTimeout(() => {
+      const element = targetMemoId
+        ? document.querySelector(`[data-memo-id="${targetMemoId}"]`)
+        : document.querySelector(`[data-book-id="${targetBookId}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [location.pathname, sortedBooks.length]);
+
   return (
     <SidebarContainer>
       <BrandHeader>

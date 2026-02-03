@@ -77,6 +77,7 @@ export const SidebarMemoItem: React.FC<Props> = ({
 
     return (
         <div
+            data-memo-id={memo.id}
             style={{
                 marginBottom: '2px',
                 transition: 'background-color 0.1s ease-out, border-color 0.1s ease-out',

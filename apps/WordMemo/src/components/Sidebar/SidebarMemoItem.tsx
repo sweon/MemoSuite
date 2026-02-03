@@ -86,6 +86,7 @@ export const SidebarMemoItem: React.FC<Props> = ({
             {(provided: any, snapshot: any) => (
                 <div
                     ref={provided.innerRef}
+                    data-log-id={log.id}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
                     style={{

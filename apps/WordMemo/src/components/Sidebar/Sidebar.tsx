@@ -491,6 +491,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
     });
   }, [allLogs, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap]);
 
+  useEffect(() => {
+    if (!id || id === 'new' || id === 'settings') return;
+
+    const activeLogId = parseInt(id);
+    if (!isNaN(activeLogId)) {
+      const isVisible = flatItems.some(it => it.log.id === activeLogId);
+      if (!isVisible && (searchQuery || starredOnly)) {
+        const exists = allLogs?.some(m => m.id === activeLogId);
+        if (exists) {
+          setSearchQuery('');
+          setStarredOnly(false);
+          return;
+        }
+      }
+    }
+
+    const timer = setTimeout(() => {
+      const element = document.querySelector(`[data-log-id="${id}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [id, flatItems.length]);
+
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, combine, draggableId } = result;
     setCombineTargetId(null);
@@ -708,7 +733,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
                       key={item.log.id}
                       log={item.log}
                       index={index}
-                      isActive={Number(id) === item.log.id}
+                      isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === item.log.id}
                       onClick={onCloseMobile}
                       formatDate={formatDate}
                       untitledText={t.sidebar.untitled}

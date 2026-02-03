@@ -90,7 +90,7 @@ export const SidebarThreadItem: React.FC<Props> = ({
                     }}
                 >
                     {/* Head Log - Acts as drag handle for the group */}
-                    <div {...provided.dragHandleProps} style={{ position: 'relative' }}>
+                    <div {...provided.dragHandleProps} data-log-id={headLog.id} style={{ position: 'relative' }}>
                         <LogItemLink
                             to={`/log/${headLog.id}`}
                             $isActive={activeLogId === headLog.id}
