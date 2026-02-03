@@ -668,7 +668,7 @@ const WebPreview = ({ url }: { url: string }) => {
   );
 };
 
-const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; startTimestamp?: number; memoId?: number }) => {
+const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: string; startTimestamp?: number; memoId?: number; isShort?: boolean }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const playerRef = React.useRef<any>(null);
   const intervalRef = React.useRef<any>(null);
@@ -1254,8 +1254,8 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId }: { videoId: string; s
             position: isFullScreen ? 'relative' : 'absolute',
             top: 0,
             left: 0,
-            width: isFullScreen ? 'min(100vw, calc(100vh * 16 / 9))' : '380px',
-            height: isFullScreen ? 'min(100vh, calc(100vw * 9 / 16))' : '214px',
+            width: isFullScreen ? (isShort && isMobilePortrait ? '100vw' : 'min(100vw, calc(100vh * 16 / 9))') : '380px',
+            height: isFullScreen ? (isShort && isMobilePortrait ? '100vh' : 'min(100vh, calc(100vw * 9 / 16))') : '214px',
             transform: isFullScreen ? 'none' : `scale(${scale})`,
             transformOrigin: 'top left',
             pointerEvents: 'none'
@@ -1832,7 +1832,12 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
           if (videoId) {
             return (
               <div key={videoId} style={{ margin: '16px 0' }}>
-                <YouTubePlayer videoId={videoId} startTimestamp={timestamp > 0 ? timestamp : undefined} memoId={memoId} />
+                <YouTubePlayer
+                  videoId={videoId}
+                  startTimestamp={timestamp > 0 ? timestamp : undefined}
+                  memoId={memoId}
+                  isShort={cleanHref.includes('shorts/')}
+                />
               </div>
             );
           } else {
