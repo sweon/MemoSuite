@@ -1011,17 +1011,25 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
       setCCTracks(tracks);
 
       const currentTrack = player.getOption('captions', 'track');
+      console.log('[YT] Current track for dropdown:', currentTrack);
 
       if (currentTrack?.translationLanguage?.languageCode === 'ko') {
         setActiveTrackCode('ko-auto');
       } else if (currentTrack?.languageCode) {
         // Find if this language code is in tracks
         const hasExact = tracks.some((t: any) => t.languageCode === currentTrack.languageCode);
-        if (!hasExact && (currentTrack.languageCode.includes('en') || currentTrack.languageCode.startsWith('a.en'))) {
+
+        // Logical check for "en-force" (English auto-gen)
+        const isEnglish = currentTrack.languageCode.includes('en') || currentTrack.languageCode.startsWith('a.en');
+
+        if (!hasExact && isEnglish) {
           setActiveTrackCode('en-force');
         } else {
           setActiveTrackCode(currentTrack.languageCode);
         }
+      } else if (isCaptionsOn && activeTrackCode !== 'off') {
+        // Keep our local state if player is briefly uncertain
+        // This helps when module is just loaded
       } else {
         setActiveTrackCode('off');
       }
@@ -1753,7 +1761,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
                   ccClickTimerRef.current = setTimeout(() => {
                     toggleCaptions(e);
                     ccClickTimerRef.current = null;
-                  }, 400);
+                  }, 500); // 500ms delay to distinguish dblclick
                 }}
                 onDoubleClick={(e) => {
                   if (ccClickTimerRef.current) {
