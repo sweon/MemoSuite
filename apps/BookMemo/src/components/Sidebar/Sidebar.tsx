@@ -518,7 +518,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
               });
             }}>
               <FiPlus />
-              {t.sidebar.add_book || "New Book"}
+              {language === 'ko' ? '새 책' : 'New Book'}
             </Button>
           </TopActions>
         </Header>

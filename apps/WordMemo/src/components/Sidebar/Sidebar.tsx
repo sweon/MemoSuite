@@ -730,7 +730,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
               onCloseMobile();
             }}>
               <FiPlus size={16} />
-              {language === 'ko' ? '새 단어 추가' : 'New Word'}
+              {language === 'ko' ? '새 단어' : 'New Word'}
             </Button>
           </TopActions>
         </Header>
