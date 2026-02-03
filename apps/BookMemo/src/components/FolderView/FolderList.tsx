@@ -217,6 +217,7 @@ const FolderIcon = styled.div<{ $viewMode?: ViewMode; $isReadOnly?: boolean }>`
   }
 
   @media (max-width: 480px) {
+    display: ${({ $viewMode }) => $viewMode === 'single-line' ? 'none' : 'flex'};
     width: ${({ $viewMode }) => $viewMode === 'single-line' ? '24px' : '32px'};
     height: ${({ $viewMode }) => $viewMode === 'single-line' ? '24px' : '32px'};
     svg {
