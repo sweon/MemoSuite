@@ -444,7 +444,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         title: language === 'ko' ? '폴더' : 'Folders',
         searchPlaceholder: language === 'ko' ? '전체 검색...' : 'Search all folders...',
         addFolder: language === 'ko' ? '폴더 추가' : 'Add Folder',
-        wordCount: language === 'ko' ? '개 메모' : ' memos',
+        wordCount: language === 'ko' ? '개 항목' : ' items',
         readOnly: language === 'ko' ? '읽기 전용' : 'Read-only',
         excludeSearch: language === 'ko' ? '검색 제외' : 'Exclude from search',
         sort: {
