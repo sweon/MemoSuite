@@ -686,6 +686,9 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
   const [ccFontSize, setCCFontSize] = React.useState(0);
   const [volumeToast, setVolumeToast] = React.useState<number | null>(null);
 
+  const ccTimersRef = React.useRef<any[]>([]);
+  const isSwitchingCCTrack = React.useRef(false);
+
   const toastTimerRef = React.useRef<any>(null);
   const clickTimerRef = React.useRef<any>(null);
   const [isFullScreen, setIsFullScreen] = React.useState(false);
@@ -948,810 +951,818 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
       // Auto-enable English ASR if no manual En tracks exist (likely an English video)
       const player = playerRef.current;
       setTimeout(() => {
-        if (!isMounted.current || !player.getOption) return;
-        try {
-          // Temporarily load module to check tracks
-          player.loadModule('captions');
+        const tryAutoEnable = () => {
+          if (!isMounted.current || !player.getOption) return false;
+          const tracks = player.getOption('captions', 'tracklist') || [];
 
-          setTimeout(() => {
-            if (!isMounted.current) return;
-            const tracks = player.getOption('captions', 'tracklist') || [];
+          // Check for manual English tracks
+          const hasManualEn = tracks.some((t: any) =>
+            (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) &&
+            t.kind !== 'asr' && !t.languageCode?.startsWith('a.')
+          );
 
-            // Check for manual English tracks
-            const hasManualEn = tracks.some((t: any) =>
-              (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) &&
-              t.kind !== 'asr' && !t.languageCode?.startsWith('a.')
-            );
+          // Check for ASR English tracks
+          const asrEn = tracks.find((t: any) =>
+            (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) &&
+            (t.kind === 'asr' || t.languageCode?.startsWith('a.'))
+          );
 
-            // Check for ASR English tracks
-            const asrEn = tracks.find((t: any) =>
-              (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) &&
-              (t.kind === 'asr' || t.languageCode?.startsWith('a.'))
-            );
-
-            if (!hasManualEn && asrEn) {
-              player.setOption('captions', 'track', { languageCode: asrEn.languageCode });
-              setActiveTrackCode(asrEn.languageCode);
-              setIsCaptionsOn(true);
-              setTimeout(() => {
-                if (isMounted.current) applyCaptionStyles();
-              }, 500);
-            }
-          }, 500);
-        } catch (e) { }
-      }, 1500);
-    }
-  }, [isReady, videoId]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${String(secs).padStart(2, '0')}`;
-  };
-
-  const containerId = `yt-player-container-${videoId}`;
-
-  const toggleCaptions = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    const player = playerRef.current;
-    if (!player) return;
-
-    try {
-      if (isCaptionsOn) {
-        player.unloadModule('captions');
-        setIsCaptionsOn(false);
-      } else {
-        player.loadModule('captions');
-        // Small delay helps the module initialize track selection
-        setTimeout(() => {
-          if (player.setOption) {
-            player.setOption('captions', 'track', { languageCode: 'ko' });
+          if (!hasManualEn && asrEn) {
+            player.setOption('captions', 'track', { languageCode: asrEn.languageCode });
+            setActiveTrackCode(asrEn.languageCode);
+            setIsCaptionsOn(true);
+            setTimeout(() => {
+              if (isMounted.current) applyCaptionStyles();
+            }, 500);
+            return true;
           }
-          applyCaptionStyles();
-        }, 500); // Wait longer for module load
-        setIsCaptionsOn(true);
-      }
-    } catch (err) {
-      console.error('Captions toggle failed', err);
-    }
-    ACTIVE_YT_VIDEO_ID = videoId;
-  };
-
-  const toggleCCSettings = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    const player = playerRef.current;
-    if (!player) return;
-
-    if (!isCCSettingsOpen) {
-      try {
-        // Ensure module is loaded to populate tracks
-        player.loadModule('captions');
-
-        const fetchTracks = () => {
-          if (!playerRef.current) return;
-          const tracks = playerRef.current.getOption('captions', 'tracklist') || [];
-          setCCTracks(tracks);
-          const currentTrack = playerRef.current.getOption('captions', 'track');
-          setActiveTrackCode(currentTrack?.languageCode || 'off');
-
-          // Also try to find Korean in auto-translation if not present in main tracks
-          const hasKorean = tracks.some((t: any) => (t.languageCode === 'ko' || t.languageCode === 'ko-KR'));
-          if (!hasKorean) {
-            try {
-              const transLangs = playerRef.current.getOption('captions', 'translationLanguages') || [];
-              const koTrans = transLangs.find((l: any) => l.languageCode === 'ko');
-              if (koTrans) {
-                // Potential for auto-translate exists
-              }
-            } catch (e) { }
-          }
+          return false;
         };
 
-        const currentTrack = player.getOption('captions', 'track');
-        setActiveTrackCode(currentTrack?.languageCode || 'off');
+        // Initial try + retries since metadata can be slow
+        if (!tryAutoEnable()) {
+          setTimeout(() => { if (!tryAutoEnable()) setTimeout(tryAutoEnable, 2000); }, 1000);
+        }
+      } catch (e) { }
+    }, 1500);
+}
+  }, [isReady, videoId, applyCaptionStyles]);
 
-        // Initial fetch + retries 
-        fetchTracks();
-        setTimeout(fetchTracks, 500);
-        setTimeout(fetchTracks, 1500);
-        setTimeout(fetchTracks, 4000);
-      } catch (err) {
-        console.error('Failed to get tracks', err);
-      }
-    }
-    setIsCCSettingsOpen(!isCCSettingsOpen);
-    ACTIVE_YT_VIDEO_ID = videoId;
-  };
+const formatTime = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${String(secs).padStart(2, '0')}`;
+};
 
-  const toggleFullScreen = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    ACTIVE_YT_VIDEO_ID = videoId;
-    const elem = document.getElementById(containerId);
-    if (!elem) return;
+const containerId = `yt-player-container-${videoId}`;
 
-    if (!document.fullscreenElement) {
-      elem.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
+const toggleCaptions = (e?: React.MouseEvent) => {
+  e?.stopPropagation();
+  const player = playerRef.current;
+  if (!player) return;
+
+  try {
+    if (isCaptionsOn) {
+      player.unloadModule('captions');
+      setIsCaptionsOn(false);
+      setActiveTrackCode('off');
     } else {
-      document.exitFullscreen();
+      player.loadModule('captions');
+      setIsCaptionsOn(true);
+      setTimeout(() => {
+        const currentTrack = player.getOption('captions', 'track');
+        if (currentTrack?.languageCode) {
+          setActiveTrackCode(currentTrack.languageCode);
+        }
+        applyCaptionStyles();
+      }, 500);
+    }
+  } catch (err) {
+    console.error('Captions toggle failed', err);
+  }
+  ACTIVE_YT_VIDEO_ID = videoId;
+};
+
+const toggleCCSettings = (e?: React.MouseEvent) => {
+  e?.stopPropagation();
+  const player = playerRef.current;
+  if (!player) return;
+
+  const fetchTracks = (retries = 3) => {
+    if (!isMounted.current || !playerRef.current) return;
+    if (isSwitchingCCTrack.current) return;
+
+    try {
+      const tracks = playerRef.current.getOption('captions', 'tracklist') || [];
+      setCCTracks(tracks);
+
+      const currentTrack = playerRef.current.getOption('captions', 'track');
+
+      if (currentTrack?.translationLanguage?.languageCode === 'ko') {
+        setActiveTrackCode('ko-auto');
+      } else if (currentTrack?.languageCode) {
+        const hasExact = tracks.some((t: any) => t.languageCode === currentTrack.languageCode);
+        if (!hasExact && (currentTrack.languageCode.includes('en') || currentTrack.languageCode.startsWith('a.en'))) {
+          setActiveTrackCode('en-force');
+        } else {
+          setActiveTrackCode(currentTrack.languageCode);
+        }
+      } else {
+        setActiveTrackCode('off');
+      }
+
+      if (tracks.length === 0 && retries > 0) {
+        const timer = setTimeout(() => fetchTracks(retries - 1), 1000);
+        ccTimersRef.current.push(timer);
+      }
+    } catch (err) {
+      if (retries > 0) {
+        const timer = setTimeout(() => fetchTracks(retries - 1), 1000);
+        ccTimersRef.current.push(timer);
+      }
     }
   };
 
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
-
-      if (ACTIVE_YT_VIDEO_ID !== videoId) return;
-
-      const player = playerRef.current;
-      if (!player) return;
-
-      const key = e.key.toLowerCase();
-
-      // Play/Pause: 'k' or 'Space'
-      if (key === 'k' || e.key === ' ') {
-        e.preventDefault();
-        if (isPlaying) player.pauseVideo();
-        else player.playVideo();
-      }
-      // Fullscreen: 'f'
-      else if (key === 'f') {
-        e.preventDefault();
-        toggleFullScreen();
-      }
-      // Subtitles: 'c'
-      else if (key === 'c') {
-        e.preventDefault();
-        toggleCaptions();
-      }
-      // Mute/Unmute: 'm'
-      else if (key === 'm') {
-        e.preventDefault();
-        if (player.isMuted()) {
-          player.unMute();
-        } else {
-          player.mute();
-        }
-      }
-      // Forward/Backward
-      else if (key === 'j' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        const skip = key === 'j' ? 10 : 5;
-        const target = Math.max(0, player.getCurrentTime() - skip);
-        setCurrentTime(target);
-        player.seekTo(target, true);
-      }
-      else if (key === 'l' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        const skip = key === 'l' ? 10 : 5;
-        const target = Math.min(player.getDuration(), player.getCurrentTime() + skip);
-        setCurrentTime(target);
-        player.seekTo(target, true);
-      }
-      // Volume
-      else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        const newVol = Math.min(100, player.getVolume() + 5);
-        player.setVolume(newVol);
-        setVolumeToast(newVol);
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = setTimeout(() => {
-          if (isMounted.current) setVolumeToast(null);
-        }, 1000);
-      }
-      else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        const newVol = Math.max(0, player.getVolume() - 5);
-        player.setVolume(newVol);
-        setVolumeToast(newVol);
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = setTimeout(() => {
-          if (isMounted.current) setVolumeToast(null);
-        }, 1000);
-      }
-      // Home / End
-      else if (e.key === 'Home') {
-        e.preventDefault();
-        const target = 0;
-        setCurrentTime(target);
-        player.seekTo(target, true);
-      }
-      else if (e.key === 'End') {
-        e.preventDefault();
-        const target = player.getDuration();
-        setCurrentTime(target);
-        player.seekTo(target, true);
-      }
-      // Percent Jump: 0-9
-      else if (/^[0-9]$/.test(e.key)) {
-        e.preventDefault();
-        const percent = parseInt(e.key) * 10;
-        const target = (player.getDuration() * percent) / 100;
-        setCurrentTime(target);
-        player.seekTo(target, true);
-      }
-      // Playback Speed: Shift + > ('.') and Shift + < (',')
-      else if (e.key === '>' || e.key === '<') {
-        e.preventDefault();
-        const rates = player.getAvailablePlaybackRates();
-        const currentRate = player.getPlaybackRate();
-        const currentIndex = rates.indexOf(currentRate);
-
-        let newRate = currentRate;
-        if (e.key === '>') {
-          if (currentIndex < rates.length - 1) {
-            newRate = rates[currentIndex + 1];
-            player.setPlaybackRate(newRate);
-          }
-        } else {
-          if (currentIndex > 0) {
-            newRate = rates[currentIndex - 1];
-            player.setPlaybackRate(newRate);
-          }
-        }
-
-        // Show toast
-        setPlaybackRateToast(newRate);
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = setTimeout(() => {
-          if (isMounted.current) setPlaybackRateToast(null);
-        }, 1000);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, isCaptionsOn, videoId, language]);
-
-  const wrapperRef = React.useRef<HTMLDivElement>(null);
-  const [scale, setScale] = React.useState(1);
-
-  React.useEffect(() => {
-    if (!wrapperRef.current?.parentElement) return;
-    const updateScale = () => {
-      if (!wrapperRef.current?.parentElement) return;
-      const containerWidth = wrapperRef.current.parentElement.offsetWidth;
-      if (containerWidth > 0) {
-        // Method 44: Force YouTube into 'Mini-Player' mode (< 400px)
-        // At this width, YouTube disables the large 'More videos' shelf on pause
-        setScale(containerWidth / 380);
-      }
-    };
-
-    const observer = new ResizeObserver(updateScale);
-    observer.observe(wrapperRef.current.parentElement);
-    updateScale();
-    return () => observer.disconnect();
-  }, []);
-
-  if (hasError) {
-    return (
-      <div style={{ borderRadius: '4px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-        <iframe
-          width="100%"
-          height="315"
-          src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&iv_load_policy=3${startTimestamp ? `&start=${startTimestamp}` : ''}`}
-          title="YouTube Video Fallback"
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
-    );
+  if (!isCCSettingsOpen) {
+    ccTimersRef.current.forEach(t => clearTimeout(t));
+    ccTimersRef.current = [];
+    player.loadModule('captions');
+    setTimeout(fetchTracks, 200);
   }
+  setIsCCSettingsOpen(!isCCSettingsOpen);
+  ACTIVE_YT_VIDEO_ID = videoId;
+};
 
+const toggleFullScreen = (e?: React.MouseEvent) => {
+  e?.stopPropagation();
+  ACTIVE_YT_VIDEO_ID = videoId;
+  const elem = document.getElementById(containerId);
+  if (!elem) return;
+
+  if (!document.fullscreenElement) {
+    elem.requestFullscreen().catch(err => {
+      console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+};
+
+React.useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Ignore if user is typing in an input
+    if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
+
+    if (ACTIVE_YT_VIDEO_ID !== videoId) return;
+
+    const player = playerRef.current;
+    if (!player) return;
+
+    const key = e.key.toLowerCase();
+
+    // Play/Pause: 'k' or 'Space'
+    if (key === 'k' || e.key === ' ') {
+      e.preventDefault();
+      if (isPlaying) player.pauseVideo();
+      else player.playVideo();
+    }
+    // Fullscreen: 'f'
+    else if (key === 'f') {
+      e.preventDefault();
+      toggleFullScreen();
+    }
+    // Subtitles: 'c'
+    else if (key === 'c') {
+      e.preventDefault();
+      toggleCaptions();
+    }
+    // Mute/Unmute: 'm'
+    else if (key === 'm') {
+      e.preventDefault();
+      if (player.isMuted()) {
+        player.unMute();
+      } else {
+        player.mute();
+      }
+    }
+    // Forward/Backward
+    else if (key === 'j' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const skip = key === 'j' ? 10 : 5;
+      const target = Math.max(0, player.getCurrentTime() - skip);
+      setCurrentTime(target);
+      player.seekTo(target, true);
+    }
+    else if (key === 'l' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      const skip = key === 'l' ? 10 : 5;
+      const target = Math.min(player.getDuration(), player.getCurrentTime() + skip);
+      setCurrentTime(target);
+      player.seekTo(target, true);
+    }
+    // Volume
+    else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const newVol = Math.min(100, player.getVolume() + 5);
+      player.setVolume(newVol);
+      setVolumeToast(newVol);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        if (isMounted.current) setVolumeToast(null);
+      }, 1000);
+    }
+    else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const newVol = Math.max(0, player.getVolume() - 5);
+      player.setVolume(newVol);
+      setVolumeToast(newVol);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        if (isMounted.current) setVolumeToast(null);
+      }, 1000);
+    }
+    // Home / End
+    else if (e.key === 'Home') {
+      e.preventDefault();
+      const target = 0;
+      setCurrentTime(target);
+      player.seekTo(target, true);
+    }
+    else if (e.key === 'End') {
+      e.preventDefault();
+      const target = player.getDuration();
+      setCurrentTime(target);
+      player.seekTo(target, true);
+    }
+    // Percent Jump: 0-9
+    else if (/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      const percent = parseInt(e.key) * 10;
+      const target = (player.getDuration() * percent) / 100;
+      setCurrentTime(target);
+      player.seekTo(target, true);
+    }
+    // Playback Speed: Shift + > ('.') and Shift + < (',')
+    else if (e.key === '>' || e.key === '<') {
+      e.preventDefault();
+      const rates = player.getAvailablePlaybackRates();
+      const currentRate = player.getPlaybackRate();
+      const currentIndex = rates.indexOf(currentRate);
+
+      let newRate = currentRate;
+      if (e.key === '>') {
+        if (currentIndex < rates.length - 1) {
+          newRate = rates[currentIndex + 1];
+          player.setPlaybackRate(newRate);
+        }
+      } else {
+        if (currentIndex > 0) {
+          newRate = rates[currentIndex - 1];
+          player.setPlaybackRate(newRate);
+        }
+      }
+
+      // Show toast
+      setPlaybackRateToast(newRate);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        if (isMounted.current) setPlaybackRateToast(null);
+      }, 1000);
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [isPlaying, isCaptionsOn, videoId, language]);
+
+const wrapperRef = React.useRef<HTMLDivElement>(null);
+const [scale, setScale] = React.useState(1);
+
+React.useEffect(() => {
+  if (!wrapperRef.current?.parentElement) return;
+  const updateScale = () => {
+    if (!wrapperRef.current?.parentElement) return;
+    const containerWidth = wrapperRef.current.parentElement.offsetWidth;
+    if (containerWidth > 0) {
+      // Method 44: Force YouTube into 'Mini-Player' mode (< 400px)
+      // At this width, YouTube disables the large 'More videos' shelf on pause
+      setScale(containerWidth / 380);
+    }
+  };
+
+  const observer = new ResizeObserver(updateScale);
+  observer.observe(wrapperRef.current.parentElement);
+  updateScale();
+  return () => observer.disconnect();
+}, []);
+
+if (hasError) {
   return (
+    <div style={{ borderRadius: '4px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+      <iframe
+        width="100%"
+        height="315"
+        src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&iv_load_policy=3${startTimestamp ? `&start=${startTimestamp}` : ''}`}
+        title="YouTube Video Fallback"
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    </div>
+  );
+}
+
+return (
+  <div style={{
+    position: 'relative',
+    margin: '16px 0',
+    marginTop: (jumpedCommentId !== null || memoId) ? '40px' : '16px',
+    transition: 'margin-top 0.3s ease'
+  }}>
     <div style={{
-      position: 'relative',
-      margin: '16px 0',
-      marginTop: (jumpedCommentId !== null || memoId) ? '40px' : '16px',
-      transition: 'margin-top 0.3s ease'
+      position: 'absolute',
+      top: '-34px',
+      right: 0,
+      display: 'flex',
+      gap: '8px',
+      zIndex: 10
     }}>
-      <div style={{
-        position: 'absolute',
-        top: '-34px',
-        right: 0,
-        display: 'flex',
-        gap: '8px',
-        zIndex: 10
+      {jumpedCommentId !== null && (
+        <JumpBackButton onClick={handleReturn} title={t.comments.scroll_to_comment} style={{ position: 'static' }}>
+          <FiArrowDown /> {language === 'ko' ? '댓글로 돌아가기' : 'Back to Comment'}
+        </JumpBackButton>
+      )}
+      {memoId && (
+        <JumpBackButton onClick={scrollToLastComment} title={lastVideoCommentId ? (language === 'ko' ? '댓글 있음' : 'Comments exist') : (language === 'ko' ? '댓글로 가기' : 'Go to comment')} style={{ position: 'static' }}>
+          <FiArrowDown /> {lastVideoCommentId ? (language === 'ko' ? '댓글 있음' : 'Comments exist') : (language === 'ko' ? '댓글로 가기' : 'Go to comment')}
+        </JumpBackButton>
+      )}
+    </div>
+    <div
+      id={`yt-player-container-${videoId}`}
+      style={{
+        position: 'relative',
+        paddingBottom: isFullScreen ? 0 : '56.25%',
+        height: isFullScreen ? '100%' : 0,
+        overflow: 'hidden',
+        borderRadius: isFullScreen ? 0 : '4px',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+        background: '#000',
+        display: isFullScreen ? 'flex' : 'block',
+        alignItems: isFullScreen ? 'center' : 'initial',
+        justifyContent: isFullScreen ? 'center' : 'initial',
+        cursor: (isFullScreen && isMouseIdle) ? 'none' : 'auto'
       }}>
-        {jumpedCommentId !== null && (
-          <JumpBackButton onClick={handleReturn} title={t.comments.scroll_to_comment} style={{ position: 'static' }}>
-            <FiArrowDown /> {language === 'ko' ? '댓글로 돌아가기' : 'Back to Comment'}
-          </JumpBackButton>
-        )}
-        {memoId && (
-          <JumpBackButton onClick={scrollToLastComment} title={lastVideoCommentId ? (language === 'ko' ? '댓글 있음' : 'Comments exist') : (language === 'ko' ? '댓글로 가기' : 'Go to comment')} style={{ position: 'static' }}>
-            <FiArrowDown /> {lastVideoCommentId ? (language === 'ko' ? '댓글 있음' : 'Comments exist') : (language === 'ko' ? '댓글로 가기' : 'Go to comment')}
-          </JumpBackButton>
-        )}
-      </div>
-      <div
-        id={`yt-player-container-${videoId}`}
-        style={{
-          position: 'relative',
-          paddingBottom: isFullScreen ? 0 : '56.25%',
-          height: isFullScreen ? '100%' : 0,
-          overflow: 'hidden',
-          borderRadius: isFullScreen ? 0 : '4px',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-          background: '#000',
-          display: isFullScreen ? 'flex' : 'block',
-          alignItems: isFullScreen ? 'center' : 'initial',
-          justifyContent: isFullScreen ? 'center' : 'initial',
-          cursor: (isFullScreen && isMouseIdle) ? 'none' : 'auto'
+      {/* Brightness Overlay */}
+      {isFullScreen && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'black',
+          opacity: 1 - brightness,
+          pointerEvents: 'none',
+          zIndex: 15
+        }} />
+      )}
+      {!isReady && (
+        <div style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#ffffff',
+          fontSize: '11px',
+          background: '#111',
+          zIndex: 1
         }}>
-        {/* Brightness Overlay */}
-        {isFullScreen && (
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'black',
-            opacity: 1 - brightness,
-            pointerEvents: 'none',
-            zIndex: 15
-          }} />
-        )}
-        {!isReady && (
-          <div style={{
+          YouTube Loading...
+        </div>
+      )}
+      <div
+        ref={wrapperRef}
+        style={{
+          position: isFullScreen ? 'relative' : 'absolute',
+          top: 0,
+          left: 0,
+          width: isFullScreen ? (isShort && isMobilePortrait ? '100vw' : 'min(100vw, calc(100vh * 16 / 9))') : '380px',
+          height: isFullScreen ? (isShort && isMobilePortrait ? '100vh' : 'min(100vh, calc(100vw * 9 / 16))') : '214px',
+          transform: isFullScreen ? 'none' : `scale(${scale})`,
+          transformOrigin: 'top left',
+          pointerEvents: 'none'
+        }}
+      >
+        <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      </div>
+
+      {/* Interaction Layer */}
+      {isReady && (
+        <div
+          onClick={() => {
+            if (isCCSettingsOpen) {
+              setIsCCSettingsOpen(false);
+              return;
+            }
+
+            if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+            clickTimerRef.current = setTimeout(() => {
+              ACTIVE_YT_VIDEO_ID = videoId;
+              isPlaying ? playerRef.current?.pauseVideo() : playerRef.current?.playVideo();
+              clickTimerRef.current = null;
+            }, 250);
+          }}
+          onDoubleClick={() => {
+            if (clickTimerRef.current) {
+              clearTimeout(clickTimerRef.current);
+              clickTimerRef.current = null;
+            }
+            toggleFullScreen();
+          }}
+          style={{
             position: 'absolute',
             top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 10,
+            cursor: (isFullScreen && isMouseIdle) ? 'none' : 'pointer',
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: 'column',
             justifyContent: 'center',
-            color: '#ffffff',
-            fontSize: '11px',
-            background: '#111',
-            zIndex: 1
-          }}>
-            YouTube Loading...
-          </div>
-        )}
-        <div
-          ref={wrapperRef}
-          style={{
-            position: isFullScreen ? 'relative' : 'absolute',
-            top: 0,
-            left: 0,
-            width: isFullScreen ? (isShort && isMobilePortrait ? '100vw' : 'min(100vw, calc(100vh * 16 / 9))') : '380px',
-            height: isFullScreen ? (isShort && isMobilePortrait ? '100vh' : 'min(100vh, calc(100vw * 9 / 16))') : '214px',
-            transform: isFullScreen ? 'none' : `scale(${scale})`,
-            transformOrigin: 'top left',
-            pointerEvents: 'none'
+            alignItems: 'center',
+            background: 'transparent',
+            touchAction: isFullScreen ? 'none' : 'auto',
+            WebkitTapHighlightColor: 'transparent',
+            transition: 'none'
+          }}
+          onTouchStart={(e) => {
+            if (!isFullScreen) return;
+            const touch = e.touches[0];
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+
+            touchStartRef.current = {
+              x: touch.clientX,
+              y: touch.clientY,
+              vol: playerRef.current?.getVolume() || 0,
+              bright: brightness,
+              currentTime: playerRef.current?.getCurrentTime() || 0,
+              side: x < rect.width / 2 ? 'left' : 'right'
+            };
+            touchTypeRef.current = 'none';
+          }
+          }
+          onTouchMove={(e) => {
+            if (!isFullScreen || !touchStartRef.current) return;
+            const touch = e.touches[0];
+            const dx = touch.clientX - touchStartRef.current.x;
+            const dy = touch.clientY - touchStartRef.current.y;
+
+            if (touchTypeRef.current === 'none') {
+              if (Math.abs(dx) > 10) touchTypeRef.current = 'horizontal';
+              else if (Math.abs(dy) > 10) touchTypeRef.current = 'vertical';
+            }
+
+            if (touchTypeRef.current === 'horizontal') {
+              // Seek logic: 1 pixel = 0.5 seconds (adjust sensitivity)
+              const seekDelta = dx * 0.5;
+              const target = Math.max(0, Math.min(duration, touchStartRef.current.currentTime + seekDelta));
+              setCurrentTime(target);
+              playerRef.current?.seekTo(target, true);
+            } else if (touchTypeRef.current === 'vertical') {
+              if (touchStartRef.current.side === 'right') {
+                // Volume logic: swipe up (dy negative) increases volume
+                const volDelta = -dy * 0.5;
+                const newVol = Math.max(0, Math.min(100, touchStartRef.current.vol + volDelta));
+                playerRef.current?.setVolume(newVol);
+                setVolumeToast(Math.round(newVol));
+                if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+                toastTimerRef.current = setTimeout(() => setVolumeToast(null), 1500);
+              } else {
+                // Brightness logic
+                const brightDelta = -dy * 0.005;
+                const newBright = Math.max(0.1, Math.min(1, touchStartRef.current.bright + brightDelta));
+                setBrightness(newBright);
+                setBrightnessToast(newBright);
+                if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+                toastTimerRef.current = setTimeout(() => setBrightnessToast(null), 1500);
+              }
+            }
+          }}
+          onTouchEnd={() => {
+            touchStartRef.current = null;
+            touchTypeRef.current = 'none';
           }}
         >
-          <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-        </div>
-
-        {/* Interaction Layer */}
-        {isReady && (
-          <div
-            onClick={() => {
-              if (isCCSettingsOpen) {
-                setIsCCSettingsOpen(false);
-                return;
-              }
-
-              if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-              clickTimerRef.current = setTimeout(() => {
-                ACTIVE_YT_VIDEO_ID = videoId;
-                isPlaying ? playerRef.current?.pauseVideo() : playerRef.current?.playVideo();
-                clickTimerRef.current = null;
-              }, 250);
-            }}
-            onDoubleClick={() => {
-              if (clickTimerRef.current) {
-                clearTimeout(clickTimerRef.current);
-                clickTimerRef.current = null;
-              }
-              toggleFullScreen();
-            }}
-            style={{
-              position: 'absolute',
-              top: 0, left: 0, right: 0, bottom: 0,
-              zIndex: 10,
-              cursor: (isFullScreen && isMouseIdle) ? 'none' : 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              background: 'transparent',
-              touchAction: isFullScreen ? 'none' : 'auto',
-              WebkitTapHighlightColor: 'transparent',
-              transition: 'none'
-            }}
-            onTouchStart={(e) => {
-              if (!isFullScreen) return;
-              const touch = e.touches[0];
-              const rect = e.currentTarget.getBoundingClientRect();
-              const x = touch.clientX - rect.left;
-
-              touchStartRef.current = {
-                x: touch.clientX,
-                y: touch.clientY,
-                vol: playerRef.current?.getVolume() || 0,
-                bright: brightness,
-                currentTime: playerRef.current?.getCurrentTime() || 0,
-                side: x < rect.width / 2 ? 'left' : 'right'
-              };
-              touchTypeRef.current = 'none';
-            }
-            }
-            onTouchMove={(e) => {
-              if (!isFullScreen || !touchStartRef.current) return;
-              const touch = e.touches[0];
-              const dx = touch.clientX - touchStartRef.current.x;
-              const dy = touch.clientY - touchStartRef.current.y;
-
-              if (touchTypeRef.current === 'none') {
-                if (Math.abs(dx) > 10) touchTypeRef.current = 'horizontal';
-                else if (Math.abs(dy) > 10) touchTypeRef.current = 'vertical';
-              }
-
-              if (touchTypeRef.current === 'horizontal') {
-                // Seek logic: 1 pixel = 0.5 seconds (adjust sensitivity)
-                const seekDelta = dx * 0.5;
-                const target = Math.max(0, Math.min(duration, touchStartRef.current.currentTime + seekDelta));
-                setCurrentTime(target);
-                playerRef.current?.seekTo(target, true);
-              } else if (touchTypeRef.current === 'vertical') {
-                if (touchStartRef.current.side === 'right') {
-                  // Volume logic: swipe up (dy negative) increases volume
-                  const volDelta = -dy * 0.5;
-                  const newVol = Math.max(0, Math.min(100, touchStartRef.current.vol + volDelta));
-                  playerRef.current?.setVolume(newVol);
-                  setVolumeToast(Math.round(newVol));
-                  if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-                  toastTimerRef.current = setTimeout(() => setVolumeToast(null), 1500);
-                } else {
-                  // Brightness logic
-                  const brightDelta = -dy * 0.005;
-                  const newBright = Math.max(0.1, Math.min(1, touchStartRef.current.bright + brightDelta));
-                  setBrightness(newBright);
-                  setBrightnessToast(newBright);
-                  if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-                  toastTimerRef.current = setTimeout(() => setBrightnessToast(null), 1500);
-                }
-              }
-            }}
-            onTouchEnd={() => {
-              touchStartRef.current = null;
-              touchTypeRef.current = 'none';
-            }}
-          >
-            {/* Subtitle Settings Overlay */}
-            {isCCSettingsOpen && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  position: 'absolute',
-                  bottom: '50px',
-                  right: '12px',
-                  background: 'rgba(28, 28, 28, 0.95)',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  width: '240px',
-                  zIndex: 100,
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  backdropFilter: 'blur(10px)',
-                  color: '#fff',
-                  fontSize: '13px'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
-                    <FiSettings size={14} />
-                    {language === 'ko' ? '자막 설정' : 'Caption Settings'}
-                  </div>
-                  <button
-                    onClick={() => setIsCCSettingsOpen(false)}
-                    style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '4px' }}
-                  >
-                    <FiX size={16} />
-                  </button>
-                </div>
-
-                {/* Tracks Selection - Dropdown */}
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {language === 'ko' ? '언어 선택' : 'Language'}
-                  </div>
-                  {ccTracks.length > 0 ? (
-                    <select
-                      value={activeTrackCode}
-                      onChange={(e) => {
-                        const code = e.target.value;
-                        setActiveTrackCode(code);
-                        if (code === 'off') {
-                          playerRef.current?.unloadModule('captions');
-                          setIsCaptionsOn(false);
-                        } else {
-                          if (!isCaptionsOn) {
-                            playerRef.current?.loadModule('captions');
-                            setIsCaptionsOn(true);
-                          }
-
-                          // Check if it's an auto-translate request (e.g. 'ko-auto')
-                          if (code === 'ko-auto') {
-                            playerRef.current?.setOption('captions', 'track', { languageCode: 'ko', translationLanguage: { languageCode: 'ko' } });
-                          } else {
-                            playerRef.current?.setOption('captions', 'track', { languageCode: code });
-                          }
-                          applyCaptionStyles();
-                        }
-                        setIsCCSettingsOpen(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        background: 'rgba(255, 255, 255, 0.1)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        color: '#fff',
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        outline: 'none',
-                        cursor: 'pointer',
-                        appearance: 'none',
-                        WebkitAppearance: 'none'
-                      }}
-                    >
-                      <option value="off" style={{ background: '#1c1c1c' }}>{language === 'ko' ? '자막 끄기' : 'Captions Off'}</option>
-                      {ccTracks.map((track: any) => {
-                        const isAsr = track.kind === 'asr' || track.languageCode?.startsWith('a.');
-                        return (
-                          <option
-                            key={`${track.languageCode}-${track.kind}`}
-                            value={track.languageCode}
-                            style={{ background: '#1c1c1c' }}
-                          >
-                            {track.displayName} {isAsr ? `(${language === 'ko' ? '자동 생성' : 'auto-generated'})` : ''}
-                          </option>
-                        );
-                      })}
-                      {/* Add Korean Auto-translate option if Korean is not a direct track but available in translations */}
-                      {!ccTracks.some((t: any) => t.languageCode === 'ko' || t.languageCode === 'ko-KR') && (
-                        <option value="ko-auto" style={{ background: '#1c1c1c' }}>
-                          {language === 'ko' ? '한국어 (자동 번역)' : 'Korean (auto-translate)'}
-                        </option>
-                      )}
-                    </select>
-                  ) : (
-                    <div style={{ fontSize: '11px', color: '#666', padding: '4px 8px' }}>
-                      {language === 'ko' ? '사용 가능한 자막 없음' : 'No tracks available'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Font Size */}
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {language === 'ko' ? '글자 크기' : 'Font Size'}
-                  </div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    {[
-                      { label: '50%', val: -1 },
-                      { label: '100%', val: 0 },
-                      { label: '150%', val: 1 },
-                      { label: '200%', val: 2 },
-                      { label: '300%', val: 3 }
-                    ].map(size => {
-                      const isActive = ccFontSize === size.val;
-                      return (
-                        <button
-                          key={size.val}
-                          onClick={() => {
-                            setCCFontSize(size.val);
-                            applyCaptionStyles(size.val);
-                          }}
-                          style={{
-                            flex: 1,
-                            padding: '5px 0',
-                            background: isActive ? 'rgba(239, 142, 19, 0.2)' : 'rgba(255,255,255,0.08)',
-                            border: isActive ? '1px solid #ef8e13' : '1px solid transparent',
-                            borderRadius: '4px',
-                            color: isActive ? '#ef8e13' : '#ddd',
-                            fontSize: '10px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
-                          onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-                        >
-                          {size.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Speed Toast Notification */}
-            {playbackRateToast !== null && (
-              <div style={{
-                position: 'absolute',
-                top: '20%',
-                background: 'rgba(0,0,0,0.7)',
-                color: '#fff',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                pointerEvents: 'none',
-                zIndex: 20
-              }}>
-                {playbackRateToast}x
-              </div>
-            )}
-            {/* Volume Toast Notification */}
-            {volumeToast !== null && (
-              <div style={{
-                position: 'absolute',
-                top: '20%',
-                background: 'rgba(0,0,0,0.7)',
-                color: '#fff',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                pointerEvents: 'none',
-                zIndex: 20,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <FiVolume2 size={16} /> {volumeToast}%
-              </div>
-            )}
-
-            {/* Brightness Toast Notification */}
-            {brightnessToast !== null && (
-              <div style={{
-                position: 'absolute',
-                top: '20%',
-                background: 'rgba(0,0,0,0.7)',
-                color: '#fff',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                pointerEvents: 'none',
-                zIndex: 20,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <FiSun size={16} /> {Math.round(brightnessToast * 100)}%
-              </div>
-            )}
-
-            {/* Control Bar - Using opacity to avoid flicker on play/pause */}
+          {/* Subtitle Settings Overlay */}
+          {isCCSettingsOpen && (
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
                 position: 'absolute',
-                bottom: 0, left: 0, right: 0,
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 12px',
-                gap: '12px',
+                bottom: '50px',
+                right: '12px',
+                background: 'rgba(28, 28, 28, 0.95)',
+                borderRadius: '12px',
+                padding: '16px',
+                width: '240px',
+                zIndex: 100,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(10px)',
                 color: '#fff',
-                cursor: 'default',
-                opacity: isPlaying ? 0 : 1,
-                pointerEvents: isPlaying ? 'none' : 'auto',
-                transition: 'opacity 0.2s ease',
-                background: 'linear-gradient(transparent, rgba(0,0,0,0.5))',
-                zIndex: 20
+                fontSize: '13px'
               }}
             >
-              <input
-                type="range"
-                min={0}
-                max={duration || 100}
-                value={currentTime}
-                onChange={(e) => {
-                  const time = parseFloat(e.target.value);
-                  setCurrentTime(time);
-                  ACTIVE_YT_VIDEO_ID = videoId;
-                  playerRef.current?.seekTo(time);
-                }}
-                style={{
-                  flex: 1,
-                  height: '3px',
-                  cursor: 'pointer',
-                  accentColor: '#ef8e13'
-                }}
-              />
-              <div style={{ fontSize: '11px', fontFamily: 'monospace', minWidth: '75px', textAlign: 'right' }}>
-                {formatTime(currentTime)} / {formatTime(duration)}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                  <FiSettings size={14} />
+                  {language === 'ko' ? '자막 설정' : 'Caption Settings'}
+                </div>
+                <button
+                  onClick={() => setIsCCSettingsOpen(false)}
+                  style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '4px' }}
+                >
+                  <FiX size={16} />
+                </button>
               </div>
 
-              <a
-                href={`https://www.youtube.com/watch?v=${videoId}${currentTime > 0 ? `&t=${Math.floor(currentTime)}` : ''}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '10px',
-                  color: isMobilePortrait ? '#ff0000' : '#ddd',
-                  textDecoration: 'none',
-                  padding: isMobilePortrait ? '4px' : '4px 8px',
-                  borderRadius: '4px',
-                  background: 'rgba(255,255,255,0.1)',
-                  whiteSpace: 'nowrap',
-                  marginLeft: '4px',
-                  transition: 'all 0.2s'
-                }}
-                title={language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
-              >
-                {isMobilePortrait ? (
-                  <FaYoutube size={18} />
-                ) : (
-                  <>
-                    <FiExternalLink size={12} />
-                    {language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
-                  </>
-                )}
-              </a>
-
-
-              <button
-                onClick={toggleCaptions}
-                onDoubleClick={toggleCCSettings}
-                title={language === 'ko' ? '자막 (더블클릭: 설정)' : 'Subtitles (Double-click: Settings)'}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: isCaptionsOn ? '#ef8e13' : '#ddd',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px',
-                  marginLeft: '4px',
-                  transition: 'color 0.2s'
-                }}
-              >
-                <div style={{
-                  border: `1.5px solid ${isCaptionsOn ? '#ef8e13' : '#ddd'}`,
-                  borderRadius: '2px',
-                  padding: '1px 3px',
-                  fontSize: '9px',
-                  fontWeight: 'bold',
-                  lineHeight: 1,
-                  color: isCaptionsOn ? '#ef8e13' : '#ddd',
-                  transition: 'all 0.2s'
-                }}>
-                  CC
+              {/* Tracks Selection - Dropdown */}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  {language === 'ko' ? '언어 선택' : 'Language'}
                 </div>
-              </button>
+                  <select
+                    value={activeTrackCode}
+                    onChange={(e) => {
+                      const code = e.target.value;
+                      setActiveTrackCode(code);
+                      isSwitchingCCTrack.current = true;
 
-              <button
-                onClick={toggleFullScreen}
-                title={language === 'ko' ? '전체 화면' : 'Full Screen'}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#ddd',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px',
-                  marginLeft: '4px'
-                }}
-              >
-                <FiMaximize size={16} />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+                      ccTimersRef.current.forEach(t => clearTimeout(t));
+                      ccTimersRef.current = [];
+
+                      if (code === 'off') {
+                        playerRef.current?.unloadModule('captions');
+                        setIsCaptionsOn(false);
+                        isSwitchingCCTrack.current = false;
+                      } else {
+                        if (!isCaptionsOn) {
+                          playerRef.current?.loadModule('captions');
+                          setIsCaptionsOn(true);
+                        }
+
+                        // Module reload for clean state when switching away from translation
+                        const currentTrack = playerRef.current?.getOption('captions', 'track');
+                        const wasTranslating = !!currentTrack?.translationLanguage?.languageCode;
+
+                        if (code === 'ko-auto') {
+                          setTimeout(() => {
+                            const tracks = playerRef.current?.getOption('captions', 'tracklist') || [];
+                            const enTrack = tracks.find((t: any) => t.languageCode?.includes('en')) || tracks[0] || { languageCode: 'en' };
+                            playerRef.current?.setOption('captions', 'track', {
+                              languageCode: enTrack.languageCode,
+                              translationLanguage: { languageCode: 'ko' }
+                            });
+                            applyCaptionStyles();
+                            setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500);
+                          }, 100);
+                        } else if (code === 'en-force') {
+                          if (wasTranslating) {
+                            playerRef.current?.unloadModule('captions');
+                            playerRef.current?.loadModule('captions');
+                          }
+                          setTimeout(() => {
+                            const tracks = playerRef.current?.getOption('captions', 'tracklist') || [];
+                            const enTrack = tracks.find((t: any) => (t.kind === 'asr' || t.languageCode?.startsWith('a.')) && t.languageCode?.includes('en')) ||
+                              tracks.find((t: any) => t.languageCode?.includes('en')) || { languageCode: 'en' };
+                            playerRef.current?.setOption('captions', 'track', { languageCode: enTrack.languageCode });
+                            applyCaptionStyles();
+                            setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500);
+                          }, wasTranslating ? 300 : 100);
+                        } else {
+                          if (wasTranslating) {
+                            playerRef.current?.unloadModule('captions');
+                            playerRef.current?.loadModule('captions');
+                          }
+                          setTimeout(() => {
+                            playerRef.current?.setOption('captions', 'track', { languageCode: code });
+                            applyCaptionStyles();
+                            setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500);
+                          }, wasTranslating ? 300 : 100);
+                        }
+                      }
+                      setIsCCSettingsOpen(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: '#fff',
+                      padding: '6px 8px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      appearance: 'none',
+                      WebkitAppearance: 'none'
+                    }}
+                  >
+                    <option value="" disabled>{language === 'ko' ? '언어 선택' : 'Language'}</option>
+                    <option value="off" style={{ background: '#1c1c1c' }}>{language === 'ko' ? '자막 끄기' : 'Captions Off'}</option>
+                    {ccTracks.map((track: any) => {
+                      const isAsr = track.kind === 'asr' || track.languageCode?.startsWith('a.');
+                      return (
+                        <option
+                          key={`${track.languageCode}-${track.kind}`}
+                          value={track.languageCode}
+                          style={{ background: '#1c1c1c' }}
+                        >
+                          {track.displayName} {isAsr ? `(${language === 'ko' ? '자동 생성' : 'auto-generated'})` : ''}
+                        </option>
+                      );
+                    })}
+                    {!ccTracks.some((t: any) => t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) && (
+                      <option value="en-force" style={{ background: '#1c1c1c' }}>
+                        {language === 'ko' ? '영어 (자동 생성)' : 'English (Auto-generated)'}
+                      </option>
+                    )}
+                    {!ccTracks.some((t: any) => t.languageCode === 'ko' || t.languageCode === 'ko-KR') && (
+                      <option value="ko-auto" style={{ background: '#1c1c1c' }}>
+                        {language === 'ko' ? '한국어 (자동 번역)' : 'Korean (auto-translate)'}
+                      </option>
+                    )}
+                  </select>
+                </div >
+              </div >
+            )}
+{/* Speed Toast Notification */ }
+{
+  playbackRateToast !== null && (
+    <div style={{
+      position: 'absolute',
+      top: '20%',
+      background: 'rgba(0,0,0,0.7)',
+      color: '#fff',
+      padding: '8px 16px',
+      borderRadius: '20px',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      pointerEvents: 'none',
+      zIndex: 20
+    }}>
+      {playbackRateToast}x
     </div>
+  )
+}
+{/* Volume Toast Notification */ }
+{
+  volumeToast !== null && (
+    <div style={{
+      position: 'absolute',
+      top: '20%',
+      background: 'rgba(0,0,0,0.7)',
+      color: '#fff',
+      padding: '8px 16px',
+      borderRadius: '20px',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      pointerEvents: 'none',
+      zIndex: 20,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px'
+    }}>
+      <FiVolume2 size={16} /> {volumeToast}%
+    </div>
+  )
+}
+
+{/* Brightness Toast Notification */ }
+{
+  brightnessToast !== null && (
+    <div style={{
+      position: 'absolute',
+      top: '20%',
+      background: 'rgba(0,0,0,0.7)',
+      color: '#fff',
+      padding: '8px 16px',
+      borderRadius: '20px',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      pointerEvents: 'none',
+      zIndex: 20,
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px'
+    }}>
+      <FiSun size={16} /> {Math.round(brightnessToast * 100)}%
+    </div>
+  )
+}
+
+{/* Control Bar - Using opacity to avoid flicker on play/pause */ }
+<div
+  onClick={(e) => e.stopPropagation()}
+  style={{
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    height: '40px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 12px',
+    gap: '12px',
+    color: '#fff',
+    cursor: 'default',
+    opacity: isPlaying ? 0 : 1,
+    pointerEvents: isPlaying ? 'none' : 'auto',
+    transition: 'opacity 0.2s ease',
+    background: 'linear-gradient(transparent, rgba(0,0,0,0.5))',
+    zIndex: 20
+  }}
+>
+  <input
+    type="range"
+    min={0}
+    max={duration || 100}
+    value={currentTime}
+    onChange={(e) => {
+      const time = parseFloat(e.target.value);
+      setCurrentTime(time);
+      ACTIVE_YT_VIDEO_ID = videoId;
+      playerRef.current?.seekTo(time);
+    }}
+    style={{
+      flex: 1,
+      height: '3px',
+      cursor: 'pointer',
+      accentColor: '#ef8e13'
+    }}
+  />
+  <div style={{ fontSize: '11px', fontFamily: 'monospace', minWidth: '75px', textAlign: 'right' }}>
+    {formatTime(currentTime)} / {formatTime(duration)}
+  </div>
+
+  <a
+    href={`https://www.youtube.com/watch?v=${videoId}${currentTime > 0 ? `&t=${Math.floor(currentTime)}` : ''}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    onClick={(e) => e.stopPropagation()}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+      fontSize: '10px',
+      color: isMobilePortrait ? '#ff0000' : '#ddd',
+      textDecoration: 'none',
+      padding: isMobilePortrait ? '4px' : '4px 8px',
+      borderRadius: '4px',
+      background: 'rgba(255,255,255,0.1)',
+      whiteSpace: 'nowrap',
+      marginLeft: '4px',
+      transition: 'all 0.2s'
+    }}
+    title={language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
+  >
+    {isMobilePortrait ? (
+      <FaYoutube size={18} />
+    ) : (
+      <>
+        <FiExternalLink size={12} />
+        {language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
+      </>
+    )}
+  </a>
+
+
+  <button
+    onClick={toggleCaptions}
+    onDoubleClick={toggleCCSettings}
+    title={language === 'ko' ? '자막 (더블클릭: 설정)' : 'Subtitles (Double-click: Settings)'}
+    style={{
+      background: 'none',
+      border: 'none',
+      color: isCaptionsOn ? '#ef8e13' : '#ddd',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      padding: '4px',
+      marginLeft: '4px',
+      transition: 'color 0.2s'
+    }}
+  >
+    <div style={{
+      border: `1.5px solid ${isCaptionsOn ? '#ef8e13' : '#ddd'}`,
+      borderRadius: '2px',
+      padding: '1px 3px',
+      fontSize: '9px',
+      fontWeight: 'bold',
+      lineHeight: 1,
+      color: isCaptionsOn ? '#ef8e13' : '#ddd',
+      transition: 'all 0.2s'
+    }}>
+      CC
+    </div>
+  </button>
+
+  <button
+    onClick={toggleFullScreen}
+    title={language === 'ko' ? '전체 화면' : 'Full Screen'}
+    style={{
+      background: 'none',
+      border: 'none',
+      color: '#ddd',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      padding: '4px',
+      marginLeft: '4px'
+    }}
+  >
+    <FiMaximize size={16} />
+  </button>
+</div>
+          </div >
+        )}
+      </div >
+    </div >
   );
 };
 
