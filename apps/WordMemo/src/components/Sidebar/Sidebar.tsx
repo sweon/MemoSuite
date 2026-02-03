@@ -243,16 +243,16 @@ const StudyModeOption = styled.label<{ $active: boolean }>`
   border-radius: ${({ theme }) => theme.radius.medium};
   border: 1px solid ${({ theme, $active }) => $active ? theme.colors.primary : theme.colors.border};
   background: ${({ theme, $active }) => $active ? `${theme.colors.primary}11` : theme.colors.background};
-  
+
   /* Force text visibility */
   color: ${({ theme, $active }) => $active ? theme.colors.primary : theme.colors.textSecondary} !important;
-  
+
   cursor: pointer;
   font-size: 0.75rem;
   font-weight: 600;
   transition: ${({ theme }) => theme.effects.transition};
   white-space: nowrap;
-  
+
   /* Flexbox child handling */
   flex: 1;
   min-width: 0; /* Allow shrinking if needed, but flex:1 should distribute space */
@@ -268,7 +268,6 @@ const StudyModeOption = styled.label<{ $active: boolean }>`
     flex-shrink: 0;
   }
 `;
-
 interface SidebarProps {
   onCloseMobile: () => void;
   isEditing?: boolean;
@@ -533,7 +532,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
     }
 
     const timer = setTimeout(() => {
-      const element = document.querySelector(`[data-log-id="${id}"]`);
+      const element = document.querySelector(`[data - log - id= "${id}"]`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
@@ -557,7 +556,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
 
       if (!sourceLog || !targetLog) return;
 
-      const targetThreadId = targetLog.threadId || `thread-${Date.now()}`;
+      const targetThreadId = targetLog.threadId || `thread - ${Date.now()} `;
 
       // If target wasn't in a thread, update it
       if (!targetLog.threadId) {
@@ -618,6 +617,41 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
             <AppVersion>v{pkg.version}</AppVersion>
           </BrandHeader>
 
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.25rem', paddingBottom: '4px' }}>
+            <Tooltip content={t.sidebar.decrease_font}>
+              <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
+                <FiMinus size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.increase_font}>
+              <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
+                <FiPlus size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.sync_data}>
+              <IconButton onClick={() => setIsSyncModalOpen(true)}>
+                <FiRefreshCw size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
+              <IconButton onClick={toggleTheme}>
+                {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.settings}>
+              <IconButton onClick={() => {
+                navigate('/settings', { replace: true, state: { isGuard: true } });
+                onCloseMobile();
+              }}>
+                <FiSettings size={18} />
+              </IconButton>
+            </Tooltip>
+          </div>
+
           <SearchInputWrapper>
             <SearchIcon size={16} />
             <SearchInput
@@ -652,7 +686,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
                 padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
                 fontSize: window.innerWidth <= 768 ? '14px' : '0.85rem',
                 borderRadius: '6px',
-                border: `1px solid ${theme.colors.border}`,
+                border: `1px solid ${theme.colors.border} `,
                 background: theme.colors.surface,
                 color: theme.colors.text
               }}
@@ -693,41 +727,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
             }}>
               <FiPlus size={20} />
             </Button>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-
-              <Tooltip content={t.sidebar.decrease_font}>
-                <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
-                  <FiMinus size={18} />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip content={t.sidebar.increase_font}>
-                <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
-                  <FiPlus size={18} />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip content={t.sidebar.sync_data}>
-                <IconButton onClick={() => setIsSyncModalOpen(true)}>
-                  <FiRefreshCw size={18} />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
-                <IconButton onClick={toggleTheme}>
-                  {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip content={t.sidebar.settings}>
-                <IconButton onClick={() => {
-                  navigate('/settings', { replace: true, state: { isGuard: true } });
-                  onCloseMobile();
-                }}>
-                  <FiSettings size={18} />
-                </IconButton>
-              </Tooltip>
-            </div>
           </TopActions>
         </Header>
 
@@ -751,7 +750,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
                           formatDate={formatDate}
                           untitledText={t.sidebar.untitled}
                           onLogClick={onCloseMobile}
-                          isCombineTarget={combineTargetId === `log-${item.log.id}`}
+                          isCombineTarget={combineTargetId === `log - ${item.log.id} `}
                           t={t}
                           studyMode={studyMode}
                         />
@@ -767,7 +766,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
                         formatDate={formatDate}
                         untitledText={t.sidebar.untitled}
                         inThread={item.type === 'thread-child'}
-                        isCombineTarget={combineTargetId === `log-${item.log.id}`}
+                        isCombineTarget={combineTargetId === `log - ${item.log.id} `}
                         studyMode={studyMode}
                       />
                     );

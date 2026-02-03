@@ -122,7 +122,7 @@ const Button = styled.button`
   border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
-  background: #6C3483;
+  background: ${({ theme }) => theme.colors.primary};
   color: white;
   flex-shrink: 0;
   transition: ${({ theme }) => theme.effects.transition};
@@ -429,6 +429,46 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
             <AppVersion>v{pkg.version}</AppVersion>
           </BrandHeader>
 
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.25rem', paddingBottom: '4px' }}>
+            <Tooltip content={t.sidebar.decrease_font}>
+              <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
+                <FiMinus size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.increase_font}>
+              <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
+                <FiPlus size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.sync_data}>
+              <IconButton onClick={() => {
+                setIsSyncModalOpen(true);
+                onCloseMobile(true);
+              }}>
+                <FiRefreshCw size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
+              <IconButton onClick={toggleTheme}>
+                {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t.sidebar.settings}>
+              <IconButton onClick={() => {
+                handleSafeNavigation(() => {
+                  navigate('/settings', { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                });
+              }}>
+                <FiSettings size={18} />
+              </IconButton>
+            </Tooltip>
+          </div>
+
           <SearchInputWrapper>
             <SearchIcon size={16} />
             <SearchInput
@@ -477,46 +517,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
                 <FiPlus />
               </Button>
             </Tooltip>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}>
-
-              <Tooltip content={t.sidebar.decrease_font}>
-                <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
-                  <FiMinus size={18} />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip content={t.sidebar.increase_font}>
-                <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
-                  <FiPlus size={18} />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip content={t.sidebar.sync_data}>
-                <IconButton onClick={() => {
-                  setIsSyncModalOpen(true);
-                  onCloseMobile(true);
-                }}>
-                  <FiRefreshCw size={18} />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
-                <IconButton onClick={toggleTheme}>
-                  {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip content={t.sidebar.settings}>
-                <IconButton onClick={() => {
-                  handleSafeNavigation(() => {
-                    navigate('/settings', { replace: true, state: { isGuard: true } });
-                    onCloseMobile(true);
-                  });
-                }}>
-                  <FiSettings size={18} />
-                </IconButton>
-              </Tooltip>
-            </div>
           </TopActions>
         </Header>
 
