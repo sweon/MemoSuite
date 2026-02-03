@@ -155,16 +155,16 @@ const FolderGrid = styled.div<{ $viewMode: ViewMode }>`
 
 const FolderCard = styled.div<{ $viewMode: ViewMode; $isActive?: boolean; $isReadOnly?: boolean }>`
   display: flex;
-  flex-direction: ${({ $viewMode }) => $viewMode === 'one-line' ? 'row' : 'column'};
-  align-items: ${({ $viewMode }) => $viewMode === 'one-line' ? 'center' : 'stretch'};
-  padding: ${({ theme, $viewMode }) => $viewMode === 'one-line' ? '12px 16px' : theme.spacing.lg};
+  flex-direction: ${({ $viewMode }) => $viewMode === 'single-line' ? 'row' : 'column'};
+  align-items: ${({ $viewMode }) => $viewMode === 'single-line' ? 'center' : 'stretch'};
+  padding: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? '12px 16px' : theme.spacing.lg};
   background: ${({ theme }) => theme.colors.surface};
   border: 2px solid ${({ theme, $isActive }) => $isActive ? theme.colors.primary : theme.colors.border};
   border-radius: ${({ theme }) => theme.radius.large};
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
-  gap: ${({ $viewMode, theme }) => $viewMode === 'one-line' ? theme.spacing.md : 0};
+  gap: ${({ $viewMode, theme }) => $viewMode === 'single-line' ? theme.spacing.md : 0};
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
@@ -178,7 +178,7 @@ const FolderCard = styled.div<{ $viewMode: ViewMode; $isActive?: boolean; $isRea
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     box-shadow: ${({ theme }) => theme.shadows.medium};
-    transform: ${({ $viewMode }) => $viewMode === 'one-line' ? 'translateX(4px)' : 'translateY(-2px)'};
+    transform: ${({ $viewMode }) => $viewMode === 'single-line' ? 'translateX(4px)' : 'translateY(-2px)'};
   }
 `;
 
@@ -186,8 +186,8 @@ const FolderHeader = styled.div<{ $viewMode?: ViewMode }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
-  margin-bottom: ${({ theme, $viewMode }) => $viewMode === 'one-line' ? 0 : theme.spacing.sm};
-  flex: ${({ $viewMode }) => $viewMode === 'one-line' ? 1 : 'none'};
+  margin-bottom: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 0 : theme.spacing.sm};
+  flex: ${({ $viewMode }) => $viewMode === 'single-line' ? 1 : 'none'};
   min-width: 0;
 `;
 
@@ -232,7 +232,7 @@ const FolderMeta = styled.div<{ $viewMode?: ViewMode }>`
   gap: ${({ theme }) => theme.spacing.md};
   font-size: 0.85rem;
   color: ${({ theme }) => theme.colors.textSecondary};
-  margin-bottom: ${({ theme, $viewMode }) => $viewMode === 'one-line' ? 0 : theme.spacing.sm};
+  margin-bottom: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 0 : theme.spacing.sm};
   white-space: nowrap;
 `;
 
@@ -264,9 +264,9 @@ const FolderActions = styled.div<{ $viewMode?: ViewMode }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.xs};
-  margin-top: ${({ theme, $viewMode }) => $viewMode === 'one-line' ? 0 : theme.spacing.sm};
-  padding-top: ${({ theme, $viewMode }) => $viewMode === 'one-line' ? 0 : theme.spacing.sm};
-  border-top: ${({ theme, $viewMode }) => $viewMode === 'one-line' ? 'none' : `1px solid ${theme.colors.border}`};
+  margin-top: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 0 : theme.spacing.sm};
+  padding-top: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 0 : theme.spacing.sm};
+  border-top: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 'none' : `1px solid ${theme.colors.border}`};
 `;
 
 const PreviewContainer = styled.div`
@@ -335,7 +335,7 @@ const EmptyState = styled.div`
 `;
 
 type SortOption = 'last-edited' | 'name-asc' | 'name-desc' | 'created-asc' | 'created-desc' | 'last-commented';
-type ViewMode = 'one-line' | 'grid' | 'preview';
+type ViewMode = 'single-line' | 'grid' | 'preview';
 
 interface FolderListProps {
     currentFolderId: number | null;
@@ -355,7 +355,7 @@ export const FolderList: React.FC<FolderListProps> = ({
     );
     const [viewMode, setViewMode] = useState<ViewMode>(() => {
         const saved = localStorage.getItem('folder_viewMode');
-        if (saved === 'single-column') return 'one-line';
+        if (saved === "single-line" || saved === "one-line" || saved === "single-column") return 'single-line';
         if (saved === 'double-column') return 'grid';
         return (saved as ViewMode) || 'grid';
     });
@@ -588,7 +588,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         },
         empty: language === 'ko' ? '폴더가 없습니다.' : 'No folders yet.',
         viewMode: {
-            single: language === 'ko' ? '한 줄 보기' : 'One Line',
+            single: language === 'ko' ? '한 줄 보기' : 'Single Line',
             grid: language === 'ko' ? '그리드 보기' : 'Grid',
             preview: language === 'ko' ? '미리보기' : 'Preview',
         },
@@ -615,8 +615,8 @@ export const FolderList: React.FC<FolderListProps> = ({
                     <Title>{t.title}</Title>
                     <ViewModeRow>
                         <ViewModeButton
-                            $active={viewMode === 'one-line'}
-                            onClick={() => setViewMode('one-line')}
+                            $active={viewMode === 'single-line'}
+                            onClick={() => setViewMode('single-line')}
                             title={t.viewMode.single}
                         >
                             <FiList size={18} />
@@ -747,7 +747,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                                                 <span>{stats.count}{t.memoCount}</span>
                                             </FolderMeta>
 
-                                            {viewMode !== 'one-line' && (
+                                            {viewMode !== 'single-line' && (
                                                 <FolderBadges>
                                                     {folder.isReadOnly && (
                                                         <Badge $variant="warning">
