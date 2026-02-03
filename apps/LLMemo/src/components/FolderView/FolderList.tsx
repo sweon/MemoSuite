@@ -452,8 +452,8 @@ export const FolderList: React.FC<FolderListProps> = ({
             lastCommented: language === 'ko' ? '최근 댓글순' : 'Last Commented',
             nameAsc: language === 'ko' ? '이름순 (오름차순)' : 'Name (A-Z)',
             nameDesc: language === 'ko' ? '이름순 (내림차순)' : 'Name (Z-A)',
-            createdAsc: language === 'ko' ? '생성일 (오래된순)' : 'Created (Oldest)',
-            createdDesc: language === 'ko' ? '생성일 (최신순)' : 'Created (Newest)',
+            createdDesc: language === 'ko' ? '폴더 생성일 (최신순)' : 'Folder Created (Newest)',
+            createdAsc: language === 'ko' ? '폴더 생성일 (오래된순)' : 'Folder Created (Oldest)',
         },
         empty: language === 'ko' ? '폴더가 없습니다.' : 'No folders yet.',
     };
@@ -487,8 +487,8 @@ export const FolderList: React.FC<FolderListProps> = ({
                     <option value="last-commented">{t.sort.lastCommented}</option>
                     <option value="name-asc">{t.sort.nameAsc}</option>
                     <option value="name-desc">{t.sort.nameDesc}</option>
-                    <option value="created-asc">{t.sort.createdAsc}</option>
                     <option value="created-desc">{t.sort.createdDesc}</option>
+                    <option value="created-asc">{t.sort.createdAsc}</option>
                 </SortSelect>
             </SortRow>
 
