@@ -988,18 +988,35 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
 
     if (!isCCSettingsOpen) {
       try {
-        // Ensure module is loaded if we want to see tracks
-        if (!isCaptionsOn) {
-          player.loadModule('captions');
-        }
+        // Ensure module is loaded to populate tracks
+        player.loadModule('captions');
 
-        // Give it a tiny bit of time to initialize tracklist
-        setTimeout(() => {
-          const tracks = player.getOption('captions', 'tracklist') || [];
+        const fetchTracks = () => {
+          if (!playerRef.current) return;
+          const tracks = playerRef.current.getOption('captions', 'tracklist') || [];
           setCCTracks(tracks);
-          const currentTrack = player.getOption('captions', 'track');
+          const currentTrack = playerRef.current.getOption('captions', 'track');
           setActiveTrackCode(currentTrack?.languageCode || 'off');
-        }, 100);
+
+          // Also try to find Korean in auto-translation if not present in main tracks
+          const hasKorean = tracks.some((t: any) => t.languageCode === 'ko');
+          if (!hasKorean) {
+            try {
+              const transLangs = playerRef.current.getOption('captions', 'translationLanguages') || [];
+              const koTrans = transLangs.find((l: any) => l.languageCode === 'ko');
+              if (koTrans) {
+                // We add it to a separate state or just append to tracks for UI
+                // For simplicity, let's just make sure we can select it
+              }
+            } catch (e) { }
+          }
+        };
+
+        // Initial fetch + retries since it might take time for the module to fetch remote metadata
+        fetchTracks();
+        setTimeout(fetchTracks, 300);
+        setTimeout(fetchTracks, 1000);
+        setTimeout(fetchTracks, 3000);
       } catch (err) {
         console.error('Failed to get tracks', err);
       }
@@ -1418,7 +1435,13 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
                             playerRef.current?.loadModule('captions');
                             setIsCaptionsOn(true);
                           }
-                          playerRef.current?.setOption('captions', 'track', { languageCode: code });
+
+                          // Check if it's an auto-translate request (e.g. 'ko-auto')
+                          if (code === 'ko-auto') {
+                            playerRef.current?.setOption('captions', 'track', { languageCode: 'ko', translationLanguage: { languageCode: 'ko' } });
+                          } else {
+                            playerRef.current?.setOption('captions', 'track', { languageCode: code });
+                          }
                           applyCaptionStyles();
                         }
                         setIsCCSettingsOpen(false);
@@ -1444,9 +1467,15 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
                           value={track.languageCode}
                           style={{ background: '#1c1c1c' }}
                         >
-                          {track.displayName}
+                          {track.displayName} {track.kind === 'asr' ? `(${language === 'ko' ? '자동 생성' : 'auto-generated'})` : ''}
                         </option>
                       ))}
+                      {/* Add Korean Auto-translate option if Korean is not a direct track but available in translations */}
+                      {!ccTracks.some((t: any) => t.languageCode === 'ko' || t.languageCode === 'ko-KR') && (
+                        <option value="ko-auto" style={{ background: '#1c1c1c' }}>
+                          {language === 'ko' ? '한국어 (자동 번역)' : 'Korean (auto-translate)'}
+                        </option>
+                      )}
                     </select>
                   ) : (
                     <div style={{ fontSize: '11px', color: '#666', padding: '4px 8px' }}>
