@@ -170,6 +170,11 @@ const FolderCard = styled.div<{ $viewMode: ViewMode; $isActive?: boolean; $isRea
   box-sizing: border-box;
   overflow: hidden;
 
+  @media (max-width: 480px) {
+    padding: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? '8px 12px' : theme.spacing.md};
+    gap: ${({ $viewMode, theme }) => $viewMode === 'single-line' ? theme.spacing.sm : 0};
+  }
+
   ${({ $isReadOnly, theme }) => $isReadOnly && `
     background: ${theme.colors.background};
     border-style: dashed;
@@ -189,6 +194,10 @@ const FolderHeader = styled.div<{ $viewMode?: ViewMode }>`
   margin-bottom: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 0 : theme.spacing.sm};
   flex: ${({ $viewMode }) => $viewMode === 'single-line' ? 1 : 'none'};
   min-width: 0;
+
+  @media (max-width: 480px) {
+    gap: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? theme.spacing.xs : theme.spacing.sm};
+  }
 `;
 
 const FolderIcon = styled.div<{ $viewMode?: ViewMode; $isReadOnly?: boolean }>`
@@ -205,6 +214,15 @@ const FolderIcon = styled.div<{ $viewMode?: ViewMode; $isReadOnly?: boolean }>`
   svg {
     width: ${({ $viewMode }) => $viewMode === 'single-line' ? '16px' : '20px'};
     height: ${({ $viewMode }) => $viewMode === 'single-line' ? '16px' : '20px'};
+  }
+
+  @media (max-width: 480px) {
+    width: ${({ $viewMode }) => $viewMode === 'single-line' ? '24px' : '32px'};
+    height: ${({ $viewMode }) => $viewMode === 'single-line' ? '24px' : '32px'};
+    svg {
+      width: ${({ $viewMode }) => $viewMode === 'single-line' ? '14px' : '16px'};
+      height: ${({ $viewMode }) => $viewMode === 'single-line' ? '14px' : '16px'};
+    }
   }
 `;
 
@@ -281,6 +299,10 @@ const FolderActions = styled.div<{ $viewMode?: ViewMode }>`
   padding-top: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 0 : theme.spacing.sm};
   border-top: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? 'none' : `1px solid ${theme.colors.border}`};
   flex-shrink: 0;
+
+  @media (max-width: 480px) {
+    gap: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? '2px' : theme.spacing.xs};
+  }
 `;
 
 const PreviewContainer = styled.div`
@@ -325,6 +347,10 @@ const ActionButton = styled.button<{ $variant?: 'danger' | 'success' }>`
                 theme.colors.textSecondary};
   cursor: pointer;
   transition: all 0.2s;
+
+  @media (max-width: 480px) {
+    padding: 4px;
+  }
 
   &:hover {
     background: ${({ theme }) => theme.colors.background};
