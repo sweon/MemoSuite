@@ -81,6 +81,9 @@ export const mergeBackupData = async (data: any) => {
         const memoIdMap = new Map<number, number>();
 
         // Merge Memos
+        const defaultFolder = await db.folders.toCollection().first();
+        const defaultFolderId = defaultFolder?.id;
+
         for (const l of memos) {
             const oldId = l.id;
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
@@ -95,6 +98,11 @@ export const mergeBackupData = async (data: any) => {
                 const { id, ...memoData } = l;
                 memoData.createdAt = createdAt;
                 memoData.updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
+
+                // Ensure data has a folderId
+                if (!memoData.folderId) {
+                    memoData.folderId = defaultFolderId;
+                }
 
                 // Remove bookId if present as we are detaching from books
                 delete memoData.bookId;

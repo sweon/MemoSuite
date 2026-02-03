@@ -4,6 +4,7 @@ import { Sidebar } from '../Sidebar/Sidebar';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { FiMenu, FiSave } from 'react-icons/fi';
 import { metadataCache, useColorTheme, useLanguage, useModal } from '@memosuite/shared';
+import { useFolder } from '../../contexts/FolderContext';
 import { db } from '../../db';
 
 const cleanImageUrl = (url: string): string => {
@@ -633,6 +634,7 @@ const MAX_WIDTH_MOBILE = Math.min(450, window.innerWidth * 0.95);
 export const MainLayout: React.FC = () => {
   const { theme } = useColorTheme();
   const { language } = useLanguage();
+  const { currentFolderId } = useFolder();
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -825,6 +827,7 @@ export const MainLayout: React.FC = () => {
 
       const now = new Date();
       const newId = await db.memos.add({
+        folderId: currentFolderId || undefined,
         title: title || '붙여넣은 메모',
         content: content,
         tags: [],
@@ -966,6 +969,7 @@ export const MainLayout: React.FC = () => {
 
         const now = new Date();
         const newId = await db.memos.add({
+          folderId: currentFolderId || undefined,
           title: identifiedTitle,
           content: finalContent,
           tags: [],
@@ -1082,6 +1086,7 @@ export const MainLayout: React.FC = () => {
           if (content) {
             const now = new Date();
             const newId = await db.memos.add({
+              folderId: currentFolderId || undefined,
               title: title || '공유된 메모',
               content: content,
               tags: [],
@@ -1178,6 +1183,7 @@ export const MainLayout: React.FC = () => {
         // Create and save the memo immediately, then navigate to preview
         const now = new Date();
         const newId = await db.memos.add({
+          folderId: currentFolderId || undefined,
           title: title || '공유된 메모',
           content,
           tags: [],
@@ -1270,6 +1276,7 @@ export const MainLayout: React.FC = () => {
         // Create and save the memo
         const now = new Date();
         const newId = await db.memos.add({
+          folderId: currentFolderId || undefined,
           title: title || '공유된 메모',
           content,
           tags: [],

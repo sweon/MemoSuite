@@ -108,14 +108,49 @@ export class LLMLogDatabase extends Dexie {
 
             await logsTable.toCollection().modify({ folderId: defaultFolderId });
         });
+        // Version 8: Ensure all existing logs have a folderId
+        this.version(8).stores({}).upgrade(async tx => {
+            const foldersTable = tx.table('folders');
+            const logsTable = tx.table('logs');
+
+            let defaultFolder = await foldersTable.toCollection().first();
+            if (!defaultFolder) {
+                const now = new Date();
+                const id = await foldersTable.add({
+                    name: '기본 폴더',
+                    isReadOnly: false,
+                    excludeFromGlobalSearch: false,
+                    createdAt: now,
+                    updatedAt: now
+                }) as number;
+                defaultFolder = { id };
+            }
+
+            // Update logs that don't have a folderId
+            await logsTable.toCollection().modify((log: Log) => {
+                if (!log.folderId) {
+                    log.folderId = defaultFolder.id;
+                }
+            });
+        });
     }
 }
 
 export const db = new LLMLogDatabase();
 
-// Seed default model if not exists
+// Seed default data if not exists
 db.on('populate', () => {
+    const now = new Date();
+    db.folders.add({
+        name: '기본 폴더',
+        isReadOnly: false,
+        excludeFromGlobalSearch: false,
+        createdAt: now,
+        updatedAt: now
+    });
+
     db.models.add({ name: 'GPT-4', isDefault: true });
     db.models.add({ name: 'Claude 3.5 Sonnet' });
     db.models.add({ name: 'Gemini 1.5 Pro' });
 });
+

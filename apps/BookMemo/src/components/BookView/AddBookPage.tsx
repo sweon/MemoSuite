@@ -6,6 +6,7 @@ import { db } from '../../db';
 import { FiCheck, FiCalendar, FiArrowLeft } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useFolder } from '../../contexts/FolderContext';
 
 const Container = styled.div`
   max-width: 1000px;
@@ -169,6 +170,7 @@ const formatDate = (date: Date) => {
 export const AddBookPage: React.FC = () => {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
+  const { currentFolderId } = useFolder();
 
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
@@ -176,6 +178,7 @@ export const AddBookPage: React.FC = () => {
   const [startDate, setStartDate] = useState(
     language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDate(new Date())
   );
+
 
   const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>() || {};
 
@@ -208,6 +211,7 @@ export const AddBookPage: React.FC = () => {
 
     try {
       const id = await db.books.add({
+        folderId: currentFolderId || undefined,
         title: title.trim(),
         author: author.trim(),
         totalPages: parseInt(totalPages, 10),

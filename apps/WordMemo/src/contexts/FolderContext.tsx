@@ -27,10 +27,25 @@ export const FolderProvider: React.FC<FolderProviderProps> = ({ children }) => {
 
     // Ensure we have a valid folder selected
     useEffect(() => {
-        if (folders && folders.length > 0) {
-            if (currentFolderId === null || !folders.find(f => f.id === currentFolderId)) {
-                // Select the first folder as default
-                setCurrentFolderIdState(folders[0].id!);
+        if (folders) {
+            if (folders.length > 0) {
+                if (currentFolderId === null || !folders.find(f => f.id === currentFolderId)) {
+                    // Select the first folder as default
+                    setCurrentFolderIdState(folders[0].id!);
+                }
+            } else if (folders.length === 0) {
+                // Auto-create a default folder if none exist
+                const createDefault = async () => {
+                    const now = new Date();
+                    await db.folders.add({
+                        name: localStorage.getItem('wordmemo_language') === 'ko' ? '기본 폴더' : 'Default Folder',
+                        isReadOnly: false,
+                        excludeFromGlobalSearch: false,
+                        createdAt: now,
+                        updatedAt: now
+                    });
+                };
+                createDefault();
             }
         }
     }, [folders, currentFolderId]);

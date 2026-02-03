@@ -162,6 +162,15 @@ export const db = new WordMemoDatabase();
 
 // Seed default data if not exists
 db.on('populate', () => {
+    const now = new Date();
+    db.folders.add({
+        name: '기본 폴더',
+        isReadOnly: false,
+        excludeFromGlobalSearch: false,
+        createdAt: now,
+        updatedAt: now
+    });
+
     db.sources.add({ name: 'Oxford Dictionary', isDefault: true, order: 0 });
     db.sources.add({ name: 'Random', order: 1 });
     db.sources.add({ name: 'GPT-4', order: 2 });
@@ -173,3 +182,30 @@ db.on('populate', () => {
     db.llmProviders.add({ name: 'Perplexity', url: 'https://www.perplexity.ai/', order: 3 });
     db.llmProviders.add({ name: 'Grok', url: 'https://grok.com/', order: 4 });
 });
+
+// Version 11: Ensure all existing words have a folderId
+db.version(11).stores({}).upgrade(async tx => {
+    const foldersTable = tx.table('folders');
+    const wordsTable = tx.table('words');
+
+    let defaultFolder = await foldersTable.toCollection().first();
+    if (!defaultFolder) {
+        const now = new Date();
+        const id = await foldersTable.add({
+            name: '기본 폴더',
+            isReadOnly: false,
+            excludeFromGlobalSearch: false,
+            createdAt: now,
+            updatedAt: now
+        }) as number;
+        defaultFolder = { id };
+    }
+
+    // Update words that don't have a folderId
+    await wordsTable.toCollection().modify(word => {
+        if (!word.folderId) {
+            word.folderId = defaultFolder.id;
+        }
+    });
+});
+

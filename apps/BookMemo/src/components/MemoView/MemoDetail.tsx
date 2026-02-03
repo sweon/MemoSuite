@@ -6,6 +6,7 @@ import { useParams, useNavigate, useSearchParams, useOutletContext } from 'react
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CommentDraft } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
+import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
@@ -383,6 +384,7 @@ export const MemoDetail: React.FC = () => {
         setCommentDraft(null);
         setIsEditingInternal(!id);
     }
+    const { currentFolderId } = useFolder();
     const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>() || {};
 
 
@@ -754,6 +756,7 @@ export const MemoDetail: React.FC = () => {
             setIsEditing(false);
         } else {
             const newId = await db.memos.add({
+                folderId: currentFolderId || undefined,
                 bookId: targetBookId,
                 title: finalTitle,
                 content,

@@ -31,6 +31,9 @@ function AppContent() {
       const orphaned = await db.autosaves.filter(a => a.originalId === undefined).toArray();
       if (orphaned.length === 0) return;
 
+      const folders = await db.folders.toArray();
+      const defaultFolderId = folders[0]?.id;
+
       for (const draft of orphaned) {
         if (!draft.content.trim() && !draft.title.trim() && !draft.commentDraft) {
           await db.autosaves.delete(draft.id!);
@@ -41,6 +44,7 @@ function AppContent() {
         const finalTitle = draft.title.trim() || `(Recovered) ${now.toLocaleString()}`;
 
         await db.memos.add({
+          folderId: defaultFolderId,
           bookId: draft.bookId,
           title: finalTitle,
           content: draft.content,

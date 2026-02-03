@@ -176,3 +176,49 @@ export class BookMemoDatabase extends Dexie {
 }
 
 export const db = new BookMemoDatabase();
+
+// Seed default data if not exists
+db.on('populate', () => {
+    const now = new Date();
+    db.folders.add({
+        name: '기본 폴더',
+        isReadOnly: false,
+        excludeFromGlobalSearch: false,
+        createdAt: now,
+        updatedAt: now
+    });
+});
+
+// Version 12: Ensure all existing books and memos have a folderId
+db.version(12).stores({}).upgrade(async tx => {
+    const foldersTable = tx.table('folders');
+    const booksTable = tx.table('books');
+    const memosTable = tx.table('memos');
+
+    let defaultFolder = await foldersTable.toCollection().first();
+    if (!defaultFolder) {
+        const now = new Date();
+        const id = await foldersTable.add({
+            name: '기본 폴더',
+            isReadOnly: false,
+            excludeFromGlobalSearch: false,
+            createdAt: now,
+            updatedAt: now
+        }) as number;
+        defaultFolder = { id };
+    }
+
+    // Update books that don't have a folderId
+    await booksTable.toCollection().modify((book: Book) => {
+        if (!book.folderId) {
+            book.folderId = defaultFolder.id;
+        }
+    });
+
+    // Update memos that don't have a folderId
+    await memosTable.toCollection().modify((memo: Memo) => {
+        if (!memo.folderId) {
+            memo.folderId = defaultFolder.id;
+        }
+    });
+});

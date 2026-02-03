@@ -299,7 +299,7 @@ export const MemoDetail: React.FC = () => {
     });
 
     // Folder context for read-only mode
-    const { currentFolder } = useFolder();
+    const { currentFolder, currentFolderId } = useFolder();
     const isCurrentFolderReadOnly = currentFolder?.isReadOnly ?? false;
 
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -744,7 +744,7 @@ export const MemoDetail: React.FC = () => {
             setIsEditing(false);
         } else {
             const newId = await db.memos.add({
-                // bookId is optional now
+                folderId: currentFolderId || undefined,
                 title: finalTitle,
                 content: currentContent,
                 tags: tagArray,
@@ -785,6 +785,7 @@ export const MemoDetail: React.FC = () => {
 
             // Create new memo in thread
             const newMemoId = await db.memos.add({
+                folderId: memo.folderId, // Inherit folder
                 title: '', // Empty title implies continuation
                 content: '',
                 tags: memo.tags, // Inherit tags

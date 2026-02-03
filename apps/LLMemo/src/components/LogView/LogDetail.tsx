@@ -231,7 +231,7 @@ export const LogDetail: React.FC = () => {
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
-    const { currentFolder } = useFolder();
+    const { currentFolder, currentFolderId } = useFolder();
     const isReadOnly = currentFolder?.isReadOnly || false;
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
@@ -520,6 +520,7 @@ export const LogDetail: React.FC = () => {
             }
         } else {
             const newId = await db.logs.add({
+                folderId: currentFolderId || undefined,
                 title: title || t.log_detail.untitled,
                 content,
                 tags: tagArray,
@@ -627,6 +628,7 @@ export const LogDetail: React.FC = () => {
 
             // Create new log in thread
             const newLogId = await db.logs.add({
+                folderId: log.folderId, // Inherit folder
                 title: '', // Empty title implies continuation
                 content: '',
                 tags: log.tags, // Inherit tags

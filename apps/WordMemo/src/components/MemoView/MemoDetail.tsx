@@ -264,7 +264,7 @@ export const MemoDetail: React.FC = () => {
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
-    const { currentFolder } = useFolder();
+    const { currentFolder, currentFolderId } = useFolder();
     const isReadOnly = currentFolder?.isReadOnly || false;
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
@@ -645,6 +645,7 @@ export const MemoDetail: React.FC = () => {
             setIsEditing(false);
         } else {
             const newId = await db.words.add({
+                folderId: currentFolderId || undefined,
                 title: derivedTitle,
                 content,
                 tags: tagArray,
@@ -754,6 +755,7 @@ export const MemoDetail: React.FC = () => {
 
             // Create new log in thread
             const newLogId = await db.words.add({
+                folderId: log.folderId, // Inherit folder
                 title: '', // Empty title implies continuation
                 content: '',
                 tags: log.tags, // Inherit tags

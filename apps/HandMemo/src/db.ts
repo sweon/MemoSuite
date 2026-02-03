@@ -115,7 +115,47 @@ export class HandMemoDatabase extends Dexie {
             });
 
             // Update all existing memos to belong to the default folder
-            await memosTable.toCollection().modify({ folderId: defaultFolderId });
+            if (memosTable) {
+                await memosTable.toCollection().modify({ folderId: defaultFolderId });
+            }
+        });
+
+        // Seed default data if not exists (Fresh install)
+        this.on('populate', () => {
+            const now = new Date();
+            this.folders.add({
+                name: '기본 폴더',
+                isReadOnly: false,
+                excludeFromGlobalSearch: false,
+                createdAt: now,
+                updatedAt: now
+            });
+        });
+
+        // Version 11: Ensure all existing memos have a folderId
+        this.version(11).stores({}).upgrade(async tx => {
+            const foldersTable = tx.table('folders');
+            const memosTable = tx.table('memos');
+
+            let defaultFolder = await foldersTable.toCollection().first();
+            if (!defaultFolder) {
+                const now = new Date();
+                const id = await foldersTable.add({
+                    name: '기본 폴더',
+                    isReadOnly: false,
+                    excludeFromGlobalSearch: false,
+                    createdAt: now,
+                    updatedAt: now
+                }) as number;
+                defaultFolder = { id };
+            }
+
+            // Update memos that don't have a folderId
+            await memosTable.toCollection().modify(memo => {
+                if (!memo.folderId) {
+                    memo.folderId = defaultFolder.id;
+                }
+            });
         });
     }
 }
