@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { Sidebar } from '../Sidebar/Sidebar';
+import { Sidebar, type SidebarRef } from '../Sidebar/Sidebar';
 import { Outlet, useLocation } from 'react-router-dom';
+import { DragDropContext, type DropResult, type DragUpdate } from '@hello-pangea/dnd';
 import { FiMenu } from 'react-icons/fi';
 
 const Container = styled.div<{ $isResizing: boolean }>`
@@ -141,6 +142,7 @@ export const MainLayout: React.FC = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [isAppEditing, setAppIsEditing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<SidebarRef>(null);
   const longPressTimer = useRef<any>(null);
 
   const startResizing = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -216,26 +218,40 @@ export const MainLayout: React.FC = () => {
     }
   }, [location.pathname]);
 
+  const handleDragEnd = async (result: DropResult) => {
+    if (sidebarRef.current) {
+      await sidebarRef.current.handleDragEnd(result);
+    }
+  };
+
+  const handleDragUpdate = (update: DragUpdate) => {
+    if (sidebarRef.current) {
+      sidebarRef.current.handleDragUpdate(update);
+    }
+  };
+
   return (
-    <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
-      <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
-      <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
-        <Sidebar onCloseMobile={() => setSidebarOpen(false)} isEditing={isAppEditing || isDirty} />
-        {/* Resize handle - always attached to the right edge of sidebar */}
-        <ResizeHandle
-          $isResizing={isResizing}
-          onMouseDown={startResizing}
-          onTouchStart={startResizing}
-          onTouchEnd={stopResizing}
-        />
-      </SidebarWrapper>
-      <ContentWrapper id="app-content-wrapper-area">
-        <MobileHeader>
-          <FiMenu size={24} onClick={() => setSidebarOpen(true)} />
-          <h3>LLMemo</h3>
-        </MobileHeader>
-        <Outlet context={{ setIsDirty, setAppIsEditing }} />
-      </ContentWrapper>
-    </Container>
+    <DragDropContext onDragEnd={handleDragEnd} onDragUpdate={handleDragUpdate}>
+      <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
+        <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
+        <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
+          <Sidebar ref={sidebarRef} onCloseMobile={() => setSidebarOpen(false)} isEditing={isAppEditing || isDirty} />
+          {/* Resize handle - always attached to the right edge of sidebar */}
+          <ResizeHandle
+            $isResizing={isResizing}
+            onMouseDown={startResizing}
+            onTouchStart={startResizing}
+            onTouchEnd={stopResizing}
+          />
+        </SidebarWrapper>
+        <ContentWrapper id="app-content-wrapper-area">
+          <MobileHeader>
+            <FiMenu size={24} onClick={() => setSidebarOpen(true)} />
+            <h3>LLMemo</h3>
+          </MobileHeader>
+          <Outlet context={{ setIsDirty, setAppIsEditing }} />
+        </ContentWrapper>
+      </Container>
+    </DragDropContext>
   );
 };

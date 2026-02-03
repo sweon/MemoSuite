@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
+import { Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -225,7 +226,11 @@ const AppVersion = styled.span`
   border: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = false }) => {
+export interface SidebarRef {
+  handleDragEnd: (result: DropResult) => Promise<void>;
+}
+
+export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-comment-desc'>('date-desc');
@@ -234,6 +239,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
   const { currentFolderId } = useFolder();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const onDragEnd = async (result: DropResult) => {
+    const { draggableId, destination } = result;
+    if (!destination) return;
+
+    // Check if dropping onto a folder
+    if (destination.droppableId.startsWith('folder-')) {
+      const folderId = parseInt(destination.droppableId.replace('folder-', ''));
+      if (isNaN(folderId)) return;
+
+      const bookId = parseInt(draggableId);
+      if (isNaN(bookId)) return;
+
+      await db.books.update(bookId, { folderId, updatedAt: new Date() });
+      setToastMessage(language === 'ko' ? '책을 이동했습니다.' : 'Moved book.');
+      return;
+    }
+  };
+
+  useImperativeHandle(ref, () => ({
+    handleDragEnd: async (result: DropResult) => {
+      await onDragEnd(result);
+    }
+  }));
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -542,17 +571,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
           </TopActions>
         </Header>
 
-        <BookList style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
-          {sortedBooks?.map(book => (
-            <SidebarBookItem
-              key={book.id}
-              book={book}
-              memos={allMemos?.filter(m => m.bookId === book.id) || []}
-              onClick={onCloseMobile}
-              onSafeNavigate={handleSafeNavigation}
-            />
-          ))}
-        </BookList>
+        <Droppable droppableId="sidebar-books" type="BOOK">
+          {(provided) => (
+            <BookList
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}
+            >
+              {sortedBooks?.map((book, index) => (
+                <Draggable key={book.id} draggableId={String(book.id)} index={index}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                      style={{ ...provided.draggableProps.style }}
+                    >
+                      <SidebarBookItem
+                        book={book}
+                        memos={allMemos?.filter(m => m.bookId === book.id) || []}
+                        onClick={onCloseMobile}
+                        onSafeNavigate={handleSafeNavigation}
+                      />
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </BookList>
+          )}
+        </Droppable>
       </ScrollableArea>
 
       <ConfirmModal
@@ -576,4 +624,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
 
     </SidebarContainer >
   );
-};
+});
+
+Sidebar.displayName = 'Sidebar';

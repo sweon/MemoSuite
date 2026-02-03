@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { Sidebar } from '../Sidebar/Sidebar';
+import { Sidebar, type SidebarRef } from '../Sidebar/Sidebar';
 import { Outlet, useLocation } from 'react-router-dom';
+import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { FiMenu } from 'react-icons/fi';
 
 const Container = styled.div<{ $isResizing: boolean }>`
@@ -138,6 +139,7 @@ export const MainLayout: React.FC = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [isAppEditing, setAppIsEditing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<SidebarRef>(null);
   const longPressTimer = useRef<any>(null);
 
   // Track mobile state
@@ -250,26 +252,34 @@ export const MainLayout: React.FC = () => {
   // - Mobile: only when sidebar is open
   const isResizeHandleVisible = !isMobile || isSidebarOpen;
 
+  const handleDragEnd = async (result: DropResult) => {
+    if (sidebarRef.current) {
+      await sidebarRef.current.handleDragEnd(result);
+    }
+  };
+
   return (
-    <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
-      <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
-      <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
-        <Sidebar onCloseMobile={(skip) => toggleSidebar(false, skip)} isEditing={isAppEditing || isDirty} />
-        <ResizeHandle
-          $isResizing={isResizing}
-          $isVisible={isResizeHandleVisible}
-          onMouseDown={startResizing}
-          onTouchStart={startResizing}
-          onTouchEnd={stopResizing}
-        />
-      </SidebarWrapper>
-      <ContentWrapper id="app-content-wrapper-area">
-        <MobileHeader>
-          {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
-          <h3>BookMemo</h3>
-        </MobileHeader>
-        <Outlet context={{ setIsDirty, setAppIsEditing }} />
-      </ContentWrapper>
-    </Container>
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
+        <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
+        <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
+          <Sidebar ref={sidebarRef} onCloseMobile={(skip) => toggleSidebar(false, skip)} isEditing={isAppEditing || isDirty} />
+          <ResizeHandle
+            $isResizing={isResizing}
+            $isVisible={isResizeHandleVisible}
+            onMouseDown={startResizing}
+            onTouchStart={startResizing}
+            onTouchEnd={stopResizing}
+          />
+        </SidebarWrapper>
+        <ContentWrapper id="app-content-wrapper-area">
+          <MobileHeader>
+            {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
+            <h3>BookMemo</h3>
+          </MobileHeader>
+          <Outlet context={{ setIsDirty, setAppIsEditing }} />
+        </ContentWrapper>
+      </Container>
+    </DragDropContext>
   );
 };

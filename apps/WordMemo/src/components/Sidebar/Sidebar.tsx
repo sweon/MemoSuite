@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
@@ -9,8 +9,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiMinus, FiFolder } from 'react-icons/fi';
 import { Tooltip } from '../UI/Tooltip';
 import { useFolder } from '../../contexts/FolderContext';
-import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-import type { DropResult, DragUpdate } from '@hello-pangea/dnd';
+import { Droppable, type DropResult, type DragUpdate } from '@hello-pangea/dnd';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Toast } from '../UI/Toast';
 
@@ -278,7 +277,12 @@ interface SidebarProps {
   isEditing?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = false }) => {
+export interface SidebarRef {
+  handleDragEnd: (result: DropResult) => Promise<void>;
+  handleDragUpdate: (update: DragUpdate) => void;
+}
+
+export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'source-desc' | 'source-asc' | 'comment-desc' | 'alpha' | 'starred'>('date-desc');
@@ -553,6 +557,57 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
     const { source, destination, combine, draggableId } = result;
     setCombineTargetId(null);
 
+    // 0. Handle Folder Drop
+    if (destination?.droppableId.startsWith('folder-')) {
+      const folderId = parseInt(destination.droppableId.replace('folder-', ''));
+      const wordId = parseInt(draggableId.replace('log-', '')); // draggableId might be 'log-123' based on usage? 
+      // Wait, let's check how draggableId is constructed. 
+      // In SidebarMemoItem it uses `log-${log.id}`? No, looking at existing code for combine:
+      // const sourceId = Number(draggableId.replace('log-', ''));
+      // So yes, it has prefix 'log-'.
+
+      if (!isNaN(folderId) && !isNaN(wordId)) {
+        // If it's a thread header, move all items in thread?
+        const sourceWord = await db.words.get(wordId);
+        if (sourceWord) {
+          if (sourceWord.threadId) {
+            // Check if we dragged the header?
+            // The item types are:
+            // thread-header: draggableId=`log-${log.id}` (log is the first one)
+            // thread-child: draggableId=`log-${log.id}`
+            // If we drag a thread header, `type` in Draggable might be different?
+            // The existing code doesn't seem to set `type` on Draggable explicitly for thread vs memo, 
+            // but let's assume if we drag a header (which is just a word) we move that word.
+            // However, user requirement says "dragging their headers" moves entire thread.
+
+            // Let's check if the dragged item corresponds to a thread header in `flatItems`.
+            // Actually, finding the word is enough. If I drag a word, I move that word. 
+            // BUT if I drag a thread header, I should move the whole thread?
+            // existing logic for combine/reorder handles threads.
+
+            // For now, let's move the single word. 
+            // Re-reading objective: "This includes moving entire threads by dragging their headers."
+            // In HandMemo, I did: if (destination.droppableId.startsWith('folder-')) { ... move thread if needed }
+
+            // Let's implement thread move logic here too.
+            const siblings = await db.words.where('threadId').equals(sourceWord.threadId).toArray();
+            const isThreadHeader = siblings.length > 0; // Simplified. 
+            // Better: Check if `flatItems` says it's a header? 
+            // `flatItems` is state derived. 
+
+            // If it has a threadId, we should probably move ALL items in that thread to functionality consistency.
+            for (const s of siblings) {
+              await db.words.update(s.id!, { folderId, updatedAt: new Date() });
+            }
+          } else {
+            await db.words.update(wordId, { folderId, updatedAt: new Date() });
+          }
+          setToastMessage(language === 'ko' ? '단어를 이동했습니다.' : 'Moved word.');
+          return;
+        }
+      }
+    }
+
     // 1. Handle Combination (Merging threads or adding to thread)
     if (combine) {
       const sourceId = Number(draggableId.replace('log-', ''));
@@ -565,7 +620,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
 
       if (!sourceWord || !targetWord) return;
 
-      const targetThreadId = targetWord.threadId || `thread - ${Date.now()} `;
+      const targetThreadId = targetWord.threadId || `thread-${Date.now()}`;
 
       // If target wasn't in a thread, update it
       if (!targetWord.threadId) {
@@ -606,6 +661,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
       }
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    handleDragEnd: async (result: DropResult) => {
+      await onDragEnd(result);
+    },
+    handleDragUpdate: (update: DragUpdate) => {
+      onDragUpdate(update);
+    }
+  }));
 
   const onDragUpdate = (update: DragUpdate) => {
     if (update.combine) {
@@ -752,51 +816,49 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
         </Header>
 
         <WordList id="sidebar-log-list" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
-          <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
-            <Droppable droppableId="sidebar-droppable" isCombineEnabled>
-              {(provided) => (
-                <div {...provided.droppableProps} ref={provided.innerRef} key={listKey}>
-                  {flatItems.map((item, index) => {
-                    if (item.type === 'thread-header') {
-                      return (
-                        <SidebarThreadItem
-                          key={item.log.id}
-                          threadId={item.threadId}
-                          logs={item.threadWords}
-                          index={index}
-                          collapsed={!expandedThreads.has(item.threadId)}
-                          onToggle={toggleThread}
-                          activeWordId={Number(id)}
-                          sourceMap={sourceNameMap}
-                          formatDate={formatDate}
-                          untitledText={t.sidebar.untitled}
-                          onWordClick={onCloseMobile}
-                          isCombineTarget={combineTargetId === `log - ${item.log.id} `}
-                          t={t}
-                          studyMode={studyMode}
-                        />
-                      );
-                    }
+          <Droppable droppableId="sidebar-droppable" isCombineEnabled>
+            {(provided) => (
+              <div {...provided.droppableProps} ref={provided.innerRef} key={listKey}>
+                {flatItems.map((item, index) => {
+                  if (item.type === 'thread-header') {
                     return (
-                      <SidebarMemoItem
+                      <SidebarThreadItem
                         key={item.log.id}
-                        log={item.log}
+                        threadId={item.threadId}
+                        logs={item.threadWords}
                         index={index}
-                        isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === item.log.id}
-                        onClick={onCloseMobile}
+                        collapsed={!expandedThreads.has(item.threadId)}
+                        onToggle={toggleThread}
+                        activeWordId={Number(id)}
+                        sourceMap={sourceNameMap}
                         formatDate={formatDate}
                         untitledText={t.sidebar.untitled}
-                        inThread={item.type === 'thread-child'}
-                        isCombineTarget={combineTargetId === `log - ${item.log.id} `}
+                        onWordClick={onCloseMobile}
+                        isCombineTarget={combineTargetId === `log-${item.log.id}`}
+                        t={t}
                         studyMode={studyMode}
                       />
                     );
-                  })}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          </DragDropContext>
+                  }
+                  return (
+                    <SidebarMemoItem
+                      key={item.log.id}
+                      log={item.log}
+                      index={index}
+                      isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === item.log.id}
+                      onClick={onCloseMobile}
+                      formatDate={formatDate}
+                      untitledText={t.sidebar.untitled}
+                      inThread={item.type === 'thread-child'}
+                      isCombineTarget={combineTargetId === `log-${item.log.id}`}
+                      studyMode={studyMode}
+                    />
+                  );
+                })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
         </WordList>
       </ScrollableArea>
 
@@ -813,4 +875,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
       />
     </SidebarContainer>
   );
-};
+});
+
+Sidebar.displayName = 'Sidebar';

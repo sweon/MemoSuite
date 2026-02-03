@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { SyncModal, ThreadableList, useColorTheme, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
@@ -209,7 +209,12 @@ interface SidebarProps {
   isEditing?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = false }) => {
+export interface SidebarRef {
+  handleDragEnd: (result: DropResult) => Promise<void>;
+  handleDragUpdate: (update: DragUpdate) => void;
+}
+
+export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'model-desc' | 'model-asc' | 'comment-desc'>('date-desc');
@@ -461,11 +466,65 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
   }, [id, flatItems.length]);
 
   const onDragUpdate = (update: DragUpdate) => {
-    onDragUpdate?.(update);
+    // onDragUpdate?.(update); // Original was calling undefined prop? Or just typo? 
+    // In LLMemo original code: 
+    // const onDragUpdate = (update: DragUpdate) => { onDragUpdate?.(update); }; 
+    // Whatever, we just need to handle it or expose it.
+    // ThreadableList might handle it internally? 
+    // Actually, we need to expose it for MainLayout.
   };
+
+  useImperativeHandle(ref, () => ({
+    handleDragEnd: async (result: DropResult) => {
+      await onDragEnd(result);
+    },
+    handleDragUpdate: (update: DragUpdate) => {
+      onDragUpdate(update);
+    }
+  }));
 
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, combine, draggableId } = result;
+
+    if (destination?.droppableId.startsWith('folder-')) {
+      const folderId = parseInt(destination.droppableId.replace('folder-', ''));
+      const logId = parseInt(draggableId.replace('log-', '')); // Adjust if draggableId format differs
+      // ThreadableList usually uses itemId as draggableId. 
+      // check getItemId: if single -> log.id, if header -> `thread-header-${id}`, etc.
+
+      if (!isNaN(folderId)) {
+        // Parse the draggableId correctly
+        let targetLogId: number | null = null;
+        let isThreadHeader = false;
+
+        if (draggableId.startsWith('thread-header-')) {
+          targetLogId = Number(draggableId.replace('thread-header-', ''));
+          isThreadHeader = true;
+        } else if (draggableId.startsWith('thread-child-')) {
+          targetLogId = Number(draggableId.replace('thread-child-', ''));
+        } else {
+          targetLogId = Number(draggableId);
+        }
+
+        if (targetLogId && !isNaN(targetLogId)) {
+          const log = await db.logs.get(targetLogId);
+          if (log) {
+            if (isThreadHeader && log.threadId) {
+              // Move entire thread
+              const siblings = await db.logs.where('threadId').equals(log.threadId).toArray();
+              for (const s of siblings) {
+                await db.logs.update(s.id!, { folderId, updatedAt: new Date() });
+              }
+            } else {
+              // Move single log
+              await db.logs.update(targetLogId, { folderId, updatedAt: new Date() });
+            }
+            setToastMessage(language === 'ko' ? '로그를 이동했습니다.' : 'Moved log.');
+            return;
+          }
+        }
+      }
+    }
 
     const parseLogId = (dId: string) => {
       if (dId.startsWith('thread-header-')) return Number(dId.replace('thread-header-', ''));
@@ -691,6 +750,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
         </Header>
 
         <ThreadableList
+          useExternalContext={true}
           items={flatItems}
           droppableId="root"
           type="LOG_LIST"
@@ -777,4 +837,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
       }
     </SidebarContainer >
   );
-};
+});
+
+Sidebar.displayName = 'Sidebar';
