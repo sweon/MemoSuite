@@ -12,10 +12,12 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
-import { FiSave, FiEdit2, FiTrash2, FiX, FiCoffee, FiStar, FiList, FiGitMerge, FiShare2, FiBookOpen, FiPlus, FiPrinter } from 'react-icons/fi';
+import { FiSave, FiEdit2, FiTrash2, FiX, FiCoffee, FiStar, FiList, FiGitMerge, FiShare2, FiBookOpen, FiPlus, FiPrinter, FiFolder } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
+import { FolderMoveModal } from '../FolderView/FolderMoveModal';
+import { useFolder } from '../../contexts/FolderContext';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
@@ -261,6 +263,9 @@ export const MemoDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
+    const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
+    const { currentFolder } = useFolder();
+    const isReadOnly = currentFolder?.isReadOnly || false;
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
@@ -288,7 +293,7 @@ export const MemoDetail: React.FC = () => {
     const lastSavedState = useRef({ title, content, tags, sourceId, commentDraft });
 
     const log = useLiveQuery(
-        () => (id ? db.logs.get(Number(id)) : undefined),
+        () => (id ? db.words.get(Number(id)) : undefined),
         [id]
     );
 
@@ -318,7 +323,7 @@ export const MemoDetail: React.FC = () => {
 
     const handleToggleStar = async () => {
         if (!id || !log) return;
-        await db.logs.update(Number(id), { isStarred: log.isStarred ? 0 : 1 });
+        await db.words.update(Number(id), { isStarred: log.isStarred ? 0 : 1 });
     };
 
     const [showBulkAdd, setShowBulkAdd] = useState(false);
@@ -338,14 +343,14 @@ export const MemoDetail: React.FC = () => {
             nextOrder = 0;
         } else if (targetThreadId) {
             // Append to existing thread context
-            const members = await db.logs.where('threadId').equals(targetThreadId).toArray();
+            const members = await db.words.where('threadId').equals(targetThreadId).toArray();
             nextOrder = Math.max(...members.map(m => m.threadOrder || 0)) + 1;
         }
 
-        await db.transaction('rw', db.logs, async () => {
+        await db.transaction('rw', db.words, async () => {
             for (let i = 0; i < items.length; i++) {
                 const item = items[i];
-                await db.logs.add({
+                await db.words.add({
                     title: item.word,
                     content: `> ${item.meaning}`,
                     tags: tagsToUse,
@@ -361,8 +366,8 @@ export const MemoDetail: React.FC = () => {
 
         if (isPlaceholder) {
             // Delete the placeholder log as it was just a container for the 'Add Thread' action
-            await db.logs.delete(Number(id));
-            await db.comments.where('logId').equals(Number(id)).delete();
+            await db.words.delete(Number(id));
+            await db.comments.where('wordId').equals(Number(id)).delete();
         }
 
         setShowBulkAdd(false);
@@ -531,7 +536,7 @@ export const MemoDetail: React.FC = () => {
                 if (lastFound) {
                     setSourceId(lastFound.id);
                 } else {
-                    const defaultName = t.log_detail.unknown_source;
+                    const defaultName = t.word_detail.unknown_source;
                     const unknown = sources.find(s => s.name === defaultName);
                     if (unknown) {
                         setSourceId(unknown.id);
@@ -612,7 +617,7 @@ export const MemoDetail: React.FC = () => {
 
         // Auto-generate title from first line of content if manual title is empty
         const firstLine = content.split('\n')[0].replace(/[#*`\s]/g, ' ').trim();
-        const derivedTitle = title.trim() || firstLine.substring(0, 50) || t.log_detail.untitled;
+        const derivedTitle = title.trim() || firstLine.substring(0, 50) || t.word_detail.untitled;
 
         // Remember the last used source
         if (sourceId) {
@@ -620,7 +625,7 @@ export const MemoDetail: React.FC = () => {
         }
 
         if (id) {
-            await db.logs.update(Number(id), {
+            await db.words.update(Number(id), {
                 title: derivedTitle,
                 content,
                 tags: tagArray,
@@ -630,7 +635,7 @@ export const MemoDetail: React.FC = () => {
 
             // Clear edit param if present to prevent re-entering edit mode
             if (searchParams.get('edit')) {
-                navigate(`/log/${id}`, { replace: true });
+                navigate(`/word/${id}`, { replace: true });
             }
 
             // Cleanup autosaves for this log
@@ -639,7 +644,7 @@ export const MemoDetail: React.FC = () => {
             restoredIdRef.current = null;
             setIsEditing(false);
         } else {
-            const newId = await db.logs.add({
+            const newId = await db.words.add({
                 title: derivedTitle,
                 content,
                 tags: tagArray,
@@ -652,7 +657,7 @@ export const MemoDetail: React.FC = () => {
             // Cleanup all new log autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            navigate(`/log/${newId}`, { replace: true });
+            navigate(`/word/${newId}`, { replace: true });
         }
     };
 
@@ -664,7 +669,7 @@ export const MemoDetail: React.FC = () => {
         let hasOthers = false;
 
         if (isHead && log.threadId) {
-            const threadLogs = await db.logs.where('threadId').equals(log.threadId).toArray();
+            const threadLogs = await db.words.where('threadId').equals(log.threadId).toArray();
             hasOthers = threadLogs.length > 1;
         }
 
@@ -678,20 +683,20 @@ export const MemoDetail: React.FC = () => {
         const threadId = log.threadId;
         const currentId = Number(id);
 
-        await db.logs.delete(currentId);
-        await db.comments.where('logId').equals(currentId).delete();
+        await db.words.delete(currentId);
+        await db.comments.where('wordId').equals(currentId).delete();
 
         let nextLogId: number | undefined = undefined;
 
         if (threadId) {
-            const remainingLogs = await db.logs.where('threadId').equals(threadId).toArray();
+            const remainingLogs = await db.words.where('threadId').equals(threadId).toArray();
             remainingLogs.sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0));
 
             if (remainingLogs.length > 0) {
                 // Re-sequence remaining logs to ensure there's a 0 order and it's contiguous
-                await db.transaction('rw', db.logs, async () => {
+                await db.transaction('rw', db.words, async () => {
                     for (let i = 0; i < remainingLogs.length; i++) {
-                        await db.logs.update(remainingLogs[i].id!, { threadOrder: i });
+                        await db.words.update(remainingLogs[i].id!, { threadOrder: i });
                     }
                 });
                 nextLogId = remainingLogs[0].id;
@@ -700,7 +705,7 @@ export const MemoDetail: React.FC = () => {
 
         setIsDeleteModalOpen(false);
         if (nextLogId) {
-            navigate(`/log/${nextLogId}`, { replace: true });
+            navigate(`/word/${nextLogId}`, { replace: true });
         } else {
             navigate('/', { replace: true });
         }
@@ -710,13 +715,13 @@ export const MemoDetail: React.FC = () => {
         if (!log || !log.threadId) return;
 
         const threadId = log.threadId;
-        const threadLogs = await db.logs.where('threadId').equals(threadId).toArray();
-        const logIds = threadLogs.map(l => l.id!);
+        const threadLogs = await db.words.where('threadId').equals(threadId).toArray();
+        const wordIds = threadLogs.map(l => l.id!);
 
-        await db.transaction('rw', [db.logs, db.comments], async () => {
-            await db.logs.bulkDelete(logIds);
-            for (const lid of logIds) {
-                await db.comments.where('logId').equals(lid).delete();
+        await db.transaction('rw', [db.words, db.comments], async () => {
+            await db.words.bulkDelete(wordIds);
+            for (const lid of wordIds) {
+                await db.comments.where('wordId').equals(lid).delete();
             }
         });
 
@@ -735,20 +740,20 @@ export const MemoDetail: React.FC = () => {
             if (!threadId) {
                 // Create new thread for current log
                 threadId = crypto.randomUUID();
-                await db.logs.update(Number(id), {
+                await db.words.update(Number(id), {
                     threadId,
                     threadOrder: 0
                 });
                 threadOrder = 1;
             } else {
                 // Find max order in this thread
-                const threadLogs = await db.logs.where('threadId').equals(threadId).toArray();
+                const threadLogs = await db.words.where('threadId').equals(threadId).toArray();
                 const maxOrder = Math.max(...threadLogs.map(l => l.threadOrder || 0));
                 threadOrder = maxOrder + 1;
             }
 
             // Create new log in thread
-            const newLogId = await db.logs.add({
+            const newLogId = await db.words.add({
                 title: '', // Empty title implies continuation
                 content: '',
                 tags: log.tags, // Inherit tags
@@ -760,7 +765,7 @@ export const MemoDetail: React.FC = () => {
                 isStarred: 1
             });
 
-            navigate(`/log/${newLogId}?edit=true`, { replace: true });
+            navigate(`/word/${newLogId}?edit=true`, { replace: true });
         } catch (error) {
             console.error("Failed to add thread:", error);
             await confirm({ message: "Failed to add thread. Please try again.", cancelText: null });
@@ -780,7 +785,7 @@ export const MemoDetail: React.FC = () => {
         };
         const levelStr = levels[level as keyof typeof levels] || levels[1];
 
-        const recentLogs = await db.logs.orderBy('createdAt').reverse().limit(100).toArray();
+        const recentLogs = await db.words.orderBy('createdAt').reverse().limit(100).toArray();
         const recentWords = recentLogs.map(l => l.title).filter(Boolean).join(', ');
         const exclusionClause = recentWords ? `\n\n(IMPORTANT: DO NOT recommend any of these words as I already have them in my list: ${recentWords})` : '';
 
@@ -878,7 +883,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
         }
     };
 
-    if (!isNew && !log) return <Container>{t.log_detail.loading}</Container>;
+    if (!isNew && !log) return <Container>{t.word_detail.loading}</Container>;
 
     return (
         <Container translate="no">
@@ -887,7 +892,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     <TitleInput
                         value={title}
                         onChange={e => setTitle(e.target.value)}
-                        placeholder={t.log_detail.title_placeholder}
+                        placeholder={t.word_detail.title_placeholder}
                     />
                 )}
                 <HeaderRow>
@@ -905,12 +910,12 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 <TagInput
                                     value={tags}
                                     onChange={e => setTags(e.target.value)}
-                                    placeholder={t.log_detail.tags_placeholder}
+                                    placeholder={t.word_detail.tags_placeholder}
                                 />
                             </>
                         ) : (
                             <>
-                                <span>{sources?.find(s => s.id === sourceId)?.name || t.log_detail.unknown_source}</span>
+                                <span>{sources?.find(s => s.id === sourceId)?.name || t.word_detail.unknown_source}</span>
                                 <span>•</span>
                                 <span>{log && format(log.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
                                 {log?.tags.map(t => (
@@ -946,7 +951,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                     cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
                                 }}
                             >
-                                <FiSave size={14} /> {t.log_detail.save}
+                                <FiSave size={14} /> {t.word_detail.save}
                             </ActionButton>
                             <ActionButton $variant="cancel" onClick={() => {
                                 if (isPlaceholder) {
@@ -958,19 +963,19 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                     return;
                                 }
                                 if (searchParams.get('edit')) {
-                                    navigate(`/log/${id}`, { replace: true });
+                                    navigate(`/word/${id}`, { replace: true });
                                 }
                                 currentAutosaveIdRef.current = undefined;
                                 restoredIdRef.current = null;
                                 setIsEditing(false);
                             }}>
-                                <FiX size={14} /> {t.log_detail.cancel}
+                                <FiX size={14} /> {t.word_detail.cancel}
                             </ActionButton>
                             <ActionButton onClick={handleRandomWord}>
-                                <FiList size={14} /> {t.log_detail.random_word}
+                                <FiList size={14} /> {t.word_detail.random_word}
                             </ActionButton>
                             <ActionButton onClick={() => setShowBulkAdd(true)}>
-                                <FiPlus size={14} /> {t.log_detail.bulk_add}
+                                <FiPlus size={14} /> {t.word_detail.bulk_add}
                             </ActionButton>
                         </>
                     ) : (
@@ -978,29 +983,39 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                             {/* Group 1: Edit, Meaning, Example, Add Thread */}
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <ActionButton onClick={() => setIsEditing(true)}>
-                                    <FiEdit2 size={14} /> {t.log_detail.edit}
+                                    <FiEdit2 size={14} /> {t.word_detail.edit}
                                 </ActionButton>
                                 <ActionButton onClick={handleMeaning}>
-                                    <FiBookOpen size={14} /> {t.log_detail.meaning_button}
+                                    <FiBookOpen size={14} /> {t.word_detail.meaning_button}
                                 </ActionButton>
                                 <ActionButton onClick={handleExample}>
-                                    <FiCoffee size={14} /> {t.log_detail.example_button}
+                                    <FiCoffee size={14} /> {t.word_detail.example_button}
                                 </ActionButton>
                                 <ActionButton onClick={handleAddThread}>
-                                    <FiGitMerge size={14} /> {t.log_detail.add_thread}
+                                    <FiGitMerge size={14} /> {t.word_detail.add_thread}
                                 </ActionButton>
                             </div>
 
                             {/* Group 2: Share, Delete, Print ... Star */}
                             <div style={{ display: 'flex', flex: 1, gap: '0.5rem', alignItems: 'center' }}>
+                                {!isReadOnly && (
+                                    <ActionButton onClick={() => setIsEditing(true)}>
+                                        <FiEdit2 size={13} /> {t.word_detail.edit || 'Edit'}
+                                    </ActionButton>
+                                )}
+                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
+                                    <FiFolder size={13} /> {language === 'ko' ? '이동/복사' : 'Move/Copy'}
+                                </ActionButton>
                                 <ActionButton onClick={() => setShowShareModal(true)}>
-                                    <FiShare2 size={13} /> {t.log_detail.share_log}
+                                    <FiShare2 size={13} /> {t.word_detail.share_word}
                                 </ActionButton>
-                                <ActionButton $variant="danger" onClick={handleDelete}>
-                                    <FiTrash2 size={13} /> {t.log_detail.delete}
-                                </ActionButton>
+                                {!isReadOnly && (
+                                    <ActionButton $variant="danger" onClick={handleDelete}>
+                                        <FiTrash2 size={13} /> {t.word_detail.delete}
+                                    </ActionButton>
+                                )}
                                 <ActionButton onClick={() => window.print()}>
-                                    <FiPrinter size={13} /> {t.log_detail.print || 'Print'}
+                                    <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
                                 </ActionButton>
 
                                 <StarButton
@@ -1026,11 +1041,14 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         <ContentWrapper $isBlurred={studyMode === 'hide-meanings'}>
                             <MarkdownView
                                 content={content}
+                                isReadOnly={isReadOnly}
                                 onEditDrawing={(json) => {
+                                    if (isReadOnly) return;
                                     setEditingDrawingData(json);
                                     setIsFabricModalOpen(true);
                                 }}
                                 onEditSpreadsheet={(json) => {
+                                    if (isReadOnly) return;
                                     try {
                                         setEditingSpreadsheetData(JSON.parse(json));
                                         setIsSpreadsheetModalOpen(true);
@@ -1042,7 +1060,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         </ContentWrapper>
                         {!isNew && log && (
                             <CommentsSection
-                                logId={log.id!}
+                                wordId={log.id!}
                                 initialEditingState={commentDraft}
                                 onEditingChange={setCommentDraft}
                             />
@@ -1070,7 +1088,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
                             setContent(newContent);
                             if (id) {
-                                await db.logs.update(Number(id), {
+                                await db.words.update(Number(id), {
                                     content: newContent,
                                     updatedAt: new Date()
                                 });
@@ -1120,7 +1138,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
                     setContent(newContent);
                     if (id) {
-                        await db.logs.update(Number(id), {
+                        await db.words.update(Number(id), {
                             content: newContent,
                             updatedAt: new Date()
                         });
@@ -1151,7 +1169,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 isDeleteModalOpen && (
                     <DeleteChoiceModal
                         onClose={() => setIsDeleteModalOpen(false)}
-                        onDeleteLogOnly={performDeleteLogOnly}
+                        onDeleteWordOnly={performDeleteLogOnly}
                         onDeleteThread={performDeleteThread}
                         isThreadHead={isDeletingThreadHead}
                     />
@@ -1183,6 +1201,14 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     />
                 )
             }
+            {isFolderMoveModalOpen && log?.id && (
+                <FolderMoveModal
+                    memoId={log.id}
+                    currentFolderId={log.folderId || null}
+                    onClose={() => setIsFolderMoveModalOpen(false)}
+                    onSuccess={(msg) => setToastMessage(msg)}
+                />
+            )}
         </Container >
     );
 };

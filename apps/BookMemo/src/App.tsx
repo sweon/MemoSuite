@@ -4,6 +4,7 @@ import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageP
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { SearchProvider } from './contexts/SearchContext';
+import { FolderProvider } from './contexts/FolderContext';
 import { translations } from './translations';
 import { MainLayout } from './components/Layout/MainLayout';
 import { ExitGuardProvider } from '@memosuite/shared-drawing';
@@ -13,6 +14,7 @@ import { EditBookPage } from './components/BookView/EditBookPage';
 import { MemoDetail } from './components/MemoView/MemoDetail';
 import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
+import { FolderPage } from './pages/FolderPage';
 import { AndroidExitHandler } from './components/AndroidExitHandler';
 
 import { db } from './db';
@@ -71,25 +73,28 @@ function AppContent() {
     <ExitGuardProvider>
       <ColorThemeProvider storageKeyPrefix="bookmemo" GlobalStyleComponent={GlobalStyle}>
         <ModalProvider>
-          <SearchProvider>
-            <HashRouter>
-              <AndroidExitHandler />
-              <InstallPrompt appName="BookMemo" t={t} iconPath="./pwa-192x192.png" />
-              <Routes>
-                <Route path="/" element={<MainLayout />}>
-                  <Route index element={<EmptyState />} />
-                  <Route path="book/new" element={<AddBookPage />} />
-                  <Route path="book/:bookId" element={<BookDetail />}>
-                    <Route path="edit" element={<EditBookPage />} />
-                    <Route path="memo/:id" element={<MemoDetail />} />
-                    <Route path="new" element={<MemoDetail />} />
+          <FolderProvider>
+            <SearchProvider>
+              <HashRouter>
+                <AndroidExitHandler />
+                <InstallPrompt appName="BookMemo" t={t} iconPath="./pwa-192x192.png" />
+                <Routes>
+                  <Route path="/" element={<MainLayout />}>
+                    <Route index element={<EmptyState />} />
+                    <Route path="folders" element={<FolderPage />} />
+                    <Route path="book/new" element={<AddBookPage />} />
+                    <Route path="book/:bookId" element={<BookDetail />}>
+                      <Route path="edit" element={<EditBookPage />} />
+                      <Route path="memo/:id" element={<MemoDetail />} />
+                      <Route path="new" element={<MemoDetail />} />
+                    </Route>
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
                   </Route>
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Route>
-              </Routes>
-            </HashRouter>
-          </SearchProvider>
+                </Routes>
+              </HashRouter>
+            </SearchProvider>
+          </FolderProvider>
         </ModalProvider>
       </ColorThemeProvider>
     </ExitGuardProvider>

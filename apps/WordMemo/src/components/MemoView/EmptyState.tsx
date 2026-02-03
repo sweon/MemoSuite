@@ -27,7 +27,7 @@ export const EmptyState: React.FC = () => {
       <IconWrapper>
         <FiFileText size={48} />
       </IconWrapper>
-      <h2>{t.log_detail.empty_state_title}</h2>
+      <h2>{t.word_detail.empty_state_title}</h2>
     </Container>
   );
 };

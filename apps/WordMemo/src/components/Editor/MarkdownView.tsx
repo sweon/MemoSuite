@@ -409,6 +409,7 @@ const SpreadsheetPreview = ({ json, onClick }: { json: string; onClick?: () => v
 
 interface MarkdownViewProps {
   content: string;
+  isReadOnly?: boolean;
   tableHeaderBg?: string;
   onEditDrawing?: (json: string) => void;
   onEditSpreadsheet?: (json: string) => void;
@@ -416,6 +417,7 @@ interface MarkdownViewProps {
 
 export const MarkdownView: React.FC<MarkdownViewProps> = ({
   content,
+  isReadOnly = false,
   tableHeaderBg,
   onEditDrawing,
   onEditSpreadsheet
@@ -447,11 +449,11 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
             const json = String(children).replace(/\n$/, '');
 
             if (!inline && language === 'fabric') {
-              return <FabricPreview json={json} onClick={onEditDrawing ? () => onEditDrawing(json) : undefined} />;
+              return <FabricPreview json={json} onClick={!isReadOnly && onEditDrawing ? () => onEditDrawing(json) : undefined} />;
             }
 
             if (!inline && language === 'spreadsheet') {
-              return <SpreadsheetPreview json={json} onClick={onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
+              return <SpreadsheetPreview json={json} onClick={!isReadOnly && onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
             }
 
             if (!inline) {

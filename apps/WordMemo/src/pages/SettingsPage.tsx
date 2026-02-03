@@ -530,9 +530,9 @@ export const SettingsPage: React.FC = () => {
 
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportMode, setExportMode] = useState<'all' | 'selected'>('all');
-  const [selectedLogs, setSelectedLogs] = useState<Set<number>>(new Set());
+  const [selectedWords, setSelectedLogs] = useState<Set<number>>(new Set());
   const [exportFileName, setExportFileName] = useState('');
-  const allLogs = useLiveQuery(() => db.logs.orderBy('createdAt').reverse().toArray());
+  const allWords = useLiveQuery(() => db.words.orderBy('createdAt').reverse().toArray());
 
   const handleExportClick = () => {
     setShowExportModal(true);
@@ -552,7 +552,7 @@ export const SettingsPage: React.FC = () => {
         if (exportMode === 'all') {
           await exportData(undefined, exportFileName, password);
         } else {
-          await exportData(Array.from(selectedLogs), exportFileName, password);
+          await exportData(Array.from(selectedWords), exportFileName, password);
         }
       } else {
         if (tempFile) {
@@ -613,8 +613,8 @@ export const SettingsPage: React.FC = () => {
     localStorage.setItem('auto_update_enabled', String(next));
   };
 
-  const toggleLogSelection = (id: number) => {
-    const next = new Set(selectedLogs);
+  const toggleWordSelection = (id: number) => {
+    const next = new Set(selectedWords);
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setSelectedLogs(next);
@@ -1244,7 +1244,7 @@ export const SettingsPage: React.FC = () => {
               </RadioLabel>
               <RadioLabel>
                 <input type="radio" checked={exportMode === 'selected'} onChange={() => setExportMode('selected')} />
-                {t.settings.select_logs}
+                {t.settings.select_words}
               </RadioLabel>
 
               <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
@@ -1259,15 +1259,15 @@ export const SettingsPage: React.FC = () => {
 
               {exportMode === 'selected' && (
                 <ScrollableList>
-                  {allLogs?.length === 0 ? (
-                    <div style={{ padding: '0.5rem', opacity: 0.6 }}>{t.settings.no_logs_found}</div>
+                  {allWords?.length === 0 ? (
+                    <div style={{ padding: '0.5rem', opacity: 0.6 }}>{t.settings.no_words_found}</div>
                   ) : (
-                    allLogs?.map(log => (
+                    allWords?.map(log => (
                       <CheckboxLabel key={log.id}>
                         <input
                           type="checkbox"
-                          checked={selectedLogs.has(log.id!)}
-                          onChange={() => toggleLogSelection(log.id!)}
+                          checked={selectedWords.has(log.id!)}
+                          onChange={() => toggleWordSelection(log.id!)}
                         />
                         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {log.title || t.sidebar.untitled}
@@ -1280,7 +1280,7 @@ export const SettingsPage: React.FC = () => {
             </ModalBody>
             <ModalFooter>
               <ActionButton onClick={() => setShowExportModal(false)} $variant="secondary">{t.settings.cancel}</ActionButton>
-              <ActionButton onClick={confirmExport} disabled={exportMode === 'selected' && selectedLogs.size === 0}>
+              <ActionButton onClick={confirmExport} disabled={exportMode === 'selected' && selectedWords.size === 0}>
                 <FiDownload /> {t.settings.export}
               </ActionButton>
             </ModalFooter>

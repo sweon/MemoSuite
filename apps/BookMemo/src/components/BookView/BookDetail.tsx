@@ -5,8 +5,10 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useParams, useNavigate, useLocation, Outlet, useOutletContext } from 'react-router-dom';
 import { db } from '../../db';
-import { FiEdit2, FiEdit3, FiTrash2, FiRotateCcw, FiMaximize, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiEdit2, FiEdit3, FiTrash2, FiRotateCcw, FiMaximize, FiChevronLeft, FiChevronRight, FiFolder } from 'react-icons/fi';
 import { format } from 'date-fns';
+import { BookMoveModal } from '../FolderView/BookMoveModal';
+import { useFolder } from '../../contexts/FolderContext';
 import {
   Line,
   XAxis,
@@ -301,6 +303,9 @@ export const BookDetail: React.FC = () => {
   // Hover state for global memos tooltip
   const [hoveredGlobalMemo, setHoveredGlobalMemo] = useState<{ data: any, top: number, left: number } | null>(null);
   const graphContainerRef = useRef<HTMLDivElement>(null);
+  const { currentFolder } = useFolder();
+  const isReadOnly = currentFolder?.isReadOnly || false;
+  const [isBookMoveModalOpen, setIsBookMoveModalOpen] = useState(false);
   const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>() || {};
 
   const numericBookId = Number(bookId);
@@ -651,15 +656,24 @@ export const BookDetail: React.FC = () => {
           )}
 
           <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
-            <ActionButton $variant="primary" onClick={() => navigate(`/book/${book.id}/new`, { state: { isGuard: true } })}>
-              <FiEdit3 size={14} /> {t.book_detail.write_memo}
+            {!isReadOnly && (
+              <ActionButton $variant="primary" onClick={() => navigate(`/book/${book.id}/new`, { state: { isGuard: true } })}>
+                <FiEdit3 size={14} /> {t.book_detail.write_memo}
+              </ActionButton>
+            )}
+            <ActionButton onClick={() => setIsBookMoveModalOpen(true)}>
+              <FiFolder size={14} /> {language === 'ko' ? '이동' : 'Move'}
             </ActionButton>
-            <ActionButton onClick={() => navigate(`/book/${book.id}/edit`, { state: { isGuard: true } })}>
-              <FiEdit2 size={14} /> {t.book_detail.edit_book}
-            </ActionButton>
-            <ActionButton $variant="danger" onClick={handleDelete}>
-              <FiTrash2 size={14} /> {t.book_detail.delete_book}
-            </ActionButton>
+            {!isReadOnly && (
+              <ActionButton onClick={() => navigate(`/book/${book.id}/edit`, { state: { isGuard: true } })}>
+                <FiEdit2 size={14} /> {t.book_detail.edit_book}
+              </ActionButton>
+            )}
+            {!isReadOnly && (
+              <ActionButton $variant="danger" onClick={handleDelete}>
+                <FiTrash2 size={14} /> {t.book_detail.delete_book}
+              </ActionButton>
+            )}
           </div>
 
           <ProgressSection>
@@ -870,6 +884,14 @@ export const BookDetail: React.FC = () => {
         <RightPane>
           <Outlet context={{ setIsDirty, setAppIsEditing }} />
         </RightPane>
+      )}
+      {isBookMoveModalOpen && (
+        <BookMoveModal
+          bookId={numericBookId}
+          currentFolderId={book.folderId || null}
+          onClose={() => setIsBookMoveModalOpen(false)}
+          onSuccess={() => { }}
+        />
       )}
     </Container>
   );

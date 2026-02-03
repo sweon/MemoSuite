@@ -217,14 +217,14 @@ export const BulkAddModal: React.FC<Props> = ({ onClose, onConfirm, isInThread }
     <Overlay onClick={onClose}>
       <Modal onClick={e => e.stopPropagation()}>
         <Header>
-          <Title>{t.log_detail.bulk_add_title}</Title>
+          <Title>{t.word_detail.bulk_add_title}</Title>
           <CloseButton onClick={onClose}><FiX size={20} /></CloseButton>
         </Header>
 
         <Body>
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
             <Button $variant="secondary" onClick={() => fileInputRef.current?.click()} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-              <FiUpload /> {t.log_detail.upload_file}
+              <FiUpload /> {t.word_detail.upload_file}
             </Button>
             <input
               type="file"
@@ -238,7 +238,7 @@ export const BulkAddModal: React.FC<Props> = ({ onClose, onConfirm, isInThread }
           <TextArea
             value={text}
             onChange={handleTextChange}
-            placeholder={t.log_detail.bulk_add_placeholder}
+            placeholder={t.word_detail.bulk_add_placeholder}
           />
 
           {parsedItems.length > 0 && (
@@ -266,17 +266,17 @@ export const BulkAddModal: React.FC<Props> = ({ onClose, onConfirm, isInThread }
                 checked={createAsThread}
                 onChange={e => setCreateAsThread(e.target.checked)}
               />
-              {t.log_detail.bulk_add_as_thread}
+              {t.word_detail.bulk_add_as_thread}
             </CheckboxLabel>
           )}
           {isInThread && <div />}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <Button $variant="cancel" onClick={onClose}>{t.log_detail.cancel}</Button>
+            <Button $variant="cancel" onClick={onClose}>{t.word_detail.cancel}</Button>
             <Button
               disabled={parsedItems.length === 0}
               onClick={() => onConfirm(parsedItems, isInThread ? false : createAsThread)}
             >
-              <FiCheck /> {t.log_detail.add_all}
+              <FiCheck /> {t.word_detail.add_all}
             </Button>
           </div>
         </Footer>

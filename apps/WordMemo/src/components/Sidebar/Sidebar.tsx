@@ -4,10 +4,11 @@ import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
-import type { Log } from '../../db';
+import type { Word } from '../../db';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiMinus } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiMinus, FiFolder } from 'react-icons/fi';
 import { Tooltip } from '../UI/Tooltip';
+import { useFolder } from '../../contexts/FolderContext';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import type { DropResult, DragUpdate } from '@hello-pangea/dnd';
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -199,7 +200,7 @@ const TopActions = styled.div`
   gap: 4px;
 `;
 
-const LogList = styled.div`
+const WordList = styled.div`
   padding: 0.5rem;
   scrollbar-width: thin;
   touch-action: pan-y;
@@ -283,6 +284,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'source-desc' | 'source-asc' | 'comment-desc' | 'alpha' | 'starred'>('date-desc');
   const [starredOnly, setStarredOnly] = useState(false);
   const { studyMode, setStudyMode } = useStudyMode();
+  const { currentFolderId } = useFolder();
 
   // Expansion state (now collapsed by default)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
@@ -379,23 +381,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
     if (!isSilent) setIsCheckingUpdate(false);
   };
 
-  const allLogs = useLiveQuery(() => db.logs.toArray());
+  const allWords = useLiveQuery(() => db.words.toArray());
   const allSources = useLiveQuery(() => db.sources.toArray());
   const allComments = useLiveQuery(() => db.comments.toArray());
 
   // Auto-expand thread if active log is in one
   useEffect(() => {
-    if (!id || !allLogs) return;
+    if (!id || !allWords) return;
     const activeId = Number(id);
-    const activeLog = allLogs.find(l => l.id === activeId);
-    if (activeLog?.threadId && !expandedThreads.has(activeLog.threadId)) {
+    const activeWord = allWords.find(l => l.id === activeId);
+    if (activeWord?.threadId && !expandedThreads.has(activeWord.threadId)) {
       setExpandedThreads(prev => {
         const next = new Set(prev);
-        next.add(activeLog.threadId!);
+        next.add(activeWord.threadId!);
         return next;
       });
     }
-  }, [id, allLogs]);
+  }, [id, allWords]);
 
   // List remount trigger to force clean UI update
   const [listKey, setListKey] = useState(0);
@@ -422,7 +424,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
   useEffect(() => {
     // Only trigger on listKey change (which means a drag actually finished)
     // or on initial mount. Avoid triggering on every data change.
-    if (allLogs && listKey > 0) {
+    if (allWords && listKey > 0) {
       triggerRefresh();
     }
   }, [listKey, triggerRefresh]);
@@ -434,17 +436,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
   }, [allSources]);
 
   type FlatItem =
-    | { type: 'single', log: Log }
-    | { type: 'thread-header', log: Log, threadId: string, threadLogs: Log[] }
-    | { type: 'thread-child', log: Log, threadId: string };
+    | { type: 'single', log: Word }
+    | { type: 'thread-header', log: Word, threadId: string, threadWords: Word[] }
+    | { type: 'thread-child', log: Word, threadId: string };
 
   const flatItems: FlatItem[] = React.useMemo(() => {
-    if (!allLogs || !allSources) return [];
+    if (!allWords || !allSources) return [];
 
     // 1. Group ALL logs first
-    const threadMap = new Map<string, Log[]>();
-    const singles: Log[] = [];
-    allLogs.forEach(l => {
+    const threadMap = new Map<string, Word[]>();
+    const singles: Word[] = [];
+    allWords.forEach(l => {
+      // Filter by current folder
+      if (currentFolderId !== null && l.folderId !== currentFolderId) return;
+
       if (l.threadId) {
         if (!threadMap.has(l.threadId)) threadMap.set(l.threadId, []);
         threadMap.get(l.threadId)!.push(l);
@@ -454,7 +459,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
     });
 
     // 2. Filter Groups and Singles
-    const isMatched = (l: Log) => {
+    const isMatched = (l: Word) => {
       // Starred filter
       if (starredOnly && !l.isStarred) return false;
 
@@ -472,7 +477,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
     };
 
     const finalSingles = singles.filter(isMatched);
-    const finalThreads = new Map<string, Log[]>();
+    const finalThreads = new Map<string, Word[]>();
     threadMap.forEach((logs, tid) => {
       const filtered = logs.filter(isMatched);
       if (filtered.length > 0) {
@@ -486,7 +491,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
     // First, process threads
     finalThreads.forEach((logs, tid) => {
       const sorted = logs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      items.push({ type: 'thread-header', log: sorted[0], threadId: tid, threadLogs: sorted });
+      items.push({ type: 'thread-header', log: sorted[0], threadId: tid, threadWords: sorted });
       if (expandedThreads.has(tid)) {
         sorted.slice(1).forEach(l => {
           items.push({ type: 'thread-child', log: l, threadId: tid });
@@ -511,22 +516,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
       if (sortBy === 'source-asc') return (sourceNameMap.get(a.log.sourceId!) || '').localeCompare(sourceNameMap.get(b.log.sourceId!) || '');
       if (sortBy === 'alpha') return a.log.title.localeCompare(b.log.title);
       if (sortBy === 'comment-desc') {
-        const aCount = allComments?.filter(oc => oc.logId === a.log.id).length || 0;
-        const bCount = allComments?.filter(oc => oc.logId === b.log.id).length || 0;
+        const aCount = allComments?.filter(oc => oc.wordId === a.log.id).length || 0;
+        const bCount = allComments?.filter(oc => oc.wordId === b.log.id).length || 0;
         return bCount - aCount;
       }
       return b.log.createdAt.getTime() - a.log.createdAt.getTime();
     });
-  }, [allLogs, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap]);
+  }, [allWords, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap]);
 
   useEffect(() => {
     if (!id || id === 'new' || id === 'settings') return;
 
-    const activeLogId = parseInt(id);
-    if (!isNaN(activeLogId)) {
-      const isVisible = flatItems.some(it => it.log.id === activeLogId);
+    const activeWordId = parseInt(id);
+    if (!isNaN(activeWordId)) {
+      const isVisible = flatItems.some(it => it.log.id === activeWordId);
       if (!isVisible && (searchQuery || starredOnly)) {
-        const exists = allLogs?.some(m => m.id === activeLogId);
+        const exists = allWords?.some(m => m.id === activeWordId);
         if (exists) {
           setSearchQuery('');
           setStarredOnly(false);
@@ -555,26 +560,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
 
       if (sourceId === targetId) return;
 
-      const sourceLog = await db.logs.get(sourceId);
-      const targetLog = await db.logs.get(targetId);
+      const sourceWord = await db.words.get(sourceId);
+      const targetWord = await db.words.get(targetId);
 
-      if (!sourceLog || !targetLog) return;
+      if (!sourceWord || !targetWord) return;
 
-      const targetThreadId = targetLog.threadId || `thread - ${Date.now()} `;
+      const targetThreadId = targetWord.threadId || `thread - ${Date.now()} `;
 
       // If target wasn't in a thread, update it
-      if (!targetLog.threadId) {
-        await db.logs.update(targetId, { threadId: targetThreadId });
+      if (!targetWord.threadId) {
+        await db.words.update(targetId, { threadId: targetThreadId });
       }
 
       // If source was in a different thread, move ALL of its siblings
-      if (sourceLog.threadId) {
-        const siblings = await db.logs.where('threadId').equals(sourceLog.threadId).toArray();
+      if (sourceWord.threadId) {
+        const siblings = await db.words.where('threadId').equals(sourceWord.threadId).toArray();
         for (const s of siblings) {
-          await db.logs.update(s.id!, { threadId: targetThreadId });
+          await db.words.update(s.id!, { threadId: targetThreadId });
         }
       } else {
-        await db.logs.update(sourceId, { threadId: targetThreadId });
+        await db.words.update(sourceId, { threadId: targetThreadId });
       }
 
       setExpandedThreads(prev => new Set([...Array.from(prev), targetThreadId]));
@@ -596,7 +601,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
       const targetId = flatItems[destination.index].log.id;
 
       if (!threadBoundaryIds.includes(targetId)) {
-        await db.logs.update(draggedItem.log.id!, { threadId: undefined });
+        await db.words.update(draggedItem.log.id!, { threadId: undefined });
         setListKey(v => v + 1);
       }
     }
@@ -732,10 +737,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
               <FiPlus size={16} />
               {language === 'ko' ? '새 단어' : 'New Word'}
             </Button>
+
+            <Button
+              onClick={() => {
+                navigate('/folders', { replace: true });
+                onCloseMobile();
+              }}
+              style={{ background: '#f39c12' }}
+            >
+              <FiFolder size={16} />
+              {language === 'ko' ? '폴더' : 'Folders'}
+            </Button>
           </TopActions>
         </Header>
 
-        <LogList id="sidebar-log-list" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+        <WordList id="sidebar-log-list" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
             <Droppable droppableId="sidebar-droppable" isCombineEnabled>
               {(provided) => (
@@ -746,15 +762,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
                         <SidebarThreadItem
                           key={item.log.id}
                           threadId={item.threadId}
-                          logs={item.threadLogs}
+                          logs={item.threadWords}
                           index={index}
                           collapsed={!expandedThreads.has(item.threadId)}
                           onToggle={toggleThread}
-                          activeLogId={Number(id)}
+                          activeWordId={Number(id)}
                           sourceMap={sourceNameMap}
                           formatDate={formatDate}
                           untitledText={t.sidebar.untitled}
-                          onLogClick={onCloseMobile}
+                          onWordClick={onCloseMobile}
                           isCombineTarget={combineTargetId === `log - ${item.log.id} `}
                           t={t}
                           studyMode={studyMode}
@@ -781,7 +797,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
               )}
             </Droppable>
           </DragDropContext>
-        </LogList>
+        </WordList>
       </ScrollableArea>
 
       {toastMessage && (

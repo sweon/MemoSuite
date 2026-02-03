@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Memo } from '../../db';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiPenTool } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiPenTool, FiFolder } from 'react-icons/fi';
 import { BsKeyboard } from 'react-icons/bs';
 import { RiTable2 } from 'react-icons/ri';
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -17,6 +17,8 @@ import { useSearch } from '../../contexts/SearchContext';
 import { SidebarMemoItem } from './SidebarMemoItem';
 import { handMemoSyncAdapter } from '../../utils/backupAdapter';
 import type { DropResult } from '@hello-pangea/dnd';
+
+import { useFolder } from '../../contexts/FolderContext';
 
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -350,6 +352,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const allMemos = useLiveQuery(() => db.memos.toArray());
   const allComments = useLiveQuery(() => db.comments.toArray());
 
+  const { currentFolderId, currentFolder, setShowFolderList } = useFolder();
+
   const lastCommentMap = React.useMemo(() => {
     const map: Record<number, number> = {};
     if (!allComments) return map;
@@ -364,7 +368,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const sortedMemos = React.useMemo(() => {
     if (!allMemos) return [];
-    let memos = [...allMemos];
+
+    // Filter by current folder
+    let memos = currentFolderId
+      ? allMemos.filter(m => m.folderId === currentFolderId)
+      : [...allMemos];
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -397,7 +405,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
       return b.updatedAt.getTime() - a.updatedAt.getTime();
     });
-  }, [allMemos, searchQuery, sortBy]);
+  }, [allMemos, searchQuery, sortBy, currentFolderId]);
 
   const groupedItems = React.useMemo(() => {
     if (!sortedMemos || !allMemos) return [];
@@ -713,7 +721,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <FiSettings size={18} />
               </IconButton>
             </Tooltip>
+
+            <Tooltip content={language === 'ko' ? '폴더' : 'Folders'}>
+              <IconButton
+                onClick={() => {
+                  setShowFolderList(true);
+                  navigate('/folders', { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                }}
+                style={{ color: currentFolder?.isReadOnly ? '#f59e0b' : undefined }}
+              >
+                <FiFolder size={18} />
+              </IconButton>
+            </Tooltip>
           </div>
+
+          {currentFolder && (
+            <div
+              onClick={() => {
+                setShowFolderList(true);
+                navigate('/folders', { replace: true, state: { isGuard: true } });
+                onCloseMobile(true);
+              }}
+              style={{
+                fontSize: '0.75rem',
+                color: currentFolder.isReadOnly ? '#f59e0b' : theme.colors.textSecondary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                marginTop: '4px',
+                padding: '4px 8px',
+                background: theme.colors.background,
+                borderRadius: theme.radius.small,
+                border: `1px solid ${theme.colors.border}`,
+              }}
+            >
+              <FiFolder size={12} />
+              <span>{currentFolder.name}</span>
+              {currentFolder.isReadOnly && (
+                <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                  ({language === 'ko' ? '읽기 전용' : 'Read-only'})
+                </span>
+              )}
+            </div>
+          )}
 
           <SearchInputWrapper>
             <SearchIcon size={16} />

@@ -1,9 +1,19 @@
 import Dexie, { type Table } from 'dexie';
 
+export interface Folder {
+    id?: number;
+    name: string;
+    isReadOnly: boolean;
+    excludeFromGlobalSearch: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
 export interface Memo {
     id?: number;
     // bookId was removed in v7
     bookId?: number;
+    folderId?: number; // Folder reference
     title: string;
     content: string; // Markdown content
     tags: string[];
@@ -39,6 +49,7 @@ export interface Autosave {
 }
 
 export class HandMemoDatabase extends Dexie {
+    folders!: Table<Folder>;
     memos!: Table<Memo>;
     comments!: Table<Comment>;
     autosaves!: Table<Autosave>;
@@ -83,6 +94,28 @@ export class HandMemoDatabase extends Dexie {
 
         this.version(9).stores({
             autosaves: '++id, title, originalId, createdAt'
+        });
+
+        // Version 10: Add folders table and folderId to memos
+        this.version(10).stores({
+            folders: '++id, name, createdAt, updatedAt',
+            memos: '++id, bookId, folderId, title, *tags, createdAt, updatedAt, threadId, type'
+        }).upgrade(async tx => {
+            // Create default folder and assign all existing memos to it
+            const foldersTable = tx.table('folders');
+            const memosTable = tx.table('memos');
+
+            const now = new Date();
+            const defaultFolderId = await foldersTable.add({
+                name: '기본 폴더',
+                isReadOnly: false,
+                excludeFromGlobalSearch: false,
+                createdAt: now,
+                updatedAt: now
+            });
+
+            // Update all existing memos to belong to the default folder
+            await memosTable.toCollection().modify({ folderId: defaultFolderId });
         });
     }
 }

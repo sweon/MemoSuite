@@ -5,9 +5,11 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiFolder } from 'react-icons/fi';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
+
+import { useFolder } from '../../contexts/FolderContext';
 
 import { Toast } from '../UI/Toast';
 
@@ -229,6 +231,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-comment-desc'>('date-desc');
 
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
+  const { currentFolderId } = useFolder();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -338,6 +341,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
   const sortedBooks = React.useMemo(() => {
     if (!allBooks) return [];
     let books = [...allBooks];
+
+    // Filter by folder
+    if (currentFolderId !== null) {
+      books = books.filter(b => b.folderId === currentFolderId);
+    }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -519,6 +527,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
             }}>
               <FiPlus />
               {language === 'ko' ? '새 책' : 'New Book'}
+            </Button>
+
+            <Button
+              onClick={() => {
+                navigate('/folders', { replace: true });
+                onCloseMobile(true);
+              }}
+              style={{ background: '#f39c12' }}
+            >
+              <FiFolder />
+              {language === 'ko' ? '폴더' : 'Folders'}
             </Button>
           </TopActions>
         </Header>

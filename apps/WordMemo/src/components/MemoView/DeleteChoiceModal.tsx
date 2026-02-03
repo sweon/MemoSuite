@@ -113,14 +113,14 @@ const ChoiceButton = styled.button<{ $variant?: 'danger' | 'secondary' }>`
 
 interface DeleteChoiceModalProps {
   onClose: () => void;
-  onDeleteLogOnly: () => void;
+  onDeleteWordOnly: () => void;
   onDeleteThread?: () => void;
   isThreadHead: boolean;
 }
 
 export const DeleteChoiceModal: React.FC<DeleteChoiceModalProps> = ({
   onClose,
-  onDeleteLogOnly,
+  onDeleteWordOnly,
   onDeleteThread,
   isThreadHead
 }) => {
@@ -130,26 +130,26 @@ export const DeleteChoiceModal: React.FC<DeleteChoiceModalProps> = ({
     <Overlay onClick={onClose}>
       <Modal onClick={e => e.stopPropagation()}>
         <Header>
-          <h3>{t.log_detail.delete}</h3>
+          <h3>{t.word_detail.delete}</h3>
           <CloseButton onClick={onClose}><FiX /></CloseButton>
         </Header>
         <Message>
-          {isThreadHead ? t.log_detail.delete_thread_confirm : t.log_detail.delete_confirm}
+          {isThreadHead ? t.word_detail.delete_thread_confirm : t.word_detail.delete_confirm}
         </Message>
         <ButtonGroup>
           {isThreadHead && onDeleteThread && (
             <ChoiceButton onClick={onDeleteThread} $variant="danger">
               <FiTrash2 />
               <div>
-                <div style={{ fontSize: '1rem' }}>{t.log_detail.delete_thread_entire}</div>
+                <div style={{ fontSize: '1rem' }}>{t.word_detail.delete_thread_entire}</div>
               </div>
             </ChoiceButton>
           )}
-          <ChoiceButton onClick={onDeleteLogOnly} $variant={isThreadHead ? undefined : 'danger'}>
+          <ChoiceButton onClick={onDeleteWordOnly} $variant={isThreadHead ? undefined : 'danger'}>
             {isThreadHead ? <FiFileText /> : <FiTrash2 />}
             <div>
               <div style={{ fontSize: '1rem' }}>
-                {isThreadHead ? t.log_detail.delete_log_only : t.log_detail.delete}
+                {isThreadHead ? t.word_detail.delete_log_only : t.word_detail.delete}
               </div>
             </div>
           </ChoiceButton>

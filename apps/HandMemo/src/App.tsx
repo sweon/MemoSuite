@@ -4,6 +4,7 @@ import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageP
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { SearchProvider } from './contexts/SearchContext';
+import { FolderProvider } from './contexts/FolderContext';
 import { translations } from './translations';
 import { MainLayout } from './components/Layout/MainLayout';
 import { ExitGuardProvider } from '@memosuite/shared-drawing';
@@ -11,6 +12,7 @@ import { ExitGuardProvider } from '@memosuite/shared-drawing';
 import { MemoDetail } from './components/MemoView/MemoDetail';
 import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
+import { FolderPage } from './pages/FolderPage';
 import { AndroidExitHandler } from './components/AndroidExitHandler';
 import { Toast } from './components/UI/Toast';
 import pkg from '../package.json';
@@ -77,28 +79,31 @@ function AppContent() {
     <ExitGuardProvider>
       <ColorThemeProvider storageKeyPrefix="handmemo" GlobalStyleComponent={GlobalStyle}>
         <ModalProvider>
-          <SearchProvider>
-            <HashRouter>
-              <AndroidExitHandler />
-              <InstallPrompt appName="HandMemo" t={t} iconPath="./pwa-192x192.png" />
-              {isUpdated && (
-                <Toast
-                  message={`${t.sidebar.app_updated} (v${currentVersion})`}
-                  onClose={() => localStorage.setItem('handmemo_version', currentVersion)}
-                  duration={5000}
-                />
-              )}
-              <Routes>
-                <Route path="/" element={<MainLayout />}>
-                  <Route index element={<EmptyState />} />
-                  <Route path="memo/new" element={<MemoDetail key="new" />} />
-                  <Route path="memo/:id" element={<MemoDetailWrapper />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Route>
-              </Routes>
-            </HashRouter>
-          </SearchProvider>
+          <FolderProvider>
+            <SearchProvider>
+              <HashRouter>
+                <AndroidExitHandler />
+                <InstallPrompt appName="HandMemo" t={t} iconPath="./pwa-192x192.png" />
+                {isUpdated && (
+                  <Toast
+                    message={`${t.sidebar.app_updated} (v${currentVersion})`}
+                    onClose={() => localStorage.setItem('handmemo_version', currentVersion)}
+                    duration={5000}
+                  />
+                )}
+                <Routes>
+                  <Route path="/" element={<MainLayout />}>
+                    <Route index element={<EmptyState />} />
+                    <Route path="memo/new" element={<MemoDetail key="new" />} />
+                    <Route path="memo/:id" element={<MemoDetailWrapper />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="folders" element={<FolderPage />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Route>
+                </Routes>
+              </HashRouter>
+            </SearchProvider>
+          </FolderProvider>
         </ModalProvider>
       </ColorThemeProvider>
     </ExitGuardProvider>

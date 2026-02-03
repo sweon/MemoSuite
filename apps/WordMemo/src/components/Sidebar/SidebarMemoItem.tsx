@@ -1,14 +1,14 @@
 import React from 'react';
-import type { Log } from '../../db';
+import type { Word } from '../../db';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LogItemLink, LogTitle, LogDate, LogTitleRow, SpeakButton, BlurredText, StarButton } from './itemStyles';
+import { WordItemLink, WordTitle, WordDate, WordTitleRow, SpeakButton, BlurredText, StarButton } from './itemStyles';
 import { TouchDelayDraggable } from './TouchDelayDraggable';
 import { FiVolume2, FiStar } from 'react-icons/fi';
 import { db } from '../../db';
 import { speakText } from '../../utils/tts';
 
 interface Props {
-    log: Log;
+    log: Word;
     index: number;
     isActive: boolean;
     onClick?: () => void;
@@ -41,7 +41,7 @@ export const SidebarMemoItem: React.FC<Props> = ({
         e.preventDefault();
         e.stopPropagation();
         if (!log.id) return;
-        await db.logs.update(log.id, { isStarred: log.isStarred ? 0 : 1 });
+        await db.words.update(log.id, { isStarred: log.isStarred ? 0 : 1 });
     };
 
     // Reset reveal when study mode changes
@@ -76,7 +76,7 @@ export const SidebarMemoItem: React.FC<Props> = ({
             onClick();
         }
 
-        navigate(`/log/${log.id}`, {
+        navigate(`/word/${log.id}`, {
             replace: !location.pathname.endsWith('/') && location.pathname !== '/'
         });
     };
@@ -99,19 +99,19 @@ export const SidebarMemoItem: React.FC<Props> = ({
                         backgroundColor: isCombineTarget ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
                     }}
                 >
-                    <LogItemLink
-                        to={`/log/${log.id}`}
+                    <WordItemLink
+                        to={`/word/${log.id}`}
                         $isActive={isActive}
                         $inThread={inThread}
                         onClick={handleClick}
                         replace={!location.pathname.endsWith('/') && location.pathname !== '/'}
                     >
-                        <LogTitleRow>
-                            <LogTitle>
+                        <WordTitleRow>
+                            <WordTitle>
                                 <BlurredText $isBlurred={studyMode === 'hide-words'} $forceReveal={isRevealed}>
                                     {log.title || untitledText}
                                 </BlurredText>
-                            </LogTitle>
+                            </WordTitle>
                             <div style={{ display: 'flex', gap: '2px' }}>
                                 <StarButton
                                     $active={!!log.isStarred}
@@ -133,16 +133,16 @@ export const SidebarMemoItem: React.FC<Props> = ({
                                     </SpeakButton>
                                 )}
                             </div>
-                        </LogTitleRow>
-                        <LogDate>
+                        </WordTitleRow>
+                        <WordDate>
                             {formatDate(log.createdAt)}
                             {sourceName && (
                                 <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
                                     • {sourceName}
                                 </span>
                             )}
-                        </LogDate>
-                    </LogItemLink>
+                        </WordDate>
+                    </WordItemLink>
                 </div>
             )}
         </TouchDelayDraggable>

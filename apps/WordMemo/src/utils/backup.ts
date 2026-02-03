@@ -1,16 +1,16 @@
 import { db } from '../db';
 import { decryptData, encryptData, saveFile } from '@memosuite/shared';
 
-export const getBackupData = async (logIds?: number[]) => {
+export const getBackupData = async (wordIds?: number[]) => {
     let logs;
     let comments;
 
     // Use fast index-based retrieval if IDs are provided
-    if (logIds && logIds.length > 0) {
-        logs = await db.logs.where('id').anyOf(logIds).toArray();
-        comments = await db.comments.where('logId').anyOf(logIds).toArray();
+    if (wordIds && wordIds.length > 0) {
+        logs = await db.words.where('id').anyOf(wordIds).toArray();
+        comments = await db.comments.where('wordId').anyOf(wordIds).toArray();
     } else {
-        logs = await db.logs.toArray();
+        logs = await db.words.toArray();
         comments = await db.comments.toArray();
     }
 
@@ -82,7 +82,7 @@ export const mergeBackupData = async (data: any) => {
         throw new Error('Invalid backup file format');
     }
 
-    await db.transaction('rw', db.logs, db.sources, db.comments, async () => {
+    await db.transaction('rw', db.words, db.sources, db.comments, async () => {
         const sourceIdMap = new Map<number, number>();
         const sourcesToProcess = data.sources || data.models || [];
 
@@ -103,23 +103,23 @@ export const mergeBackupData = async (data: any) => {
             }
         }
 
-        const logIdMap = new Map<number, number>();
+        const wordIdMap = new Map<number, number>();
 
         for (const l of data.logs) {
             const oldId = l.id;
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
 
             // Duplicate detection: Title + approximate CreatedAt
-            const potentialMatches = await db.logs.where('title').equals(l.title).toArray();
+            const potentialMatches = await db.words.where('title').equals(l.title).toArray();
             const existingLog = potentialMatches.find(pl =>
                 Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 1000
             );
 
             if (existingLog) {
-                logIdMap.set(oldId, existingLog.id!);
+                wordIdMap.set(oldId, existingLog.id!);
                 // Optionally update fields like isStarred if they differ
                 if (l.isStarred !== undefined && l.isStarred !== existingLog.isStarred) {
-                    await db.logs.update(existingLog.id!, { isStarred: l.isStarred });
+                    await db.words.update(existingLog.id!, { isStarred: l.isStarred });
                 }
             } else {
                 const { id, ...logData } = l;
@@ -132,21 +132,21 @@ export const mergeBackupData = async (data: any) => {
                 }
 
                 // Dexie.add will use the auto-incrementing ID unless specified
-                const newId = await db.logs.add(logData);
-                logIdMap.set(oldId, newId as number);
+                const newId = await db.words.add(logData);
+                wordIdMap.set(oldId, newId as number);
             }
         }
 
         if (data.comments) {
             for (const c of data.comments) {
                 const { id, ...commentData } = c;
-                if (commentData.logId && logIdMap.has(commentData.logId)) {
-                    commentData.logId = logIdMap.get(commentData.logId);
+                if (commentData.wordId && wordIdMap.has(commentData.wordId)) {
+                    commentData.wordId = wordIdMap.get(commentData.wordId);
                     commentData.createdAt = typeof c.createdAt === 'string' ? new Date(c.createdAt) : c.createdAt;
                     commentData.updatedAt = typeof c.updatedAt === 'string' ? new Date(c.updatedAt) : c.updatedAt;
 
                     // Deduplicate comments
-                    const duplicates = await db.comments.where('logId').equals(commentData.logId).toArray();
+                    const duplicates = await db.comments.where('wordId').equals(commentData.wordId).toArray();
                     const exists = duplicates.some(d =>
                         d.content === commentData.content &&
                         Math.abs(d.createdAt.getTime() - commentData.createdAt.getTime()) < 1000

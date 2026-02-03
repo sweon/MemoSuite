@@ -4,12 +4,14 @@ import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageP
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { SearchProvider } from './contexts/SearchContext';
+import { FolderProvider } from './contexts/FolderContext';
 import { translations } from './translations';
 import { StudyModeProvider } from './contexts/StudyModeContext';
 import { MainLayout } from './components/Layout/MainLayout';
 import { MemoDetail } from './components/MemoView/MemoDetail';
 import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
+import { FolderPage } from './pages/FolderPage';
 import { ExitGuardProvider } from '@memosuite/shared-drawing';
 import { AndroidExitHandler } from './components/AndroidExitHandler';
 import { db } from './db';
@@ -36,7 +38,7 @@ function AppContent() {
         const firstLine = draft.content.split('\n')[0].replace(/[#*`\s]/g, ' ').trim();
         const finalTitle = draft.title.trim() || firstLine.substring(0, 50) || `(Recovered) ${now.toLocaleString()}`;
 
-        await db.logs.add({
+        await db.words.add({
           title: finalTitle,
           content: draft.content,
           tags: draft.tags,
@@ -67,21 +69,24 @@ function AppContent() {
     <ExitGuardProvider>
       <ColorThemeProvider storageKeyPrefix="wordmemo" GlobalStyleComponent={GlobalStyle}>
         <ModalProvider>
-          <SearchProvider>
-            <HashRouter>
-              <AndroidExitHandler />
-              <InstallPrompt appName="WordMemo" t={t} iconPath="./pwa-192x192.png" />
-              <Routes>
-                <Route path="/" element={<MainLayout />}>
-                  <Route index element={<EmptyState />} />
-                  <Route path="new" element={<MemoDetail />} />
-                  <Route path="log/:id" element={<MemoDetail />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Route>
-              </Routes>
-            </HashRouter>
-          </SearchProvider>
+          <FolderProvider>
+            <SearchProvider>
+              <HashRouter>
+                <AndroidExitHandler />
+                <InstallPrompt appName="WordMemo" t={t} iconPath="./pwa-192x192.png" />
+                <Routes>
+                  <Route path="/" element={<MainLayout />}>
+                    <Route index element={<EmptyState />} />
+                    <Route path="folders" element={<FolderPage />} />
+                    <Route path="new" element={<MemoDetail />} />
+                    <Route path="word/:id" element={<MemoDetail />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Route>
+                </Routes>
+              </HashRouter>
+            </SearchProvider>
+          </FolderProvider>
         </ModalProvider>
       </ColorThemeProvider>
     </ExitGuardProvider>

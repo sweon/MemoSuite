@@ -1,7 +1,17 @@
 import Dexie, { type Table } from 'dexie';
 
+export interface Folder {
+    id?: number;
+    name: string;
+    isReadOnly: boolean;
+    excludeFromGlobalSearch: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
 export interface Log {
     id?: number;
+    folderId?: number; // Folder reference
     title: string;
     content: string; // Markdown content
     modelId?: number;
@@ -45,6 +55,7 @@ export interface Autosave {
 }
 
 export class LLMLogDatabase extends Dexie {
+    folders!: Table<Folder>;
     logs!: Table<Log>;
     models!: Table<Model>;
     comments!: Table<Comment>;
@@ -76,6 +87,26 @@ export class LLMLogDatabase extends Dexie {
 
         this.version(6).stores({
             autosaves: '++id, title, originalId, createdAt'
+        });
+
+        // Version 7: Add folders table and folderId to logs
+        this.version(7).stores({
+            folders: '++id, name, createdAt, updatedAt',
+            logs: '++id, folderId, title, *tags, modelId, createdAt, updatedAt, threadId'
+        }).upgrade(async tx => {
+            const foldersTable = tx.table('folders');
+            const logsTable = tx.table('logs');
+
+            const now = new Date();
+            const defaultFolderId = await foldersTable.add({
+                name: '기본 폴더',
+                isReadOnly: false,
+                excludeFromGlobalSearch: false,
+                createdAt: now,
+                updatedAt: now
+            });
+
+            await logsTable.toCollection().modify({ folderId: defaultFolderId });
         });
     }
 }

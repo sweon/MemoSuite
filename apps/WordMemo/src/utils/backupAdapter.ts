@@ -16,7 +16,7 @@ export const wordMemoAdapter: DataAdapter = {
         window.location.reload();
     },
     getExportableItems: async () => {
-        const logs = await db.logs.orderBy('createdAt').reverse().toArray();
+        const logs = await db.words.orderBy('createdAt').reverse().toArray();
         return logs.map(l => ({
             id: l.id!,
             title: l.title,
@@ -34,11 +34,11 @@ export const wordMemoSyncAdapter: SyncAdapter = {
     },
     analyzeSyncData: async (initialId?: number): Promise<SyncInfo> => {
         if (initialId) {
-            const log = await db.logs.get(initialId);
+            const log = await db.words.get(initialId);
             if (log) {
                 if (log.threadId) {
-                    const threadCount = await db.logs.where('threadId').equals(log.threadId).count();
-                    const threadLogs = await db.logs.where('threadId').equals(log.threadId).sortBy('threadOrder');
+                    const threadCount = await db.words.where('threadId').equals(log.threadId).count();
+                    const threadLogs = await db.words.where('threadId').equals(log.threadId).sortBy('threadOrder');
                     const isHead = threadLogs[0]?.id === log.id;
 
                     if (isHead && threadCount > 1) {
@@ -48,14 +48,14 @@ export const wordMemoSyncAdapter: SyncAdapter = {
                 return { type: 'single', count: 1, label: log.title };
             }
         }
-        const count = await db.logs.count();
+        const count = await db.words.count();
         return { type: 'full', count, label: 'All Data' };
     },
     getSyncTargetIds: async (initialId?: number): Promise<number[] | undefined> => {
         if (initialId) {
-            const log = await db.logs.get(initialId);
+            const log = await db.words.get(initialId);
             if (log && log.threadId) {
-                const threadLogs = await db.logs.where('threadId').equals(log.threadId).sortBy('threadOrder');
+                const threadLogs = await db.words.where('threadId').equals(log.threadId).sortBy('threadOrder');
                 if (threadLogs.length > 0 && threadLogs[0].id === log.id) {
                     return threadLogs.map(l => l.id!);
                 }

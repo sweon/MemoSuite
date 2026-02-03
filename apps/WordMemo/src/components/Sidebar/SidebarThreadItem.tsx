@@ -1,7 +1,7 @@
 import React from 'react';
-import type { Log } from '../../db';
+import type { Word } from '../../db';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LogItemLink, LogTitle, LogDate, ThreadToggleBtn, LogTitleRow, SpeakButton, BlurredText, StarButton } from './itemStyles';
+import { WordItemLink, WordTitle, WordDate, ThreadToggleBtn, WordTitleRow, SpeakButton, BlurredText, StarButton } from './itemStyles';
 import { FiCornerDownRight, FiVolume2, FiStar } from 'react-icons/fi';
 import { TouchDelayDraggable } from './TouchDelayDraggable';
 import type { TranslationKeys } from '../../translations';
@@ -10,15 +10,15 @@ import { speakText } from '../../utils/tts';
 
 interface Props {
     threadId: string;
-    logs: Log[];
+    logs: Word[];
     index: number;
     collapsed: boolean;
     onToggle: (id: string) => void;
-    activeLogId?: number;
+    activeWordId?: number;
     sourceMap: Map<number, string>;
     formatDate: (d: Date) => string;
     untitledText: string;
-    onLogClick?: () => void;
+    onWordClick?: () => void;
     isCombineTarget?: boolean;
     t: TranslationKeys;
     studyMode: 'none' | 'hide-meanings' | 'hide-words';
@@ -26,14 +26,14 @@ interface Props {
 
 export const SidebarThreadItem: React.FC<Props> = ({
     threadId, logs, index, collapsed, onToggle,
-    activeLogId, sourceMap, formatDate, untitledText, onLogClick,
+    activeWordId, sourceMap, formatDate, untitledText, onWordClick,
     isCombineTarget, t,
     studyMode
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
-    const headLog = logs[0];
-    const bodyLogs = logs.slice(1);
+    const headWord = logs[0];
+    const bodyWords = logs.slice(1);
 
     const [isRevealed, setIsRevealed] = React.useState(false);
 
@@ -59,9 +59,9 @@ export const SidebarThreadItem: React.FC<Props> = ({
         // Default behavior for navigation
         e.preventDefault();
 
-        if (onLogClick && window.innerWidth <= 768) onLogClick();
+        if (onWordClick && window.innerWidth <= 768) onWordClick();
 
-        navigate(`/log/${headLog.id}`, {
+        navigate(`/word/${headWord.id}`, {
             replace: location.pathname !== '/' && location.pathname !== ''
         });
     };
@@ -69,12 +69,12 @@ export const SidebarThreadItem: React.FC<Props> = ({
     const handleToggleStar = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!headLog.id) return;
-        await db.logs.update(headLog.id, { isStarred: headLog.isStarred ? 0 : 1 });
+        if (!headWord.id) return;
+        await db.words.update(headWord.id, { isStarred: headWord.isStarred ? 0 : 1 });
     };
 
     return (
-        <TouchDelayDraggable draggableId={`thread-header-${headLog.id}`} index={index}>
+        <TouchDelayDraggable draggableId={`thread-header-${headWord.id}`} index={index}>
             {(provided: any, snapshot: any) => (
                 <div
                     ref={provided.innerRef}
@@ -89,35 +89,35 @@ export const SidebarThreadItem: React.FC<Props> = ({
                         backgroundColor: isCombineTarget ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
                     }}
                 >
-                    {/* Head Log - Acts as drag handle for the group */}
-                    <div {...provided.dragHandleProps} data-log-id={headLog.id} style={{ position: 'relative' }}>
-                        <LogItemLink
-                            to={`/log/${headLog.id}`}
-                            $isActive={activeLogId === headLog.id}
+                    {/* Head Word - Acts as drag handle for the group */}
+                    <div {...provided.dragHandleProps} data-log-id={headWord.id} style={{ position: 'relative' }}>
+                        <WordItemLink
+                            to={`/word/${headWord.id}`}
+                            $isActive={activeWordId === headWord.id}
                             $inThread={false}
                             onClick={handleHeaderClick}
                             replace={location.pathname !== '/' && location.pathname !== ''}
                         >
-                            <LogTitleRow>
-                                <LogTitle>
+                            <WordTitleRow>
+                                <WordTitle>
                                     <BlurredText $isBlurred={studyMode === 'hide-words'} $forceReveal={isRevealed}>
-                                        {headLog.title || untitledText}
+                                        {headWord.title || untitledText}
                                     </BlurredText>
-                                </LogTitle>
+                                </WordTitle>
                                 <div style={{ display: 'flex', gap: '2px' }}>
                                     <StarButton
-                                        $active={!!headLog.isStarred}
+                                        $active={!!headWord.isStarred}
                                         onClick={handleToggleStar}
                                         title="Toggle Star"
                                     >
-                                        <FiStar size={14} fill={headLog.isStarred ? "#f59e0b" : "none"} />
+                                        <FiStar size={14} fill={headWord.isStarred ? "#f59e0b" : "none"} />
                                     </StarButton>
-                                    {(headLog.title) && (
+                                    {(headWord.title) && (
                                         <SpeakButton
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
-                                                speakText(headLog.title);
+                                                speakText(headWord.title);
                                             }}
                                             title="Speak"
                                         >
@@ -125,23 +125,23 @@ export const SidebarThreadItem: React.FC<Props> = ({
                                         </SpeakButton>
                                     )}
                                 </div>
-                            </LogTitleRow>
-                            <LogDate>
-                                {formatDate(headLog.createdAt)}
-                                {headLog.sourceId && (
+                            </WordTitleRow>
+                            <WordDate>
+                                {formatDate(headWord.createdAt)}
+                                {headWord.sourceId && (
                                     <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
-                                        • {sourceMap.get(headLog.sourceId)}
+                                        • {sourceMap.get(headWord.sourceId)}
                                     </span>
                                 )}
-                            </LogDate>
-                        </LogItemLink>
+                            </WordDate>
+                        </WordItemLink>
 
                         {/* Integrated Toggle Button */}
-                        {bodyLogs.length > 0 && (
+                        {bodyWords.length > 0 && (
                             <div style={{ paddingLeft: '0.5rem' }}>
                                 <ThreadToggleBtn onClick={() => onToggle(threadId)}>
                                     <FiCornerDownRight />
-                                    {collapsed ? t.sidebar.more_logs.replace('{count}', String(bodyLogs.length)) : t.sidebar.collapse}
+                                    {collapsed ? t.sidebar.more_words.replace('{count}', String(bodyWords.length)) : t.sidebar.collapse}
                                 </ThreadToggleBtn>
                             </div>
                         )}

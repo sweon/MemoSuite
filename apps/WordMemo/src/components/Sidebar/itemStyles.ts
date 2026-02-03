@@ -1,7 +1,7 @@
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 
-export const LogItemLink = styled(Link) <{ $isActive: boolean; $inThread?: boolean }>`
+export const WordItemLink = styled(Link) <{ $isActive: boolean; $inThread?: boolean }>`
   display: block;
   padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
   padding-left: ${({ $inThread, theme }) => ($inThread ? theme.spacing.xl : theme.spacing.md)};
@@ -40,7 +40,7 @@ export const LogItemLink = styled(Link) <{ $isActive: boolean; $inThread?: boole
   }
 `;
 
-export const LogTitleRow = styled.div`
+export const WordTitleRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -48,7 +48,7 @@ export const LogTitleRow = styled.div`
   width: 100%;
 `;
 
-export const LogTitle = styled.div`
+export const WordTitle = styled.div`
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -102,7 +102,7 @@ export const StarButton = styled.button<{ $active?: boolean }>`
   }
 `;
 
-export const LogDate = styled.div`
+export const WordDate = styled.div`
   font-size: 0.72rem;
   color: ${({ theme }) => theme.colors.textSecondary};
   margin-top: 4px;

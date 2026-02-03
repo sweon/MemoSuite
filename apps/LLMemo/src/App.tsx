@@ -4,13 +4,14 @@ import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageP
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { SearchProvider } from './contexts/SearchContext';
+import { FolderProvider } from './contexts/FolderContext';
 import { translations } from './translations';
 import { MainLayout } from './components/Layout/MainLayout';
 import { LogDetail } from './components/LogView/LogDetail';
 import { EmptyState } from './components/LogView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
+import { FolderPage } from './pages/FolderPage';
 import { ExitGuardProvider } from '@memosuite/shared-drawing';
-
 import { AndroidExitHandler } from './components/AndroidExitHandler';
 import { db } from './db';
 
@@ -65,21 +66,24 @@ function AppContent() {
     <ExitGuardProvider>
       <ColorThemeProvider storageKeyPrefix="llmemo" GlobalStyleComponent={GlobalStyle}>
         <ModalProvider>
-          <SearchProvider>
-            <HashRouter>
-              <AndroidExitHandler />
-              <InstallPrompt appName="LLMemo" t={t} iconPath="./pwa-192x192.png" />
-              <Routes>
-                <Route path="/" element={<MainLayout />}>
-                  <Route index element={<EmptyState />} />
-                  <Route path="new" element={<LogDetail />} />
-                  <Route path="log/:id" element={<LogDetail />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Route>
-              </Routes>
-            </HashRouter>
-          </SearchProvider>
+          <FolderProvider>
+            <SearchProvider>
+              <HashRouter>
+                <AndroidExitHandler />
+                <InstallPrompt appName="LLMemo" t={t} iconPath="./pwa-192x192.png" />
+                <Routes>
+                  <Route path="/" element={<MainLayout />}>
+                    <Route index element={<EmptyState />} />
+                    <Route path="folders" element={<FolderPage />} />
+                    <Route path="new" element={<LogDetail />} />
+                    <Route path="log/:id" element={<LogDetail />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Route>
+                </Routes>
+              </HashRouter>
+            </SearchProvider>
+          </FolderProvider>
         </ModalProvider>
       </ColorThemeProvider>
     </ExitGuardProvider>

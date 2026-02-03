@@ -9,9 +9,11 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter, FiFolder } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
+import { FolderMoveModal } from '../FolderView/FolderMoveModal';
+import { useFolder } from '../../contexts/FolderContext';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -228,6 +230,9 @@ export const LogDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
+    const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
+    const { currentFolder } = useFolder();
+    const isReadOnly = currentFolder?.isReadOnly || false;
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
@@ -735,15 +740,22 @@ export const LogDetail: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            <ActionButton onClick={() => setIsEditing(true)}>
-                                <FiEdit2 size={14} /> {t.log_detail.edit}
+                            {!isReadOnly && (
+                                <ActionButton onClick={() => setIsEditing(true)}>
+                                    <FiEdit2 size={14} /> {t.log_detail.edit}
+                                </ActionButton>
+                            )}
+                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
+                                <FiFolder size={14} /> {language === 'ko' ? '이동/복사' : 'Move/Copy'}
                             </ActionButton>
                             <ActionButton onClick={handleAddThread}>
                                 <FiGitMerge size={14} /> {t.log_detail.add_thread}
                             </ActionButton>
-                            <ActionButton $variant="danger" onClick={handleDelete}>
-                                <FiTrash2 size={14} /> {t.log_detail.delete}
-                            </ActionButton>
+                            {!isReadOnly && (
+                                <ActionButton $variant="danger" onClick={handleDelete}>
+                                    <FiTrash2 size={14} /> {t.log_detail.delete}
+                                </ActionButton>
+                            )}
                             <ActionButton onClick={() => setIsShareModalOpen(true)}>
                                 <FiShare2 size={14} /> {t.log_detail.share_log}
                             </ActionButton>
@@ -763,11 +775,14 @@ export const LogDetail: React.FC = () => {
                 <ContentPadding>
                     <MarkdownView
                         content={content}
+                        isReadOnly={isReadOnly}
                         onEditDrawing={(json) => {
+                            if (isReadOnly) return;
                             setEditingDrawingData(json);
                             setIsFabricModalOpen(true);
                         }}
                         onEditSpreadsheet={(json) => {
+                            if (isReadOnly) return;
                             try {
                                 setEditingSpreadsheetData(JSON.parse(json));
                                 setIsSpreadsheetModalOpen(true);
@@ -894,6 +909,14 @@ export const LogDetail: React.FC = () => {
                     onDeleteLogOnly={performDeleteLogOnly}
                     onDeleteThread={performDeleteThread}
                     isThreadHead={isDeletingThreadHead}
+                />
+            )}
+            {isFolderMoveModalOpen && log?.id && (
+                <FolderMoveModal
+                    memoId={log.id}
+                    currentFolderId={log.folderId || null}
+                    onClose={() => setIsFolderMoveModalOpen(false)}
+                    onSuccess={() => { }}
                 />
             )}
         </Container>

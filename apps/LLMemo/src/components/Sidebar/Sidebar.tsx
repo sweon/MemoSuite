@@ -5,11 +5,12 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Log } from '../../db';
-import { useNavigate, useParams } from 'react-router-dom'; // Ensure react-router-dom is installed
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus } from 'react-icons/fi';
+import { useNavigate, useParams } from 'react-router-dom';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiFolder } from 'react-icons/fi';
 
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
+import { useFolder } from '../../contexts/FolderContext';
 
 import type { DropResult, DragUpdate } from '@hello-pangea/dnd';
 
@@ -210,7 +211,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = false }) => {
   const { searchQuery, setSearchQuery } = useSearch();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'model-desc' | 'model-asc' | 'comment-desc'>('date-desc');
 
   // Expansion state (now collapsed by default)
@@ -223,6 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
     setExpandedThreads(newSet);
   };
   const { theme, mode, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
+  const { currentFolderId } = useFolder();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
@@ -332,7 +334,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
 
     let filtered = [...allLogs];
 
-    // Filter
+    // Filter by current folder
+    if (currentFolderId !== null) {
+      filtered = filtered.filter(l => l.folderId === currentFolderId);
+    }
+
+    // Filter by search query
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
 
@@ -668,6 +675,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
             }}>
               <FiPlus />
               {t.sidebar.new || 'New Log'}
+            </Button>
+
+            <Button
+              onClick={() => {
+                navigate('/folders', { replace: true });
+                onCloseMobile();
+              }}
+              style={{ background: '#f39c12' }}
+            >
+              <FiFolder />
+              {language === 'ko' ? '폴더' : 'Folders'}
             </Button>
           </TopActions>
         </Header>

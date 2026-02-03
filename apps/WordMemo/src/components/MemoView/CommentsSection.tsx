@@ -164,16 +164,16 @@ const AddButton = styled.button`
 `;
 
 export const CommentsSection: React.FC<{
-    logId: number,
+    wordId: number,
     onEditingChange?: (draft: CommentDraft | null) => void,
     initialEditingState?: CommentDraft | null
-}> = ({ logId, onEditingChange, initialEditingState }) => {
+}> = ({ wordId, onEditingChange, initialEditingState }) => {
     const { theme } = useColorTheme();
     const { t, language } = useLanguage();
     const { confirm } = useConfirm();
     const comments = useLiveQuery(
-        () => db.comments.where('logId').equals(logId).sortBy('createdAt'),
-        [logId]
+        () => db.comments.where('wordId').equals(wordId).sortBy('createdAt'),
+        [wordId]
     );
 
     const [isAdding, setIsAdding] = React.useState(false);
@@ -226,7 +226,7 @@ export const CommentsSection: React.FC<{
     const handleAdd = async () => {
         if (!newContent.trim()) return;
         await db.comments.add({
-            logId,
+            wordId,
             content: newContent,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -287,10 +287,10 @@ export const CommentsSection: React.FC<{
                                     </>
                                 ) : (
                                     <>
-                                        <ActionIcon onClick={() => startEdit(c)} title={t.log_detail.edit}>
+                                        <ActionIcon onClick={() => startEdit(c)} title={t.word_detail.edit}>
                                             <FiEdit2 />
                                         </ActionIcon>
-                                        <ActionIcon onClick={() => handleDelete(c.id!)} $variant="danger" title={t.log_detail.delete}>
+                                        <ActionIcon onClick={() => handleDelete(c.id!)} $variant="danger" title={t.word_detail.delete}>
                                             <FiTrash2 />
                                         </ActionIcon>
                                     </>

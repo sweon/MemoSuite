@@ -1,7 +1,17 @@
 import Dexie, { type Table } from 'dexie';
 
-export interface Log {
+export interface Folder {
     id?: number;
+    name: string;
+    isReadOnly: boolean;
+    excludeFromGlobalSearch: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface Word {
+    id?: number;
+    folderId?: number; // Folder reference
     title: string;
     content: string; // Markdown content
     sourceId?: number;
@@ -22,7 +32,7 @@ export interface Source {
 
 export interface Comment {
     id?: number;
-    logId: number;
+    wordId: number;
     content: string;
     createdAt: Date;
     updatedAt: Date;
@@ -43,7 +53,7 @@ export interface CommentDraft {
 
 export interface Autosave {
     id?: number;
-    originalId?: number; // The ID of the log being edited, if any
+    originalId?: number; // The ID of the word being edited, if any
     title: string;
     content: string;
     sourceId?: number;
@@ -53,7 +63,8 @@ export interface Autosave {
 }
 
 export class WordMemoDatabase extends Dexie {
-    logs!: Table<Log>;
+    folders!: Table<Folder>;
+    words!: Table<Word>;
     sources!: Table<Source>;
     comments!: Table<Comment>;
     llmProviders!: Table<LLMProvider>;
@@ -93,6 +104,56 @@ export class WordMemoDatabase extends Dexie {
 
         this.version(8).stores({
             autosaves: '++id, originalId, createdAt'
+        });
+
+        // Version 9: Add folders table and folderId to logs
+        this.version(9).stores({
+            folders: '++id, name, createdAt, updatedAt',
+            logs: '++id, folderId, title, *tags, sourceId, createdAt, updatedAt, threadId, isStarred'
+        }).upgrade(async tx => {
+            const foldersTable = tx.table('folders');
+            const logsTable = tx.table('logs');
+
+            const now = new Date();
+            const defaultFolderId = await foldersTable.add({
+                name: '기본 폴더',
+                isReadOnly: false,
+                excludeFromGlobalSearch: false,
+                createdAt: now,
+                updatedAt: now
+            });
+
+            await logsTable.toCollection().modify({ folderId: defaultFolderId });
+        });
+
+        // Version 10: Rename logs to words and logId to wordId
+        this.version(10).stores({
+            words: '++id, folderId, title, *tags, sourceId, createdAt, updatedAt, threadId, isStarred',
+            logs: null,
+            comments: '++id, wordId, createdAt'
+        }).upgrade(async tx => {
+            const logsTable = tx.table('logs');
+            const wordsTable = tx.table('words');
+            const commentsTable = tx.table('comments');
+
+            const logs = await logsTable.toArray();
+            if (logs.length > 0) {
+                await wordsTable.bulkAdd(logs);
+            }
+
+            const comments = await commentsTable.toArray();
+            if (comments.length > 0) {
+                const updatedComments = comments.map(c => ({
+                    ...c,
+                    wordId: (c as any).logId,
+                    logId: undefined
+                }));
+
+                // Clear and re-add to update index if needed, 
+                // but since we updated the store definition, bulkPut or bulkAdd with new field is better.
+                await commentsTable.clear();
+                await commentsTable.bulkAdd(updatedComments as any);
+            }
         });
     }
 }

@@ -1935,6 +1935,7 @@ interface MarkdownViewProps {
   onEditDrawing?: (json: string) => void;
   onEditSpreadsheet?: (json: string) => void;
   isComment?: boolean;
+  isReadOnly?: boolean;
 }
 
 export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
@@ -1943,7 +1944,8 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
   tableHeaderBg,
   onEditDrawing,
   onEditSpreadsheet,
-  isComment
+  isComment,
+  isReadOnly
 }) => {
   const theme = useTheme() as any;
   const isDark = theme.mode === 'dark';
@@ -2081,11 +2083,11 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
         const json = String(children).replace(/\n$/, '');
 
         if (!inline && language === 'fabric') {
-          return <FabricPreview json={json} onClick={onEditDrawing ? () => onEditDrawing(json) : undefined} />;
+          return <FabricPreview json={json} onClick={!isReadOnly && onEditDrawing ? () => onEditDrawing(json) : undefined} />;
         }
 
         if (!inline && language === 'spreadsheet') {
-          return <SpreadsheetPreview json={json} onClick={onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
+          return <SpreadsheetPreview json={json} onClick={!isReadOnly && onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
         }
 
         if (!inline) {

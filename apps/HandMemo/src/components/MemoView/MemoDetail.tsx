@@ -6,15 +6,17 @@ import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation 
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CommentDraft } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
+import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiArrowRightCircle, FiPrinter, FiGitMerge } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiArrowRightCircle, FiPrinter, FiGitMerge, FiFolder } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
 import { handMemoSyncAdapter } from '../../utils/backupAdapter';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
+import { FolderMoveModal } from '../FolderView/FolderMoveModal';
 
 const Container = styled.div`
   display: flex;
@@ -296,10 +298,16 @@ export const MemoDetail: React.FC = () => {
         return isNew && !isDrawing && !isSheet;
     });
 
+    // Folder context for read-only mode
+    const { currentFolder } = useFolder();
+    const isCurrentFolderReadOnly = currentFolder?.isReadOnly ?? false;
+
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isFabricModalOpen, setIsFabricModalOpen] = useState(false);
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
+    const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
+    const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
 
@@ -926,15 +934,21 @@ export const MemoDetail: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            <ActionButton onClick={() => setIsEditing(true)}>
-                                <FiEdit2 size={14} /> {t.memo_detail.edit}
-                            </ActionButton>
-                            <ActionButton onClick={handleAddThread}>
-                                <FiGitMerge size={14} /> {t.memo_detail.add_thread}
-                            </ActionButton>
-                            <ActionButton $variant="danger" onClick={handleDelete}>
-                                <FiTrash2 size={14} /> {t.memo_detail.delete}
-                            </ActionButton>
+                            {!isCurrentFolderReadOnly && (
+                                <ActionButton onClick={() => setIsEditing(true)}>
+                                    <FiEdit2 size={14} /> {t.memo_detail.edit}
+                                </ActionButton>
+                            )}
+                            {!isCurrentFolderReadOnly && (
+                                <ActionButton onClick={handleAddThread}>
+                                    <FiGitMerge size={14} /> {t.memo_detail.add_thread}
+                                </ActionButton>
+                            )}
+                            {!isCurrentFolderReadOnly && (
+                                <ActionButton $variant="danger" onClick={handleDelete}>
+                                    <FiTrash2 size={14} /> {t.memo_detail.delete}
+                                </ActionButton>
+                            )}
                             {!isNew && (
                                 <ActionButton
                                     $variant={isMovingLocal ? "primary" : undefined}
@@ -954,6 +968,12 @@ export const MemoDetail: React.FC = () => {
                                 <FiShare2 size={14} /> {t.memo_detail.share_memo}
                             </ActionButton>
 
+                            {!isNew && memo && (
+                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
+                                    <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                                </ActionButton>
+                            )}
+
                             <ActionButton $variant="print" onClick={() => window.print()} className="hide-on-mobile">
                                 <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                             </ActionButton>
@@ -972,6 +992,7 @@ export const MemoDetail: React.FC = () => {
                         <MarkdownView
                             content={memo?.content || ''}
                             memoId={Number(id)}
+                            isReadOnly={isCurrentFolderReadOnly}
                             onEditDrawing={(json) => {
                                 setEditingDrawingData(json);
                                 setIsFabricModalOpen(true);
@@ -1016,6 +1037,26 @@ export const MemoDetail: React.FC = () => {
                     onDeleteMemoOnly={performDeleteMemoOnly}
                     onDeleteThread={() => performDeleteMemoOnly()}
                     isThreadHead={false}
+                />
+            )}
+
+            {isFolderMoveModalOpen && memo && currentFolder && (
+                <FolderMoveModal
+                    memoId={memo.id!}
+                    currentFolderId={currentFolder.id}
+                    onClose={() => setIsFolderMoveModalOpen(false)}
+                    onSuccess={(message) => {
+                        setFolderMoveToast(message);
+                        setTimeout(() => setFolderMoveToast(null), 3000);
+                    }}
+                />
+            )}
+
+            {folderMoveToast && (
+                <Toast
+                    message={folderMoveToast}
+                    onClose={() => setFolderMoveToast(null)}
+                    duration={3000}
                 />
             )}
 
