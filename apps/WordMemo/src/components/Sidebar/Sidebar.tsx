@@ -22,6 +22,21 @@ import { SidebarThreadItem } from './SidebarThreadItem';
 import { StarButton } from './itemStyles';
 import pkg from '../../../package.json';
 
+const ScrollableArea = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.border};
+    border-radius: 3px;
+  }
+`;
+
 const SidebarContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -41,6 +56,10 @@ const SidebarContainer = styled.div`
 const Header = styled.div`
   padding: ${({ theme }) => theme.spacing.md};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: ${({ theme }) => theme.colors.surface};
 `;
 
 const BrandHeader = styled.div`
@@ -169,9 +188,7 @@ const TopActions = styled.div`
 `;
 
 const LogList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: ${({ theme }) => theme.spacing.sm};
+  padding: 0.5rem;
   scrollbar-width: thin;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
@@ -586,169 +603,171 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
 
   return (
     <SidebarContainer>
-      <BrandHeader>
-        <AppTitle>WordMemo</AppTitle>
-        <AppVersion>v{pkg.version}</AppVersion>
-      </BrandHeader>
-      <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
-        <TopActions>
-          <Button onClick={() => {
-            navigate('/new', { replace: true, state: { isGuard: true } });
-            onCloseMobile();
-          }}>
-            <FiPlus size={20} />
-          </Button>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      <ScrollableArea id="sidebar-scrollable-area">
+        <BrandHeader>
+          <AppTitle>WordMemo</AppTitle>
+          <AppVersion>v{pkg.version}</AppVersion>
+        </BrandHeader>
+        <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+          <TopActions>
+            <Button onClick={() => {
+              navigate('/new', { replace: true, state: { isGuard: true } });
+              onCloseMobile();
+            }}>
+              <FiPlus size={20} />
+            </Button>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
 
-            <Tooltip content={t.sidebar.decrease_font}>
-              <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
-                <FiMinus size={18} />
-              </IconButton>
-            </Tooltip>
+              <Tooltip content={t.sidebar.decrease_font}>
+                <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
+                  <FiMinus size={18} />
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip content={t.sidebar.increase_font}>
-              <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
-                <FiPlus size={18} />
-              </IconButton>
-            </Tooltip>
+              <Tooltip content={t.sidebar.increase_font}>
+                <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
+                  <FiPlus size={18} />
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip content={t.sidebar.sync_data}>
-              <IconButton onClick={() => setIsSyncModalOpen(true)}>
-                <FiRefreshCw size={18} />
-              </IconButton>
-            </Tooltip>
+              <Tooltip content={t.sidebar.sync_data}>
+                <IconButton onClick={() => setIsSyncModalOpen(true)}>
+                  <FiRefreshCw size={18} />
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
-              <IconButton onClick={toggleTheme}>
-                {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
-              </IconButton>
-            </Tooltip>
+              <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
+                <IconButton onClick={toggleTheme}>
+                  {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip content={t.sidebar.settings}>
-              <IconButton onClick={() => {
-                navigate('/settings', { replace: true, state: { isGuard: true } });
-                onCloseMobile();
-              }}>
-                <FiSettings size={18} />
-              </IconButton>
-            </Tooltip>
+              <Tooltip content={t.sidebar.settings}>
+                <IconButton onClick={() => {
+                  navigate('/settings', { replace: true, state: { isGuard: true } });
+                  onCloseMobile();
+                }}>
+                  <FiSettings size={18} />
+                </IconButton>
+              </Tooltip>
+            </div>
+          </TopActions>
+
+          <SearchInputWrapper>
+            <SearchIcon size={16} />
+            <SearchInput
+              placeholder={t.sidebar.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              $hasStarred={sortBy !== 'starred'}
+            />
+            {sortBy !== 'starred' && (
+              <StarFilterButton
+                $active={starredOnly}
+                onClick={() => setStarredOnly(!starredOnly)}
+                title={starredOnly ? t.sidebar.show_all : t.sidebar.show_starred}
+              >
+                <FiStar size={16} fill={starredOnly ? '#E69F00' : 'none'} />
+              </StarFilterButton>
+            )}
+            {searchQuery && (
+              <ClearButton onClick={() => setSearchQuery('')}>
+                <FiX size={14} />
+              </ClearButton>
+            )}
+          </SearchInputWrapper>
+
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              style={{
+                flex: 1,
+                width: '100%',
+                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
+                fontSize: window.innerWidth <= 768 ? '14px' : '0.85rem',
+                borderRadius: '6px',
+                border: `1px solid ${theme.colors.border}`,
+                background: theme.colors.surface,
+                color: theme.colors.text
+              }}
+            >
+              <option value="date-desc">{language === 'ko' ? '최신순' : 'Newest'}</option>
+              <option value="date-asc">{language === 'ko' ? '오래된순' : 'Oldest'}</option>
+              <option value="alpha">{language === 'ko' ? '제목순' : 'Title A-Z'}</option>
+              <option value="starred">{language === 'ko' ? '중요한 것 먼저' : 'Starred First'}</option>
+              <option value="comment-desc">{language === 'ko' ? '댓글 많은 순' : 'Most Commented'}</option>
+              <option value="source-desc">{language === 'ko' ? '출처 (내림차순)' : 'Source (Desc)'}</option>
+              <option value="source-asc">{language === 'ko' ? '출처 (오름차순)' : 'Source (Asc)'}</option>
+            </select>
           </div>
-        </TopActions>
 
-        <SearchInputWrapper>
-          <SearchIcon size={16} />
-          <SearchInput
-            placeholder={t.sidebar.search}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            $hasStarred={sortBy !== 'starred'}
-          />
-          {sortBy !== 'starred' && (
-            <StarFilterButton
-              $active={starredOnly}
-              onClick={() => setStarredOnly(!starredOnly)}
-              title={starredOnly ? t.sidebar.show_all : t.sidebar.show_starred}
-            >
-              <FiStar size={16} fill={starredOnly ? '#E69F00' : 'none'} />
-            </StarFilterButton>
-          )}
-          {searchQuery && (
-            <ClearButton onClick={() => setSearchQuery('')}>
-              <FiX size={14} />
-            </ClearButton>
-          )}
-        </SearchInputWrapper>
+          <div style={{ marginTop: '0.6rem' }}>
+            <StudyModeGroup>
+              <StudyModeOption
+                $active={studyMode === 'hide-meanings'}
+                onClick={() => setStudyMode(studyMode === 'hide-meanings' ? 'none' : 'hide-meanings')}
+              >
+                {language === 'ko' ? '의미' : 'Meaning'} <FiEyeOff />
+              </StudyModeOption>
+              <StudyModeOption
+                $active={studyMode === 'hide-words'}
+                onClick={() => setStudyMode(studyMode === 'hide-words' ? 'none' : 'hide-words')}
+              >
+                {language === 'ko' ? '단어' : 'Word'} <FiEyeOff />
+              </StudyModeOption>
+            </StudyModeGroup>
+          </div>
+        </Header>
 
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            style={{
-              flex: 1,
-              width: '100%',
-              padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-              fontSize: window.innerWidth <= 768 ? '14px' : '0.85rem',
-              borderRadius: '6px',
-              border: `1px solid ${theme.colors.border}`,
-              background: theme.colors.surface,
-              color: theme.colors.text
-            }}
-          >
-            <option value="date-desc">{language === 'ko' ? '최신순' : 'Newest'}</option>
-            <option value="date-asc">{language === 'ko' ? '오래된순' : 'Oldest'}</option>
-            <option value="alpha">{language === 'ko' ? '제목순' : 'Title A-Z'}</option>
-            <option value="starred">{language === 'ko' ? '중요한 것 먼저' : 'Starred First'}</option>
-            <option value="comment-desc">{language === 'ko' ? '댓글 많은 순' : 'Most Commented'}</option>
-            <option value="source-desc">{language === 'ko' ? '출처 (내림차순)' : 'Source (Desc)'}</option>
-            <option value="source-asc">{language === 'ko' ? '출처 (오름차순)' : 'Source (Asc)'}</option>
-          </select>
-        </div>
-
-        <div style={{ marginTop: '0.6rem' }}>
-          <StudyModeGroup>
-            <StudyModeOption
-              $active={studyMode === 'hide-meanings'}
-              onClick={() => setStudyMode(studyMode === 'hide-meanings' ? 'none' : 'hide-meanings')}
-            >
-              {language === 'ko' ? '의미' : 'Meaning'} <FiEyeOff />
-            </StudyModeOption>
-            <StudyModeOption
-              $active={studyMode === 'hide-words'}
-              onClick={() => setStudyMode(studyMode === 'hide-words' ? 'none' : 'hide-words')}
-            >
-              {language === 'ko' ? '단어' : 'Word'} <FiEyeOff />
-            </StudyModeOption>
-          </StudyModeGroup>
-        </div>
-      </Header>
-
-      <LogList id="sidebar-log-list" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
-        <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
-          <Droppable droppableId="sidebar-droppable" isCombineEnabled>
-            {(provided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef} key={listKey}>
-                {flatItems.map((item, index) => {
-                  if (item.type === 'thread-header') {
+        <LogList id="sidebar-log-list" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+          <DragDropContext onDragEnd={onDragEnd} onDragUpdate={onDragUpdate}>
+            <Droppable droppableId="sidebar-droppable" isCombineEnabled>
+              {(provided) => (
+                <div {...provided.droppableProps} ref={provided.innerRef} key={listKey}>
+                  {flatItems.map((item, index) => {
+                    if (item.type === 'thread-header') {
+                      return (
+                        <SidebarThreadItem
+                          key={item.log.id}
+                          threadId={item.threadId}
+                          logs={item.threadLogs}
+                          index={index}
+                          collapsed={!expandedThreads.has(item.threadId)}
+                          onToggle={toggleThread}
+                          activeLogId={Number(id)}
+                          sourceMap={sourceNameMap}
+                          formatDate={formatDate}
+                          untitledText={t.sidebar.untitled}
+                          onLogClick={onCloseMobile}
+                          isCombineTarget={combineTargetId === `log-${item.log.id}`}
+                          t={t}
+                          studyMode={studyMode}
+                        />
+                      );
+                    }
                     return (
-                      <SidebarThreadItem
+                      <SidebarMemoItem
                         key={item.log.id}
-                        threadId={item.threadId}
-                        logs={item.threadLogs}
+                        log={item.log}
                         index={index}
-                        collapsed={!expandedThreads.has(item.threadId)}
-                        onToggle={toggleThread}
-                        activeLogId={Number(id)}
-                        sourceMap={sourceNameMap}
+                        isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === item.log.id}
+                        onClick={onCloseMobile}
                         formatDate={formatDate}
                         untitledText={t.sidebar.untitled}
-                        onLogClick={onCloseMobile}
+                        inThread={item.type === 'thread-child'}
                         isCombineTarget={combineTargetId === `log-${item.log.id}`}
-                        t={t}
                         studyMode={studyMode}
                       />
                     );
-                  }
-                  return (
-                    <SidebarMemoItem
-                      key={item.log.id}
-                      log={item.log}
-                      index={index}
-                      isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === item.log.id}
-                      onClick={onCloseMobile}
-                      formatDate={formatDate}
-                      untitledText={t.sidebar.untitled}
-                      inThread={item.type === 'thread-child'}
-                      isCombineTarget={combineTargetId === `log-${item.log.id}`}
-                      studyMode={studyMode}
-                    />
-                  );
-                })}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
-      </LogList>
+                  })}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+        </LogList>
+      </ScrollableArea>
 
       {toastMessage && (
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />

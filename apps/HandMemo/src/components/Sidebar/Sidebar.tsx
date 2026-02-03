@@ -23,6 +23,22 @@ import { format } from 'date-fns';
 import { ConfirmModal } from '../UI/ConfirmModal';
 import pkg from '../../../package.json';
 
+const ScrollableArea = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  
+  /* Hide scrollbar for cleaner look if desired, or keep default */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.border};
+    border-radius: 3px;
+  }
+`;
+
 const SidebarContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -42,6 +58,10 @@ const SidebarContainer = styled.div`
 const Header = styled.div`
   padding: ${({ theme }) => theme.spacing.md};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: ${({ theme }) => theme.colors.surface};
 `;
 
 const SearchInputWrapper = styled.div`
@@ -641,169 +661,168 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
       )}
-      <BrandHeader>
-        <AppTitle>HandMemo</AppTitle>
-        <AppVersion>v{pkg.version}</AppVersion>
-      </BrandHeader>
-      <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
-        <TopActions>
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
-            <Tooltip content={t.sidebar.text_memo || "Text"}>
-              <Button
-                $color="#0072B2"
-                onClick={() => {
-                  handleSafeNavigation(() => {
-                    navigate(`/memo/new?t=${Date.now()}`, { replace: true, state: { isGuard: true } });
-                    onCloseMobile(true);
-                  });
-                }}>
-                <BsKeyboard />
-              </Button>
-            </Tooltip>
-            <Tooltip content={t.sidebar.drawing_memo || "Drawing"}>
-              <Button
-                $color="#D55E00"
-                onClick={() => {
-                  handleSafeNavigation(() => {
-                    navigate(`/memo/new?drawing=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
-                    onCloseMobile(true);
-                  });
-                }}>
-                <FiPenTool />
-              </Button>
-            </Tooltip>
-            <Tooltip content={t.sidebar.sheet_memo || "Sheet"}>
-              <Button
-                $color="#009E73"
-                onClick={() => {
-                  handleSafeNavigation(() => {
-                    navigate(`/memo/new?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
-                    onCloseMobile(true);
-                  });
-                }}>
-                <RiTable2 />
-              </Button>
-            </Tooltip>
-          </div>
-          <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}>
+      <ScrollableArea id="sidebar-scrollable-area">
+        <BrandHeader>
+          <AppTitle>HandMemo</AppTitle>
+          <AppVersion>v{pkg.version}</AppVersion>
+        </BrandHeader>
+        <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+          <TopActions>
+            <div style={{ display: 'flex', gap: '0.25rem' }}>
+              <Tooltip content={t.sidebar.text_memo || "Text"}>
+                <Button
+                  $color="#0072B2"
+                  onClick={() => {
+                    handleSafeNavigation(() => {
+                      navigate(`/memo/new?t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                      onCloseMobile(true);
+                    });
+                  }}>
+                  <BsKeyboard />
+                </Button>
+              </Tooltip>
+              <Tooltip content={t.sidebar.drawing_memo || "Drawing"}>
+                <Button
+                  $color="#D55E00"
+                  onClick={() => {
+                    handleSafeNavigation(() => {
+                      navigate(`/memo/new?drawing=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                      onCloseMobile(true);
+                    });
+                  }}>
+                  <FiPenTool />
+                </Button>
+              </Tooltip>
+              <Tooltip content={t.sidebar.sheet_memo || "Sheet"}>
+                <Button
+                  $color="#009E73"
+                  onClick={() => {
+                    handleSafeNavigation(() => {
+                      navigate(`/memo/new?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                      onCloseMobile(true);
+                    });
+                  }}>
+                  <RiTable2 />
+                </Button>
+              </Tooltip>
+            </div>
+            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}>
 
-            <Tooltip content={t.sidebar.decrease_font}>
-              <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
-                <FiMinus size={18} />
-              </IconButton>
-            </Tooltip>
+              <Tooltip content={t.sidebar.decrease_font}>
+                <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
+                  <FiMinus size={18} />
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip content={t.sidebar.increase_font}>
-              <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
-                <FiPlus size={18} />
-              </IconButton>
-            </Tooltip>
+              <Tooltip content={t.sidebar.increase_font}>
+                <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
+                  <FiPlus size={18} />
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip content={t.sidebar.sync_data}>
-              <IconButton onClick={() => {
-                setIsSyncModalOpen(true);
-                onCloseMobile(true);
-              }}>
-                <FiRefreshCw size={18} />
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
-              <IconButton onClick={toggleTheme}>
-                {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip content={t.sidebar.settings}>
-              <IconButton onClick={() => {
-                handleSafeNavigation(() => {
-                  navigate('/settings', { replace: true, state: { isGuard: true } });
+              <Tooltip content={t.sidebar.sync_data}>
+                <IconButton onClick={() => {
+                  setIsSyncModalOpen(true);
                   onCloseMobile(true);
-                });
-              }}>
-                <FiSettings size={18} />
-              </IconButton>
-            </Tooltip>
+                }}>
+                  <FiRefreshCw size={18} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
+                <IconButton onClick={toggleTheme}>
+                  {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip content={t.sidebar.settings}>
+                <IconButton onClick={() => {
+                  handleSafeNavigation(() => {
+                    navigate('/settings', { replace: true, state: { isGuard: true } });
+                    onCloseMobile(true);
+                  });
+                }}>
+                  <FiSettings size={18} />
+                </IconButton>
+              </Tooltip>
+            </div>
+          </TopActions>
+
+          <SearchInputWrapper>
+            <SearchIcon size={16} />
+            <SearchInput
+              placeholder={t.sidebar.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <ClearButton onClick={() => setSearchQuery('')}>
+                <FiX size={14} />
+              </ClearButton>
+            )}
+          </SearchInputWrapper>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              style={{
+                flex: 1,
+                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
+                fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
+                borderRadius: '6px',
+                border: `1px solid ${theme.colors.border}`,
+                background: theme.colors.surface,
+                color: theme.colors.text
+              }}
+            >
+              <option value="last-edited">{t.sidebar.last_memoed}</option>
+              <option value="last-commented">{t.sidebar.last_commented}</option>
+              <option value="date-desc">{t.sidebar.newest}</option>
+              <option value="date-asc">{t.sidebar.oldest}</option>
+              <option value="title-asc">{t.sidebar.title_asc}</option>
+            </select>
           </div>
-        </TopActions>
+        </Header>
 
-        <SearchInputWrapper>
-          <SearchIcon size={16} />
-          <SearchInput
-            placeholder={t.sidebar.search}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <ClearButton onClick={() => setSearchQuery('')}>
-              <FiX size={14} />
-            </ClearButton>
+        <ThreadableList
+          items={groupedItems}
+          droppableId="sidebar-memos"
+          onDragEnd={onDragEnd}
+          getItemId={(item) => item.memo.id!}
+          renderItem={(item, _index, isCombineTarget) => (
+
+            <SidebarMemoItem
+              key={item.memo.id}
+              memo={item.memo}
+              isActive={id !== undefined && id !== 'new' && id !== 'settings' && String(id) === String(item.memo.id)}
+              onClick={(skipHistory) => {
+                if (movingMemoId) {
+                  handleMove(item.memo.id!);
+                } else {
+                  onCloseMobile(skipHistory);
+                }
+              }}
+              formatDate={(date) => format(date, language === 'ko' ? 'yyyy.MM.dd' : 'MMM d, yyyy')}
+              untitledText={t.sidebar.untitled}
+              inThread={item.isThreadChild}
+              isThreadHead={item.isThreadHead}
+              childCount={item.childCount}
+              collapsed={collapsedThreads.has(item.threadId || '')}
+              isMovingMode={!!movingMemoId}
+              onToggle={toggleThread}
+              threadId={item.threadId}
+              collapseText={t.sidebar.collapse}
+              moreText={t.sidebar.more_memos}
+              isCombineTarget={isCombineTarget}
+            />
           )}
-        </SearchInputWrapper>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            style={{
-              flex: 1,
-              padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-              fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
-              borderRadius: '6px',
-              border: `1px solid ${theme.colors.border}`,
-              background: theme.colors.surface,
-              color: theme.colors.text
-            }}
-          >
-            <option value="last-edited">{t.sidebar.last_memoed}</option>
-            <option value="last-commented">{t.sidebar.last_commented}</option>
-            <option value="date-desc">{t.sidebar.newest}</option>
-            <option value="date-asc">{t.sidebar.oldest}</option>
-            <option value="title-asc">{t.sidebar.title_asc}</option>
-          </select>
-        </div>
-      </Header>
 
-      <ThreadableList
-        items={groupedItems}
-        droppableId="sidebar-memos"
-        onDragEnd={onDragEnd}
-        getItemId={(item) => item.memo.id!}
-        renderItem={(item, _index, isCombineTarget) => (
-
-          <SidebarMemoItem
-            key={item.memo.id}
-            memo={item.memo}
-            isActive={id !== undefined && id !== 'new' && id !== 'settings' && String(id) === String(item.memo.id)}
-            onClick={(skipHistory) => {
-              if (movingMemoId) {
-                handleMove(item.memo.id!);
-              } else {
-                onCloseMobile(skipHistory);
-              }
-            }}
-            formatDate={(date) => format(date, language === 'ko' ? 'yyyy.MM.dd' : 'MMM d, yyyy')}
-            untitledText={t.sidebar.untitled}
-            inThread={item.isThreadChild}
-            isThreadHead={item.isThreadHead}
-            childCount={item.childCount}
-            collapsed={collapsedThreads.has(item.threadId || '')}
-            isMovingMode={!!movingMemoId}
-            onToggle={toggleThread}
-            threadId={item.threadId}
-            collapseText={t.sidebar.collapse}
-            moreText={t.sidebar.more_memos}
-            isCombineTarget={isCombineTarget}
-          />
-        )}
-
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '0.5rem',
-          opacity: isEditing ? 0.5 : 1,
-          pointerEvents: isEditing ? 'none' : 'auto'
-        }}
-      />
+          style={{
+            flex: 1,
+            padding: '0.5rem',
+          }}
+        />
+      </ScrollableArea>
 
       <ConfirmModal
         isOpen={confirmModal.isOpen}

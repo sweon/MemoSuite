@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Log } from '../../db';
-import { useNavigate, useParams, useLocation } from 'react-router-dom'; // Ensure react-router-dom is installed
+import { useNavigate, useParams } from 'react-router-dom'; // Ensure react-router-dom is installed
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus } from 'react-icons/fi';
 
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -20,6 +20,21 @@ import { format } from 'date-fns';
 import { SidebarLogItem } from './SidebarLogItem';
 import { SidebarThreadItem } from './SidebarThreadItem';
 import pkg from '../../../package.json';
+
+const ScrollableArea = styled.div`
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.border};
+    border-radius: 3px;
+  }
+`;
 
 const SidebarContainer = styled.div`
   display: flex;
@@ -40,6 +55,10 @@ const SidebarContainer = styled.div`
 const Header = styled.div`
   padding: ${({ theme }) => theme.spacing.md};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: ${({ theme }) => theme.colors.surface};
 `;
 
 const BrandHeader = styled.div`
@@ -203,13 +222,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
   };
   const { theme, mode, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
-  const location = useLocation();
   const { id } = useParams<{ id: string }>();
 
   // Decide whether to replace history or push.
   // We only replace if we are already in a sub-page (log detail or settings).
   // If we are at root (/), we MUST push so that back button can return to root.
-  const isAtSubPage = !!id || location.pathname.includes('/settings');
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -563,165 +580,166 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
 
   return (
     <SidebarContainer>
-      <BrandHeader>
-        <AppTitle>LLMemo</AppTitle>
-        <AppVersion>v{pkg.version}</AppVersion>
-      </BrandHeader>
-      <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
-        <TopActions>
-          <Tooltip content={t.sidebar.new}>
-            <Button onClick={() => {
-              navigate('/new');
-              onCloseMobile();
-            }}>
-              <FiPlus />
-            </Button>
-          </Tooltip>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}>
-
-            <Tooltip content={t.sidebar.decrease_font}>
-              <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
-                <FiMinus size={18} />
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip content={t.sidebar.increase_font}>
-              <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
-                <FiPlus size={18} />
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip content={t.sidebar.sync_data}>
-              <IconButton onClick={() => setIsSyncModalOpen(true)}>
-                <FiRefreshCw size={18} />
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
-              <IconButton onClick={toggleTheme}>
-                {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip content={t.sidebar.settings}>
-              <IconButton onClick={() => {
-                navigate('/settings', { replace: isAtSubPage });
+      <ScrollableArea id="sidebar-scrollable-area">
+        <BrandHeader>
+          <AppTitle>LLMemo</AppTitle>
+          <AppVersion>v{pkg.version}</AppVersion>
+        </BrandHeader>
+        <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+          <TopActions>
+            <Tooltip content={t.sidebar.new}>
+              <Button onClick={() => {
+                navigate('/new');
                 onCloseMobile();
               }}>
-                <FiSettings size={18} />
-              </IconButton>
+                <FiPlus />
+              </Button>
             </Tooltip>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 1, minWidth: 0, overflow: 'hidden' }}>
+
+              <Tooltip content={t.sidebar.decrease_font}>
+                <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
+                  <FiMinus size={18} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip content={t.sidebar.increase_font}>
+                <IconButton onClick={increaseFontSize} disabled={fontSize >= 24}>
+                  <FiPlus size={18} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip content={t.sidebar.sync_data}>
+                <IconButton onClick={() => setIsSyncModalOpen(true)}>
+                  <FiRefreshCw size={18} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip content={mode === 'light' ? t.sidebar.switch_dark : t.sidebar.switch_light}>
+                <IconButton onClick={toggleTheme}>
+                  {mode === 'light' ? <FiMoon size={18} /> : <FiSun size={18} />}
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip content={t.sidebar.settings}>
+                <IconButton onClick={() => {
+                  navigate('/settings', { replace: true, state: { isGuard: true } });
+                  onCloseMobile();
+                }}>
+                  <FiSettings size={18} />
+                </IconButton>
+              </Tooltip>
+            </div>
+          </TopActions>
+
+          <SearchInputWrapper>
+            <SearchIcon size={16} />
+            <SearchInput
+              placeholder={t.sidebar.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <ClearButton onClick={() => setSearchQuery('')}>
+                <FiX size={14} />
+              </ClearButton>
+            )}
+          </SearchInputWrapper>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              style={{
+                flex: 1,
+                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
+                fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
+                borderRadius: '6px',
+                border: `1px solid ${theme.colors.border}`,
+                background: theme.colors.surface,
+                color: theme.colors.text
+              }}
+            >
+              <option value="date-desc">{t.sidebar.newest}</option>
+              <option value="date-asc">{t.sidebar.oldest}</option>
+              <option value="model-desc">{t.sidebar.model_newest}</option>
+              <option value="model-asc">{t.sidebar.model_oldest}</option>
+              <option value="comment-desc">{t.sidebar.last_commented}</option>
+            </select>
           </div>
-        </TopActions>
+        </Header>
 
-        <SearchInputWrapper>
-          <SearchIcon size={16} />
-          <SearchInput
-            placeholder={t.sidebar.search}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <ClearButton onClick={() => setSearchQuery('')}>
-              <FiX size={14} />
-            </ClearButton>
-          )}
-        </SearchInputWrapper>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            style={{
-              flex: 1,
-              padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-              fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
-              borderRadius: '6px',
-              border: `1px solid ${theme.colors.border}`,
-              background: theme.colors.surface,
-              color: theme.colors.text
-            }}
-          >
-            <option value="date-desc">{t.sidebar.newest}</option>
-            <option value="date-asc">{t.sidebar.oldest}</option>
-            <option value="model-desc">{t.sidebar.model_newest}</option>
-            <option value="model-asc">{t.sidebar.model_oldest}</option>
-            <option value="comment-desc">{t.sidebar.last_commented}</option>
-          </select>
-        </div>
-      </Header>
+        <ThreadableList
+          items={flatItems}
+          droppableId="root"
+          type="LOG_LIST"
+          onDragEnd={onDragEnd}
+          // onDragUpdate is handled by ThreadableList but we can pass it if we need extra logic
+          getItemId={(item) => {
+            if (item.type === 'single') return item.log.id!;
+            if (item.type === 'thread-header') return `thread-header-${item.log.id}`;
+            if (item.type === 'thread-child') return `thread-child-${item.log.id}`;
+            return '';
+          }}
+          renderItem={(item, _index, isCombineTarget) => {
+            if (item.type === 'single') {
+              const logId = item.log.id!;
+              return (
+                <SidebarLogItem
+                  key={logId}
+                  log={item.log}
+                  isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === logId}
+                  onClick={onCloseMobile}
+                  modelName={modelNameMap.get(item.log.modelId!)}
+                  formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
+                  untitledText={t.sidebar.untitled}
+                  isCombineTarget={isCombineTarget}
+                />
+              );
+            } else if (item.type === 'thread-header') {
+              return (
+                <SidebarThreadItem
+                  key={`header-${item.threadId}`}
+                  threadId={item.threadId}
+                  logs={item.threadLogs}
+                  index={_index}
+                  collapsed={!expandedThreads.has(item.threadId)}
+                  onToggle={toggleThread}
+                  activeLogId={Number(id)}
+                  modelMap={modelNameMap}
+                  formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
+                  untitledText={t.sidebar.untitled}
+                  onLogClick={onCloseMobile}
+                  isCombineTarget={isCombineTarget}
+                  t={t}
+                />
+              );
+            } else if (item.type === 'thread-child') {
+              return (
+                <SidebarLogItem
+                  key={item.log.id!}
+                  log={item.log}
+                  isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === item.log.id!}
+                  onClick={onCloseMobile}
+                  modelName={modelNameMap.get(item.log.modelId!)}
+                  formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
+                  untitledText={t.sidebar.untitled}
+                  inThread={true}
+                  isCombineTarget={isCombineTarget}
+                />
+              );
+            }
+            return null;
+          }}
 
-      <ThreadableList
-        items={flatItems}
-        droppableId="root"
-        type="LOG_LIST"
-        onDragEnd={onDragEnd}
-        // onDragUpdate is handled by ThreadableList but we can pass it if we need extra logic
-        getItemId={(item) => {
-          if (item.type === 'single') return item.log.id!;
-          if (item.type === 'thread-header') return `thread-header-${item.log.id}`;
-          if (item.type === 'thread-child') return `thread-child-${item.log.id}`;
-          return '';
-        }}
-        renderItem={(item, _index, isCombineTarget) => {
-          if (item.type === 'single') {
-            const logId = item.log.id!;
-            return (
-              <SidebarLogItem
-                key={logId}
-                log={item.log}
-                isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === logId}
-                onClick={onCloseMobile}
-                modelName={modelNameMap.get(item.log.modelId!)}
-                formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
-                untitledText={t.sidebar.untitled}
-                isCombineTarget={isCombineTarget}
-              />
-            );
-          } else if (item.type === 'thread-header') {
-            return (
-              <SidebarThreadItem
-                key={`header-${item.threadId}`}
-                threadId={item.threadId}
-                logs={item.threadLogs}
-                index={_index}
-                collapsed={!expandedThreads.has(item.threadId)}
-                onToggle={toggleThread}
-                activeLogId={Number(id)}
-                modelMap={modelNameMap}
-                formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
-                untitledText={t.sidebar.untitled}
-                onLogClick={onCloseMobile}
-                isCombineTarget={isCombineTarget}
-                t={t}
-              />
-            );
-          } else if (item.type === 'thread-child') {
-            return (
-              <SidebarLogItem
-                key={item.log.id!}
-                log={item.log}
-                isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === item.log.id!}
-                onClick={onCloseMobile}
-                modelName={modelNameMap.get(item.log.modelId!)}
-                formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
-                untitledText={t.sidebar.untitled}
-                inThread={true}
-                isCombineTarget={isCombineTarget}
-              />
-            );
-          }
-          return null;
-        }}
-
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '0.5rem',
-          minHeight: '200px',
-          opacity: isEditing ? 0.5 : 1,
-          pointerEvents: isEditing ? 'none' : 'auto'
-        }}
-      />
+          style={{
+            flex: 1,
+            padding: '0.5rem',
+            minHeight: '200px',
+            opacity: isEditing ? 0.5 : 1,
+            pointerEvents: isEditing ? 'none' : 'auto'
+          }}
+        />
+      </ScrollableArea>
 
       <SyncModal
         isOpen={isSyncModalOpen}
