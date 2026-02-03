@@ -135,7 +135,7 @@ const Button = styled.button<{ $color?: string }>`
   cursor: pointer;
   background: ${({ theme, $color }) => $color || theme.colors.primary};
   color: white;
-  flex-shrink: 0;
+  white-space: nowrap;
   transition: ${({ theme }) => theme.effects.transition};
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   
@@ -153,6 +153,8 @@ const Button = styled.button<{ $color?: string }>`
   &:active {
     transform: translateY(0);
   }
+
+  flex: auto;
 `;
 
 const TopActions = styled.div`
@@ -683,7 +685,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <AppVersion>v{pkg.version}</AppVersion>
           </BrandHeader>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.25rem', paddingBottom: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingBottom: '4px' }}>
             <Tooltip content={t.sidebar.decrease_font}>
               <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
                 <FiMinus size={18} />
@@ -722,18 +724,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </IconButton>
             </Tooltip>
 
-            <Tooltip content={language === 'ko' ? '폴더' : 'Folders'}>
-              <IconButton
-                onClick={() => {
-                  setShowFolderList(true);
-                  navigate('/folders', { replace: true, state: { isGuard: true } });
-                  onCloseMobile(true);
-                }}
-                style={{ color: currentFolder?.isReadOnly ? '#f59e0b' : undefined }}
-              >
-                <FiFolder size={18} />
-              </IconButton>
-            </Tooltip>
           </div>
 
           {currentFolder && (
@@ -805,41 +795,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <TopActions>
-            <div style={{ display: 'flex', gap: '0.25rem' }}>
-              <Button
-                $color="#0072B2"
-                onClick={() => {
-                  handleSafeNavigation(() => {
-                    navigate(`/memo/new?t=${Date.now()}`, { replace: true, state: { isGuard: true } });
-                    onCloseMobile(true);
-                  });
-                }}>
-                <BsKeyboard />
-                {language === 'ko' ? '+ 글' : '+ Text'}
-              </Button>
-              <Button
-                $color="#D55E00"
-                onClick={() => {
-                  handleSafeNavigation(() => {
-                    navigate(`/memo/new?drawing=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
-                    onCloseMobile(true);
-                  });
-                }}>
-                <FiPenTool />
-                {language === 'ko' ? '+ 그리기' : '+ Drawing'}
-              </Button>
-              <Button
-                $color="#009E73"
-                onClick={() => {
-                  handleSafeNavigation(() => {
-                    navigate(`/memo/new?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
-                    onCloseMobile(true);
-                  });
-                }}>
-                <RiTable2 />
-                {language === 'ko' ? '+ 시트' : '+ Sheet'}
-              </Button>
-            </div>
+            <Button
+              $color="#0072B2"
+              onClick={() => {
+                handleSafeNavigation(() => {
+                  navigate(`/memo/new?t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                });
+              }}>
+              <BsKeyboard />
+              {language === 'ko' ? '+ 글' : '+ Text'}
+            </Button>
+            <Button
+              $color="#D55E00"
+              onClick={() => {
+                handleSafeNavigation(() => {
+                  navigate(`/memo/new?drawing=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                });
+              }}>
+              <FiPenTool />
+              {language === 'ko' ? '+ 그리기' : '+ Drawing'}
+            </Button>
+            <Button
+              $color="#009E73"
+              onClick={() => {
+                handleSafeNavigation(() => {
+                  navigate(`/memo/new?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                });
+              }}>
+              <RiTable2 />
+              {language === 'ko' ? '+ 시트' : '+ Sheet'}
+            </Button>
+            <Button
+              $color="#f39c12"
+              onClick={() => {
+                handleSafeNavigation(() => {
+                  setShowFolderList(true);
+                  navigate('/folders', { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                });
+              }}>
+              <FiFolder />
+              {language === 'ko' ? '폴더' : 'Folders'}
+            </Button>
           </TopActions>
         </Header>
 

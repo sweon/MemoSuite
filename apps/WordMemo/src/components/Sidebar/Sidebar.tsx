@@ -626,7 +626,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
             <AppVersion>v{pkg.version}</AppVersion>
           </BrandHeader>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.25rem', paddingBottom: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingBottom: '4px' }}>
             <Tooltip content={t.sidebar.decrease_font}>
               <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
                 <FiMinus size={18} />
