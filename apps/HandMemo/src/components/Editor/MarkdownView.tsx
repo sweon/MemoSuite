@@ -956,18 +956,26 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
           setTimeout(() => {
             if (!isMounted.current) return;
             const tracks = player.getOption('captions', 'tracklist') || [];
-            const hasManualEn = tracks.some((t: any) => t.languageCode?.startsWith('en') && t.kind !== 'asr');
-            const asrEn = tracks.find((t: any) => t.languageCode?.startsWith('en') && t.kind === 'asr');
+
+            // Check for manual English tracks
+            const hasManualEn = tracks.some((t: any) =>
+              (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) &&
+              t.kind !== 'asr' && !t.languageCode?.startsWith('a.')
+            );
+
+            // Check for ASR English tracks
+            const asrEn = tracks.find((t: any) =>
+              (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) &&
+              (t.kind === 'asr' || t.languageCode?.startsWith('a.'))
+            );
 
             if (!hasManualEn && asrEn) {
               player.setOption('captions', 'track', { languageCode: asrEn.languageCode });
+              setActiveTrackCode(asrEn.languageCode);
               setIsCaptionsOn(true);
               setTimeout(() => {
                 if (isMounted.current) applyCaptionStyles();
               }, 500);
-            } else if (!isCaptionsOn) {
-              // If we didn't auto-enable, unload module to keep it clean (prevents some auto-sub behavior)
-              // player.unloadModule('captions'); // commented out to avoid flickering if user opens settings immediately
             }
           }, 500);
         } catch (e) { }
@@ -1027,24 +1035,26 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
           setActiveTrackCode(currentTrack?.languageCode || 'off');
 
           // Also try to find Korean in auto-translation if not present in main tracks
-          const hasKorean = tracks.some((t: any) => t.languageCode === 'ko');
+          const hasKorean = tracks.some((t: any) => (t.languageCode === 'ko' || t.languageCode === 'ko-KR'));
           if (!hasKorean) {
             try {
               const transLangs = playerRef.current.getOption('captions', 'translationLanguages') || [];
               const koTrans = transLangs.find((l: any) => l.languageCode === 'ko');
               if (koTrans) {
-                // We add it to a separate state or just append to tracks for UI
-                // For simplicity, let's just make sure we can select it
+                // Potential for auto-translate exists
               }
             } catch (e) { }
           }
         };
 
-        // Initial fetch + retries since it might take time for the module to fetch remote metadata
+        const currentTrack = player.getOption('captions', 'track');
+        setActiveTrackCode(currentTrack?.languageCode || 'off');
+
+        // Initial fetch + retries 
         fetchTracks();
-        setTimeout(fetchTracks, 300);
-        setTimeout(fetchTracks, 1000);
-        setTimeout(fetchTracks, 3000);
+        setTimeout(fetchTracks, 500);
+        setTimeout(fetchTracks, 1500);
+        setTimeout(fetchTracks, 4000);
       } catch (err) {
         console.error('Failed to get tracks', err);
       }
@@ -1489,15 +1499,18 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
                       }}
                     >
                       <option value="off" style={{ background: '#1c1c1c' }}>{language === 'ko' ? '자막 끄기' : 'Captions Off'}</option>
-                      {ccTracks.map((track: any) => (
-                        <option
-                          key={track.languageCode}
-                          value={track.languageCode}
-                          style={{ background: '#1c1c1c' }}
-                        >
-                          {track.displayName} {track.kind === 'asr' ? `(${language === 'ko' ? '자동 생성' : 'auto-generated'})` : ''}
-                        </option>
-                      ))}
+                      {ccTracks.map((track: any) => {
+                        const isAsr = track.kind === 'asr' || track.languageCode?.startsWith('a.');
+                        return (
+                          <option
+                            key={`${track.languageCode}-${track.kind}`}
+                            value={track.languageCode}
+                            style={{ background: '#1c1c1c' }}
+                          >
+                            {track.displayName} {isAsr ? `(${language === 'ko' ? '자동 생성' : 'auto-generated'})` : ''}
+                          </option>
+                        );
+                      })}
                       {/* Add Korean Auto-translate option if Korean is not a direct track but available in translations */}
                       {!ccTracks.some((t: any) => t.languageCode === 'ko' || t.languageCode === 'ko-KR') && (
                         <option value="ko-auto" style={{ background: '#1c1c1c' }}>
