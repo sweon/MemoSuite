@@ -682,6 +682,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
   const [isCaptionsOn, setIsCaptionsOn] = React.useState(false);
   const [isCCSettingsOpen, setIsCCSettingsOpen] = React.useState(false);
   const [ccTracks, setCCTracks] = React.useState<any[]>([]);
+  const [activeTrackCode, setActiveTrackCode] = React.useState<string>('');
   const [ccFontSize, setCCFontSize] = React.useState(0);
   const [volumeToast, setVolumeToast] = React.useState<number | null>(null);
 
@@ -996,6 +997,8 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
         setTimeout(() => {
           const tracks = player.getOption('captions', 'tracklist') || [];
           setCCTracks(tracks);
+          const currentTrack = player.getOption('captions', 'track');
+          setActiveTrackCode(currentTrack?.languageCode || 'off');
         }, 100);
       } catch (err) {
         console.error('Failed to get tracks', err);
@@ -1396,41 +1399,60 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
                   </button>
                 </div>
 
-                {/* Tracks Selection */}
+                {/* Tracks Selection - Dropdown */}
                 <div style={{ marginBottom: '16px' }}>
                   <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     {language === 'ko' ? '언어 선택' : 'Language'}
                   </div>
-                  <div style={{ maxHeight: '100px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    {ccTracks.length > 0 ? ccTracks.map((track: any) => (
-                      <button
-                        key={track.languageCode}
-                        onClick={() => {
-                          playerRef.current?.setOption('captions', 'track', { languageCode: track.languageCode });
-                          setIsCCSettingsOpen(false);
-                        }}
-                        style={{
-                          textAlign: 'left',
-                          padding: '6px 8px',
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#ddd',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                          transition: 'background 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                      >
-                        {track.displayName}
-                      </button>
-                    )) : (
-                      <div style={{ fontSize: '11px', color: '#666', padding: '4px 8px' }}>
-                        {language === 'ko' ? '사용 가능한 자막 없음' : 'No tracks available'}
-                      </div>
-                    )}
-                  </div>
+                  {ccTracks.length > 0 ? (
+                    <select
+                      value={activeTrackCode}
+                      onChange={(e) => {
+                        const code = e.target.value;
+                        setActiveTrackCode(code);
+                        if (code === 'off') {
+                          playerRef.current?.unloadModule('captions');
+                          setIsCaptionsOn(false);
+                        } else {
+                          if (!isCaptionsOn) {
+                            playerRef.current?.loadModule('captions');
+                            setIsCaptionsOn(true);
+                          }
+                          playerRef.current?.setOption('captions', 'track', { languageCode: code });
+                          applyCaptionStyles();
+                        }
+                        setIsCCSettingsOpen(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: '#fff',
+                        padding: '6px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        appearance: 'none',
+                        WebkitAppearance: 'none'
+                      }}
+                    >
+                      <option value="off" style={{ background: '#1c1c1c' }}>{language === 'ko' ? '자막 끄기' : 'Captions Off'}</option>
+                      {ccTracks.map((track: any) => (
+                        <option
+                          key={track.languageCode}
+                          value={track.languageCode}
+                          style={{ background: '#1c1c1c' }}
+                        >
+                          {track.displayName}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div style={{ fontSize: '11px', color: '#666', padding: '4px 8px' }}>
+                      {language === 'ko' ? '사용 가능한 자막 없음' : 'No tracks available'}
+                    </div>
+                  )}
                 </div>
 
                 {/* Font Size */}
