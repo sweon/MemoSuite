@@ -229,7 +229,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     setExpandedThreads(newSet);
   };
   const { theme, mode, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
-  const { currentFolderId } = useFolder();
+  const { currentFolderId, currentFolder, setShowFolderList } = useFolder();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
@@ -465,7 +465,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     return () => clearTimeout(timer);
   }, [id, flatItems.length]);
 
-  const onDragUpdate = (update: DragUpdate) => {
+  const onDragUpdate = (_update: DragUpdate) => {
     // onDragUpdate?.(update); // Original was calling undefined prop? Or just typo? 
     // In LLMemo original code: 
     // const onDragUpdate = (update: DragUpdate) => { onDragUpdate?.(update); }; 
@@ -488,7 +488,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
     if (destination?.droppableId.startsWith('folder-')) {
       const folderId = parseInt(destination.droppableId.replace('folder-', ''));
-      const logId = parseInt(draggableId.replace('log-', '')); // Adjust if draggableId format differs
       // ThreadableList usually uses itemId as draggableId. 
       // check getItemId: if single -> log.id, if header -> `thread-header-${id}`, etc.
 
@@ -654,7 +653,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             <AppTitle>LLMemo</AppTitle>
             <AppVersion>v{pkg.version}</AppVersion>
           </BrandHeader>
-
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingBottom: '4px' }}>
             <Tooltip content={t.sidebar.decrease_font}>
               <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
@@ -689,6 +687,37 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               </IconButton>
             </Tooltip>
           </div>
+
+          {currentFolder && (
+            <div
+              onClick={() => {
+                setShowFolderList(true);
+                navigate('/folders', { replace: true, state: { isGuard: true } });
+                onCloseMobile();
+              }}
+              style={{
+                fontSize: '0.75rem',
+                color: currentFolder.isReadOnly ? '#f59e0b' : theme.colors.textSecondary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                marginTop: '4px',
+                padding: '4px 8px',
+                background: theme.colors.background,
+                borderRadius: theme.radius.small,
+                border: `1px solid ${theme.colors.border}`,
+              }}
+            >
+              <FiFolder size={12} style={{ flexShrink: 0 }} />
+              <span>{(currentFolder.name === '기본 폴더' || currentFolder.name === 'Default Folder') ? (language === 'ko' ? '기본 폴더' : 'Default Folder') : currentFolder.name}</span>
+              {currentFolder.isReadOnly && (
+                <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                  ({language === 'ko' ? '읽기 전용' : 'Read-only'})
+                </span>
+              )}
+            </div>
+          )}
 
           <SearchInputWrapper>
             <SearchIcon size={16} />

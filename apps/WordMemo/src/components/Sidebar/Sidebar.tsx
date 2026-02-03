@@ -288,7 +288,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'source-desc' | 'source-asc' | 'comment-desc' | 'alpha' | 'starred'>('date-desc');
   const [starredOnly, setStarredOnly] = useState(false);
   const { studyMode, setStudyMode } = useStudyMode();
-  const { currentFolderId } = useFolder();
+  const { currentFolderId, currentFolder, setShowFolderList } = useFolder();
 
   // Expansion state (now collapsed by default)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
@@ -591,7 +591,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
             // Let's implement thread move logic here too.
             const siblings = await db.words.where('threadId').equals(sourceWord.threadId).toArray();
-            const isThreadHeader = siblings.length > 0; // Simplified. 
+
             // Better: Check if `flatItems` says it's a header? 
             // `flatItems` is state derived. 
 
@@ -724,6 +724,37 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               </IconButton>
             </Tooltip>
           </div>
+
+          {currentFolder && (
+            <div
+              onClick={() => {
+                setShowFolderList(true);
+                navigate('/folders', { replace: true, state: { isGuard: true } });
+                onCloseMobile();
+              }}
+              style={{
+                fontSize: '0.75rem',
+                color: currentFolder.isReadOnly ? '#f59e0b' : theme.colors.textSecondary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                marginTop: '4px',
+                padding: '4px 8px',
+                background: theme.colors.background,
+                borderRadius: theme.radius.small,
+                border: `1px solid ${theme.colors.border}`,
+              }}
+            >
+              <FiFolder size={12} style={{ flexShrink: 0 }} />
+              <span>{(currentFolder.name === '기본 폴더' || currentFolder.name === 'Default Folder') ? (language === 'ko' ? '기본 폴더' : 'Default Folder') : currentFolder.name}</span>
+              {currentFolder.isReadOnly && (
+                <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                  ({language === 'ko' ? '읽기 전용' : 'Read-only'})
+                </span>
+              )}
+            </div>
+          )}
 
           <SearchInputWrapper>
             <SearchIcon size={16} />

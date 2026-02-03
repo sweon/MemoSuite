@@ -236,7 +236,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-comment-desc'>('date-desc');
 
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
-  const { currentFolderId } = useFolder();
+  const { currentFolderId, currentFolder, setShowFolderList } = useFolder();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -510,6 +510,37 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             </Tooltip>
           </div>
 
+          {currentFolder && (
+            <div
+              onClick={() => {
+                setShowFolderList(true);
+                navigate('/folders', { replace: true, state: { isGuard: true } });
+                onCloseMobile(true);
+              }}
+              style={{
+                fontSize: '0.75rem',
+                color: currentFolder.isReadOnly ? '#f59e0b' : theme.colors.textSecondary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                marginTop: '4px',
+                padding: '4px 8px',
+                background: theme.colors.background,
+                borderRadius: theme.radius.small,
+                border: `1px solid ${theme.colors.border}`,
+              }}
+            >
+              <FiFolder size={12} style={{ flexShrink: 0 }} />
+              <span>{(currentFolder.name === '기본 폴더' || currentFolder.name === 'Default Folder') ? (language === 'ko' ? '기본 폴더' : 'Default Folder') : currentFolder.name}</span>
+              {currentFolder.isReadOnly && (
+                <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                  ({language === 'ko' ? '읽기 전용' : 'Read-only'})
+                </span>
+              )}
+            </div>
+          )}
+
           <SearchInputWrapper>
             <SearchIcon size={16} />
             <SearchInput
@@ -580,7 +611,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             >
               {sortedBooks?.map((book, index) => (
                 <Draggable key={book.id} draggableId={String(book.id)} index={index}>
-                  {(provided, snapshot) => (
+                  {(provided) => (
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}

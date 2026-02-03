@@ -476,6 +476,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         memoCount: language === 'ko' ? '개 항목' : ' items',
         readOnly: language === 'ko' ? '읽기 전용' : 'Read-only',
         excludeSearch: language === 'ko' ? '검색 제외' : 'Exclude from search',
+        defaultFolder: language === 'ko' ? '기본 폴더' : 'Default Folder',
         sort: {
             lastEdited: language === 'ko' ? '최근 편집순' : 'Last Edited',
             lastCommented: language === 'ko' ? '최근 댓글순' : 'Last Commented',
@@ -531,6 +532,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                     {sortedFolders.map(folder => {
                         const stats = folderStats[folder.id!] || { count: 0 };
                         const isEditing = editingFolderId === folder.id;
+                        const isDefault = folder.name === '기본 폴더' || folder.name === 'Default Folder';
 
                         return (
                             <Droppable droppableId={`folder-${folder.id}`} key={folder.id}>
@@ -570,7 +572,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                                                     autoFocus
                                                 />
                                             ) : (
-                                                <FolderName>{folder.name}</FolderName>
+                                                <FolderName>{isDefault ? t.defaultFolder : folder.name}</FolderName>
                                             )}
 
                                             {isEditing && (
@@ -610,14 +612,14 @@ export const FolderList: React.FC<FolderListProps> = ({
                                         <FolderActions onClick={(e) => e.stopPropagation()}>
                                             <ActionButton
                                                 onClick={() => {
-                                                    if (folder.name === '기본 폴더' || folder.name === 'Default Folder') {
+                                                    if (isDefault) {
                                                         alert(language === 'ko' ? '기본 폴더의 이름은 변경할 수 없습니다.' : 'Cannot rename the default folder.');
                                                         return;
                                                     }
                                                     setEditingFolderId(folder.id!);
                                                     setEditingName(folder.name);
                                                 }}
-                                                disabled={folder.name === '기본 폴더' || folder.name === 'Default Folder'}
+                                                disabled={isDefault}
                                                 title={language === 'ko' ? '이름 변경' : 'Rename'}
                                             >
                                                 <FiEdit2 size={16} />
@@ -625,13 +627,13 @@ export const FolderList: React.FC<FolderListProps> = ({
 
                                             <ActionButton
                                                 onClick={() => {
-                                                    if (folder.name === '기본 폴더' || folder.name === 'Default Folder') {
+                                                    if (isDefault) {
                                                         alert(language === 'ko' ? '기본 폴더는 읽기 전용으로 설정할 수 없습니다.' : 'Cannot set the default folder as read-only.');
                                                         return;
                                                     }
                                                     handleToggleReadOnly(folder);
                                                 }}
-                                                disabled={folder.name === '기본 폴더' || folder.name === 'Default Folder'}
+                                                disabled={isDefault}
                                                 title={folder.isReadOnly
                                                     ? (language === 'ko' ? '읽기 전용 해제' : 'Disable read-only')
                                                     : (language === 'ko' ? '읽기 전용 설정' : 'Set as read-only')}

@@ -790,8 +790,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                 border: `1px solid ${theme.colors.border}`,
               }}
             >
-              <FiFolder size={12} />
-              <span>{currentFolder.name}</span>
+              <FiFolder size={12} style={{ flexShrink: 0 }} />
+              <span>{(currentFolder.name === '기본 폴더' || currentFolder.name === 'Default Folder') ? (language === 'ko' ? '기본 폴더' : 'Default Folder') : currentFolder.name}</span>
               {currentFolder.isReadOnly && (
                 <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
                   ({language === 'ko' ? '읽기 전용' : 'Read-only'})
