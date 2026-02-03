@@ -275,14 +275,15 @@ export const FolderList: React.FC<FolderListProps> = ({
     const [editingName, setEditingName] = useState('');
 
     const folders = useLiveQuery(() => db.folders.toArray());
+    const allBooks = useLiveQuery(() => db.books.toArray());
     const allMemos = useLiveQuery(() => db.memos.toArray());
     const allComments = useLiveQuery(() => db.comments.toArray());
 
-    // Calculate memo counts and last edited times per folder
+    // Calculate book counts and last edited times per folder
     const folderStats = useMemo(() => {
         const stats: Record<number, { count: number; lastEdited: number; lastCommented: number }> = {};
 
-        if (!allMemos || !allComments) return stats;
+        if (!allBooks || !allMemos || !allComments) return stats;
 
         // Build comment map for last commented time
         const memoLastCommented: Record<number, number> = {};
@@ -293,16 +294,34 @@ export const FolderList: React.FC<FolderListProps> = ({
             }
         });
 
-        allMemos.forEach(memo => {
-            const fid = memo.folderId || 0;
+        // Initialize stats with folders
+        (folders || []).forEach(f => {
+            stats[f.id!] = { count: 0, lastEdited: f.updatedAt.getTime(), lastCommented: 0 };
+        });
+
+        // Count books and track their edits
+        allBooks.forEach(book => {
+            const fid = book.folderId || 0;
             if (!stats[fid]) {
                 stats[fid] = { count: 0, lastEdited: 0, lastCommented: 0 };
             }
             stats[fid].count++;
+            const editedTime = book.updatedAt.getTime();
+            if (editedTime > stats[fid].lastEdited) {
+                stats[fid].lastEdited = editedTime;
+            }
+        });
+
+        // Also track memo edits/comments for 'last edited' and 'last commented' sorting
+        allMemos.forEach(memo => {
+            const fid = memo.folderId || 0;
+            if (!stats[fid]) return;
+
             const editedTime = memo.updatedAt.getTime();
             if (editedTime > stats[fid].lastEdited) {
                 stats[fid].lastEdited = editedTime;
             }
+
             const commentTime = memoLastCommented[memo.id!] || 0;
             if (commentTime > stats[fid].lastCommented) {
                 stats[fid].lastCommented = commentTime;
@@ -310,7 +329,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         });
 
         return stats;
-    }, [allMemos, allComments]);
+    }, [folders, allBooks, allMemos, allComments]);
 
     // Sort folders
     const sortedFolders = useMemo(() => {
@@ -368,8 +387,16 @@ export const FolderList: React.FC<FolderListProps> = ({
             );
         });
 
+        const matchingBooks = (allBooks || []).filter(book => {
+            if (!searchableFolderIds.includes(book.folderId!)) return false;
+            return (
+                book.title.toLowerCase().includes(q) ||
+                book.author?.toLowerCase().includes(q)
+            );
+        });
+
         // For now, just log results. Later we can show them in a modal or navigate.
-        console.log('Global search results:', matchingMemos);
+        console.log('Global search results:', { memos: matchingMemos, books: matchingBooks });
         // TODO: Show search results UI
     };
 
@@ -402,9 +429,9 @@ export const FolderList: React.FC<FolderListProps> = ({
     };
 
     const handleDeleteFolder = async (folder: Folder) => {
-        const memoCount = folderStats[folder.id!]?.count || 0;
+        const itemCount = folderStats[folder.id!]?.count || 0;
 
-        if (memoCount > 0) {
+        if (itemCount > 0) {
             alert(language === 'ko'
                 ? '비어 있지 않은 폴더는 삭제할 수 없습니다.'
                 : 'Cannot delete a folder that is not empty.');
