@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { SyncModal, ThreadableList, useColorTheme, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
@@ -220,6 +220,10 @@ const AppVersion = styled.span`
   border: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
+export interface SidebarRef {
+  handleDragEnd: (result: DropResult) => Promise<void>;
+}
+
 interface SidebarProps {
   onCloseMobile: (skipHistory?: boolean) => void;
   isEditing?: boolean;
@@ -227,12 +231,12 @@ interface SidebarProps {
   setMovingMemoId?: (id: number | null) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
+export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   onCloseMobile,
   isEditing = false,
   movingMemoId,
   setMovingMemoId
-}) => {
+}, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-edited' | 'last-commented'>(() => {
@@ -242,6 +246,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   useEffect(() => {
     localStorage.setItem('sidebar_sortBy', sortBy);
   }, [sortBy]);
+
+  /* Expose handleDragEnd to parent (MainLayout) */
+  useImperativeHandle(ref, () => ({
+    handleDragEnd: async (result: DropResult) => {
+      // Direct call to onDragEnd defined below
+      await onDragEnd(result);
+    }
+  }));
 
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
@@ -543,11 +555,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return;
     }
 
-    // Handle Reordering / Extraction
+    // Handle Reordering / Extraction / Move to Folder
     if (!destination) return;
 
     const sourceMemoId = parseInt(draggableId);
     if (isNaN(sourceMemoId)) return;
+
+    // Check if dropping onto a folder
+    if (destination.droppableId.startsWith('folder-')) {
+      const folderId = parseInt(destination.droppableId.replace('folder-', ''));
+      if (isNaN(folderId)) return;
+
+      const sourceMemo = await db.memos.get(sourceMemoId);
+      if (!sourceMemo) return;
+
+      // Check if it's a thread head
+      const isHeader = groupedItems.find(it => it.memo.id === sourceMemoId)?.isThreadHead;
+
+      if (isHeader && sourceMemo.threadId) {
+        // Move entire thread
+        const threadMemos = await db.memos.where('threadId').equals(sourceMemo.threadId).toArray();
+        for (const tm of threadMemos) {
+          await db.memos.update(tm.id!, { folderId, updatedAt: new Date() });
+        }
+        setToastMessage(language === 'ko' ? '스레드 전체를 이동했습니다.' : 'Moved entire thread.');
+      } else {
+        // Just move this memo
+        await db.memos.update(sourceMemoId, {
+          folderId,
+          threadId: undefined,
+          threadOrder: undefined,
+          updatedAt: new Date()
+        });
+        setToastMessage(language === 'ko' ? '메모를 이동했습니다.' : 'Moved memo.');
+      }
+      return;
+    }
 
     const sourceMemo = await db.memos.get(sourceMemoId);
     if (!sourceMemo) return;
@@ -847,6 +890,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           items={groupedItems}
           droppableId="sidebar-memos"
           onDragEnd={onDragEnd}
+          useExternalContext={true}
           getItemId={(item) => item.memo.id!}
           renderItem={(item, _index, isCombineTarget) => (
 
@@ -904,4 +948,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     </SidebarContainer >
   );
-};
+});
+
+Sidebar.displayName = 'Sidebar';

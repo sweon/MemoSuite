@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-import type { DropResult, DragUpdate } from '@hello-pangea/dnd';
+import type { DropResult, DragUpdate, DragStart } from '@hello-pangea/dnd';
 
 import { TouchDelayDraggable } from './TouchDelayDraggable';
 
 export interface ThreadableListProps<T> {
     items: T[];
     onDragEnd: (result: DropResult) => void;
+    onDragStart?: (start: DragStart) => void;
     onDragUpdate?: (update: DragUpdate) => void;
     renderItem: (item: T, index: number, isCombineTarget: boolean) => React.ReactNode;
     droppableId: string;
@@ -15,6 +16,7 @@ export interface ThreadableListProps<T> {
     isCombineEnabled?: boolean;
     type?: string;
     getItemId: (item: T) => string | number;
+    useExternalContext?: boolean;
 }
 
 /**
@@ -24,6 +26,7 @@ export interface ThreadableListProps<T> {
 export function ThreadableList<T>({
     items,
     onDragEnd,
+    onDragStart,
     onDragUpdate,
     renderItem,
     droppableId,
@@ -31,7 +34,8 @@ export function ThreadableList<T>({
     style,
     isCombineEnabled = true,
     type,
-    getItemId
+    getItemId,
+    useExternalContext = false
 }: ThreadableListProps<T>) {
     const [combineTargetId, setCombineTargetId] = useState<string | null>(null);
 
@@ -49,42 +53,54 @@ export function ThreadableList<T>({
         onDragEnd(result);
     };
 
+    const content = (
+        <Droppable droppableId={droppableId} isCombineEnabled={isCombineEnabled} type={type}>
+            {(provided) => (
+                <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className={className}
+                    style={{ display: 'flex', flexDirection: 'column', ...style }}
+                >
+                    {items.map((item, index) => {
+                        const id = String(getItemId(item));
+                        return (
+                            <TouchDelayDraggable key={id} draggableId={id} index={index}>
+                                {(draggableProvided, snapshot) => (
+                                    <div
+                                        ref={draggableProvided.innerRef}
+                                        {...draggableProvided.draggableProps}
+                                        {...draggableProvided.dragHandleProps}
+                                        style={{
+                                            ...draggableProvided.draggableProps.style,
+                                            opacity: snapshot.isDragging ? 0.6 : 1,
+                                            transition: snapshot.isDragging ? 'none' : 'opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                            zIndex: snapshot.isDragging ? 100 : 1
+                                        }}
+                                    >
+                                        {renderItem(item, index, combineTargetId === id)}
+                                    </div>
+                                )}
+                            </TouchDelayDraggable>
+                        );
+                    })}
+                    {provided.placeholder}
+                </div>
+            )}
+        </Droppable>
+    );
+
+    if (useExternalContext) {
+        return content;
+    }
+
     return (
-        <DragDropContext onDragEnd={handleDragEnd} onDragUpdate={handleDragUpdate}>
-            <Droppable droppableId={droppableId} isCombineEnabled={isCombineEnabled} type={type}>
-                {(provided) => (
-                    <div
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        className={className}
-                        style={{ display: 'flex', flexDirection: 'column', ...style }}
-                    >
-                        {items.map((item, index) => {
-                            const id = String(getItemId(item));
-                            return (
-                                <TouchDelayDraggable key={id} draggableId={id} index={index}>
-                                    {(draggableProvided, snapshot) => (
-                                        <div
-                                            ref={draggableProvided.innerRef}
-                                            {...draggableProvided.draggableProps}
-                                            {...draggableProvided.dragHandleProps}
-                                            style={{
-                                                ...draggableProvided.draggableProps.style,
-                                                opacity: snapshot.isDragging ? 0.6 : 1,
-                                                transition: snapshot.isDragging ? 'none' : 'opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                zIndex: snapshot.isDragging ? 100 : 1
-                                            }}
-                                        >
-                                            {renderItem(item, index, combineTargetId === id)}
-                                        </div>
-                                    )}
-                                </TouchDelayDraggable>
-                            );
-                        })}
-                        {provided.placeholder}
-                    </div>
-                )}
-            </Droppable>
+        <DragDropContext
+            onDragStart={onDragStart}
+            onDragUpdate={handleDragUpdate}
+            onDragEnd={handleDragEnd}
+        >
+            {content}
         </DragDropContext>
     );
 }

@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Folder } from '../../db';
 import { useLanguage } from '@memosuite/shared';
 import { FiFolder, FiPlus, FiEdit2, FiTrash2, FiSearch, FiLock, FiUnlock, FiEyeOff, FiEye, FiCheck, FiX } from 'react-icons/fi';
+import { Droppable } from '@hello-pangea/dnd';
 
 // Warning color constant (amber)
 const WARNING_COLOR = '#f59e0b';
@@ -505,126 +506,141 @@ export const FolderList: React.FC<FolderListProps> = ({
                         const isEditing = editingFolderId === folder.id;
 
                         return (
-                            <FolderCard
-                                key={folder.id}
-                                $isActive={currentFolderId === folder.id}
-                                $isReadOnly={folder.isReadOnly}
-                                onClick={() => {
-                                    if (!isEditing) {
-                                        onSelectFolder(folder.id!);
-                                    }
-                                }}
-                            >
-                                <FolderHeader>
-                                    <FolderIcon $isReadOnly={folder.isReadOnly}>
-                                        {folder.isReadOnly ? <FiLock size={20} /> : <FiFolder size={20} />}
-                                    </FolderIcon>
-
-                                    {isEditing ? (
-                                        <FolderNameInput
-                                            value={editingName}
-                                            onChange={(e) => setEditingName(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') handleRenameFolder(folder.id!);
-                                                if (e.key === 'Escape') {
-                                                    setEditingFolderId(null);
-                                                    setEditingName('');
+                            <Droppable key={folder.id} droppableId={`folder-${folder.id}`}>
+                                {(provided, snapshot) => (
+                                    <div
+                                        ref={provided.innerRef}
+                                        {...provided.droppableProps}
+                                        style={{ display: 'flex', flexDirection: 'column' }} // Maintain layout structure
+                                    >
+                                        <FolderCard
+                                            $isActive={currentFolderId === folder.id}
+                                            $isReadOnly={folder.isReadOnly}
+                                            style={{
+                                                borderColor: snapshot.isDraggingOver ? '#0072B2' : undefined,
+                                                background: snapshot.isDraggingOver ? 'rgba(0, 114, 178, 0.05)' : undefined,
+                                                transform: snapshot.isDraggingOver ? 'scale(1.02)' : undefined
+                                            }}
+                                            onClick={() => {
+                                                if (!isEditing) {
+                                                    onSelectFolder(folder.id!);
                                                 }
                                             }}
-                                            onClick={(e) => e.stopPropagation()}
-                                            autoFocus
-                                        />
-                                    ) : (
-                                        <FolderName>{folder.name}</FolderName>
-                                    )}
+                                        >
+                                            <FolderHeader>
+                                                <FolderIcon $isReadOnly={folder.isReadOnly}>
+                                                    {folder.isReadOnly ? <FiLock size={20} /> : <FiFolder size={20} />}
+                                                </FolderIcon>
 
-                                    {isEditing && (
-                                        <>
-                                            <ActionButton
-                                                $variant="success"
-                                                onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id!); }}
-                                            >
-                                                <FiCheck size={16} />
-                                            </ActionButton>
-                                            <ActionButton
-                                                onClick={(e) => { e.stopPropagation(); setEditingFolderId(null); setEditingName(''); }}
-                                            >
-                                                <FiX size={16} />
-                                            </ActionButton>
-                                        </>
-                                    )}
-                                </FolderHeader>
+                                                {isEditing ? (
+                                                    <FolderNameInput
+                                                        value={editingName}
+                                                        onChange={(e) => setEditingName(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleRenameFolder(folder.id!);
+                                                            if (e.key === 'Escape') {
+                                                                setEditingFolderId(null);
+                                                                setEditingName('');
+                                                            }
+                                                        }}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <FolderName>{folder.name}</FolderName>
+                                                )}
 
-                                <FolderMeta>
-                                    <span>{stats.count}{t.memoCount}</span>
-                                </FolderMeta>
+                                                {isEditing && (
+                                                    <>
+                                                        <ActionButton
+                                                            $variant="success"
+                                                            onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id!); }}
+                                                        >
+                                                            <FiCheck size={16} />
+                                                        </ActionButton>
+                                                        <ActionButton
+                                                            onClick={(e) => { e.stopPropagation(); setEditingFolderId(null); setEditingName(''); }}
+                                                        >
+                                                            <FiX size={16} />
+                                                        </ActionButton>
+                                                    </>
+                                                )}
+                                            </FolderHeader>
 
-                                <FolderBadges>
-                                    {folder.isReadOnly && (
-                                        <Badge $variant="warning">
-                                            <FiLock size={12} /> {t.readOnly}
-                                        </Badge>
-                                    )}
-                                    {folder.excludeFromGlobalSearch && (
-                                        <Badge $variant="info">
-                                            <FiEyeOff size={12} /> {t.excludeSearch}
-                                        </Badge>
-                                    )}
-                                </FolderBadges>
+                                            <FolderMeta>
+                                                <span>{stats.count}{t.memoCount}</span>
+                                            </FolderMeta>
 
-                                <FolderActions onClick={(e) => e.stopPropagation()}>
-                                    <ActionButton
-                                        onClick={() => {
-                                            if (folder.name === '기본 폴더' || folder.name === 'Default Folder') {
-                                                alert(language === 'ko' ? '기본 폴더의 이름은 변경할 수 없습니다.' : 'Cannot rename the default folder.');
-                                                return;
-                                            }
-                                            setEditingFolderId(folder.id!);
-                                            setEditingName(folder.name);
-                                        }}
-                                        disabled={folder.name === '기본 폴더' || folder.name === 'Default Folder'}
-                                        title={language === 'ko' ? '이름 변경' : 'Rename'}
-                                    >
-                                        <FiEdit2 size={16} />
-                                    </ActionButton>
+                                            <FolderBadges>
+                                                {folder.isReadOnly && (
+                                                    <Badge $variant="warning">
+                                                        <FiLock size={12} /> {t.readOnly}
+                                                    </Badge>
+                                                )}
+                                                {folder.excludeFromGlobalSearch && (
+                                                    <Badge $variant="info">
+                                                        <FiEyeOff size={12} /> {t.excludeSearch}
+                                                    </Badge>
+                                                )}
+                                            </FolderBadges>
 
-                                    <ActionButton
-                                        onClick={() => {
-                                            if (folder.name === '기본 폴더' || folder.name === 'Default Folder') {
-                                                alert(language === 'ko' ? '기본 폴더는 읽기 전용으로 설정할 수 없습니다.' : 'Cannot set the default folder as read-only.');
-                                                return;
-                                            }
-                                            handleToggleReadOnly(folder);
-                                        }}
-                                        disabled={folder.name === '기본 폴더' || folder.name === 'Default Folder'}
-                                        title={folder.isReadOnly
-                                            ? (language === 'ko' ? '읽기 전용 해제' : 'Disable read-only')
-                                            : (language === 'ko' ? '읽기 전용 설정' : 'Set as read-only')}
-                                    >
-                                        {folder.isReadOnly ? <FiUnlock size={16} /> : <FiLock size={16} />}
-                                    </ActionButton>
+                                            <FolderActions onClick={(e) => e.stopPropagation()}>
+                                                <ActionButton
+                                                    onClick={() => {
+                                                        if (folder.name === '기본 폴더' || folder.name === 'Default Folder') {
+                                                            alert(language === 'ko' ? '기본 폴더의 이름은 변경할 수 없습니다.' : 'Cannot rename the default folder.');
+                                                            return;
+                                                        }
+                                                        setEditingFolderId(folder.id!);
+                                                        setEditingName(folder.name);
+                                                    }}
+                                                    disabled={folder.name === '기본 폴더' || folder.name === 'Default Folder'}
+                                                    title={language === 'ko' ? '이름 변경' : 'Rename'}
+                                                >
+                                                    <FiEdit2 size={16} />
+                                                </ActionButton>
 
-                                    <ActionButton
-                                        onClick={() => handleToggleExcludeSearch(folder)}
-                                        title={folder.excludeFromGlobalSearch
-                                            ? (language === 'ko' ? '전체 검색 포함' : 'Include in global search')
-                                            : (language === 'ko' ? '전체 검색 제외' : 'Exclude from global search')}
-                                    >
-                                        {folder.excludeFromGlobalSearch ? <FiEye size={16} /> : <FiEyeOff size={16} />}
-                                    </ActionButton>
+                                                <ActionButton
+                                                    onClick={() => {
+                                                        if (folder.name === '기본 폴더' || folder.name === 'Default Folder') {
+                                                            alert(language === 'ko' ? '기본 폴더는 읽기 전용으로 설정할 수 없습니다.' : 'Cannot set the default folder as read-only.');
+                                                            return;
+                                                        }
+                                                        handleToggleReadOnly(folder);
+                                                    }}
+                                                    disabled={folder.name === '기본 폴더' || folder.name === 'Default Folder'}
+                                                    title={folder.isReadOnly
+                                                        ? (language === 'ko' ? '읽기 전용 해제' : 'Disable read-only')
+                                                        : (language === 'ko' ? '읽기 전용 설정' : 'Set as read-only')}
+                                                >
+                                                    {folder.isReadOnly ? <FiUnlock size={16} /> : <FiLock size={16} />}
+                                                </ActionButton>
 
-                                    <ActionButton
-                                        $variant="danger"
-                                        onClick={() => handleDeleteFolder(folder)}
-                                        disabled={stats.count > 0}
-                                        title={stats.count > 0
-                                            ? (language === 'ko' ? '비어있지 않은 폴더는 삭제 불가' : 'Cannot delete non-empty folder')
-                                            : (language === 'ko' ? '폴더 삭제' : 'Delete folder')}
-                                    >
-                                        <FiTrash2 size={16} />
-                                    </ActionButton>
-                                </FolderActions>
-                            </FolderCard>
+                                                <ActionButton
+                                                    onClick={() => handleToggleExcludeSearch(folder)}
+                                                    title={folder.excludeFromGlobalSearch
+                                                        ? (language === 'ko' ? '전체 검색 포함' : 'Include in global search')
+                                                        : (language === 'ko' ? '전체 검색 제외' : 'Exclude from global search')}
+                                                >
+                                                    {folder.excludeFromGlobalSearch ? <FiEye size={16} /> : <FiEyeOff size={16} />}
+                                                </ActionButton>
+
+                                                <ActionButton
+                                                    $variant="danger"
+                                                    onClick={() => handleDeleteFolder(folder)}
+                                                    disabled={stats.count > 0}
+                                                    title={stats.count > 0
+                                                        ? (language === 'ko' ? '비어있지 않은 폴더는 삭제 불가' : 'Cannot delete non-empty folder')
+                                                        : (language === 'ko' ? '폴더 삭제' : 'Delete folder')}
+                                                >
+                                                    <FiTrash2 size={16} />
+                                                </ActionButton>
+                                            </FolderActions>
+                                        </FolderCard>
+                                        <div style={{ display: 'none' }}>{provided.placeholder}</div>
+                                    </div>
+                                )}
+                            </Droppable>
                         );
                     })}
                 </FolderGrid>

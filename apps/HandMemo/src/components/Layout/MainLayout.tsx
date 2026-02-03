@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { Sidebar } from '../Sidebar/Sidebar';
+import { Sidebar, type SidebarRef } from '../Sidebar/Sidebar';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { FiMenu, FiSave } from 'react-icons/fi';
 import { metadataCache, useColorTheme, useLanguage, useModal } from '@memosuite/shared';
 import { useFolder } from '../../contexts/FolderContext';
@@ -650,6 +651,7 @@ export const MainLayout: React.FC = () => {
   const [movingMemoId, setMovingMemoId] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<SidebarRef>(null);
   const longPressTimer = useRef<any>(null);
   const globalLongPressTimer = useRef<any>(null);
   const [pasteButton, setPasteButton] = useState<{ x: number, y: number } | null>(null);
@@ -1327,80 +1329,89 @@ export const MainLayout: React.FC = () => {
   // - Mobile: only when sidebar is open
   const isResizeHandleVisible = !isMobile || isSidebarOpen;
 
-  return (
-    <Container
-      id="app-main-layout-container"
-      ref={containerRef}
-      $isResizing={isResizing}
-      onTouchStart={handleGlobalTouchStart}
-      onTouchMove={handleGlobalTouchMove}
-      onTouchEnd={handleGlobalTouchEnd}
-      onTouchCancel={handleGlobalTouchEnd}
-    >
-      <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
-      <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
-        <Sidebar
-          onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)}
-          isEditing={isAppEditing}
-          movingMemoId={movingMemoId}
-          setMovingMemoId={setMovingMemoId}
-        />
-        <ResizeHandle
-          $isResizing={isResizing}
-          $isVisible={isResizeHandleVisible}
-          onMouseDown={startResizing}
-          onTouchStart={startResizing}
-          onTouchEnd={stopResizing}
-        />
-      </SidebarWrapper>
-      <ContentWrapper id="app-content-wrapper-area">
-        <MobileHeader>
-          {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
-          <h3>HandMemo</h3>
-        </MobileHeader>
-        <Outlet context={{ setAppIsEditing, movingMemoId, setMovingMemoId }} />
-      </ContentWrapper>
+  const handleDragEnd = async (result: DropResult) => {
+    if (sidebarRef.current) {
+      await sidebarRef.current.handleDragEnd(result);
+    }
+  };
 
-      {pasteButton && (
-        <div
-          style={{
-            position: 'fixed',
-            left: pasteButton.x,
-            top: pasteButton.y - 50,
-            transform: 'translateX(-50%)',
-            zIndex: 10000,
-            background: theme.colors.surface,
-            border: `1px solid ${theme.colors.border}`,
-            borderRadius: '8px',
-            boxShadow: theme.shadows.medium,
-            padding: '8px 16px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            color: theme.colors.primary,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            animation: 'fadeIn 0.2s ease-out'
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            triggerPaste();
-          }}
-          onTouchStart={(e) => e.stopPropagation()}
-        >
-          <FiSave size={14} /> {language === 'ko' ? '붙여넣기' : 'Paste'}
-        </div>
-      )}
-      {isPlaylistExtracting && (
-        <LoadingOverlay>
-          <LoadingBox>
-            <SpinnerIcon />
-            <LoadingText>
-              {language === 'ko' ? '유튜브에서 재생목록을 가져오는 중입니다' : 'Fetching playlist from YouTube...'}
-            </LoadingText>
-          </LoadingBox>
-        </LoadingOverlay>
-      )}
-    </Container >
+  return (
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Container
+        id="app-main-layout-container"
+        ref={containerRef}
+        $isResizing={isResizing}
+        onTouchStart={handleGlobalTouchStart}
+        onTouchMove={handleGlobalTouchMove}
+        onTouchEnd={handleGlobalTouchEnd}
+        onTouchCancel={handleGlobalTouchEnd}
+      >
+        <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
+        <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
+          <Sidebar
+            ref={sidebarRef}
+            onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)}
+            isEditing={isAppEditing}
+            movingMemoId={movingMemoId}
+            setMovingMemoId={setMovingMemoId}
+          />
+          <ResizeHandle
+            $isResizing={isResizing}
+            $isVisible={isResizeHandleVisible}
+            onMouseDown={startResizing}
+            onTouchStart={startResizing}
+            onTouchEnd={stopResizing}
+          />
+        </SidebarWrapper>
+        <ContentWrapper id="app-content-wrapper-area">
+          <MobileHeader>
+            {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
+            <h3>HandMemo</h3>
+          </MobileHeader>
+          <Outlet context={{ setAppIsEditing, movingMemoId, setMovingMemoId }} />
+        </ContentWrapper>
+
+        {pasteButton && (
+          <div
+            style={{
+              position: 'fixed',
+              left: pasteButton.x,
+              top: pasteButton.y - 50,
+              transform: 'translateX(-50%)',
+              zIndex: 10000,
+              background: theme.colors.surface,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: '8px',
+              boxShadow: theme.shadows.medium,
+              padding: '8px 16px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              color: theme.colors.primary,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              triggerPaste();
+            }}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
+            <FiSave size={14} /> {language === 'ko' ? '붙여넣기' : 'Paste'}
+          </div>
+        )}
+        {isPlaylistExtracting && (
+          <LoadingOverlay>
+            <LoadingBox>
+              <SpinnerIcon />
+              <LoadingText>
+                {language === 'ko' ? '유튜브에서 재생목록을 가져오는 중입니다' : 'Fetching playlist from YouTube...'}
+              </LoadingText>
+            </LoadingBox>
+          </LoadingOverlay>
+        )}
+      </Container >
+    </DragDropContext>
   );
 };
