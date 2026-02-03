@@ -3,9 +3,10 @@ import styled, { useTheme } from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Folder } from '../../db';
 import { useLanguage } from '@memosuite/shared';
-import { FiFolder, FiPlus, FiEdit2, FiTrash2, FiSearch, FiLock, FiUnlock, FiEyeOff, FiEye, FiCheck, FiX } from 'react-icons/fi';
+import { FiFolder, FiPlus, FiEdit2, FiTrash2, FiSearch, FiLock, FiUnlock, FiEyeOff, FiEye, FiCheck, FiX, FiList, FiGrid, FiLayout } from 'react-icons/fi';
 import { BsPinAngle, BsPinAngleFill } from 'react-icons/bs';
 import { Droppable } from '@hello-pangea/dnd';
+import { MarkdownView } from '../Editor/MarkdownView';
 
 // Warning color constant (amber)
 const WARNING_COLOR = '#f59e0b';
@@ -106,24 +107,63 @@ const AddButton = styled.button`
     filter: brightness(1.1);
     transform: translateY(-1px);
   }
+
+  @media (max-width: 480px) {
+    padding: 8px 12px;
+    span { display: none; }
+  }
 `;
 
-const FolderGrid = styled.div`
+const ViewModeRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: ${({ theme }) => theme.colors.surface};
+  padding: 4px;
+  border-radius: ${({ theme }) => theme.radius.medium};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+const ViewModeButton = styled.button<{ $active: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: ${({ theme }) => theme.radius.small};
+  border: none;
+  background: ${({ $active, theme }) => $active ? theme.colors.primary : 'transparent'};
+  color: ${({ $active, theme }) => $active ? 'white' : theme.colors.textSecondary};
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: ${({ $active, theme }) => $active ? theme.colors.primary : theme.colors.background};
+    color: ${({ $active }) => $active ? 'white' : undefined};
+  }
+`;
+
+const FolderGrid = styled.div<{ $viewMode: ViewMode }>`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: ${({ $viewMode }) =>
+        $viewMode === 'double-column'
+            ? 'repeat(auto-fill, minmax(320px, 1fr))'
+            : '1fr'};
   gap: ${({ theme }) => theme.spacing.md};
 `;
 
-const FolderCard = styled.div<{ $isActive?: boolean; $isReadOnly?: boolean }>`
+const FolderCard = styled.div<{ $viewMode: ViewMode; $isActive?: boolean; $isReadOnly?: boolean }>`
   display: flex;
-  flex-direction: column;
-  padding: ${({ theme }) => theme.spacing.lg};
+  flex-direction: ${({ $viewMode }) => $viewMode === 'single-column' ? 'row' : 'column'};
+  align-items: ${({ $viewMode }) => $viewMode === 'single-column' ? 'center' : 'stretch'};
+  padding: ${({ theme, $viewMode }) => $viewMode === 'single-column' ? '12px 20px' : theme.spacing.lg};
   background: ${({ theme }) => theme.colors.surface};
   border: 2px solid ${({ theme, $isActive }) => $isActive ? theme.colors.primary : theme.colors.border};
   border-radius: ${({ theme }) => theme.radius.large};
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
+  gap: ${({ $viewMode, theme }) => $viewMode === 'single-column' ? theme.spacing.md : 0};
 
   ${({ $isReadOnly, theme }) => $isReadOnly && `
     background: ${theme.colors.background};
@@ -133,15 +173,17 @@ const FolderCard = styled.div<{ $isActive?: boolean; $isReadOnly?: boolean }>`
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     box-shadow: ${({ theme }) => theme.shadows.medium};
-    transform: translateY(-2px);
+    transform: ${({ $viewMode }) => $viewMode === 'single-column' ? 'translateX(4px)' : 'translateY(-2px)'};
   }
 `;
 
-const FolderHeader = styled.div`
+const FolderHeader = styled.div<{ $viewMode?: ViewMode }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
-  margin-bottom: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: ${({ theme, $viewMode }) => $viewMode === 'single-column' ? 0 : theme.spacing.sm};
+  flex: ${({ $viewMode }) => $viewMode === 'single-column' ? 1 : 'none'};
+  min-width: 0;
 `;
 
 const FolderIcon = styled.div<{ $isReadOnly?: boolean }>`
@@ -160,6 +202,8 @@ const FolderName = styled.div`
   font-size: 1.1rem;
   font-weight: 700;
   color: ${({ theme }) => theme.colors.text};
+  white-space: normal;
+  word-break: break-all;
 `;
 
 const FolderNameInput = styled.input`
@@ -177,13 +221,14 @@ const FolderNameInput = styled.input`
   }
 `;
 
-const FolderMeta = styled.div`
+const FolderMeta = styled.div<{ $viewMode?: ViewMode }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.md};
   font-size: 0.85rem;
   color: ${({ theme }) => theme.colors.textSecondary};
-  margin-bottom: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: ${({ theme, $viewMode }) => $viewMode === 'single-column' ? 0 : theme.spacing.sm};
+  white-space: nowrap;
 `;
 
 const FolderBadges = styled.div`
@@ -210,13 +255,41 @@ const Badge = styled.span<{ $variant?: 'warning' | 'info' }>`
                 theme.colors.textSecondary};
 `;
 
-const FolderActions = styled.div`
+const FolderActions = styled.div<{ $viewMode?: ViewMode }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.xs};
+  margin-top: ${({ theme, $viewMode }) => $viewMode === 'single-column' ? 0 : theme.spacing.sm};
+  padding-top: ${({ theme, $viewMode }) => $viewMode === 'single-column' ? 0 : theme.spacing.sm};
+  border-top: ${({ theme, $viewMode }) => $viewMode === 'single-column' ? 'none' : `1px solid ${theme.colors.border}`};
+`;
+
+const PreviewContainer = styled.div`
   margin-top: ${({ theme }) => theme.spacing.sm};
-  padding-top: ${({ theme }) => theme.spacing.sm};
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
+  padding: 12px;
+  background: ${({ theme }) => theme.colors.background};
+  border-radius: ${({ theme }) => theme.radius.medium};
+  font-size: 0.85rem;
+  max-height: 120px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, ${({ theme }) => theme.colors.background});
+  }
+`;
+
+const PreviewTitle = styled.div`
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: ${({ theme }) => theme.colors.text};
 `;
 
 const ActionButton = styled.button<{ $variant?: 'danger' | 'success' }>`
@@ -257,6 +330,7 @@ const EmptyState = styled.div`
 `;
 
 type SortOption = 'last-edited' | 'name-asc' | 'name-desc' | 'created-asc' | 'created-desc' | 'last-commented';
+type ViewMode = 'single-column' | 'double-column' | 'preview';
 
 interface FolderListProps {
     currentFolderId: number | null;
@@ -273,6 +347,9 @@ export const FolderList: React.FC<FolderListProps> = ({
     const [globalSearchQuery, setGlobalSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<SortOption>(() =>
         (localStorage.getItem('folder_sortBy') as SortOption) || 'last-edited'
+    );
+    const [viewMode, setViewMode] = useState<ViewMode>(() =>
+        (localStorage.getItem('folder_viewMode') as ViewMode) || 'single-column'
     );
     const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState('');
@@ -333,6 +410,20 @@ export const FolderList: React.FC<FolderListProps> = ({
 
         return stats;
     }, [folders, allBooks, allMemos, allComments]);
+
+    // Find the latest memo for each folder for preview mode
+    const folderPreviews = useMemo(() => {
+        const previews: Record<number, any> = {};
+        if (!allMemos) return previews;
+
+        allMemos.forEach(memo => {
+            const fid = memo.folderId || 0;
+            if (!previews[fid] || memo.updatedAt.getTime() > previews[fid].updatedAt.getTime()) {
+                previews[fid] = memo;
+            }
+        });
+        return previews;
+    }, [allMemos]);
 
     const sortedFolders = useMemo(() => {
         if (!folders) return [];
@@ -477,6 +568,10 @@ export const FolderList: React.FC<FolderListProps> = ({
         localStorage.setItem('folder_sortBy', sortBy);
     }, [sortBy]);
 
+    React.useEffect(() => {
+        localStorage.setItem('folder_viewMode', viewMode);
+    }, [viewMode]);
+
     const t = {
         title: language === 'ko' ? '폴더' : 'Folders',
         searchPlaceholder: language === 'ko' ? '전체 검색...' : 'Search all folders...',
@@ -494,15 +589,59 @@ export const FolderList: React.FC<FolderListProps> = ({
             createdAsc: language === 'ko' ? '폴더 생성일 (오래된순)' : 'Folder Created (Oldest)',
         },
         empty: language === 'ko' ? '폴더가 없습니다.' : 'No folders yet.',
+        viewMode: {
+            single: language === 'ko' ? '한 줄 보기' : 'Single Column',
+            double: language === 'ko' ? '두 줄 보기' : 'Double Column',
+            preview: language === 'ko' ? '미리보기' : 'Preview',
+        },
+        tooltips: {
+            pin: language === 'ko' ? '상단 고정' : 'Pin to top',
+            unpin: language === 'ko' ? '고정 해제' : 'Unpin',
+            rename: language === 'ko' ? '이름 변경' : 'Rename',
+            readOnlyOn: language === 'ko' ? '읽기 전용 설정' : 'Set as read-only',
+            readOnlyOff: language === 'ko' ? '읽기 전용 해제' : 'Disable read-only',
+            searchOn: language === 'ko' ? '전체 검색 포함' : 'Include in global search',
+            searchOff: language === 'ko' ? '전체 검색 제외' : 'Exclude from search',
+            delete: language === 'ko' ? '폴더 삭제' : 'Delete folder',
+            cannotDelete: language === 'ko' ? '비어있지 않은 폴더는 삭제 불가' : 'Cannot delete non-empty folder',
+            cannotPinDefault: language === 'ko' ? '기본 폴더는 고정할 수 없습니다' : 'Cannot pin the default folder',
+            cannotRenameDefault: language === 'ko' ? '기본 폴더의 이름은 변경할 수 없습니다.' : 'Cannot rename the default folder.',
+            cannotReadOnlyDefault: language === 'ko' ? '기본 폴더는 읽기 전용으로 설정할 수 없습니다.' : 'Cannot set the default folder as read-only.',
+        }
     };
 
     return (
         <Container>
             <Header>
-                <Title>{t.title}</Title>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <Title>{t.title}</Title>
+                    <ViewModeRow>
+                        <ViewModeButton
+                            $active={viewMode === 'single-column'}
+                            onClick={() => setViewMode('single-column')}
+                            title={t.viewMode.single}
+                        >
+                            <FiList size={18} />
+                        </ViewModeButton>
+                        <ViewModeButton
+                            $active={viewMode === 'double-column'}
+                            onClick={() => setViewMode('double-column')}
+                            title={t.viewMode.double}
+                        >
+                            <FiGrid size={18} />
+                        </ViewModeButton>
+                        <ViewModeButton
+                            $active={viewMode === 'preview'}
+                            onClick={() => setViewMode('preview')}
+                            title={t.viewMode.preview}
+                        >
+                            <FiLayout size={18} />
+                        </ViewModeButton>
+                    </ViewModeRow>
+                </div>
                 <AddButton onClick={handleAddFolder}>
                     <FiPlus size={16} />
-                    {t.addFolder}
+                    <span>{t.addFolder}</span>
                 </AddButton>
             </Header>
 
@@ -536,153 +675,165 @@ export const FolderList: React.FC<FolderListProps> = ({
                     <p>{t.empty}</p>
                 </EmptyState>
             ) : (
-                <FolderGrid>
+                <FolderGrid $viewMode={viewMode}>
                     {sortedFolders.map(folder => {
                         const stats = folderStats[folder.id!] || { count: 0 };
                         const isEditing = editingFolderId === folder.id;
                         const isDefault = folder.name === '기본 폴더' || folder.name === 'Default Folder';
+                        const previewMemo = folderPreviews[folder.id!];
 
                         return (
                             <Droppable droppableId={`folder-${folder.id}`} key={folder.id}>
                                 {(provided, snapshot) => (
-                                    <FolderCard
+                                    <div
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
-                                        $isActive={currentFolderId === folder.id}
-                                        $isReadOnly={folder.isReadOnly}
-                                        style={{
-                                            borderColor: snapshot.isDraggingOver ? '#0070f3' : undefined,
-                                            backgroundColor: snapshot.isDraggingOver ? 'rgba(0, 112, 243, 0.05)' : undefined,
-                                        }}
-                                        onClick={() => {
-                                            if (!isEditing) {
-                                                onSelectFolder(folder.id!);
-                                            }
-                                        }}
+                                        style={{ display: 'flex', flexDirection: 'column' }}
                                     >
-                                        <FolderHeader>
-                                            <FolderIcon $isReadOnly={folder.isReadOnly}>
-                                                {folder.isReadOnly ? <FiLock size={20} /> : <FiFolder size={20} />}
-                                            </FolderIcon>
+                                        <FolderCard
+                                            $isActive={currentFolderId === folder.id}
+                                            $isReadOnly={folder.isReadOnly}
+                                            $viewMode={viewMode}
+                                            style={{
+                                                borderColor: snapshot.isDraggingOver ? '#0070f3' : undefined,
+                                                backgroundColor: snapshot.isDraggingOver ? 'rgba(0, 112, 243, 0.05)' : undefined,
+                                                transform: snapshot.isDraggingOver ? 'scale(1.01)' : undefined
+                                            }}
+                                            onClick={() => {
+                                                if (!isEditing) {
+                                                    onSelectFolder(folder.id!);
+                                                }
+                                            }}
+                                        >
+                                            <FolderHeader $viewMode={viewMode}>
+                                                <FolderIcon $isReadOnly={folder.isReadOnly}>
+                                                    {folder.isReadOnly ? <FiLock size={20} /> : <FiFolder size={20} />}
+                                                </FolderIcon>
 
-                                            {isEditing ? (
-                                                <FolderNameInput
-                                                    value={editingName}
-                                                    onChange={(e) => setEditingName(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') handleRenameFolder(folder.id!);
-                                                        if (e.key === 'Escape') {
-                                                            setEditingFolderId(null);
-                                                            setEditingName('');
-                                                        }
+                                                {isEditing ? (
+                                                    <FolderNameInput
+                                                        value={editingName}
+                                                        onChange={(e) => setEditingName(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleRenameFolder(folder.id!);
+                                                            if (e.key === 'Escape') {
+                                                                setEditingFolderId(null);
+                                                                setEditingName('');
+                                                            }
+                                                        }}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        autoFocus
+                                                    />
+                                                ) : (
+                                                    <FolderName>{isDefault ? t.defaultFolder : folder.name}</FolderName>
+                                                )}
+
+                                                {isEditing && (
+                                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                                        <ActionButton
+                                                            $variant="success"
+                                                            onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id!); }}
+                                                        >
+                                                            <FiCheck size={16} />
+                                                        </ActionButton>
+                                                        <ActionButton
+                                                            onClick={(e) => { e.stopPropagation(); setEditingFolderId(null); setEditingName(''); }}
+                                                        >
+                                                            <FiX size={16} />
+                                                        </ActionButton>
+                                                    </div>
+                                                )}
+                                            </FolderHeader>
+
+                                            <FolderMeta $viewMode={viewMode}>
+                                                <span>{stats.count}{t.memoCount}</span>
+                                            </FolderMeta>
+
+                                            {viewMode !== 'single-column' && (
+                                                <FolderBadges>
+                                                    {folder.isReadOnly && (
+                                                        <Badge $variant="warning">
+                                                            <FiLock size={12} /> {t.readOnly}
+                                                        </Badge>
+                                                    )}
+                                                    {folder.excludeFromGlobalSearch && (
+                                                        <Badge $variant="info">
+                                                            <FiEyeOff size={12} /> {t.excludeSearch}
+                                                        </Badge>
+                                                    )}
+                                                </FolderBadges>
+                                            )}
+
+                                            {viewMode === 'preview' && previewMemo && (
+                                                <PreviewContainer>
+                                                    <PreviewTitle>{previewMemo.title || '(Untitled)'}</PreviewTitle>
+                                                    <div style={{ opacity: 0.8 }}>
+                                                        <MarkdownView content={previewMemo.content} />
+                                                    </div>
+                                                </PreviewContainer>
+                                            )}
+
+                                            <FolderActions onClick={(e) => e.stopPropagation()} $viewMode={viewMode}>
+                                                <ActionButton
+                                                    onClick={() => handleTogglePin(folder)}
+                                                    disabled={isDefault}
+                                                    title={isDefault ? t.tooltips.cannotPinDefault : (folder.pinnedAt ? t.tooltips.unpin : t.tooltips.pin)}
+                                                    style={{
+                                                        color: folder.pinnedAt ? theme.colors.primary : undefined,
+                                                        opacity: isDefault ? 0.3 : 1
                                                     }}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    autoFocus
-                                                />
-                                            ) : (
-                                                <FolderName>{isDefault ? t.defaultFolder : folder.name}</FolderName>
-                                            )}
+                                                >
+                                                    {folder.pinnedAt ? <BsPinAngleFill size={16} /> : <BsPinAngle size={16} />}
+                                                </ActionButton>
 
-                                            {isEditing && (
-                                                <>
-                                                    <ActionButton
-                                                        $variant="success"
-                                                        onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id!); }}
-                                                    >
-                                                        <FiCheck size={16} />
-                                                    </ActionButton>
-                                                    <ActionButton
-                                                        onClick={(e) => { e.stopPropagation(); setEditingFolderId(null); setEditingName(''); }}
-                                                    >
-                                                        <FiX size={16} />
-                                                    </ActionButton>
-                                                </>
-                                            )}
-                                        </FolderHeader>
+                                                <ActionButton
+                                                    onClick={() => {
+                                                        if (isDefault) {
+                                                            alert(t.tooltips.cannotRenameDefault);
+                                                            return;
+                                                        }
+                                                        setEditingFolderId(folder.id!);
+                                                        setEditingName(folder.name);
+                                                    }}
+                                                    disabled={isDefault}
+                                                    title={t.tooltips.rename}
+                                                >
+                                                    <FiEdit2 size={16} />
+                                                </ActionButton>
 
-                                        <FolderMeta>
-                                            <span>{stats.count}{t.memoCount}</span>
-                                        </FolderMeta>
+                                                <ActionButton
+                                                    onClick={() => {
+                                                        if (isDefault) {
+                                                            alert(t.tooltips.cannotReadOnlyDefault);
+                                                            return;
+                                                        }
+                                                        handleToggleReadOnly(folder);
+                                                    }}
+                                                    disabled={isDefault}
+                                                    title={folder.isReadOnly ? t.tooltips.readOnlyOff : t.tooltips.readOnlyOn}
+                                                >
+                                                    {folder.isReadOnly ? <FiUnlock size={16} /> : <FiLock size={16} />}
+                                                </ActionButton>
 
-                                        <FolderBadges>
-                                            {folder.isReadOnly && (
-                                                <Badge $variant="warning">
-                                                    <FiLock size={12} /> {t.readOnly}
-                                                </Badge>
-                                            )}
-                                            {folder.excludeFromGlobalSearch && (
-                                                <Badge $variant="info">
-                                                    <FiEyeOff size={12} /> {t.excludeSearch}
-                                                </Badge>
-                                            )}
-                                        </FolderBadges>
+                                                <ActionButton
+                                                    onClick={() => handleToggleExcludeSearch(folder)}
+                                                    title={folder.excludeFromGlobalSearch ? t.tooltips.searchOn : t.tooltips.searchOff}
+                                                >
+                                                    {folder.excludeFromGlobalSearch ? <FiEye size={16} /> : <FiEyeOff size={16} />}
+                                                </ActionButton>
 
-                                        <FolderActions onClick={(e) => e.stopPropagation()}>
-                                            <ActionButton
-                                                onClick={() => handleTogglePin(folder)}
-                                                disabled={isDefault}
-                                                title={isDefault ? (language === 'ko' ? '기본 폴더는 고정할 수 없습니다' : 'Cannot pin the default folder') : (folder.pinnedAt ? 'Unpin' : 'Pin to top')}
-                                                style={{
-                                                    color: folder.pinnedAt ? theme.colors.primary : undefined,
-                                                    opacity: isDefault ? 0.3 : 1
-                                                }}
-                                            >
-                                                {folder.pinnedAt ? <BsPinAngleFill size={16} /> : <BsPinAngle size={16} />}
-                                            </ActionButton>
-
-                                            <ActionButton
-                                                onClick={() => {
-                                                    if (isDefault) {
-                                                        alert(language === 'ko' ? '기본 폴더의 이름은 변경할 수 없습니다.' : 'Cannot rename the default folder.');
-                                                        return;
-                                                    }
-                                                    setEditingFolderId(folder.id!);
-                                                    setEditingName(folder.name);
-                                                }}
-                                                disabled={isDefault}
-                                                title={language === 'ko' ? '이름 변경' : 'Rename'}
-                                            >
-                                                <FiEdit2 size={16} />
-                                            </ActionButton>
-
-                                            <ActionButton
-                                                onClick={() => {
-                                                    if (isDefault) {
-                                                        alert(language === 'ko' ? '기본 폴더는 읽기 전용으로 설정할 수 없습니다.' : 'Cannot set the default folder as read-only.');
-                                                        return;
-                                                    }
-                                                    handleToggleReadOnly(folder);
-                                                }}
-                                                disabled={isDefault}
-                                                title={folder.isReadOnly
-                                                    ? (language === 'ko' ? '읽기 전용 해제' : 'Disable read-only')
-                                                    : (language === 'ko' ? '읽기 전용 설정' : 'Set as read-only')}
-                                            >
-                                                {folder.isReadOnly ? <FiUnlock size={16} /> : <FiLock size={16} />}
-                                            </ActionButton>
-
-                                            <ActionButton
-                                                onClick={() => handleToggleExcludeSearch(folder)}
-                                                title={folder.excludeFromGlobalSearch
-                                                    ? (language === 'ko' ? '전체 검색 포함' : 'Include in global search')
-                                                    : (language === 'ko' ? '전체 검색 제외' : 'Exclude from global search')}
-                                            >
-                                                {folder.excludeFromGlobalSearch ? <FiEye size={16} /> : <FiEyeOff size={16} />}
-                                            </ActionButton>
-
-                                            <ActionButton
-                                                $variant="danger"
-                                                onClick={() => handleDeleteFolder(folder)}
-                                                disabled={stats.count > 0}
-                                                title={stats.count > 0
-                                                    ? (language === 'ko' ? '비어있지 않은 폴더는 삭제 불가' : 'Cannot delete non-empty folder')
-                                                    : (language === 'ko' ? '폴더 삭제' : 'Delete folder')}
-                                            >
-                                                <FiTrash2 size={16} />
-                                            </ActionButton>
-                                        </FolderActions>
-                                        {provided.placeholder}
-                                    </FolderCard>
+                                                <ActionButton
+                                                    $variant="danger"
+                                                    onClick={() => handleDeleteFolder(folder)}
+                                                    disabled={stats.count > 0}
+                                                    title={stats.count > 0 ? t.tooltips.cannotDelete : t.tooltips.delete}
+                                                >
+                                                    <FiTrash2 size={16} />
+                                                </ActionButton>
+                                            </FolderActions>
+                                        </FolderCard>
+                                        <div style={{ display: 'none' }}>{provided.placeholder}</div>
+                                    </div>
                                 )}
                             </Droppable>
                         );
