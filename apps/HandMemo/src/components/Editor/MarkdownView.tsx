@@ -944,6 +944,34 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
     if (isReady && playerRef.current && videoId) {
       YT_PLAYERS.set(videoId, playerRef.current);
       if (!ACTIVE_YT_VIDEO_ID) ACTIVE_YT_VIDEO_ID = videoId;
+
+      // Auto-enable English ASR if no manual En tracks exist (likely an English video)
+      const player = playerRef.current;
+      setTimeout(() => {
+        if (!isMounted.current || !player.getOption) return;
+        try {
+          // Temporarily load module to check tracks
+          player.loadModule('captions');
+
+          setTimeout(() => {
+            if (!isMounted.current) return;
+            const tracks = player.getOption('captions', 'tracklist') || [];
+            const hasManualEn = tracks.some((t: any) => t.languageCode?.startsWith('en') && t.kind !== 'asr');
+            const asrEn = tracks.find((t: any) => t.languageCode?.startsWith('en') && t.kind === 'asr');
+
+            if (!hasManualEn && asrEn) {
+              player.setOption('captions', 'track', { languageCode: asrEn.languageCode });
+              setIsCaptionsOn(true);
+              setTimeout(() => {
+                if (isMounted.current) applyCaptionStyles();
+              }, 500);
+            } else if (!isCaptionsOn) {
+              // If we didn't auto-enable, unload module to keep it clean (prevents some auto-sub behavior)
+              // player.unloadModule('captions'); // commented out to avoid flickering if user opens settings immediately
+            }
+          }, 500);
+        } catch (e) { }
+      }, 1500);
     }
   }, [isReady, videoId]);
 
