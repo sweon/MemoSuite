@@ -984,9 +984,6 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         <ResponsiveGroup>
                             {/* Group 1: Edit, Meaning, Example, Add Thread */}
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <ActionButton onClick={() => setIsEditing(true)}>
-                                    <FiEdit2 size={14} /> {t.word_detail.edit}
-                                </ActionButton>
                                 <ActionButton onClick={handleMeaning}>
                                     <FiBookOpen size={14} /> {t.word_detail.meaning_button}
                                 </ActionButton>
