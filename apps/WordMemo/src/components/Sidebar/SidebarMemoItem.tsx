@@ -1,9 +1,10 @@
 import React from 'react';
 import type { Word } from '../../db';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { WordItemLink, WordTitle, WordDate, WordTitleRow, SpeakButton, BlurredText, StarButton } from './itemStyles';
+import { WordItemLink, WordTitle, WordDate, WordTitleRow, SpeakButton, BlurredText, StarButton, PinToggleButton, ItemFooter, ItemActions } from './itemStyles';
 import { TouchDelayDraggable } from './TouchDelayDraggable';
 import { FiVolume2, FiStar } from 'react-icons/fi';
+import { BsPinAngle } from 'react-icons/bs';
 import { db } from '../../db';
 import { speakText } from '../../utils/tts';
 
@@ -18,6 +19,7 @@ interface Props {
     untitledText: string;
     isCombineTarget?: boolean;
     studyMode?: 'none' | 'hide-meanings' | 'hide-words';
+    onTogglePin?: (id: number, e: React.MouseEvent) => void;
 }
 
 export const SidebarMemoItem: React.FC<Props> = ({
@@ -30,7 +32,8 @@ export const SidebarMemoItem: React.FC<Props> = ({
     inThread,
     untitledText,
     isCombineTarget,
-    studyMode
+    studyMode,
+    onTogglePin
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -112,7 +115,30 @@ export const SidebarMemoItem: React.FC<Props> = ({
                                     {log.title || untitledText}
                                 </BlurredText>
                             </WordTitle>
-                            <div style={{ display: 'flex', gap: '2px' }}>
+                        </WordTitleRow>
+                        <ItemFooter>
+                            <WordDate>
+                                {formatDate(log.createdAt)}
+                                {sourceName && (
+                                    <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
+                                        • {sourceName}
+                                    </span>
+                                )}
+                            </WordDate>
+                            <ItemActions>
+                                {onTogglePin && log.id && (
+                                    <PinToggleButton
+                                        $pinned={!!log.pinnedAt}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onTogglePin(log.id!, e);
+                                        }}
+                                        title={log.pinnedAt ? 'Unpin' : 'Pin to top'}
+                                    >
+                                        <BsPinAngle size={12} style={{ transform: log.pinnedAt ? 'none' : 'rotate(45deg)' }} />
+                                    </PinToggleButton>
+                                )}
                                 <StarButton
                                     $active={!!log.isStarred}
                                     onClick={handleToggleStar}
@@ -132,16 +158,8 @@ export const SidebarMemoItem: React.FC<Props> = ({
                                         <FiVolume2 size={14} />
                                     </SpeakButton>
                                 )}
-                            </div>
-                        </WordTitleRow>
-                        <WordDate>
-                            {formatDate(log.createdAt)}
-                            {sourceName && (
-                                <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
-                                    • {sourceName}
-                                </span>
-                            )}
-                        </WordDate>
+                            </ItemActions>
+                        </ItemFooter>
                     </WordItemLink>
                 </div>
             )}

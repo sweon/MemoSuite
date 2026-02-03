@@ -407,6 +407,11 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     }
 
     return memos.sort((a, b) => {
+      // Pinned logic: pinned items always come first, sorted by pinnedAt desc
+      if (a.pinnedAt && b.pinnedAt) return b.pinnedAt.getTime() - a.pinnedAt.getTime();
+      if (a.pinnedAt) return -1;
+      if (b.pinnedAt) return 1;
+
       if (sortBy === 'date-desc') return b.createdAt.getTime() - a.createdAt.getTime();
       if (sortBy === 'date-asc') return a.createdAt.getTime() - b.createdAt.getTime();
       if (sortBy === 'title-asc') return (a.title || '').localeCompare(b.title || '');
@@ -419,7 +424,18 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       }
       return b.updatedAt.getTime() - a.updatedAt.getTime();
     });
-  }, [allMemos, searchQuery, sortBy, currentFolderId]);
+  }, [allMemos, searchQuery, sortBy, currentFolderId, lastCommentMap]);
+
+  const handleTogglePin = async (memoId: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const memo = await db.memos.get(memoId);
+    if (memo) {
+      await db.memos.update(memoId, {
+        pinnedAt: memo.pinnedAt ? undefined : new Date()
+      });
+    }
+  };
 
   const groupedItems = React.useMemo(() => {
     if (!sortedMemos || !allMemos) return [];
@@ -917,6 +933,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
               collapseText={t.sidebar.collapse}
               moreText={t.sidebar.more_memos}
               isCombineTarget={isCombineTarget}
+              onTogglePin={handleTogglePin}
             />
           )}
 

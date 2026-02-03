@@ -510,6 +510,11 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
     // 4. Sort Flattened List
     return items.sort((a, b) => {
+      // Pinned logic: pinned items always come first, sorted by pinnedAt desc
+      if (a.log.pinnedAt && b.log.pinnedAt) return b.log.pinnedAt.getTime() - a.log.pinnedAt.getTime();
+      if (a.log.pinnedAt) return -1;
+      if (b.log.pinnedAt) return 1;
+
       if (sortBy === 'starred') {
         if (a.log.isStarred && !b.log.isStarred) return -1;
         if (!a.log.isStarred && b.log.isStarred) return 1;
@@ -527,6 +532,17 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       return b.log.createdAt.getTime() - a.log.createdAt.getTime();
     });
   }, [allWords, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap]);
+
+  const handleTogglePinLog = async (logId: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const log = await db.words.get(logId);
+    if (log) {
+      await db.words.update(logId, {
+        pinnedAt: log.pinnedAt ? undefined : new Date()
+      });
+    }
+  };
 
   useEffect(() => {
     if (!id || id === 'new' || id === 'settings') return;
@@ -868,6 +884,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                         isCombineTarget={combineTargetId === `log-${item.log.id}`}
                         t={t}
                         studyMode={studyMode}
+                        onTogglePin={handleTogglePinLog}
                       />
                     );
                   }
@@ -883,6 +900,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                       inThread={item.type === 'thread-child'}
                       isCombineTarget={combineTargetId === `log-${item.log.id}`}
                       studyMode={studyMode}
+                      onTogglePin={handleTogglePinLog}
                     />
                   );
                 })}

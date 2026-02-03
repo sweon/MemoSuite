@@ -7,6 +7,7 @@ export interface Folder {
     excludeFromGlobalSearch: boolean;
     createdAt: Date;
     updatedAt: Date;
+    pinnedAt?: Date;
 }
 
 export type BookStatus = 'reading' | 'completed' | 'on_hold';
@@ -25,6 +26,7 @@ export interface Book {
     folderId?: number; // Folder reference
     createdAt: Date;
     updatedAt: Date;
+    pinnedAt?: Date;
 }
 
 export interface Memo {
@@ -44,6 +46,7 @@ export interface Memo {
     // New fields for ThreadableList support
     order?: number;
     parentId?: number;
+    pinnedAt?: Date;
 }
 
 export interface Comment {
@@ -171,6 +174,13 @@ export class BookMemoDatabase extends Dexie {
 
             // Update all existing books to belong to the default folder
             await booksTable.toCollection().modify({ folderId: defaultFolderId });
+        });
+
+        // Version 13: Add pinnedAt to folders, books, and memos
+        this.version(13).stores({
+            folders: '++id, name, createdAt, updatedAt, pinnedAt',
+            books: '++id, folderId, title, status, createdAt, pinnedAt',
+            memos: '++id, bookId, folderId, pageNumber, title, *tags, createdAt, updatedAt, threadId, type, order, parentId, pinnedAt'
         });
     }
 }

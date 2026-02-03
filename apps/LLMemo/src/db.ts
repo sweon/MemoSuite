@@ -7,6 +7,7 @@ export interface Folder {
     excludeFromGlobalSearch: boolean;
     createdAt: Date;
     updatedAt: Date;
+    pinnedAt?: Date;
 }
 
 export interface Log {
@@ -20,6 +21,7 @@ export interface Log {
     updatedAt: Date;
     threadId?: string;
     threadOrder?: number;
+    pinnedAt?: Date;
 }
 
 export interface Model {
@@ -132,6 +134,12 @@ export class LLMLogDatabase extends Dexie {
                     log.folderId = defaultFolder.id;
                 }
             });
+        });
+
+        // Version 9: Add pinnedAt to folders and logs
+        this.version(9).stores({
+            folders: '++id, name, createdAt, updatedAt, pinnedAt',
+            logs: '++id, folderId, title, *tags, modelId, createdAt, updatedAt, threadId, pinnedAt'
         });
     }
 }

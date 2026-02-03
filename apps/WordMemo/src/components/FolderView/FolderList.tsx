@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import styled from 'styled-components';
+import styled, { useTheme } from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Folder } from '../../db';
 import { useLanguage } from '@memosuite/shared';
 import { FiFolder, FiPlus, FiEdit2, FiTrash2, FiSearch, FiLock, FiUnlock, FiEyeOff, FiEye, FiCheck, FiX } from 'react-icons/fi';
+import { BsPinAngle, BsPinAngleFill } from 'react-icons/bs';
 import { Droppable } from '@hello-pangea/dnd';
 
 // Warning color constant (amber)
@@ -267,6 +268,7 @@ export const FolderList: React.FC<FolderListProps> = ({
     currentFolderId,
     onSelectFolder
 }) => {
+    const theme = useTheme();
     const { language } = useLanguage();
     const [globalSearchQuery, setGlobalSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<SortOption>(() =>
@@ -313,44 +315,50 @@ export const FolderList: React.FC<FolderListProps> = ({
         return stats;
     }, [allWords, allComments]);
 
-    // Sort folders
     const sortedFolders = useMemo(() => {
         if (!folders) return [];
 
-        const defaultFolder = folders.find(f => f.name === '기본 폴더' || f.name === 'Default Folder');
-        const others = folders.filter(f => f !== defaultFolder);
+        const items = [...folders];
 
-        switch (sortBy) {
-            case 'last-edited':
-                others.sort((a, b) => {
+        items.sort((a, b) => {
+            const isDefaultA = a.name === '기본 폴더' || a.name === 'Default Folder';
+            const isDefaultB = b.name === '기본 폴더' || b.name === 'Default Folder';
+            if (isDefaultA) return -1;
+            if (isDefaultB) return 1;
+
+            // Pinned logic: pinned items always come first, sorted by pinnedAt desc
+            if (a.pinnedAt && b.pinnedAt) return b.pinnedAt.getTime() - a.pinnedAt.getTime();
+            if (a.pinnedAt) return -1;
+            if (b.pinnedAt) return 1;
+
+            switch (sortBy) {
+                case 'last-edited': {
                     const aTime = wordStats[a.id!]?.lastEdited || 0;
                     const bTime = wordStats[b.id!]?.lastEdited || 0;
                     return bTime - aTime;
-                });
-                break;
-            case 'last-commented':
-                others.sort((a, b) => {
+                }
+                case 'last-commented': {
                     const aTime = wordStats[a.id!]?.lastCommented || 0;
                     const bTime = wordStats[b.id!]?.lastCommented || 0;
                     return bTime - aTime;
-                });
-                break;
-            case 'name-asc':
-                others.sort((a, b) => a.name.localeCompare(b.name));
-                break;
-            case 'name-desc':
-                others.sort((a, b) => b.name.localeCompare(a.name));
-                break;
-            case 'created-asc':
-                others.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-                break;
-            case 'created-desc':
-                others.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-                break;
-        }
+                }
+                case 'name-asc': return a.name.localeCompare(b.name);
+                case 'name-desc': return b.name.localeCompare(a.name);
+                case 'created-asc': return a.createdAt.getTime() - b.createdAt.getTime();
+                case 'created-desc': return b.createdAt.getTime() - a.createdAt.getTime();
+                default: return 0;
+            }
+        });
 
-        return defaultFolder ? [defaultFolder, ...others] : others;
+        return items;
     }, [folders, sortBy, wordStats]);
+
+    const handleTogglePin = async (folder: Folder) => {
+        await db.folders.update(folder.id!, {
+            pinnedAt: folder.pinnedAt ? undefined : new Date(),
+            updatedAt: new Date()
+        });
+    };
 
     // Global search logic
     const handleGlobalSearch = async () => {
@@ -583,6 +591,18 @@ export const FolderList: React.FC<FolderListProps> = ({
                                         </FolderBadges>
 
                                         <FolderActions onClick={(e) => e.stopPropagation()}>
+                                            <ActionButton
+                                                onClick={() => handleTogglePin(folder)}
+                                                disabled={isDefault}
+                                                title={isDefault ? (language === 'ko' ? '기본 폴더는 고정할 수 없습니다' : 'Cannot pin the default folder') : (folder.pinnedAt ? 'Unpin' : 'Pin to top')}
+                                                style={{
+                                                    color: folder.pinnedAt ? theme.colors.primary : undefined,
+                                                    opacity: isDefault ? 0.3 : 1
+                                                }}
+                                            >
+                                                {folder.pinnedAt ? <BsPinAngleFill size={16} /> : <BsPinAngle size={16} />}
+                                            </ActionButton>
+
                                             <ActionButton
                                                 onClick={() => {
                                                     if (isDefault) {

@@ -398,12 +398,18 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     ];
 
     sortableGroups.sort((a, b) => {
+      const aLog = a.type === 'single' ? a.log : a.logs[0];
+      const bLog = b.type === 'single' ? b.log : b.logs[0];
+
+      // Pinned logic: pinned items always come first, sorted by pinnedAt desc
+      if (aLog.pinnedAt && bLog.pinnedAt) return bLog.pinnedAt.getTime() - aLog.pinnedAt.getTime();
+      if (aLog.pinnedAt) return -1;
+      if (bLog.pinnedAt) return 1;
+
       if (sortBy === 'date-desc') return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
       if (sortBy === 'date-asc') return new Date(a.lastDate).getTime() - new Date(b.lastDate).getTime();
 
       if (sortBy === 'model-desc' || sortBy === 'model-asc') {
-        const aLog = a.type === 'single' ? a.log : a.logs[0];
-        const bLog = b.type === 'single' ? b.log : b.logs[0];
         const aModelOrder = aLog.modelId ? (modelOrderMap.get(aLog.modelId) ?? 999) : 999;
         const bModelOrder = bLog.modelId ? (modelOrderMap.get(bLog.modelId) ?? 999) : 999;
 
@@ -440,6 +446,17 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
     return flat;
   }, [allLogs, allModels, allComments, searchQuery, sortBy, expandedThreads]);
+
+  const handleTogglePinLog = async (logId: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const log = await db.logs.get(logId);
+    if (log) {
+      await db.logs.update(logId, {
+        pinnedAt: log.pinnedAt ? undefined : new Date()
+      });
+    }
+  };
 
   useEffect(() => {
     if (!id || id === 'new' || id === 'settings') return;
@@ -804,6 +821,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                   formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
                   untitledText={t.sidebar.untitled}
                   isCombineTarget={isCombineTarget}
+                  onTogglePin={handleTogglePinLog}
                 />
               );
             } else if (item.type === 'thread-header') {
@@ -822,6 +840,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                   onLogClick={onCloseMobile}
                   isCombineTarget={isCombineTarget}
                   t={t}
+                  onTogglePin={handleTogglePinLog}
                 />
               );
             } else if (item.type === 'thread-child') {
@@ -836,6 +855,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                   untitledText={t.sidebar.untitled}
                   inThread={true}
                   isCombineTarget={isCombineTarget}
+                  onTogglePin={handleTogglePinLog}
                 />
               );
             }

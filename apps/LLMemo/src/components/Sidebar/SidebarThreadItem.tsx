@@ -1,8 +1,9 @@
 import React from 'react';
 import type { Log } from '../../db';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogItemLink, LogTitle, LogDate, ThreadToggleBtn } from './itemStyles';
+import { LogItemLink, LogTitle, LogDate, ThreadToggleBtn, PinToggleButton, ItemFooter, ItemActions } from './itemStyles';
 import { FiCornerDownRight } from 'react-icons/fi';
+import { BsPinAngle } from 'react-icons/bs';
 import { TouchDelayDraggable } from './TouchDelayDraggable';
 import type { TranslationKeys } from '../../translations';
 
@@ -19,12 +20,14 @@ interface Props {
     onLogClick?: () => void;
     isCombineTarget?: boolean;
     t: TranslationKeys;
+    onTogglePin?: (id: number, e: React.MouseEvent) => void;
 }
 
 export const SidebarThreadItem: React.FC<Props> = ({
     threadId, logs, index, collapsed, onToggle,
     activeLogId, modelMap, formatDate, untitledText, onLogClick,
-    isCombineTarget, t
+    isCombineTarget, t,
+    onTogglePin
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -71,14 +74,31 @@ export const SidebarThreadItem: React.FC<Props> = ({
                             <LogTitle title={headLog.title || untitledText}>
                                 {headLog.title || untitledText}
                             </LogTitle>
-                            <LogDate>
-                                {formatDate(headLog.createdAt)}
-                                {headLog.modelId && (
-                                    <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
-                                        • {modelMap.get(headLog.modelId)}
-                                    </span>
-                                )}
-                            </LogDate>
+                            <ItemFooter>
+                                <LogDate>
+                                    {formatDate(headLog.createdAt)}
+                                    {headLog.modelId && (
+                                        <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
+                                            • {modelMap.get(headLog.modelId)}
+                                        </span>
+                                    )}
+                                </LogDate>
+                                <ItemActions>
+                                    {onTogglePin && headLog.id && (
+                                        <PinToggleButton
+                                            $pinned={!!headLog.pinnedAt}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onTogglePin(headLog.id!, e);
+                                            }}
+                                            title={headLog.pinnedAt ? 'Unpin' : 'Pin to top'}
+                                        >
+                                            <BsPinAngle size={12} style={{ transform: headLog.pinnedAt ? 'none' : 'rotate(45deg)' }} />
+                                        </PinToggleButton>
+                                    )}
+                                </ItemActions>
+                            </ItemFooter>
                         </LogItemLink>
 
                         {/* Integrated Toggle Button */}

@@ -1,8 +1,8 @@
 import React from 'react';
 import type { Memo } from '../../db';
-import { MemoItemLink, MemoTitle, MemoDate, ThreadToggleBtn } from './itemStyles';
+import { MemoItemLink, MemoTitle, MemoDate, ThreadToggleBtn, PinToggleButton, ItemFooter, ItemActions } from './itemStyles';
 import { FiCornerDownRight, FiPenTool } from 'react-icons/fi';
-import { BsKeyboard } from 'react-icons/bs';
+import { BsKeyboard, BsPinAngle } from 'react-icons/bs';
 import { RiTable2 } from 'react-icons/ri';
 import { FaYoutube } from 'react-icons/fa';
 import styled from 'styled-components';
@@ -50,6 +50,7 @@ interface Props {
     moreText?: string;
     isCombineTarget?: boolean;
     isMovingMode?: boolean;
+    onTogglePin?: (id: number, e: React.MouseEvent) => void;
 }
 
 
@@ -68,7 +69,8 @@ export const SidebarMemoItem: React.FC<Props> = ({
     collapseText,
     moreText,
     isCombineTarget,
-    isMovingMode
+    isMovingMode,
+    onTogglePin
 }) => {
 
     const isDrawing = memo.content.includes('```fabric');
@@ -119,9 +121,26 @@ export const SidebarMemoItem: React.FC<Props> = ({
                         {memo.title || untitledText}
                     </MemoTitle>
                 </TitleRow>
-                <MemoDate>
-                    {formatDate(memo.createdAt)}
-                </MemoDate>
+                <ItemFooter>
+                    <MemoDate>
+                        {formatDate(memo.createdAt)}
+                    </MemoDate>
+                    <ItemActions>
+                        {onTogglePin && memo.id && (
+                            <PinToggleButton
+                                $pinned={!!memo.pinnedAt}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onTogglePin(memo.id!, e);
+                                }}
+                                title={memo.pinnedAt ? 'Unpin' : 'Pin to top'}
+                            >
+                                <BsPinAngle size={12} style={{ transform: memo.pinnedAt ? 'none' : 'rotate(45deg)' }} />
+                            </PinToggleButton>
+                        )}
+                    </ItemActions>
+                </ItemFooter>
             </MemoItemLink>
 
             {isThreadHead && childCount && childCount > 0 && onToggle && threadId && (

@@ -1,8 +1,9 @@
 import React from 'react';
 import type { Word } from '../../db';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { WordItemLink, WordTitle, WordDate, ThreadToggleBtn, WordTitleRow, SpeakButton, BlurredText, StarButton } from './itemStyles';
+import { WordItemLink, WordTitle, WordDate, ThreadToggleBtn, WordTitleRow, SpeakButton, BlurredText, StarButton, PinToggleButton, ItemFooter, ItemActions } from './itemStyles';
 import { FiCornerDownRight, FiVolume2, FiStar } from 'react-icons/fi';
+import { BsPinAngle } from 'react-icons/bs';
 import { TouchDelayDraggable } from './TouchDelayDraggable';
 import type { TranslationKeys } from '../../translations';
 import { db } from '../../db';
@@ -22,13 +23,15 @@ interface Props {
     isCombineTarget?: boolean;
     t: TranslationKeys;
     studyMode: 'none' | 'hide-meanings' | 'hide-words';
+    onTogglePin?: (id: number, e: React.MouseEvent) => void;
 }
 
 export const SidebarThreadItem: React.FC<Props> = ({
     threadId, logs, index, collapsed, onToggle,
     activeWordId, sourceMap, formatDate, untitledText, onWordClick,
     isCombineTarget, t,
-    studyMode
+    studyMode,
+    onTogglePin
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -104,7 +107,30 @@ export const SidebarThreadItem: React.FC<Props> = ({
                                         {headWord.title || untitledText}
                                     </BlurredText>
                                 </WordTitle>
-                                <div style={{ display: 'flex', gap: '2px' }}>
+                            </WordTitleRow>
+                            <ItemFooter>
+                                <WordDate>
+                                    {formatDate(headWord.createdAt)}
+                                    {headWord.sourceId && (
+                                        <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
+                                            • {sourceMap.get(headWord.sourceId)}
+                                        </span>
+                                    )}
+                                </WordDate>
+                                <ItemActions>
+                                    {onTogglePin && headWord.id && (
+                                        <PinToggleButton
+                                            $pinned={!!headWord.pinnedAt}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onTogglePin(headWord.id!, e);
+                                            }}
+                                            title={headWord.pinnedAt ? 'Unpin' : 'Pin to top'}
+                                        >
+                                            <BsPinAngle size={12} style={{ transform: headWord.pinnedAt ? 'none' : 'rotate(45deg)' }} />
+                                        </PinToggleButton>
+                                    )}
                                     <StarButton
                                         $active={!!headWord.isStarred}
                                         onClick={handleToggleStar}
@@ -124,16 +150,8 @@ export const SidebarThreadItem: React.FC<Props> = ({
                                             <FiVolume2 size={14} />
                                         </SpeakButton>
                                     )}
-                                </div>
-                            </WordTitleRow>
-                            <WordDate>
-                                {formatDate(headWord.createdAt)}
-                                {headWord.sourceId && (
-                                    <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
-                                        • {sourceMap.get(headWord.sourceId)}
-                                    </span>
-                                )}
-                            </WordDate>
+                                </ItemActions>
+                            </ItemFooter>
                         </WordItemLink>
 
                         {/* Integrated Toggle Button */}

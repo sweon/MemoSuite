@@ -5,8 +5,9 @@ import { NavLink, useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import type { Book, Memo } from '../../db';
 
-import { MemoItemLink, MemoTitle, MemoDate, ThreadToggleBtn } from './itemStyles';
+import { MemoItemLink, MemoTitle, MemoDate, ThreadToggleBtn, PinToggleButton, ItemFooter, ItemActions } from './itemStyles';
 import { FiCornerDownRight } from 'react-icons/fi';
+import { BsPinAngle } from 'react-icons/bs';
 import { format } from 'date-fns';
 import { useSearch } from '../../contexts/SearchContext';
 
@@ -90,9 +91,10 @@ interface Props {
   memos: Memo[];
   onClick?: (skipHistory?: boolean) => void;
   onSafeNavigate: (action: () => void) => void;
+  onTogglePin?: (id: number, e: React.MouseEvent) => void;
 }
 
-export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeNavigate }) => {
+export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeNavigate, onTogglePin }) => {
   const { bookId: activeId, id: activeMemoId } = useParams();
   const { t, language } = useLanguage();
   const { searchQuery } = useSearch();
@@ -159,11 +161,31 @@ export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeN
         end
       >
         <Info>
-          <Title>{book.title}</Title>
-          <Meta>
-            <StatusDot $status={book.status} />
-            <span>{progressPercent}%</span>
-          </Meta>
+          <Title title={book.title}>
+            {book.title}
+          </Title>
+          <ItemFooter>
+            <Meta>
+              <StatusDot $status={book.status} />
+              <span>{progressPercent}%</span>
+            </Meta>
+            <ItemActions>
+              {onTogglePin && book.id && (
+                <PinToggleButton
+                  $pinned={!!book.pinnedAt}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onTogglePin(book.id!, e);
+                  }}
+                  title={book.pinnedAt ? 'Unpin' : 'Pin to top'}
+                  style={{ opacity: book.pinnedAt ? 1 : undefined }}
+                >
+                  <BsPinAngle size={12} style={{ transform: book.pinnedAt ? 'none' : 'rotate(45deg)' }} />
+                </PinToggleButton>
+              )}
+            </ItemActions>
+          </ItemFooter>
         </Info>
       </ItemContainer>
 

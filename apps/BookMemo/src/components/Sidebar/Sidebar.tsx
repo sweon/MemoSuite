@@ -424,12 +424,28 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     }
 
     return books.sort((a, b) => {
+      // Pinned logic: pinned items always come first, sorted by pinnedAt desc
+      if (a.pinnedAt && b.pinnedAt) return b.pinnedAt.getTime() - a.pinnedAt.getTime();
+      if (a.pinnedAt) return -1;
+      if (b.pinnedAt) return 1;
+
       if (sortBy === 'date-desc') return b.updatedAt.getTime() - a.updatedAt.getTime();
       if (sortBy === 'date-asc') return a.updatedAt.getTime() - b.updatedAt.getTime();
       if (sortBy === 'title-asc') return a.title.localeCompare(b.title);
       return 0;
     });
   }, [allBooks, allMemos, allComments, searchQuery, sortBy]);
+
+  const handleTogglePinBook = async (bookId: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const book = await db.books.get(bookId);
+    if (book) {
+      await db.books.update(bookId, {
+        pinnedAt: book.pinnedAt ? undefined : new Date()
+      });
+    }
+  };
 
   useEffect(() => {
     const parts = location.pathname.split('/');
@@ -623,6 +639,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                         memos={allMemos?.filter(m => m.bookId === book.id) || []}
                         onClick={onCloseMobile}
                         onSafeNavigate={handleSafeNavigation}
+                        onTogglePin={handleTogglePinBook}
                       />
                     </div>
                   )}

@@ -7,6 +7,7 @@ export interface Folder {
     excludeFromGlobalSearch: boolean;
     createdAt: Date;
     updatedAt: Date;
+    pinnedAt?: Date;
 }
 
 export interface Memo {
@@ -22,6 +23,7 @@ export interface Memo {
     threadId?: string;
     threadOrder?: number;
     type?: 'normal' | 'progress';
+    pinnedAt?: Date;
 }
 
 export interface Comment {
@@ -156,6 +158,12 @@ export class HandMemoDatabase extends Dexie {
                     memo.folderId = defaultFolder.id;
                 }
             });
+        });
+
+        // Version 12: Add pinnedAt to folders and memos
+        this.version(12).stores({
+            folders: '++id, name, createdAt, updatedAt, pinnedAt',
+            memos: '++id, bookId, folderId, title, *tags, createdAt, updatedAt, threadId, type, pinnedAt'
         });
     }
 }

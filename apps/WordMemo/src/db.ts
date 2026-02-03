@@ -7,6 +7,7 @@ export interface Folder {
     excludeFromGlobalSearch: boolean;
     createdAt: Date;
     updatedAt: Date;
+    pinnedAt?: Date;
 }
 
 export interface Word {
@@ -21,6 +22,7 @@ export interface Word {
     threadId?: string;
     threadOrder?: number;
     isStarred?: number; // 0 or 1 for indexing
+    pinnedAt?: Date;
 }
 
 export interface Source {
@@ -154,6 +156,12 @@ export class WordMemoDatabase extends Dexie {
                 await commentsTable.clear();
                 await commentsTable.bulkAdd(updatedComments as any);
             }
+        });
+
+        // Version 12: Add pinnedAt to folders and words
+        this.version(12).stores({
+            folders: '++id, name, createdAt, updatedAt, pinnedAt',
+            words: '++id, folderId, title, *tags, sourceId, createdAt, updatedAt, threadId, isStarred, pinnedAt'
         });
     }
 }

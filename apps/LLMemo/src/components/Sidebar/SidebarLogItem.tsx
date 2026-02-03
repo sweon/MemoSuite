@@ -1,7 +1,8 @@
 import React from 'react';
 import type { Log } from '../../db';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogItemLink, LogTitle, LogDate } from './itemStyles';
+import { LogItemLink, LogTitle, LogDate, PinToggleButton, ItemFooter, ItemActions } from './itemStyles';
+import { BsPinAngle } from 'react-icons/bs';
 
 interface Props {
     log: Log;
@@ -12,6 +13,7 @@ interface Props {
     inThread?: boolean;
     untitledText: string;
     isCombineTarget?: boolean;
+    onTogglePin?: (id: number, e: React.MouseEvent) => void;
 }
 export const SidebarLogItem: React.FC<Props> = ({
     log,
@@ -21,7 +23,8 @@ export const SidebarLogItem: React.FC<Props> = ({
     formatDate,
     inThread,
     untitledText,
-    isCombineTarget
+    isCombineTarget,
+    onTogglePin
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -58,14 +61,31 @@ export const SidebarLogItem: React.FC<Props> = ({
                 <LogTitle title={log.title || untitledText}>
                     {log.title || untitledText}
                 </LogTitle>
-                <LogDate>
-                    {formatDate(log.createdAt)}
-                    {modelName && (
-                        <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
-                            • {modelName}
-                        </span>
-                    )}
-                </LogDate>
+                <ItemFooter>
+                    <LogDate>
+                        {formatDate(log.createdAt)}
+                        {modelName && (
+                            <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>
+                                • {modelName}
+                            </span>
+                        )}
+                    </LogDate>
+                    <ItemActions>
+                        {onTogglePin && log.id && (
+                            <PinToggleButton
+                                $pinned={!!log.pinnedAt}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onTogglePin(log.id!, e);
+                                }}
+                                title={log.pinnedAt ? 'Unpin' : 'Pin to top'}
+                            >
+                                <BsPinAngle size={12} style={{ transform: log.pinnedAt ? 'none' : 'rotate(45deg)' }} />
+                            </PinToggleButton>
+                        )}
+                    </ItemActions>
+                </ItemFooter>
             </LogItemLink>
         </div >
     );

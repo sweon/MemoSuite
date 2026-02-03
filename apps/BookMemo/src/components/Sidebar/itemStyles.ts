@@ -52,9 +52,21 @@ export const MemoTitle = styled.div`
 export const MemoDate = styled.div`
   font-size: 0.72rem;
   color: ${({ theme }) => theme.colors.textSecondary};
-  margin-top: 4px;
   font-weight: 500;
   opacity: 0.8;
+`;
+
+export const ItemFooter = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+`;
+
+export const ItemActions = styled.div`
+  display: flex;
+  gap: 4px;
+  align-items: center;
 `;
 
 export const ThreadContainer = styled.div`
@@ -101,5 +113,24 @@ export const ThreadToggleBtn = styled.button`
         background: ${({ theme }) => theme.colors.surface};
         border-color: ${({ theme }) => theme.colors.textSecondary};
         transform: translateY(-1px);
+    }
+`;
+
+export const PinToggleButton = styled.button<{ $pinned: boolean }>`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: ${({ $pinned, theme }) => ($pinned ? theme.colors.primary : theme.colors.textSecondary)};
+    opacity: ${({ $pinned }) => ($pinned ? 1 : 0.3)};
+    transition: ${({ theme }) => theme.effects.transition};
+    
+    &:hover {
+        opacity: 1;
+        color: ${({ theme }) => theme.colors.primary};
+        transform: scale(1.2);
     }
 `;
