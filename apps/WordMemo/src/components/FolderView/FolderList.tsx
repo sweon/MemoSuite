@@ -231,9 +231,8 @@ const FolderName = styled.div`
   font-size: 1.1rem;
   font-weight: 700;
   color: ${({ theme }) => theme.colors.text};
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-all;
   min-width: 0;
 `;
 
