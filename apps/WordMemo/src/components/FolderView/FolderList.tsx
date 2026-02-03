@@ -316,38 +316,39 @@ export const FolderList: React.FC<FolderListProps> = ({
     const sortedFolders = useMemo(() => {
         if (!folders) return [];
 
-        const sorted = [...folders];
+        const defaultFolder = folders.find(f => f.name === '기본 폴더' || f.name === 'Default Folder');
+        const others = folders.filter(f => f !== defaultFolder);
 
         switch (sortBy) {
             case 'last-edited':
-                sorted.sort((a, b) => {
+                others.sort((a, b) => {
                     const aTime = wordStats[a.id!]?.lastEdited || 0;
                     const bTime = wordStats[b.id!]?.lastEdited || 0;
                     return bTime - aTime;
                 });
                 break;
             case 'last-commented':
-                sorted.sort((a, b) => {
+                others.sort((a, b) => {
                     const aTime = wordStats[a.id!]?.lastCommented || 0;
                     const bTime = wordStats[b.id!]?.lastCommented || 0;
                     return bTime - aTime;
                 });
                 break;
             case 'name-asc':
-                sorted.sort((a, b) => a.name.localeCompare(b.name));
+                others.sort((a, b) => a.name.localeCompare(b.name));
                 break;
             case 'name-desc':
-                sorted.sort((a, b) => b.name.localeCompare(a.name));
+                others.sort((a, b) => b.name.localeCompare(a.name));
                 break;
             case 'created-asc':
-                sorted.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+                others.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
                 break;
             case 'created-desc':
-                sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+                others.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
                 break;
         }
 
-        return sorted;
+        return defaultFolder ? [defaultFolder, ...others] : others;
     }, [folders, sortBy, wordStats]);
 
     // Global search logic
@@ -574,16 +575,28 @@ export const FolderList: React.FC<FolderListProps> = ({
                                 <FolderActions onClick={(e) => e.stopPropagation()}>
                                     <ActionButton
                                         onClick={() => {
+                                            if (folder.name === '기본 폴더' || folder.name === 'Default Folder') {
+                                                alert(language === 'ko' ? '기본 폴더의 이름은 변경할 수 없습니다.' : 'Cannot rename the default folder.');
+                                                return;
+                                            }
                                             setEditingFolderId(folder.id!);
                                             setEditingName(folder.name);
                                         }}
+                                        disabled={folder.name === '기본 폴더' || folder.name === 'Default Folder'}
                                         title={language === 'ko' ? '이름 변경' : 'Rename'}
                                     >
                                         <FiEdit2 size={16} />
                                     </ActionButton>
 
                                     <ActionButton
-                                        onClick={() => handleToggleReadOnly(folder)}
+                                        onClick={() => {
+                                            if (folder.name === '기본 폴더' || folder.name === 'Default Folder') {
+                                                alert(language === 'ko' ? '기본 폴더는 읽기 전용으로 설정할 수 없습니다.' : 'Cannot set the default folder as read-only.');
+                                                return;
+                                            }
+                                            handleToggleReadOnly(folder);
+                                        }}
+                                        disabled={folder.name === '기본 폴더' || folder.name === 'Default Folder'}
                                         title={folder.isReadOnly
                                             ? (language === 'ko' ? '읽기 전용 해제' : 'Disable read-only')
                                             : (language === 'ko' ? '읽기 전용 설정' : 'Set as read-only')}
