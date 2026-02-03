@@ -636,7 +636,18 @@ export const MainLayout: React.FC = () => {
   const { theme } = useColorTheme();
   const { language } = useLanguage();
   const { currentFolderId } = useFolder();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [isAppEditing, setAppIsEditing] = useState(false);
+  const [movingMemoId, setMovingMemoId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isMobile && (location.pathname === '/' || location.pathname === '/index.html')) {
+      setSidebarOpen(true);
+    }
+  }, [location.pathname, isMobile]);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     const isMobileInitial = window.innerWidth <= 768;
@@ -647,9 +658,6 @@ export const MainLayout: React.FC = () => {
     return Math.max(minW, parsed);
   });
   const [isResizing, setIsResizing] = useState(false);
-  const [isAppEditing, setAppIsEditing] = useState(false);
-  const [movingMemoId, setMovingMemoId] = useState<number | null>(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const containerRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<SidebarRef>(null);
   const longPressTimer = useRef<any>(null);
@@ -787,7 +795,7 @@ export const MainLayout: React.FC = () => {
     };
   }, []);
 
-  const triggerPaste = async () => {
+  const triggerPaste = useCallback(async () => {
     setPasteButton(null);
     try {
       const text = await navigator.clipboard.readText();
@@ -843,7 +851,7 @@ export const MainLayout: React.FC = () => {
     } catch (err) {
       console.error('Failed to read clipboard', err);
     }
-  };
+  }, [currentFolderId, navigate]);
 
   // Handle sidebar toggle with history on mobile
   const toggleSidebar = useCallback((open: boolean, skipHistory = false) => {
@@ -871,14 +879,6 @@ export const MainLayout: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [isMobile]);
 
-  const location = useLocation();
-  useEffect(() => {
-    if (isMobile && (location.pathname === '/' || location.pathname === '/index.html')) {
-      setSidebarOpen(true);
-    }
-  }, [location.pathname, isMobile]);
-
-  const navigate = useNavigate();
 
   useEffect(() => {
     const handleShare = async () => {
@@ -988,7 +988,7 @@ export const MainLayout: React.FC = () => {
     };
 
     handleShare();
-  }, [navigate, location.search]);
+  }, [navigate, location.search, currentFolderId, language, confirm]);
 
   useEffect(() => {
     const handleSWShare = async () => {
@@ -1103,7 +1103,7 @@ export const MainLayout: React.FC = () => {
       }
     };
     handleSWShare();
-  }, [navigate]);
+  }, [navigate, currentFolderId]);
 
   useEffect(() => {
     const handleGlobalDrop = async (e: DragEvent) => {
@@ -1322,7 +1322,7 @@ export const MainLayout: React.FC = () => {
       window.removeEventListener('paste', handleGlobalPaste);
       window.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, currentFolderId, language, confirm]);
 
   // Resize handle is visible:
   // - Desktop: always visible

@@ -30,8 +30,9 @@ export const FolderProvider: React.FC<FolderProviderProps> = ({ children }) => {
         if (folders) {
             if (folders.length > 0) {
                 if (currentFolderId === null || !folders.find(f => f.id === currentFolderId)) {
-                    // Select the first folder as default
-                    setCurrentFolderIdState(folders[0].id!);
+                    // Find the default folder by name to ensure correct fallback
+                    const defaultFolder = folders.find(f => f.name === '기본 폴더' || f.name === 'Default Folder') || folders[0];
+                    setCurrentFolderIdState(defaultFolder.id!);
                 }
             } else if (folders.length === 0) {
                 // Auto-create a default folder if none exist
