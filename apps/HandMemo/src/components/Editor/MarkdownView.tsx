@@ -679,7 +679,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
   const [currentTime, setCurrentTime] = React.useState(0);
   const [duration, setDuration] = React.useState(0);
   const [playbackRateToast, setPlaybackRateToast] = React.useState<number | null>(null);
-  const [isCaptionsOn, setIsCaptionsOn] = React.useState(true);
+  const [isCaptionsOn, setIsCaptionsOn] = React.useState(false);
   const [isCCSettingsOpen, setIsCCSettingsOpen] = React.useState(false);
   const [ccTracks, setCCTracks] = React.useState<any[]>([]);
   const [ccFontSize, setCCFontSize] = React.useState(0);
@@ -789,7 +789,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
             iv_load_policy: 3,
             fs: 1,
             disablekb: 1,
-            cc_load_policy: 1
+            cc_load_policy: 0
           },
           events: {
             onReady: () => {
@@ -797,11 +797,6 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
                 setIsReady(true);
                 if (playerRef.current.getDuration) setDuration(playerRef.current.getDuration());
                 if (!ACTIVE_YT_VIDEO_ID) ACTIVE_YT_VIDEO_ID = videoId;
-
-                // Set default caption styles to transparent background
-                setTimeout(() => {
-                  applyCaptionStyles();
-                }, 1500);
               }
             },
             onStateChange: (event: any) => {
@@ -992,8 +987,16 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
 
     if (!isCCSettingsOpen) {
       try {
-        const tracks = player.getOption('captions', 'tracklist') || [];
-        setCCTracks(tracks);
+        // Ensure module is loaded if we want to see tracks
+        if (!isCaptionsOn) {
+          player.loadModule('captions');
+        }
+
+        // Give it a tiny bit of time to initialize tracklist
+        setTimeout(() => {
+          const tracks = player.getOption('captions', 'tracklist') || [];
+          setCCTracks(tracks);
+        }, 100);
       } catch (err) {
         console.error('Failed to get tracks', err);
       }
