@@ -81,7 +81,7 @@ export const SidebarThreadItem: React.FC<Props> = ({
                     {...provided.draggableProps}
                     style={{
                         ...provided.draggableProps.style,
-                        marginBottom: '4px',
+                        marginBottom: '2px',
                         opacity: snapshot.isDragging ? 0.8 : 1,
                         transition: 'background-color 0.1s ease-out, border-color 0.1s ease-out',
                         borderRadius: '8px',

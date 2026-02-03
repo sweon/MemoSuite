@@ -54,7 +54,7 @@ const SidebarContainer = styled.div`
 `;
 
 const Header = styled.div`
-  padding: ${({ theme }) => theme.spacing.md};
+  padding: 0.5rem;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   position: sticky;
   top: 0;
@@ -62,11 +62,17 @@ const Header = styled.div`
   background: ${({ theme }) => theme.colors.surface};
 `;
 
+const BrandArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.md} ${theme.spacing.sm}`};
+  gap: 6px;
+`;
+
 const BrandHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg} 0`};
 `;
 
 const AppTitle = styled.div`
@@ -91,7 +97,7 @@ const AppVersion = styled.span`
 
 const SearchInputWrapper = styled.div`
   position: relative;
-  margin-bottom: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: 0;
 `;
 
 const SearchIcon = styled(FiSearch)`
@@ -157,20 +163,25 @@ const Button = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: ${({ theme }) => theme.radius.medium};
+  width: 26px;
+  height: 26px;
+  border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
   background: #0072B2;
   color: white;
   flex-shrink: 0;
   transition: ${({ theme }) => theme.effects.transition};
-  box-shadow: ${({ theme }) => theme.shadows.small};
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
   
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: ${({ theme }) => theme.shadows.medium};
+    transform: translateY(-1px);
+    box-shadow: ${({ theme }) => theme.shadows.small};
     filter: brightness(1.1);
   }
 
@@ -183,8 +194,7 @@ const TopActions = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: ${({ theme }) => theme.spacing.sm};
-  margin-bottom: ${({ theme }) => theme.spacing.md};
+  gap: 4px;
 `;
 
 const LogList = styled.div`
@@ -200,7 +210,7 @@ const IconButton = styled.button`
   border: none;
   color: ${({ theme }) => theme.colors.textSecondary};
   cursor: pointer;
-  padding: 6px;
+  padding: 4px;
   border-radius: ${({ theme }) => theme.radius.medium};
   display: flex;
   align-items: center;
@@ -231,7 +241,7 @@ const StudyModeOption = styled.label<{ $active: boolean }>`
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px;
+  padding: 6px;
   border-radius: ${({ theme }) => theme.radius.medium};
   border: 1px solid ${({ theme, $active }) => $active ? theme.colors.primary : theme.colors.border};
   background: ${({ theme, $active }) => $active ? `${theme.colors.primary}11` : theme.colors.background};
@@ -604,10 +614,79 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
   return (
     <SidebarContainer>
       <ScrollableArea id="sidebar-scrollable-area">
-        <BrandHeader>
-          <AppTitle>WordMemo</AppTitle>
-          <AppVersion>v{pkg.version}</AppVersion>
-        </BrandHeader>
+        <BrandArea>
+          <BrandHeader>
+            <AppTitle>WordMemo</AppTitle>
+            <AppVersion>v{pkg.version}</AppVersion>
+          </BrandHeader>
+
+          <SearchInputWrapper>
+            <SearchIcon size={16} />
+            <SearchInput
+              placeholder={t.sidebar.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              $hasStarred={sortBy !== 'starred'}
+            />
+            {sortBy !== 'starred' && (
+              <StarFilterButton
+                $active={starredOnly}
+                onClick={() => setStarredOnly(!starredOnly)}
+                title={starredOnly ? t.sidebar.show_all : t.sidebar.show_starred}
+              >
+                <FiStar size={16} fill={starredOnly ? '#E69F00' : 'none'} />
+              </StarFilterButton>
+            )}
+            {searchQuery && (
+              <ClearButton onClick={() => setSearchQuery('')}>
+                <FiX size={14} />
+              </ClearButton>
+            )}
+          </SearchInputWrapper>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              style={{
+                flex: 1,
+                width: '100%',
+                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
+                fontSize: window.innerWidth <= 768 ? '14px' : '0.85rem',
+                borderRadius: '6px',
+                border: `1px solid ${theme.colors.border}`,
+                background: theme.colors.surface,
+                color: theme.colors.text
+              }}
+            >
+              <option value="date-desc">{language === 'ko' ? '최신순' : 'Newest'}</option>
+              <option value="date-asc">{language === 'ko' ? '오래된순' : 'Oldest'}</option>
+              <option value="alpha">{language === 'ko' ? '제목순' : 'Title A-Z'}</option>
+              <option value="starred">{language === 'ko' ? '중요한 것 먼저' : 'Starred First'}</option>
+              <option value="comment-desc">{language === 'ko' ? '댓글 많은 순' : 'Most Commented'}</option>
+              <option value="source-desc">{language === 'ko' ? '출처 (내림차순)' : 'Source (Desc)'}</option>
+              <option value="source-asc">{language === 'ko' ? '출처 (오름차순)' : 'Source (Asc)'}</option>
+            </select>
+          </div>
+
+          <div>
+            <StudyModeGroup>
+              <StudyModeOption
+                $active={studyMode === 'hide-meanings'}
+                onClick={() => setStudyMode(studyMode === 'hide-meanings' ? 'none' : 'hide-meanings')}
+              >
+                {language === 'ko' ? '의미' : 'Meaning'} <FiEyeOff />
+              </StudyModeOption>
+              <StudyModeOption
+                $active={studyMode === 'hide-words'}
+                onClick={() => setStudyMode(studyMode === 'hide-words' ? 'none' : 'hide-words')}
+              >
+                {language === 'ko' ? '단어' : 'Word'} <FiEyeOff />
+              </StudyModeOption>
+            </StudyModeGroup>
+          </div>
+        </BrandArea>
+
         <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <TopActions>
             <Button onClick={() => {
@@ -652,72 +731,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
               </Tooltip>
             </div>
           </TopActions>
-
-          <SearchInputWrapper>
-            <SearchIcon size={16} />
-            <SearchInput
-              placeholder={t.sidebar.search}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              $hasStarred={sortBy !== 'starred'}
-            />
-            {sortBy !== 'starred' && (
-              <StarFilterButton
-                $active={starredOnly}
-                onClick={() => setStarredOnly(!starredOnly)}
-                title={starredOnly ? t.sidebar.show_all : t.sidebar.show_starred}
-              >
-                <FiStar size={16} fill={starredOnly ? '#E69F00' : 'none'} />
-              </StarFilterButton>
-            )}
-            {searchQuery && (
-              <ClearButton onClick={() => setSearchQuery('')}>
-                <FiX size={14} />
-              </ClearButton>
-            )}
-          </SearchInputWrapper>
-
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              style={{
-                flex: 1,
-                width: '100%',
-                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-                fontSize: window.innerWidth <= 768 ? '14px' : '0.85rem',
-                borderRadius: '6px',
-                border: `1px solid ${theme.colors.border}`,
-                background: theme.colors.surface,
-                color: theme.colors.text
-              }}
-            >
-              <option value="date-desc">{language === 'ko' ? '최신순' : 'Newest'}</option>
-              <option value="date-asc">{language === 'ko' ? '오래된순' : 'Oldest'}</option>
-              <option value="alpha">{language === 'ko' ? '제목순' : 'Title A-Z'}</option>
-              <option value="starred">{language === 'ko' ? '중요한 것 먼저' : 'Starred First'}</option>
-              <option value="comment-desc">{language === 'ko' ? '댓글 많은 순' : 'Most Commented'}</option>
-              <option value="source-desc">{language === 'ko' ? '출처 (내림차순)' : 'Source (Desc)'}</option>
-              <option value="source-asc">{language === 'ko' ? '출처 (오름차순)' : 'Source (Asc)'}</option>
-            </select>
-          </div>
-
-          <div style={{ marginTop: '0.6rem' }}>
-            <StudyModeGroup>
-              <StudyModeOption
-                $active={studyMode === 'hide-meanings'}
-                onClick={() => setStudyMode(studyMode === 'hide-meanings' ? 'none' : 'hide-meanings')}
-              >
-                {language === 'ko' ? '의미' : 'Meaning'} <FiEyeOff />
-              </StudyModeOption>
-              <StudyModeOption
-                $active={studyMode === 'hide-words'}
-                onClick={() => setStudyMode(studyMode === 'hide-words' ? 'none' : 'hide-words')}
-              >
-                {language === 'ko' ? '단어' : 'Word'} <FiEyeOff />
-              </StudyModeOption>
-            </StudyModeGroup>
-          </div>
         </Header>
 
         <LogList id="sidebar-log-list" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>

@@ -53,7 +53,7 @@ const SidebarContainer = styled.div`
 `;
 
 const Header = styled.div`
-  padding: ${({ theme }) => theme.spacing.md};
+  padding: 0.5rem;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   position: sticky;
   top: 0;
@@ -61,11 +61,17 @@ const Header = styled.div`
   background: ${({ theme }) => theme.colors.surface};
 `;
 
+const BrandArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.md} ${theme.spacing.sm}`};
+  gap: 8px;
+`;
+
 const BrandHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg} 0`};
 `;
 
 const AppTitle = styled.div`
@@ -90,7 +96,7 @@ const AppVersion = styled.span`
 
 const SearchInputWrapper = styled.div`
   position: relative;
-  margin-bottom: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: 0;
 `;
 
 const SearchIcon = styled(FiSearch)`
@@ -146,20 +152,25 @@ const Button = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: ${({ theme }) => theme.radius.medium};
+  width: 26px;
+  height: 26px;
+  border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
   background: #0072B2;
   color: white;
   flex-shrink: 0;
   transition: ${({ theme }) => theme.effects.transition};
-  box-shadow: ${({ theme }) => theme.shadows.small};
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
   
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: ${({ theme }) => theme.shadows.medium};
+    transform: translateY(-1px);
+    box-shadow: ${({ theme }) => theme.shadows.small};
     filter: brightness(1.1);
   }
 
@@ -172,8 +183,7 @@ const TopActions = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: ${({ theme }) => theme.spacing.sm};
-  margin-bottom: ${({ theme }) => theme.spacing.md};
+  gap: 4px;
 `;
 
 const IconButton = styled.button`
@@ -181,7 +191,7 @@ const IconButton = styled.button`
   border: none;
   color: ${({ theme }) => theme.colors.textSecondary};
   cursor: pointer;
-  padding: 6px;
+  padding: 4px;
   border-radius: ${({ theme }) => theme.radius.medium};
   display: flex;
   align-items: center;
@@ -581,10 +591,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
   return (
     <SidebarContainer>
       <ScrollableArea id="sidebar-scrollable-area">
-        <BrandHeader>
-          <AppTitle>LLMemo</AppTitle>
-          <AppVersion>v{pkg.version}</AppVersion>
-        </BrandHeader>
+        <BrandArea>
+          <BrandHeader>
+            <AppTitle>LLMemo</AppTitle>
+            <AppVersion>v{pkg.version}</AppVersion>
+          </BrandHeader>
+
+          <SearchInputWrapper>
+            <SearchIcon size={16} />
+            <SearchInput
+              placeholder={t.sidebar.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <ClearButton onClick={() => setSearchQuery('')}>
+                <FiX size={14} />
+              </ClearButton>
+            )}
+          </SearchInputWrapper>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              style={{
+                flex: 1,
+                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
+                fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
+                borderRadius: '6px',
+                border: `1px solid ${theme.colors.border}`,
+                background: theme.colors.surface,
+                color: theme.colors.text
+              }}
+            >
+              <option value="date-desc">{t.sidebar.newest}</option>
+              <option value="date-asc">{t.sidebar.oldest}</option>
+              <option value="model-desc">{t.sidebar.model_newest}</option>
+              <option value="model-asc">{t.sidebar.model_oldest}</option>
+              <option value="comment-desc">{t.sidebar.last_commented}</option>
+            </select>
+          </div>
+        </BrandArea>
+
         <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <TopActions>
             <Tooltip content={t.sidebar.new}>
@@ -631,41 +679,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onCloseMobile, isEditing = fal
               </Tooltip>
             </div>
           </TopActions>
-
-          <SearchInputWrapper>
-            <SearchIcon size={16} />
-            <SearchInput
-              placeholder={t.sidebar.search}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <ClearButton onClick={() => setSearchQuery('')}>
-                <FiX size={14} />
-              </ClearButton>
-            )}
-          </SearchInputWrapper>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              style={{
-                flex: 1,
-                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-                fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
-                borderRadius: '6px',
-                border: `1px solid ${theme.colors.border}`,
-                background: theme.colors.surface,
-                color: theme.colors.text
-              }}
-            >
-              <option value="date-desc">{t.sidebar.newest}</option>
-              <option value="date-asc">{t.sidebar.oldest}</option>
-              <option value="model-desc">{t.sidebar.model_newest}</option>
-              <option value="model-asc">{t.sidebar.model_oldest}</option>
-              <option value="comment-desc">{t.sidebar.last_commented}</option>
-            </select>
-          </div>
         </Header>
 
         <ThreadableList

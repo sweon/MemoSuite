@@ -56,7 +56,7 @@ const SidebarContainer = styled.div`
 `;
 
 const Header = styled.div`
-  padding: ${({ theme }) => theme.spacing.md};
+  padding: 0.5rem;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   position: sticky;
   top: 0;
@@ -66,7 +66,7 @@ const Header = styled.div`
 
 const SearchInputWrapper = styled.div`
   position: relative;
-  margin-bottom: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: 0;
 `;
 
 const SearchIcon = styled(FiSearch)`
@@ -154,7 +154,6 @@ const TopActions = styled.div`
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  margin-bottom: ${({ theme }) => theme.spacing.md};
 `;
 
 const IconButton = styled.button`
@@ -182,11 +181,17 @@ const IconButton = styled.button`
   }
 `;
 
+const BrandArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.md} ${theme.spacing.sm}`};
+  gap: 8px;
+`;
+
 const BrandHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg} 0`};
 `;
 
 const AppTitle = styled.div`
@@ -662,10 +667,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
       <ScrollableArea id="sidebar-scrollable-area">
-        <BrandHeader>
-          <AppTitle>HandMemo</AppTitle>
-          <AppVersion>v{pkg.version}</AppVersion>
-        </BrandHeader>
+        <BrandArea>
+          <BrandHeader>
+            <AppTitle>HandMemo</AppTitle>
+            <AppVersion>v{pkg.version}</AppVersion>
+          </BrandHeader>
+
+          <SearchInputWrapper>
+            <SearchIcon size={16} />
+            <SearchInput
+              placeholder={t.sidebar.search}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <ClearButton onClick={() => setSearchQuery('')}>
+                <FiX size={14} />
+              </ClearButton>
+            )}
+          </SearchInputWrapper>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              style={{
+                flex: 1,
+                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
+                fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
+                borderRadius: '6px',
+                border: `1px solid ${theme.colors.border}`,
+                background: theme.colors.surface,
+                color: theme.colors.text
+              }}
+            >
+              <option value="last-edited">{t.sidebar.last_memoed}</option>
+              <option value="last-commented">{t.sidebar.last_commented}</option>
+              <option value="date-desc">{t.sidebar.newest}</option>
+              <option value="date-asc">{t.sidebar.oldest}</option>
+              <option value="title-asc">{t.sidebar.title_asc}</option>
+            </select>
+          </div>
+        </BrandArea>
+
         <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <TopActions>
             <div style={{ display: 'flex', gap: '0.25rem' }}>
@@ -747,41 +790,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </Tooltip>
             </div>
           </TopActions>
-
-          <SearchInputWrapper>
-            <SearchIcon size={16} />
-            <SearchInput
-              placeholder={t.sidebar.search}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <ClearButton onClick={() => setSearchQuery('')}>
-                <FiX size={14} />
-              </ClearButton>
-            )}
-          </SearchInputWrapper>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              style={{
-                flex: 1,
-                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-                fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
-                borderRadius: '6px',
-                border: `1px solid ${theme.colors.border}`,
-                background: theme.colors.surface,
-                color: theme.colors.text
-              }}
-            >
-              <option value="last-edited">{t.sidebar.last_memoed}</option>
-              <option value="last-commented">{t.sidebar.last_commented}</option>
-              <option value="date-desc">{t.sidebar.newest}</option>
-              <option value="date-asc">{t.sidebar.oldest}</option>
-              <option value="title-asc">{t.sidebar.title_asc}</option>
-            </select>
-          </div>
         </Header>
 
         <ThreadableList

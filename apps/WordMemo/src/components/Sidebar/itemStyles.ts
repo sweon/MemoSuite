@@ -6,7 +6,7 @@ export const LogItemLink = styled(Link) <{ $isActive: boolean; $inThread?: boole
   padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
   padding-left: ${({ $inThread, theme }) => ($inThread ? theme.spacing.xl : theme.spacing.md)};
   border-radius: ${({ theme }) => theme.radius.medium};
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   text-decoration: none;
   background: ${({ $isActive, theme }) => ($isActive ? `${theme.colors.primary}11` : 'transparent')};
   color: ${({ theme }) => theme.colors.text};
