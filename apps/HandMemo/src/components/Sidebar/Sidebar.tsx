@@ -127,7 +127,7 @@ const Button = styled.button<{ $color?: string }>`
   border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
-  background: #9C640C;
+  background: ${({ theme, $color }) => $color || theme.colors.primary};
   color: white;
   flex-shrink: 0;
   transition: ${({ theme }) => theme.effects.transition};
