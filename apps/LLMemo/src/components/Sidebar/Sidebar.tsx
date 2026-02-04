@@ -233,6 +233,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
   // Expansion state (now collapsed by default)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+  const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
 
   const toggleThread = (threadId: string) => {
     const newSet = new Set(expandedThreads);
@@ -413,10 +414,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       const aLog = a.type === 'single' ? a.log : a.logs[0];
       const bLog = b.type === 'single' ? b.log : b.logs[0];
 
+      const aPinnedAt = aLog.pinnedAt || (aLog.id ? justUnpinnedIds.get(aLog.id) : undefined);
+      const bPinnedAt = bLog.pinnedAt || (bLog.id ? justUnpinnedIds.get(bLog.id) : undefined);
+
       // Pinned logic: pinned items always come first, sorted by pinnedAt desc
-      if (aLog.pinnedAt && bLog.pinnedAt) return bLog.pinnedAt.getTime() - aLog.pinnedAt.getTime();
-      if (aLog.pinnedAt) return -1;
-      if (bLog.pinnedAt) return 1;
+      if (aPinnedAt && bPinnedAt) return bPinnedAt.getTime() - aPinnedAt.getTime();
+      if (aPinnedAt) return -1;
+      if (bPinnedAt) return 1;
 
       if (sortBy === 'date-desc') return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
       if (sortBy === 'date-asc') return new Date(a.lastDate).getTime() - new Date(b.lastDate).getTime();
@@ -457,13 +461,39 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     });
 
     return flat;
-  }, [allLogs, allModels, allComments, searchQuery, sortBy, expandedThreads]);
+  }, [allLogs, allModels, allComments, searchQuery, sortBy, expandedThreads, justUnpinnedIds]);
 
   const handleTogglePinLog = async (logId: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const log = await db.logs.get(logId);
     if (log) {
+      if (log.pinnedAt) {
+        // preserve position for 500ms
+        const oldPinnedAt = log.pinnedAt;
+        setJustUnpinnedIds(prev => {
+          const next = new Map(prev);
+          next.set(logId, oldPinnedAt);
+          return next;
+        });
+        setTimeout(() => {
+          setJustUnpinnedIds(prev => {
+            if (!prev.has(logId)) return prev;
+            const next = new Map(prev);
+            next.delete(logId);
+            return next;
+          });
+        }, 500);
+      } else {
+        // If pinning, make sure it's removed from recently unpinned list
+        setJustUnpinnedIds(prev => {
+          if (!prev.has(logId)) return prev;
+          const next = new Map(prev);
+          next.delete(logId);
+          return next;
+        });
+      }
+
       await db.logs.update(logId, {
         pinnedAt: log.pinnedAt ? undefined : new Date()
       });

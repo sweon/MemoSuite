@@ -295,6 +295,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   // Expansion state (now collapsed by default)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
   const [combineTargetId, setCombineTargetId] = useState<string | null>(null);
+  const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
 
   const toggleThread = (threadId: string) => {
     const newSet = new Set(expandedThreads);
@@ -512,10 +513,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
     // 4. Sort Flattened List
     return items.sort((a, b) => {
+      const aPinnedAt = a.log.pinnedAt || (a.log.id ? justUnpinnedIds.get(a.log.id) : undefined);
+      const bPinnedAt = b.log.pinnedAt || (b.log.id ? justUnpinnedIds.get(b.log.id) : undefined);
+
       // Pinned logic: pinned items always come first, sorted by pinnedAt desc
-      if (a.log.pinnedAt && b.log.pinnedAt) return b.log.pinnedAt.getTime() - a.log.pinnedAt.getTime();
-      if (a.log.pinnedAt) return -1;
-      if (b.log.pinnedAt) return 1;
+      if (aPinnedAt && bPinnedAt) return bPinnedAt.getTime() - aPinnedAt.getTime();
+      if (aPinnedAt) return -1;
+      if (bPinnedAt) return 1;
 
       if (sortBy === 'starred') {
         if (a.log.isStarred && !b.log.isStarred) return -1;
@@ -533,13 +537,39 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       }
       return b.log.createdAt.getTime() - a.log.createdAt.getTime();
     });
-  }, [allWords, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap]);
+  }, [allWords, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap, justUnpinnedIds]);
 
   const handleTogglePinLog = async (logId: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const log = await db.words.get(logId);
     if (log) {
+      if (log.pinnedAt) {
+        // preserve position for 500ms
+        const oldPinnedAt = log.pinnedAt;
+        setJustUnpinnedIds(prev => {
+          const next = new Map(prev);
+          next.set(logId, oldPinnedAt);
+          return next;
+        });
+        setTimeout(() => {
+          setJustUnpinnedIds(prev => {
+            if (!prev.has(logId)) return prev;
+            const next = new Map(prev);
+            next.delete(logId);
+            return next;
+          });
+        }, 500);
+      } else {
+        // If pinning, make sure it's removed from recently unpinned list
+        setJustUnpinnedIds(prev => {
+          if (!prev.has(logId)) return prev;
+          const next = new Map(prev);
+          next.delete(logId);
+          return next;
+        });
+      }
+
       await db.words.update(logId, {
         pinnedAt: log.pinnedAt ? undefined : new Date()
       });

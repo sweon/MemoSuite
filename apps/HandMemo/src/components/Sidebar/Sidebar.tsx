@@ -270,6 +270,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     onConfirm: () => void;
   }>({ isOpen: false, message: '', onConfirm: () => { } });
   const [collapsedThreads, setCollapsedThreads] = useState<Set<string>>(new Set());
+  const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
 
   const toggleThread = (id: string) => {
     setCollapsedThreads(prev => {
@@ -407,10 +408,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     }
 
     return memos.sort((a, b) => {
+      const aPinnedAt = a.pinnedAt || (a.id ? justUnpinnedIds.get(a.id) : undefined);
+      const bPinnedAt = b.pinnedAt || (b.id ? justUnpinnedIds.get(b.id) : undefined);
+
       // Pinned logic: pinned items always come first, sorted by pinnedAt desc
-      if (a.pinnedAt && b.pinnedAt) return b.pinnedAt.getTime() - a.pinnedAt.getTime();
-      if (a.pinnedAt) return -1;
-      if (b.pinnedAt) return 1;
+      if (aPinnedAt && bPinnedAt) return bPinnedAt.getTime() - aPinnedAt.getTime();
+      if (aPinnedAt) return -1;
+      if (bPinnedAt) return 1;
 
       if (sortBy === 'date-desc') return b.createdAt.getTime() - a.createdAt.getTime();
       if (sortBy === 'date-asc') return a.createdAt.getTime() - b.createdAt.getTime();
@@ -424,13 +428,39 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       }
       return b.updatedAt.getTime() - a.updatedAt.getTime();
     });
-  }, [allMemos, searchQuery, sortBy, currentFolderId, lastCommentMap]);
+  }, [allMemos, searchQuery, sortBy, currentFolderId, lastCommentMap, justUnpinnedIds]);
 
   const handleTogglePin = async (memoId: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const memo = await db.memos.get(memoId);
     if (memo) {
+      if (memo.pinnedAt) {
+        // preserve position for 500ms
+        const oldPinnedAt = memo.pinnedAt;
+        setJustUnpinnedIds(prev => {
+          const next = new Map(prev);
+          next.set(memoId, oldPinnedAt);
+          return next;
+        });
+        setTimeout(() => {
+          setJustUnpinnedIds(prev => {
+            if (!prev.has(memoId)) return prev;
+            const next = new Map(prev);
+            next.delete(memoId);
+            return next;
+          });
+        }, 500);
+      } else {
+        // If pinning, make sure it's removed from recently unpinned list
+        setJustUnpinnedIds(prev => {
+          if (!prev.has(memoId)) return prev;
+          const next = new Map(prev);
+          next.delete(memoId);
+          return next;
+        });
+      }
+
       await db.memos.update(memoId, {
         pinnedAt: memo.pinnedAt ? undefined : new Date()
       });

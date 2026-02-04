@@ -440,6 +440,7 @@ export const FolderList: React.FC<FolderListProps> = ({
     });
     const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState('');
+    const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
 
     const folders = useLiveQuery(() => db.folders.toArray());
     const allMemos = useLiveQuery(() => db.memos.toArray());
@@ -505,10 +506,13 @@ export const FolderList: React.FC<FolderListProps> = ({
             if (isADefault) return -1;
             if (isBDefault) return 1;
 
+            const aPinnedAt = a.pinnedAt || (a.id ? justUnpinnedIds.get(a.id) : undefined);
+            const bPinnedAt = b.pinnedAt || (b.id ? justUnpinnedIds.get(b.id) : undefined);
+
             // Pinned logic: pinned items always come first, sorted by pinnedAt desc
-            if (a.pinnedAt && b.pinnedAt) return b.pinnedAt.getTime() - a.pinnedAt.getTime();
-            if (a.pinnedAt) return -1;
-            if (b.pinnedAt) return 1;
+            if (aPinnedAt && bPinnedAt) return bPinnedAt.getTime() - aPinnedAt.getTime();
+            if (aPinnedAt) return -1;
+            if (bPinnedAt) return 1;
 
             switch (sortBy) {
                 case 'last-edited':
@@ -533,9 +537,35 @@ export const FolderList: React.FC<FolderListProps> = ({
         });
 
         return items;
-    }, [folders, sortBy, folderStats]);
+    }, [folders, sortBy, folderStats, justUnpinnedIds]);
 
     const handleTogglePin = async (folder: Folder) => {
+        if (folder.pinnedAt) {
+            // preserve position for 500ms
+            const oldPinnedAt = folder.pinnedAt;
+            setJustUnpinnedIds(prev => {
+                const next = new Map(prev);
+                next.set(folder.id!, oldPinnedAt);
+                return next;
+            });
+            setTimeout(() => {
+                setJustUnpinnedIds(prev => {
+                    if (!prev.has(folder.id!)) return prev;
+                    const next = new Map(prev);
+                    next.delete(folder.id!);
+                    return next;
+                });
+            }, 500);
+        } else {
+            // If pinning, make sure it's removed from recently unpinned list
+            setJustUnpinnedIds(prev => {
+                if (!prev.has(folder.id!)) return prev;
+                const next = new Map(prev);
+                next.delete(folder.id!);
+                return next;
+            });
+        }
+
         await db.folders.update(folder.id!, {
             pinnedAt: folder.pinnedAt ? undefined : new Date(),
             updatedAt: new Date()

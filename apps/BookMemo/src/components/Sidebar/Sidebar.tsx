@@ -235,7 +235,8 @@ export interface SidebarRef {
 export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false, movingMemoId, setMovingMemoId }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
-  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-comment-desc'>('date-desc');
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-memo-asc' | 'last-comment-desc'>('date-desc');
+  const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
 
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const { currentFolderId, currentFolder, setShowFolderList } = useFolder();
@@ -468,23 +469,52 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     }
 
     return books.sort((a, b) => {
+      const aPinnedAt = a.pinnedAt || (a.id ? justUnpinnedIds.get(a.id) : undefined);
+      const bPinnedAt = b.pinnedAt || (b.id ? justUnpinnedIds.get(b.id) : undefined);
+
       // Pinned logic: pinned items always come first, sorted by pinnedAt desc
-      if (a.pinnedAt && b.pinnedAt) return b.pinnedAt.getTime() - a.pinnedAt.getTime();
-      if (a.pinnedAt) return -1;
-      if (b.pinnedAt) return 1;
+      if (aPinnedAt && bPinnedAt) return bPinnedAt.getTime() - aPinnedAt.getTime();
+      if (aPinnedAt) return -1;
+      if (bPinnedAt) return 1;
 
       if (sortBy === 'date-desc') return b.updatedAt.getTime() - a.updatedAt.getTime();
       if (sortBy === 'date-asc') return a.updatedAt.getTime() - b.updatedAt.getTime();
       if (sortBy === 'title-asc') return a.title.localeCompare(b.title);
       return 0;
     });
-  }, [allBooks, allMemos, allComments, searchQuery, sortBy]);
+  }, [allBooks, allMemos, allComments, searchQuery, sortBy, justUnpinnedIds]);
 
   const handleTogglePinBook = async (bookId: number, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const book = await db.books.get(bookId);
     if (book) {
+      if (book.pinnedAt) {
+        // preserve position for 500ms
+        const oldPinnedAt = book.pinnedAt;
+        setJustUnpinnedIds(prev => {
+          const next = new Map(prev);
+          next.set(bookId, oldPinnedAt);
+          return next;
+        });
+        setTimeout(() => {
+          setJustUnpinnedIds(prev => {
+            if (!prev.has(bookId)) return prev;
+            const next = new Map(prev);
+            next.delete(bookId);
+            return next;
+          });
+        }, 500);
+      } else {
+        // If pinning, make sure it's removed from recently unpinned list
+        setJustUnpinnedIds(prev => {
+          if (!prev.has(bookId)) return prev;
+          const next = new Map(prev);
+          next.delete(bookId);
+          return next;
+        });
+      }
+
       await db.books.update(bookId, {
         pinnedAt: book.pinnedAt ? undefined : new Date()
       });
