@@ -56,6 +56,16 @@ const ContentPadding = styled.div`
   }
 `;
 
+const CommentsWrapper = styled.div`
+  padding: ${({ theme }) => `${theme.spacing.lg} ${theme.spacing.xl}`};
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.background};
+
+  @media (max-width: 768px) {
+    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.sm};
+  }
+`;
+
 const TitleInput = styled.input`
   font-size: 1.5rem;
   font-weight: 800;
@@ -1112,16 +1122,18 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 }}
                             />
                         </ContentWrapper>
-                        {!isNew && log && (
-                            <CommentsSection
-                                wordId={log.id!}
-                                initialEditingState={commentDraft}
-                                onEditingChange={setCommentDraft}
-                            />
-                        )}
                     </ContentPadding>
                 )
             }
+            {!isEditing && !isNew && log && (
+                <CommentsWrapper>
+                    <CommentsSection
+                        wordId={log.id!}
+                        initialEditingState={commentDraft}
+                        onEditingChange={setCommentDraft}
+                    />
+                </CommentsWrapper>
+            )}
 
             {
                 isFabricModalOpen && (

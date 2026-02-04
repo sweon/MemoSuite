@@ -55,12 +55,9 @@ const fetchYoutubeTitle = async (videoId: string): Promise<string> => {
 
 const Section = styled.div`
   margin-top: 0;
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
-  padding-top: 1.5rem;
   padding-bottom: 1.5rem;
 
   @media print {
-    border-top: none;
     padding-top: 0;
   }
 `;

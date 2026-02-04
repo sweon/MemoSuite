@@ -13,9 +13,7 @@ import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 
 const Section = styled.div`
-  margin-top: 2rem;
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
-  padding-top: 1.5rem;
+  margin-top: 0;
   padding-bottom: 1.5rem;
 `;
 

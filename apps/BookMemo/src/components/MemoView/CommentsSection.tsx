@@ -14,8 +14,6 @@ import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 
 const Section = styled.div`
   margin-top: 0;
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
-  padding-top: 1.5rem;
   padding-bottom: 1.5rem;
 `;
 

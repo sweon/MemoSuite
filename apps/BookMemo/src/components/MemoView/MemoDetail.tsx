@@ -46,6 +46,16 @@ const ContentPadding = styled.div`
   }
 `;
 
+const CommentsWrapper = styled.div`
+  padding: ${({ theme }) => `${theme.spacing.lg} ${theme.spacing.xl}`};
+  border-top: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.background};
+
+  @media (max-width: 768px) {
+    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.sm};
+  }
+`;
+
 const TitleInput = styled.input`
   font-size: 2.25rem;
   font-weight: 800;
@@ -1077,16 +1087,17 @@ export const MemoDetail: React.FC = () => {
                             }}
                         />
                     </ContentPadding>
-                    <ContentPadding>
-                        {!isNew && memo && (
-                            <CommentsSection
-                                memoId={memo.id!}
-                                initialEditingState={commentDraft}
-                                onEditingChange={setCommentDraft}
-                            />
-                        )}
-                    </ContentPadding>
                 </>
+            )}
+
+            {!isEditing && !isNew && memo && (
+                <CommentsWrapper>
+                    <CommentsSection
+                        memoId={memo.id!}
+                        initialEditingState={commentDraft}
+                        onEditingChange={setCommentDraft}
+                    />
+                </CommentsWrapper>
             )}
 
             {!isNew && memo && (
