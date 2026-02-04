@@ -965,7 +965,7 @@ export const MainLayout: React.FC = () => {
               finalContent = `![](${cleaned})\n\n`;
               metadataCache.fetchImageMetadata(cleaned);
             } else {
-              finalContent = quoteText(content);
+              finalContent = firstUrl;
             }
 
             // Get the best possible title if not playlist (playlist sets its own)
@@ -1096,7 +1096,7 @@ export const MainLayout: React.FC = () => {
                     metadataCache.fetchImageMetadata(cleaned);
                     title = title || '이미지';
                   } else {
-                    content = quoteText(rawText);
+                    content = firstUrl;
                   }
                 }
               } else {
@@ -1198,7 +1198,7 @@ export const MainLayout: React.FC = () => {
                 const fetched = await fetchYoutubeTitle(cleaned);
                 if (fetched) title = fetched;
               } else {
-                content = quoteText(text || url);
+                content = url;
               }
             }
           } else if (text) {
@@ -1295,7 +1295,7 @@ export const MainLayout: React.FC = () => {
                 const fetched = await fetchYoutubeTitle(cleaned);
                 if (fetched) title = fetched;
               } else {
-                content = quoteText(text || url);
+                content = url;
               }
             }
           } else if (text) {
