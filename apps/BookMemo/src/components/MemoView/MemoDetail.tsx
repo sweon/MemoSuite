@@ -333,6 +333,7 @@ export const MemoDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
@@ -850,20 +851,23 @@ export const MemoDetail: React.FC = () => {
 
     const performDeleteMemoOnly = async () => {
         if (!id) return;
-        const bookIdToRedirect = memo?.bookId;
+        setIsDeleting(true);
 
         await db.memos.delete(Number(id));
         await db.comments.where('memoId').equals(Number(id)).delete();
 
         setIsDeleteModalOpen(false);
-        if (bookIdToRedirect) {
-            navigate(`/book/${bookIdToRedirect}`, { replace: true });
-        } else {
-            navigate('/', { replace: true });
-        }
+        // Always clear last memo ID and navigate to empty state after deletion as requested
+        localStorage.removeItem('bookmemo_last_memo_id');
+        localStorage.removeItem('bookmemo_last_book_id'); // Clear book too if going to home
+
+        navigate('/', { replace: true });
     };
 
-    if (!isNew && !memo) return <Container>{t.memo_detail.loading}</Container>;
+    if (isDeleting || (!isNew && !memo)) {
+        if (isDeleting) return null;
+        return <Container>{t.memo_detail.loading}</Container>;
+    }
 
     return (
         <Container>

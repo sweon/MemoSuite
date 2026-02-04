@@ -295,6 +295,7 @@ export const MemoDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
     const { currentFolder, currentFolderId } = useFolder();
     const isReadOnly = currentFolder?.isReadOnly || false;
@@ -717,14 +718,13 @@ export const MemoDetail: React.FC = () => {
 
     const performDeleteLogOnly = async () => {
         if (!id || !log) return;
+        setIsDeleting(true);
 
         const threadId = log.threadId;
         const currentId = Number(id);
 
         await db.words.delete(currentId);
         await db.comments.where('wordId').equals(currentId).delete();
-
-        let nextLogId: number | undefined = undefined;
 
         if (threadId) {
             const remainingLogs = await db.words.where('threadId').equals(threadId).toArray();
@@ -737,20 +737,18 @@ export const MemoDetail: React.FC = () => {
                         await db.words.update(remainingLogs[i].id!, { threadOrder: i });
                     }
                 });
-                nextLogId = remainingLogs[0].id;
             }
         }
 
+        // Always clear last word ID and navigate to empty state after deletion as requested
+        localStorage.removeItem('wordmemo_last_word_id');
         setIsDeleteModalOpen(false);
-        if (nextLogId) {
-            navigate(`/word/${nextLogId}`, { replace: true });
-        } else {
-            navigate('/', { replace: true });
-        }
+        navigate('/', { replace: true });
     };
 
     const performDeleteThread = async () => {
         if (!log || !log.threadId) return;
+        setIsDeleting(true);
 
         const threadId = log.threadId;
         const threadLogs = await db.words.where('threadId').equals(threadId).toArray();
@@ -762,6 +760,9 @@ export const MemoDetail: React.FC = () => {
                 await db.comments.where('wordId').equals(lid).delete();
             }
         });
+
+        // Clear last word ID to prevent auto-redirect by EmptyState
+        localStorage.removeItem('wordmemo_last_word_id');
 
         setIsDeleteModalOpen(false);
         navigate('/', { replace: true });
@@ -922,7 +923,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
         }
     };
 
-    if (!isNew && !log) return <Container>{t.word_detail.loading}</Container>;
+    if (isDeleting || (!isNew && !log)) {
+        if (isDeleting) return null;
+        return <Container>{t.word_detail.loading}</Container>;
+    }
 
     return (
         <Container translate="no">

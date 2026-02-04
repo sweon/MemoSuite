@@ -253,6 +253,7 @@ export const LogDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
     const { currentFolder, currentFolderId } = useFolder();
     const isReadOnly = currentFolder?.isReadOnly || false;
@@ -584,14 +585,13 @@ export const LogDetail: React.FC = () => {
 
     const performDeleteLogOnly = async () => {
         if (!id || !log) return;
+        setIsDeleting(true);
 
         const threadId = log.threadId;
         const currentId = Number(id);
 
         await db.logs.delete(currentId);
         await db.comments.where('logId').equals(currentId).delete();
-
-        let nextLogId: number | undefined = undefined;
 
         if (threadId) {
             const remainingLogs = await db.logs.where('threadId').equals(threadId).sortBy('threadOrder');
@@ -603,20 +603,18 @@ export const LogDetail: React.FC = () => {
                         await db.logs.update(remainingLogs[i].id!, { threadOrder: i });
                     }
                 });
-                nextLogId = remainingLogs[0].id;
             }
         }
 
+        // Always clear last log ID and navigate to empty state after deletion as requested
+        localStorage.removeItem('llmemo_last_log_id');
         setIsDeleteModalOpen(false);
-        if (nextLogId) {
-            navigate(`/log/${nextLogId}`, { replace: true });
-        } else {
-            navigate('/', { replace: true });
-        }
+        navigate('/', { replace: true });
     };
 
     const performDeleteThread = async () => {
         if (!log || !log.threadId) return;
+        setIsDeleting(true);
 
         const threadId = log.threadId;
         const threadLogs = await db.logs.where('threadId').equals(threadId).toArray();
@@ -628,6 +626,9 @@ export const LogDetail: React.FC = () => {
                 await db.comments.where('logId').equals(lid).delete();
             }
         });
+
+        // Clear last log ID to prevent auto-redirect by EmptyState
+        localStorage.removeItem('llmemo_last_log_id');
 
         setIsDeleteModalOpen(false);
         navigate('/', { replace: true });
@@ -678,7 +679,10 @@ export const LogDetail: React.FC = () => {
 
     const currentModelName = models?.find(m => m.id === modelId)?.name || t.log_detail.unknown_model;
 
-    if (!isNew && !log) return <Container>{t.log_detail.loading}</Container>;
+    if (isDeleting || (!isNew && !log)) {
+        if (isDeleting) return null;
+        return <Container>{t.log_detail.loading}</Container>;
+    }
 
     return (
         <Container>

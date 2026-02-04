@@ -95,6 +95,16 @@ const hasYoutubeVideoId = (url: string) => {
   }
 };
 
+const quoteText = (text: string): string => {
+  if (!text) return '';
+  const trimmed = text.trim();
+  // Don't quote if it already looks like markdown or special content
+  if (trimmed.startsWith('>') || trimmed.startsWith('![](') || trimmed.startsWith('```') || trimmed.startsWith('[Spreadsheet File:')) {
+    return text;
+  }
+  return text.split('\n').map(line => `> ${line}`).join('\n');
+};
+
 const parseHtmlTableToFortuneSheet = (html: string) => {
   try {
     const parser = new DOMParser();
@@ -831,7 +841,11 @@ export const MainLayout: React.FC = () => {
           content = cleaned;
           const fetched = await fetchYoutubeTitle(cleaned);
           if (fetched) title = fetched;
+        } else {
+          content = quoteText(text);
         }
+      } else {
+        content = quoteText(text);
       }
 
       const now = new Date();
@@ -950,8 +964,8 @@ export const MainLayout: React.FC = () => {
             } else if (isImageUrl(cleaned)) {
               finalContent = `![](${cleaned})\n\n`;
               metadataCache.fetchImageMetadata(cleaned);
-            } else if (cleaned.startsWith('http')) {
-              finalContent = cleaned;
+            } else {
+              finalContent = quoteText(content);
             }
 
             // Get the best possible title if not playlist (playlist sets its own)
@@ -966,6 +980,9 @@ export const MainLayout: React.FC = () => {
               }
             }
           }
+        } else {
+          // No URL found, but we have text
+          finalContent = quoteText(content);
         }
 
         const now = new Date();
@@ -1078,8 +1095,12 @@ export const MainLayout: React.FC = () => {
                     content = `![](${cleaned})\n\n`;
                     metadataCache.fetchImageMetadata(cleaned);
                     title = title || '이미지';
+                  } else {
+                    content = quoteText(rawText);
                   }
                 }
+              } else {
+                content = quoteText(rawText);
               }
             }
           }
@@ -1176,8 +1197,12 @@ export const MainLayout: React.FC = () => {
               } else if (isVideo) {
                 const fetched = await fetchYoutubeTitle(cleaned);
                 if (fetched) title = fetched;
+              } else {
+                content = quoteText(text || url);
               }
             }
+          } else if (text) {
+            content = quoteText(text);
           }
         }
 
@@ -1269,8 +1294,12 @@ export const MainLayout: React.FC = () => {
               } else if (isVideo) {
                 const fetched = await fetchYoutubeTitle(cleaned);
                 if (fetched) title = fetched;
+              } else {
+                content = quoteText(text || url);
               }
             }
+          } else if (text) {
+            content = quoteText(text);
           }
         }
 

@@ -306,6 +306,7 @@ export const BookDetail: React.FC = () => {
   const { currentFolder } = useFolder();
   const isReadOnly = currentFolder?.isReadOnly || false;
   const [isBookMoveModalOpen, setIsBookMoveModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>() || {};
 
   const numericBookId = Number(bookId);
@@ -502,16 +503,25 @@ export const BookDetail: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [allChartData, focusedIndex, book]);
 
-  if (!book) return <div style={{ padding: '2rem' }}>{t.memo_detail.loading}</div>;
+  if (isDeleting || !book) {
+    if (isDeleting) return null;
+    return <div style={{ padding: '2rem' }}>{t.memo_detail.loading}</div>;
+  }
 
   const progressPercent = Math.round(((book.currentPage || 0) / book.totalPages) * 100);
 
   const handleDelete = async () => {
     if (confirm(t.book_detail.confirm_delete)) {
+      setIsDeleting(true);
       // Delete associated memos first
       const associatedMemos = await db.memos.where('bookId').equals(book.id!).toArray();
       await db.memos.bulkDelete(associatedMemos.map(m => m.id!));
       await db.books.delete(book.id!);
+
+      // Clear last book/memo IDs to prevent auto-redirect by EmptyState
+      localStorage.removeItem('bookmemo_last_book_id');
+      localStorage.removeItem('bookmemo_last_memo_id');
+
       navigate('/');
     }
   };

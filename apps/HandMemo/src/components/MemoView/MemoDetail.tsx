@@ -317,6 +317,7 @@ export const MemoDetail: React.FC = () => {
     const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const startEditing = () => {
         setIsEditingInternal(true);
@@ -823,16 +824,23 @@ export const MemoDetail: React.FC = () => {
 
     const performDeleteMemoOnly = async () => {
         if (!id) return;
+        setIsDeleting(true);
 
         await db.memos.delete(Number(id));
         await db.comments.where('memoId').equals(Number(id)).delete();
         await db.autosaves.where('originalId').equals(Number(id)).delete();
 
+        // Clear last memo ID to prevent auto-redirect by EmptyState
+        localStorage.removeItem('handmemo_last_memo_id');
+
         setIsDeleteModalOpen(false);
         navigate('/', { replace: true });
     };
 
-    if (!isNew && !memo) return <Container>{t.memo_detail.loading}</Container>;
+    if (isDeleting || (!isNew && !memo)) {
+        if (isDeleting) return null;
+        return <Container>{t.memo_detail.loading}</Container>;
+    }
 
     return (
         <Container className="memo-detail-container" onClick={(e) => e.stopPropagation()}>
