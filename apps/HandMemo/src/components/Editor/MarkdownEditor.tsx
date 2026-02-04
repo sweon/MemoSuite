@@ -275,7 +275,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
   const updateWidgetsRef = useRef<(cm: any) => void>(() => { });
   const lastCursorRef = useRef<any>(null);
   const toggleChecklistRef = useRef<() => void>(() => { });
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const findBlock = (type: 'fabric' | 'spreadsheet') => {
     if (!cmRef.current) return { startLine: -1, endLine: -1 };
@@ -435,33 +434,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
     cm.focus();
   };
 
-  const handleFile = () => {
-    fileInputRef.current?.click();
-  };
-
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !cmRef.current) return;
-
-    const cm = cmRef.current;
-    const reader = new FileReader();
-
-    if (file.type.startsWith('image/')) {
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
-        cm.replaceSelection(`![${file.name}](${base64})`);
-        onChange(cm.getValue());
-      };
-      reader.readAsDataURL(file);
-    } else {
-      // For non-images, we just insert the name for now as we don't have a backend to store blobs efficiently in MD
-      cm.replaceSelection(`[${file.name}]()`);
-      onChange(cm.getValue());
-    }
-    // Clear input
-    e.target.value = '';
-    cm.focus();
-  };
 
   handleDrawingRef.current = handleDrawing;
   handleSpreadsheetRef.current = handleSpreadsheet;
@@ -673,12 +645,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
         className: "fa fa-paint-brush",
         title: language === 'ko' ? "빨간색 글씨" : "Red Text",
       },
-      {
-        name: "file",
-        action: () => handleFile(),
-        className: "fa fa-paperclip",
-        title: language === 'ko' ? "파일 첨부" : "Attach File",
-      },
       "guide"
     ] as any,
     autofocus: false,
@@ -758,12 +724,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
 
   return (
     <>
-      <input
-        type="file"
-        ref={fileInputRef}
-        style={{ display: 'none' }}
-        onChange={onFileChange}
-      />
       <EditorWrapper>
         <SimpleMDE
           value={value}
