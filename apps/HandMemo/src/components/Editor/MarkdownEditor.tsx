@@ -190,32 +190,40 @@ const EditorWrapper = styled.div`
         gap: 0.5rem;
       }
       input[type="checkbox"] {
-        appearance: none;
         -webkit-appearance: none;
-        width: 1.15em;
-        height: 1.15em;
-        border: 2px solid ${({ theme }) => theme.colors.textSecondary};
+        appearance: none;
+        width: 1.4em;
+        height: 1.4em;
+        border: 2px solid ${({ theme }) => theme.colors.primary};
         border-radius: 4px;
-        background-color: transparent !important;
+        margin: 0.1em 0.4em 0.2em 0;
+        vertical-align: middle;
         cursor: pointer;
         position: relative;
+        background: transparent;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         flex-shrink: 0;
-        margin-top: 0.25em;
 
         &:checked {
-          background-color: transparent !important;
+          background: ${({ theme }) => theme.colors.primary};
           border-color: ${({ theme }) => theme.colors.primary};
         }
 
         &:checked::after {
-          content: '\\2713';
+          content: '';
           position: absolute;
-          top: 50%;
           left: 50%;
-          transform: translate(-50%, -50%);
-          color: ${({ theme }) => theme.colors.primary};
-          font-size: 0.85em;
-          font-weight: 800;
+          top: 45%;
+          width: 25%;
+          height: 50%;
+          border: solid white;
+          border-width: 0 2.5px 2.5px 0;
+          transform: translate(-50%, -50%) rotate(45deg);
+        }
+
+        &:hover {
+          background: ${({ theme }) => theme.colors.primary}22;
+        }
         }
       }
 

@@ -70,6 +70,42 @@ const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
     padding-left: 1.5em;
   }
 
+  input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1.4em;
+    height: 1.4em;
+    border: 2px solid ${({ theme }) => theme.colors.primary};
+    border-radius: 4px;
+    margin: 0 0.4em 0.2em 0;
+    vertical-align: middle;
+    cursor: pointer;
+    position: relative;
+    background: transparent;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:checked {
+      background: ${({ theme }) => theme.colors.primary};
+      border-color: ${({ theme }) => theme.colors.primary};
+    }
+
+    &:checked::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 45%;
+      width: 25%;
+      height: 50%;
+      border: solid white;
+      border-width: 0 2.5px 2.5px 0;
+      transform: translate(-50%, -50%) rotate(45deg);
+    }
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.primary}22;
+    }
+  }
+
   img {
     max-width: 100%;
     border-radius: 6px;
