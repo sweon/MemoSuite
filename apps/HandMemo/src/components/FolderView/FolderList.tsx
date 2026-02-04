@@ -284,6 +284,7 @@ const FolderNameInput = styled.input`
   border: 1px solid ${({ theme }) => theme.colors.primary};
   border-radius: ${({ theme }) => theme.radius.small};
   padding: 4px 8px;
+  min-width: 0;
   
   &:focus {
     outline: none;
@@ -342,6 +343,12 @@ const FolderActions = styled.div<{ $viewMode?: ViewMode }>`
     display: ${({ $viewMode }) => $viewMode === 'single-line' ? 'none' : 'flex'};
     gap: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? '2px' : theme.spacing.xs};
   }
+`;
+
+const FolderEditActions = styled.div`
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
 `;
 
 const PreviewContainer = styled.div`
@@ -831,7 +838,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                                                 )}
 
                                                 {isEditing && (
-                                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <FolderEditActions>
                                                         <ActionButton
                                                             $variant="success"
                                                             onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id!); }}
@@ -843,7 +850,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                                                         >
                                                             <FiX size={16} />
                                                         </ActionButton>
-                                                    </div>
+                                                    </FolderEditActions>
                                                 )}
                                             </FolderHeader>
 

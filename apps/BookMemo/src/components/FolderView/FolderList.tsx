@@ -284,6 +284,7 @@ const FolderNameInput = styled.input`
   border: 1px solid ${({ theme }) => theme.colors.primary};
   border-radius: ${({ theme }) => theme.radius.small};
   padding: 4px 8px;
+  min-width: 0;
   
   &:focus {
     outline: none;
@@ -847,7 +848,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                                                 )}
 
                                                 {isEditing && (
-                                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                                                         <ActionButton
                                                             $variant="success"
                                                             onClick={(e) => { e.stopPropagation(); handleRenameFolder(folder.id!); }}
