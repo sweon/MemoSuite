@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiArrowRightCircle, FiPrinter, FiGitMerge, FiFolder } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiPrinter, FiFolder, FiPlusCircle, FiArrowRightCircle } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -201,6 +201,12 @@ const ActionBar = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
   margin-top: ${({ theme }) => theme.spacing.lg};
 
+  @media (max-width: 480px) {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
   @media print {
     display: none !important;
   }
@@ -209,6 +215,7 @@ const ActionBar = styled.div`
 const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' | 'pdf' | 'print' }>`
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   padding: 5px 10px;
   border-radius: ${({ theme }) => theme.radius.small};
@@ -420,6 +427,12 @@ export const MemoDetail: React.FC = () => {
         setMovingMemoId: (id: number | null) => void
     }>();
     const isMovingLocal = movingMemoId === Number(id);
+
+    useEffect(() => {
+        if (id) {
+            localStorage.setItem('handmemo_last_memo_id', id);
+        }
+    }, [id]);
 
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
@@ -942,7 +955,7 @@ export const MemoDetail: React.FC = () => {
                             )}
                             {!isCurrentFolderReadOnly && (
                                 <ActionButton onClick={handleAddThread}>
-                                    <FiGitMerge size={14} /> {t.memo_detail.add_thread}
+                                    <FiPlusCircle size={14} /> {t.memo_detail.append}
                                 </ActionButton>
                             )}
                             {!isCurrentFolderReadOnly && (
@@ -962,7 +975,7 @@ export const MemoDetail: React.FC = () => {
                                     }}
                                 >
                                     <FiArrowRightCircle size={14} />
-                                    {isMovingLocal ? (language === 'ko' ? '이동 중...' : 'Moving...') : (language === 'ko' ? '옮기기' : 'Move')}
+                                    {isMovingLocal ? t.memo_detail.moving : t.memo_detail.move}
                                 </ActionButton>
                             )}
                             <ActionButton onClick={() => setIsShareModalOpen(true)}>

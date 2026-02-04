@@ -140,6 +140,7 @@ export const MainLayout: React.FC = () => {
   const [isResizing, setIsResizing] = useState(false);
   const [isDirty, setIsDirty] = useState(false); // Kept for legacy compatibility if needed
   const [isAppEditing, setAppIsEditing] = useState(false); // Added for strict synchronization
+  const [movingWordId, setMovingWordId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<SidebarRef>(null);
   const longPressTimer = useRef<any>(null);
@@ -232,7 +233,13 @@ export const MainLayout: React.FC = () => {
       <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
         <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
-          <Sidebar ref={sidebarRef} onCloseMobile={() => setSidebarOpen(false)} isEditing={isAppEditing || isDirty} />
+          <Sidebar
+            ref={sidebarRef}
+            onCloseMobile={() => setSidebarOpen(false)}
+            isEditing={isAppEditing || isDirty}
+            movingWordId={movingWordId}
+            setMovingWordId={setMovingWordId}
+          />
           <ResizeHandle
             $isResizing={isResizing}
             onMouseDown={startResizing}
@@ -252,7 +259,7 @@ export const MainLayout: React.FC = () => {
               <h3 style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>WordMemo</h3>
             </div>
           </MobileHeader>
-          <Outlet context={{ setIsDirty, setAppIsEditing }} />
+          <Outlet context={{ setIsDirty, setAppIsEditing, movingWordId, setMovingWordId }} />
         </ContentWrapper>
       </Container>
     </DragDropContext>

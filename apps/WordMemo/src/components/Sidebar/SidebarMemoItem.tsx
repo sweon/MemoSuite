@@ -20,6 +20,8 @@ interface Props {
     isCombineTarget?: boolean;
     studyMode?: 'none' | 'hide-meanings' | 'hide-words';
     onTogglePin?: (id: number, e: React.MouseEvent) => void;
+    onMove?: (id: number) => void;
+    isMoving?: boolean;
 }
 
 export const SidebarMemoItem: React.FC<Props> = ({
@@ -33,7 +35,9 @@ export const SidebarMemoItem: React.FC<Props> = ({
     untitledText,
     isCombineTarget,
     studyMode,
-    onTogglePin
+    onTogglePin,
+    onMove,
+    isMoving
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -73,6 +77,11 @@ export const SidebarMemoItem: React.FC<Props> = ({
 
         // Always prevent default link behavior to control navigation
         e.preventDefault();
+
+        if (isMoving && onMove && log.id) {
+            onMove(log.id);
+            return;
+        }
 
         // Default behavior: call onClick (onCloseMobile) only on mobile devices
         if (onClick && window.innerWidth <= 768) {

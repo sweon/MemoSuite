@@ -23,7 +23,9 @@ export const translations = {
             pwa_not_supported: "PWA not supported",
             collapse: "Collapse",
             more_memos: "{count} more",
-            drop_to_extract: "Drop to Extract"
+            drop_to_extract: "Drop to Extract",
+            select_target: "Select Target",
+            cancel: "Cancel"
         },
         settings: {
             title: "Settings",
@@ -173,9 +175,11 @@ export const translations = {
             delete_thread_entire: "Delete Entire Thread",
             delete_memo_only: "Delete Only This Memo",
             delete_thread_confirm: "This memo is part of a thread. What would you like to delete?",
-            add_thread: "Add Thread",
+            append: "Append",
             untitled: "Untitled",
             share_memo: "Share",
+            move: "Move",
+            moving: "Moving...",
             empty_state_title: "Select a book or create a new one",
             autosave_restore_confirm: "Found an unsaved draft. Restore it?"
         },
@@ -398,7 +402,9 @@ export const translations = {
             pwa_not_supported: "PWA를 지원하지 않습니다.",
             collapse: "접기",
             more_memos: "{count}개 더보기",
-            drop_to_extract: "여기 놓아 추출"
+            drop_to_extract: "내려놓아서 추출",
+            select_target: "이동 위치 선택",
+            cancel: "취소"
         },
         settings: {
             title: "설정",
@@ -548,9 +554,11 @@ export const translations = {
             delete_thread_entire: "전체 스레드 삭제",
             delete_memo_only: "이 메모만 삭제",
             delete_thread_confirm: "이 메모는 스레드의 일부입니다. 어떻게 삭제하시겠습니까?",
-            add_thread: "이어서 추가",
+            append: "이어서",
             untitled: "제목 없음",
             share_memo: "공유",
+            move: "이동",
+            moving: "이동 중...",
             empty_state_title: "책을 선택하거나 새로 만드세요",
             autosave_restore_confirm: "저장되지 않은 초안이 있습니다. 복구하시겠습니까?"
         },

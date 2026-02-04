@@ -193,6 +193,8 @@ const IconButton = styled.button`
 interface SidebarProps {
   onCloseMobile: (skipHistory?: boolean) => void;
   isEditing?: boolean;
+  movingMemoId?: number | null;
+  setMovingMemoId?: (id: number | null) => void;
 }
 
 const BrandArea = styled.div`
@@ -230,7 +232,7 @@ export interface SidebarRef {
   handleDragEnd: (result: DropResult) => Promise<void>;
 }
 
-export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false }, ref) => {
+export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false, movingMemoId, setMovingMemoId }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-comment-desc'>('date-desc');
@@ -255,6 +257,48 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       await db.books.update(bookId, { folderId, updatedAt: new Date() });
       setToastMessage(language === 'ko' ? '책을 이동했습니다.' : 'Moved book.');
       return;
+    }
+  };
+
+  const handleMove = async (targetId: number, targetType: 'book' | 'memo') => {
+    if (!movingMemoId || !setMovingMemoId) return;
+    if (movingMemoId === targetId && targetType === 'memo') return;
+
+    try {
+      const memoToMove = await db.memos.get(movingMemoId);
+      if (!memoToMove) return;
+
+      if (targetType === 'book') {
+        await db.memos.update(movingMemoId, {
+          bookId: targetId,
+          threadId: undefined,
+          threadOrder: undefined,
+          updatedAt: new Date()
+        });
+      } else {
+        const targetMemo = await db.memos.get(targetId);
+        if (!targetMemo) return;
+
+        const threadId = targetMemo.threadId || crypto.randomUUID();
+        if (!targetMemo.threadId) {
+          await db.memos.update(targetId, { threadId, threadOrder: 0 });
+        }
+
+        const siblings = await db.memos.where('threadId').equals(threadId).toArray();
+        const maxOrder = siblings.reduce((max, m) => Math.max(max, m.threadOrder || 0), 0);
+
+        await db.memos.update(movingMemoId, {
+          bookId: targetMemo.bookId,
+          threadId,
+          threadOrder: maxOrder + 1,
+          updatedAt: new Date()
+        });
+      }
+
+      setMovingMemoId(null);
+      setToastMessage(language === 'ko' ? '메모를 이동했습니다.' : 'Memo moved.');
+    } catch (error) {
+      console.error("Failed to move memo:", error);
     }
   };
 
@@ -479,6 +523,36 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
   return (
     <SidebarContainer>
+      {movingMemoId && (
+        <div style={{
+          padding: '0.75rem',
+          background: '#6C3483',
+          color: 'white',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '0.85rem',
+          fontWeight: '600',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          zIndex: 100
+        }}>
+          <span>{language === 'ko' ? '이동할 대상을 선택하세요' : 'Select target book or memo'}</span>
+          <button
+            onClick={() => setMovingMemoId?.(null)}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              color: 'white',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.75rem'
+            }}
+          >
+            {language === 'ko' ? '취소' : 'Cancel'}
+          </button>
+        </div>
+      )}
       <ScrollableArea id="sidebar-scrollable-area">
         <BrandArea>
           <BrandHeader>
@@ -640,6 +714,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                         onClick={onCloseMobile}
                         onSafeNavigate={handleSafeNavigation}
                         onTogglePin={handleTogglePinBook}
+                        onMove={(id, type) => handleMove(id, type)}
+                        isMoving={!!movingMemoId}
                       />
                     </div>
                   )}

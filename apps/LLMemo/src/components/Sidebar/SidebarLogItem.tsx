@@ -14,6 +14,7 @@ interface Props {
     untitledText: string;
     isCombineTarget?: boolean;
     onTogglePin?: (id: number, e: React.MouseEvent) => void;
+    onMove?: (id: number) => void;
 }
 export const SidebarLogItem: React.FC<Props> = ({
     log,
@@ -24,13 +25,19 @@ export const SidebarLogItem: React.FC<Props> = ({
     inThread,
     untitledText,
     isCombineTarget,
-    onTogglePin
+    onTogglePin,
+    onMove
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
     const handleLogClick = (e: React.MouseEvent) => {
         e.preventDefault();
+
+        if (onMove && log.id) {
+            onMove(log.id);
+            return;
+        }
 
         if (onClick && window.innerWidth <= 768) {
             onClick();

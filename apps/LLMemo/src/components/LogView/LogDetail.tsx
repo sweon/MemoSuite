@@ -9,7 +9,7 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter, FiFolder } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter, FiFolder, FiArrowRightCircle } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
@@ -111,11 +111,18 @@ const ActionBar = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   margin-top: ${({ theme }) => theme.spacing.lg};
+
+  @media (max-width: 480px) {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
 `;
 
 const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' }>`
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   padding: 5px 10px;
   border-radius: ${({ theme }) => theme.radius.small};
@@ -152,6 +159,12 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' 
     opacity: 0.4;
     cursor: not-allowed;
     transform: none;
+  }
+
+  @media (max-width: 768px) {
+    &.hide-on-mobile {
+      display: none !important;
+    }
   }
 `;
 
@@ -192,6 +205,9 @@ export const LogDetail: React.FC = () => {
         restoredIdRef.current = null;
         setCommentDraft(null);
         setIsEditing(id === undefined);
+        if (id) {
+            localStorage.setItem('llmemo_last_log_id', id);
+        }
     }, [id]);
 
     useEffect(() => {
@@ -260,7 +276,14 @@ export const LogDetail: React.FC = () => {
         [id]
     );
 
-    const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>();
+    const { setIsDirty, setAppIsEditing, movingLogId, setMovingLogId } = useOutletContext<{
+        setIsDirty: (d: boolean) => void;
+        setAppIsEditing: (e: boolean) => void;
+        movingLogId?: number | null;
+        setMovingLogId?: (id: number | null) => void;
+    }>();
+
+    const isMovingLocal = movingLogId === Number(id);
 
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
@@ -747,9 +770,6 @@ export const LogDetail: React.FC = () => {
                                     <FiEdit2 size={14} /> {t.log_detail.edit}
                                 </ActionButton>
                             )}
-                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
-                                <FiFolder size={14} /> {language === 'ko' ? '이동/복사' : 'Move/Copy'}
-                            </ActionButton>
                             <ActionButton onClick={handleAddThread}>
                                 <FiGitMerge size={14} /> {t.log_detail.add_thread}
                             </ActionButton>
@@ -758,10 +778,28 @@ export const LogDetail: React.FC = () => {
                                     <FiTrash2 size={14} /> {t.log_detail.delete}
                                 </ActionButton>
                             )}
+                            {!isNew && (
+                                <ActionButton
+                                    $variant={isMovingLocal ? "primary" : undefined}
+                                    onClick={() => {
+                                        if (isMovingLocal) {
+                                            setMovingLogId?.(null);
+                                        } else {
+                                            setMovingLogId?.(Number(id));
+                                        }
+                                    }}
+                                >
+                                    <FiArrowRightCircle size={14} />
+                                    {isMovingLocal ? t.log_detail.moving : t.log_detail.move}
+                                </ActionButton>
+                            )}
                             <ActionButton onClick={() => setIsShareModalOpen(true)}>
                                 <FiShare2 size={14} /> {t.log_detail.share_log}
                             </ActionButton>
-                            <ActionButton onClick={() => window.print()}>
+                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
+                                <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                            </ActionButton>
+                            <ActionButton onClick={() => window.print()} className="hide-on-mobile">
                                 <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                             </ActionButton>
                         </>

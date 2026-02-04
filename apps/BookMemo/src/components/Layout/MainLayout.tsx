@@ -138,6 +138,7 @@ export const MainLayout: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isDirty, setIsDirty] = useState(false);
   const [isAppEditing, setAppIsEditing] = useState(false);
+  const [movingMemoId, setMovingMemoId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<SidebarRef>(null);
   const longPressTimer = useRef<any>(null);
@@ -263,7 +264,13 @@ export const MainLayout: React.FC = () => {
       <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
         <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
-          <Sidebar ref={sidebarRef} onCloseMobile={(skip) => toggleSidebar(false, skip)} isEditing={isAppEditing || isDirty} />
+          <Sidebar
+            ref={sidebarRef}
+            onCloseMobile={(skip) => toggleSidebar(false, skip)}
+            isEditing={isAppEditing || isDirty}
+            movingMemoId={movingMemoId}
+            setMovingMemoId={setMovingMemoId}
+          />
           <ResizeHandle
             $isResizing={isResizing}
             $isVisible={isResizeHandleVisible}
@@ -277,7 +284,7 @@ export const MainLayout: React.FC = () => {
             {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
             <h3>BookMemo</h3>
           </MobileHeader>
-          <Outlet context={{ setIsDirty, setAppIsEditing }} />
+          <Outlet context={{ setIsDirty, setAppIsEditing, movingMemoId, setMovingMemoId }} />
         </ContentWrapper>
       </Container>
     </DragDropContext>

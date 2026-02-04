@@ -92,9 +92,11 @@ interface Props {
   onClick?: (skipHistory?: boolean) => void;
   onSafeNavigate: (action: () => void) => void;
   onTogglePin?: (id: number, e: React.MouseEvent) => void;
+  onMove?: (id: number, type: 'book' | 'memo') => void;
+  isMoving?: boolean;
 }
 
-export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeNavigate, onTogglePin }) => {
+export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeNavigate, onTogglePin, onMove, isMoving }) => {
   const { bookId: activeId, id: activeMemoId } = useParams();
   const { t, language } = useLanguage();
   const { searchQuery } = useSearch();
@@ -126,6 +128,10 @@ export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeN
 
   const handleBookClick = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (isMoving && onMove && book.id) {
+      onMove(book.id, 'book');
+      return;
+    }
     onSafeNavigate(() => {
       // Always replace when coming from sidebar to properly consume the sidebar-open state entry.
       // We pass isGuard: true to satisfy AndroidExitHandler without pushing extra entries.
@@ -135,6 +141,10 @@ export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeN
   };
 
   const handleMemoClick = (memoId: number) => {
+    if (isMoving && onMove) {
+      onMove(memoId, 'memo');
+      return;
+    }
     onSafeNavigate(() => {
       // Always replace when coming from sidebar to properly consume the sidebar-open state entry.
       // We pass isGuard: true to satisfy AndroidExitHandler without pushing extra entries.

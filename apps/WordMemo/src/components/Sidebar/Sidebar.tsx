@@ -275,6 +275,8 @@ const StudyModeOption = styled.label<{ $active: boolean }>`
 interface SidebarProps {
   onCloseMobile: () => void;
   isEditing?: boolean;
+  movingWordId?: number | null;
+  setMovingWordId?: (id: number | null) => void;
 }
 
 export interface SidebarRef {
@@ -282,7 +284,7 @@ export interface SidebarRef {
   handleDragUpdate: (update: DragUpdate) => void;
 }
 
-export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false }, ref) => {
+export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false, movingWordId, setMovingWordId }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'source-desc' | 'source-asc' | 'comment-desc' | 'alpha' | 'starred'>('date-desc');
@@ -678,6 +680,45 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     }
   };
 
+  const onDragUpdate = (update: DragUpdate) => {
+    if (update.combine) {
+      setCombineTargetId(update.combine.draggableId);
+    } else {
+      setCombineTargetId(null);
+    }
+  };
+
+  const handleMove = async (targetWordId: number) => {
+    if (!movingWordId || !setMovingWordId) return;
+    if (movingWordId === targetWordId) return;
+
+    try {
+      const targetWord = await db.words.get(targetWordId);
+      if (!targetWord) return;
+
+      const threadId = targetWord.threadId || `thread-${Date.now()}`;
+
+      if (!targetWord.threadId) {
+        await db.words.update(targetWordId, { threadId });
+      }
+
+      const siblings = await db.words.where('threadId').equals(threadId).toArray();
+      const maxOrder = siblings.reduce((max, m) => Math.max(max, m.threadOrder || 0), 0);
+
+      await db.words.update(movingWordId, {
+        threadId,
+        threadOrder: maxOrder + 1,
+        updatedAt: new Date()
+      });
+
+      setMovingWordId(null);
+      setToastMessage(language === 'ko' ? '기록을 이동했습니다.' : 'Word moved.');
+      setListKey(v => v + 1);
+    } catch (error) {
+      console.error("Failed to move word:", error);
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     handleDragEnd: async (result: DropResult) => {
       await onDragEnd(result);
@@ -687,18 +728,40 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     }
   }));
 
-  const onDragUpdate = (update: DragUpdate) => {
-    if (update.combine) {
-      setCombineTargetId(update.combine.draggableId);
-    } else {
-      setCombineTargetId(null);
-    }
-  };
-
   const formatDate = (date: Date) => format(date, language === 'ko' ? 'yyyy.MM.dd' : 'MMM d, yyyy');
 
   return (
     <SidebarContainer>
+      {movingWordId && (
+        <div style={{
+          padding: '0.75rem',
+          background: '#117864',
+          color: 'white',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '0.85rem',
+          fontWeight: '600',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          zIndex: 100
+        }}>
+          <span>{language === 'ko' ? '이동할 대상을 선택하세요' : 'Select target item'}</span>
+          <button
+            onClick={() => setMovingWordId?.(null)}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              color: 'white',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.75rem'
+            }}
+          >
+            {language === 'ko' ? '취소' : 'Cancel'}
+          </button>
+        </div>
+      )}
       <ScrollableArea id="sidebar-scrollable-area">
         <BrandArea>
           <BrandHeader>
@@ -885,6 +948,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                         t={t}
                         studyMode={studyMode}
                         onTogglePin={handleTogglePinLog}
+                        onMove={handleMove}
+                        isMoving={!!movingWordId}
                       />
                     );
                   }
@@ -901,6 +966,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                       isCombineTarget={combineTargetId === `log-${item.log.id}`}
                       studyMode={studyMode}
                       onTogglePin={handleTogglePinLog}
+                      onMove={handleMove}
+                      isMoving={!!movingWordId}
                     />
                   );
                 })}

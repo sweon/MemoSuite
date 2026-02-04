@@ -23,7 +23,9 @@ export const translations = {
             pwa_not_supported: "PWA not supported",
             collapse: "Collapse",
             more_logs: "{count} more",
-            drop_to_extract: "Drop to Extract"
+            drop_to_extract: "Drop to Extract",
+            select_target: "Select target log",
+            cancel: "Cancel"
         },
         settings: {
             title: "Settings",
@@ -184,10 +186,12 @@ export const translations = {
             delete_thread_entire: "Delete Entire Thread",
             delete_log_only: "Delete Only This Log",
             delete_thread_confirm: "This log is part of a thread. What would you like to delete?",
-            add_thread: "Add Thread",
+            add_thread: "Append",
             untitled: "Untitled",
             unknown_model: "Unknown",
             share_log: "Share",
+            move: "Move",
+            moving: "Moving...",
             empty_state_title: "Select a log or create a new one"
         },
         comments: {
@@ -305,7 +309,9 @@ export const translations = {
             pwa_not_supported: "PWA를 지원하지 않습니다.",
             collapse: "접기",
             more_logs: "{count}개 더보기",
-            drop_to_extract: "여기 놓아 추출"
+            drop_to_extract: "여기 놓아 추출",
+            select_target: "이동할 대상을 선택하세요",
+            cancel: "취소"
         },
         settings: {
             title: "설정",
@@ -466,10 +472,12 @@ export const translations = {
             delete_thread_entire: "전체 스레드 삭제",
             delete_log_only: "이 로그만 삭제",
             delete_thread_confirm: "이 로그는 스레드의 일부입니다. 어떻게 삭제하시겠습니까?",
-            add_thread: "이어서 추가",
+            add_thread: "이어서",
             untitled: "제목 없음",
             unknown_model: "알 수 없음",
             share_log: "공유",
+            move: "이동",
+            moving: "이동 중...",
             empty_state_title: "로그를 선택하거나 새로 만드세요"
         },
         comments: {

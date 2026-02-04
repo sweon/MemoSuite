@@ -58,11 +58,9 @@ function AppContent() {
     recoverAutosaves();
   }, [isLocked, isLoading]);
 
-  // Reset to home on initial startup or update refresh
+  // No longer reset hash to home on startup, as it breaks deep links and share targets.
+  // The app should honor the current URL.
   useLayoutEffect(() => {
-    if (window.location.hash !== '' && window.location.hash !== '#/') {
-      window.location.hash = '#/';
-    }
   }, []);
 
   if (isLoading) return null;

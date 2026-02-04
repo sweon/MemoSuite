@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiPlusCircle, FiArrowRightCircle } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -192,11 +192,18 @@ const ActionBar = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   margin-top: ${({ theme }) => theme.spacing.lg};
+
+  @media (max-width: 480px) {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
 `;
 
 const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' }>`
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   padding: 5px 10px;
   border-radius: ${({ theme }) => theme.radius.small};
@@ -383,9 +390,19 @@ export const MemoDetail: React.FC = () => {
         setPageNumber('');
         setCommentDraft(null);
         setIsEditingInternal(!id);
+
+        if (id && bookId) {
+            localStorage.setItem('bookmemo_last_memo_id', id);
+            localStorage.setItem('bookmemo_last_book_id', bookId);
+        }
     }
     const { currentFolderId } = useFolder();
-    const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>() || {};
+    const { setIsDirty, setAppIsEditing, movingMemoId, setMovingMemoId } = useOutletContext<{
+        setIsDirty: (d: boolean) => void;
+        setAppIsEditing: (e: boolean) => void;
+        movingMemoId?: number | null;
+        setMovingMemoId?: (id: number | null) => void;
+    }>() || {};
 
 
 
@@ -775,6 +792,50 @@ export const MemoDetail: React.FC = () => {
         }
     };
 
+    const handleAddThread = async () => {
+        if (!memo || !id) return;
+
+        const now = new Date();
+        let threadId = memo.threadId;
+        let threadOrder = 0;
+
+        try {
+            if (!threadId) {
+                // Create new thread for current memo
+                threadId = crypto.randomUUID();
+                await db.memos.update(Number(id), {
+                    threadId,
+                    threadOrder: 0
+                });
+                threadOrder = 1;
+            } else {
+                // Find max order in this thread
+                const threadMemos = await db.memos.where('threadId').equals(threadId).toArray();
+                const maxOrder = Math.max(...threadMemos.map(l => l.threadOrder || 0));
+                threadOrder = maxOrder + 1;
+            }
+
+            // Create new memo in thread
+            const newMemoId = await db.memos.add({
+                folderId: memo.folderId, // Inherit folder
+                bookId: memo.bookId, // Inherit book
+                title: '', // Empty title implies continuation
+                content: '',
+                tags: memo.tags, // Inherit tags
+                pageNumber: memo.pageNumber, // Inherit page number
+                createdAt: now,
+                updatedAt: now,
+                threadId,
+                threadOrder,
+                type: 'normal'
+            });
+
+            navigate(`/book/${memo.bookId}/memo/${newMemoId}?edit=true`, { replace: true });
+        } catch (error) {
+            console.error("Failed to add thread:", error);
+        }
+    };
+
     const handleDelete = async () => {
         if (!id) return;
         setIsDeleteModalOpen(true);
@@ -950,6 +1011,22 @@ export const MemoDetail: React.FC = () => {
                         <>
                             <ActionButton onClick={() => setIsEditing(true)}>
                                 <FiEdit2 size={14} /> {t.memo_detail.edit}
+                            </ActionButton>
+                            <ActionButton onClick={handleAddThread}>
+                                <FiPlusCircle size={14} /> {t.memo_detail.append}
+                            </ActionButton>
+                            <ActionButton
+                                $variant={movingMemoId === Number(id) ? "primary" : undefined}
+                                onClick={() => {
+                                    if (movingMemoId === Number(id)) {
+                                        setMovingMemoId?.(null);
+                                    } else {
+                                        setMovingMemoId?.(Number(id));
+                                    }
+                                }}
+                            >
+                                <FiArrowRightCircle size={14} />
+                                {movingMemoId === Number(id) ? t.memo_detail.moving : t.memo_detail.move}
                             </ActionButton>
                             <ActionButton $variant="danger" onClick={handleDelete}>
                                 <FiTrash2 size={14} /> {t.memo_detail.delete}

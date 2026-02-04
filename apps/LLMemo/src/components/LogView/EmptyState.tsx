@@ -3,6 +3,7 @@ import { useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { FiFileText } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 const Container = styled.div`
   display: flex;
@@ -22,6 +23,15 @@ const IconWrapper = styled.div`
 
 export const EmptyState: React.FC = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const lastId = localStorage.getItem('llmemo_last_log_id');
+    if (lastId) {
+      navigate(`/log/${lastId}`, { replace: true });
+    }
+  }, [navigate]);
+
   return (
     <Container>
       <IconWrapper>

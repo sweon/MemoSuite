@@ -141,6 +141,7 @@ export const MainLayout: React.FC = () => {
   const [isResizing, setIsResizing] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [isAppEditing, setAppIsEditing] = useState(false);
+  const [movingLogId, setMovingLogId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<SidebarRef>(null);
   const longPressTimer = useRef<any>(null);
@@ -235,7 +236,13 @@ export const MainLayout: React.FC = () => {
       <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
         <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
-          <Sidebar ref={sidebarRef} onCloseMobile={() => setSidebarOpen(false)} isEditing={isAppEditing || isDirty} />
+          <Sidebar
+            ref={sidebarRef}
+            onCloseMobile={() => setSidebarOpen(false)}
+            isEditing={isAppEditing || isDirty}
+            movingLogId={movingLogId}
+            setMovingLogId={setMovingLogId}
+          />
           {/* Resize handle - always attached to the right edge of sidebar */}
           <ResizeHandle
             $isResizing={isResizing}
@@ -249,7 +256,7 @@ export const MainLayout: React.FC = () => {
             <FiMenu size={24} onClick={() => setSidebarOpen(true)} />
             <h3>LLMemo</h3>
           </MobileHeader>
-          <Outlet context={{ setIsDirty, setAppIsEditing }} />
+          <Outlet context={{ setIsDirty, setAppIsEditing, movingLogId, setMovingLogId }} />
         </ContentWrapper>
       </Container>
     </DragDropContext>

@@ -31,7 +31,9 @@ export const translations = {
             alphabetical: "Alphabetical",
             starred_only: "Starred Only",
             sort_starred: "Starred",
-            press_back_again: "Press back again to exit the app"
+            press_back_again: "Press back again to exit the app",
+            select_target: "Select Target",
+            cancel: "Cancel"
         },
         settings: {
             title: "Settings",
@@ -230,10 +232,12 @@ export const translations = {
             delete_thread_entire: "Delete Entire Thread",
             delete_log_only: "Delete Only This Word",
             delete_thread_confirm: "This word is part of a thread. What would you like to delete?",
-            add_thread: "Add Thread",
+            append: "Append",
             untitled: "Untitled Word",
             unknown_source: "Unknown Source",
             share_word: "Share",
+            move: "Move",
+            moving: "Moving...",
             random_word: "Random Word",
             fetching_random_word: "AI is choosing a word...",
             random_word_error: "AI failed to pick a word.",
@@ -362,7 +366,9 @@ export const translations = {
             alphabetical: "알파벳순",
             starred_only: "별표한 단어만",
             sort_starred: "별표순",
-            press_back_again: "한 번 더 누르면 앱이 종료됩니다"
+            press_back_again: "한 번 더 누르면 앱이 종료됩니다",
+            select_target: "이동 위치 선택",
+            cancel: "취소"
         },
         settings: {
             title: "설정",
@@ -561,10 +567,12 @@ export const translations = {
             delete_thread_entire: "전체 스레드 삭제",
             delete_log_only: "이 단어만 삭제",
             delete_thread_confirm: "이 단어는 스레드의 일부입니다. 어떻게 삭제하시겠습니까?",
-            add_thread: "이어서 추가",
+            append: "이어서",
             untitled: "제목 없는 단어",
             unknown_source: "출처 미지정",
             share_word: "공유",
+            move: "이동",
+            moving: "이동 중...",
             random_word: "랜덤 단어",
             fetching_random_word: "AI가 단어를 고르고 있습니다...",
             random_word_error: "AI 단어 추천에 실패했습니다.",

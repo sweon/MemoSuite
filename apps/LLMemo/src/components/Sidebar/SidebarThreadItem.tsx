@@ -21,19 +21,26 @@ interface Props {
     isCombineTarget?: boolean;
     t: TranslationKeys;
     onTogglePin?: (id: number, e: React.MouseEvent) => void;
+    onMove?: (id: number) => void;
 }
 
 export const SidebarThreadItem: React.FC<Props> = ({
     threadId, logs, index, collapsed, onToggle,
     activeLogId, modelMap, formatDate, untitledText, onLogClick,
     isCombineTarget, t,
-    onTogglePin
+    onTogglePin,
+    onMove
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
     const handleLogClick = (e: React.MouseEvent, logId: number) => {
         e.preventDefault();
+
+        if (onMove && logId) {
+            onMove(logId);
+            return;
+        }
 
         if (onLogClick && window.innerWidth <= 768) {
             onLogClick();

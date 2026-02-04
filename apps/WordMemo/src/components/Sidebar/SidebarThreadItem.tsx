@@ -24,6 +24,8 @@ interface Props {
     t: TranslationKeys;
     studyMode: 'none' | 'hide-meanings' | 'hide-words';
     onTogglePin?: (id: number, e: React.MouseEvent) => void;
+    onMove?: (id: number) => void;
+    isMoving?: boolean;
 }
 
 export const SidebarThreadItem: React.FC<Props> = ({
@@ -31,7 +33,9 @@ export const SidebarThreadItem: React.FC<Props> = ({
     activeWordId, sourceMap, formatDate, untitledText, onWordClick,
     isCombineTarget, t,
     studyMode,
-    onTogglePin
+    onTogglePin,
+    onMove,
+    isMoving
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -61,6 +65,11 @@ export const SidebarThreadItem: React.FC<Props> = ({
 
         // Default behavior for navigation
         e.preventDefault();
+
+        if (isMoving && onMove && headWord.id) {
+            onMove(headWord.id);
+            return;
+        }
 
         if (onWordClick && window.innerWidth <= 768) onWordClick();
 

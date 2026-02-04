@@ -12,7 +12,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
-import { FiSave, FiEdit2, FiTrash2, FiX, FiCoffee, FiStar, FiList, FiGitMerge, FiShare2, FiBookOpen, FiPlus, FiPrinter, FiFolder } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiPlusCircle, FiArrowRightCircle } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
@@ -114,16 +114,27 @@ const ResponsiveGroup = styled.div`
   gap: 1rem;
   align-items: center;
 
-  @media (max-width: 1100px) {
+  @media (max-width: 1100px) and (min-width: 481px) {
     flex-direction: column-reverse;
     align-items: stretch;
     gap: 0.6rem;
   }
+
+  @media (max-width: 480px) {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    
+    & > div {
+      display: contents;
+    }
+  }
 `;
 
-const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' }>`
+const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel'; $mobileOrder?: number }>`
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   padding: 5px 10px;
   border-radius: ${({ theme }) => theme.radius.small};
@@ -142,6 +153,10 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' 
   font-weight: 600;
   font-size: 13px;
   transition: ${({ theme }) => theme.effects.transition};
+
+  @media (max-width: 480px) {
+    ${({ $mobileOrder }) => $mobileOrder !== undefined && `order: ${$mobileOrder};`}
+  }
 
   &:hover {
     background: ${({ theme, $variant }) =>
@@ -224,6 +239,9 @@ export const MemoDetail: React.FC = () => {
         restoredIdRef.current = null;
         setCommentDraft(null);
         setIsEditing(id === undefined);
+        if (id) {
+            localStorage.setItem('wordmemo_last_word_id', id);
+        }
     }, [id]);
 
     useEffect(() => {
@@ -297,7 +315,12 @@ export const MemoDetail: React.FC = () => {
         [id]
     );
 
-    const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>();
+    const { setIsDirty, setAppIsEditing, movingWordId, setMovingWordId } = useOutletContext<{
+        setIsDirty: (d: boolean) => void;
+        setAppIsEditing: (e: boolean) => void;
+        movingWordId?: number | null;
+        setMovingWordId?: (id: number | null) => void;
+    }>() || {};
 
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
@@ -982,45 +1005,59 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         </>
                     ) : (
                         <ResponsiveGroup>
-                            {/* Group 1: Edit, Meaning, Example, Add Thread */}
+                            {/* Group 1: Edit, Meaning, Example, Join/Append */}
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <ActionButton onClick={handleMeaning}>
+                                <ActionButton onClick={handleMeaning} $mobileOrder={6}>
                                     <FiBookOpen size={14} /> {t.word_detail.meaning_button}
                                 </ActionButton>
-                                <ActionButton onClick={handleExample}>
+                                <ActionButton onClick={handleExample} $mobileOrder={7}>
                                     <FiCoffee size={14} /> {t.word_detail.example_button}
                                 </ActionButton>
-                                <ActionButton onClick={handleAddThread}>
-                                    <FiGitMerge size={14} /> {t.word_detail.add_thread}
+                                <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                                    <FiPlusCircle size={14} /> {t.word_detail.append}
+                                </ActionButton>
+                                <ActionButton
+                                    $variant={movingWordId === Number(id) ? "primary" : undefined}
+                                    onClick={() => {
+                                        if (movingWordId === Number(id)) {
+                                            setMovingWordId?.(null);
+                                        } else {
+                                            setMovingWordId?.(Number(id));
+                                        }
+                                    }}
+                                    $mobileOrder={5}
+                                >
+                                    <FiArrowRightCircle size={14} />
+                                    {movingWordId === Number(id) ? t.word_detail.moving : t.word_detail.move}
                                 </ActionButton>
                             </div>
 
                             {/* Group 2: Share, Delete, Print ... Star */}
                             <div style={{ display: 'flex', flex: 1, gap: '0.5rem', alignItems: 'center' }}>
                                 {!isReadOnly && (
-                                    <ActionButton onClick={() => setIsEditing(true)}>
+                                    <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
                                         <FiEdit2 size={13} /> {t.word_detail.edit || 'Edit'}
                                     </ActionButton>
                                 )}
-                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
-                                    <FiFolder size={13} /> {language === 'ko' ? '이동/복사' : 'Move/Copy'}
+                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={5}>
+                                    <FiFolder size={13} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
                                 </ActionButton>
-                                <ActionButton onClick={() => setShowShareModal(true)}>
+                                <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={4}>
                                     <FiShare2 size={13} /> {t.word_detail.share_word}
                                 </ActionButton>
                                 {!isReadOnly && (
-                                    <ActionButton $variant="danger" onClick={handleDelete}>
+                                    <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
                                         <FiTrash2 size={13} /> {t.word_detail.delete}
                                     </ActionButton>
                                 )}
-                                <ActionButton onClick={() => window.print()}>
+                                <ActionButton onClick={() => window.print()} $mobileOrder={8}>
                                     <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
                                 </ActionButton>
 
                                 <StarButton
                                     $active={!!log?.isStarred}
                                     onClick={handleToggleStar}
-                                    style={{ padding: '6px', marginLeft: 'auto' }}
+                                    style={{ padding: '6px', marginLeft: 'auto', order: 9 }}
                                 >
                                     <FiStar fill={log?.isStarred ? 'currentColor' : 'none'} size={15} />
                                 </StarButton>

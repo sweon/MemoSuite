@@ -217,6 +217,8 @@ const IconButton = styled.button`
 interface SidebarProps {
   onCloseMobile: () => void;
   isEditing?: boolean;
+  movingLogId?: number | null;
+  setMovingLogId?: (id: number | null) => void;
 }
 
 export interface SidebarRef {
@@ -224,7 +226,7 @@ export interface SidebarRef {
   handleDragUpdate: (update: DragUpdate) => void;
 }
 
-export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false }, ref) => {
+export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false, movingLogId, setMovingLogId }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'model-desc' | 'model-asc' | 'comment-desc'>('date-desc');
@@ -672,8 +674,69 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     }
   };
 
+  const handleMove = async (targetLogId: number) => {
+    if (!movingLogId || !setMovingLogId) return;
+    if (movingLogId === targetLogId) return;
+
+    try {
+      const targetLog = await db.logs.get(targetLogId);
+      if (!targetLog) return;
+
+      const threadId = targetLog.threadId || crypto.randomUUID();
+
+      if (!targetLog.threadId) {
+        await db.logs.update(targetLogId, { threadId, threadOrder: 0 });
+      }
+
+      const siblings = await db.logs.where('threadId').equals(threadId).toArray();
+      const maxOrder = siblings.reduce((max, m) => Math.max(max, m.threadOrder || 0), 0);
+
+      await db.logs.update(movingLogId, {
+        threadId,
+        threadOrder: maxOrder + 1,
+        updatedAt: new Date()
+      });
+
+      setMovingLogId(null);
+      setToastMessage(language === 'ko' ? '로그를 이동했습니다.' : 'Log moved successfully');
+    } catch (err) {
+      console.error('Failed to move log', err);
+      setToastMessage(language === 'ko' ? '이동 실패' : 'Failed to move log');
+    }
+  };
+
   return (
     <SidebarContainer>
+      {movingLogId && (
+        <div style={{
+          padding: '12px',
+          background: theme.colors.primary,
+          color: 'white',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          zIndex: 30
+        }}>
+          <span>{t.sidebar.select_target}</span>
+          <button
+            onClick={() => setMovingLogId?.(null)}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: 'none',
+              color: 'white',
+              borderRadius: '4px',
+              padding: '2px 8px',
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+          >
+            {t.sidebar.cancel}
+          </button>
+        </div>
+      )}
       <ScrollableArea id="sidebar-scrollable-area">
         <BrandArea>
           <BrandHeader>
@@ -835,6 +898,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                   untitledText={t.sidebar.untitled}
                   isCombineTarget={isCombineTarget}
                   onTogglePin={handleTogglePinLog}
+                  onMove={movingLogId ? handleMove : undefined}
                 />
               );
             } else if (item.type === 'thread-header') {
@@ -854,6 +918,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                   isCombineTarget={isCombineTarget}
                   t={t}
                   onTogglePin={handleTogglePinLog}
+                  onMove={movingLogId ? handleMove : undefined}
                 />
               );
             } else if (item.type === 'thread-child') {
@@ -869,6 +934,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                   inThread={true}
                   isCombineTarget={isCombineTarget}
                   onTogglePin={handleTogglePinLog}
+                  onMove={movingLogId ? handleMove : undefined}
                 />
               );
             }
