@@ -67,6 +67,45 @@ const EditorWrapper = styled.div`
       overscroll-behavior: none;
       
       /* Markdown Styles */
+      ul.contains-task-list {
+        padding-left: 0;
+        list-style: none;
+      }
+      li.task-list-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+      input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 1.15em;
+        height: 1.15em;
+        border: 2px solid ${({ theme }) => theme.colors.textSecondary};
+        border-radius: 4px;
+        background-color: transparent !important;
+        cursor: pointer;
+        position: relative;
+        flex-shrink: 0;
+        margin-top: 0.25em;
+
+        &:checked {
+          background-color: transparent !important;
+          border-color: ${({ theme }) => theme.colors.primary};
+        }
+
+        &:checked::after {
+          content: '\\2713';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: ${({ theme }) => theme.colors.primary};
+          font-size: 0.85em;
+          font-weight: 800;
+        }
+      }
+
       blockquote {
         border-left-color: ${({ theme }) => theme.colors.border};
         color: ${({ theme }) => theme.colors.textSecondary};
