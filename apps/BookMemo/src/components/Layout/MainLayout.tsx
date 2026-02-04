@@ -91,10 +91,9 @@ const MobileHeader = styled.div`
   h3 {
     margin: 0;
     font-size: 1.1rem;
-    font-weight: 800;
-    background: ${({ theme }) => `linear-gradient(45deg, ${theme.colors.primary}, ${theme.colors.accent})`};
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: #6C3483;
   }
 
   @media (max-width: 768px) {

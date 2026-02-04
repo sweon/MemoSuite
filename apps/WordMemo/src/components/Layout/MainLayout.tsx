@@ -91,10 +91,12 @@ const MobileHeader = styled.div`
   h3 {
     margin: 0;
     font-size: 1.1rem;
-    font-weight: 800;
-    background: ${({ theme }) => `linear-gradient(45deg, ${theme.colors.primary}, ${theme.colors.accent})`};
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: #117864;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   @media (max-width: 768px) {
@@ -256,7 +258,7 @@ export const MainLayout: React.FC = () => {
               style={{ flexShrink: 0, cursor: 'pointer' }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
-              <h3 style={{ margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>WordMemo</h3>
+              <h3>WordMemo</h3>
             </div>
           </MobileHeader>
           <Outlet context={{ setIsDirty, setAppIsEditing, movingWordId, setMovingWordId }} />

@@ -200,7 +200,7 @@ const ActionBar = styled.div`
   }
 `;
 
-const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' }>`
+const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' | 'pdf' | 'print'; $mobileOrder?: number }>`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -221,6 +221,13 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' 
   font-weight: 600;
   font-size: 13px;
   transition: ${({ theme }) => theme.effects.transition};
+
+  @media (max-width: 480px) {
+    ${({ $mobileOrder }) => $mobileOrder !== undefined && `order: ${$mobileOrder};`}
+    &.hide-on-mobile {
+      display: none !important;
+    }
+  }
 
   &:hover {
     background: ${({ theme, $variant }) =>
@@ -1009,11 +1016,14 @@ export const MemoDetail: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            <ActionButton onClick={() => setIsEditing(true)}>
+                            <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
                                 <FiEdit2 size={14} /> {t.memo_detail.edit}
                             </ActionButton>
-                            <ActionButton onClick={handleAddThread}>
+                            <ActionButton onClick={handleAddThread} $mobileOrder={2}>
                                 <FiPlusCircle size={14} /> {t.memo_detail.append}
+                            </ActionButton>
+                            <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
+                                <FiTrash2 size={14} /> {t.memo_detail.delete}
                             </ActionButton>
                             <ActionButton
                                 $variant={movingMemoId === Number(id) ? "primary" : undefined}
@@ -1024,17 +1034,15 @@ export const MemoDetail: React.FC = () => {
                                         setMovingMemoId?.(Number(id));
                                     }
                                 }}
+                                $mobileOrder={4}
                             >
                                 <FiArrowRightCircle size={14} />
                                 {movingMemoId === Number(id) ? t.memo_detail.moving : t.memo_detail.move}
                             </ActionButton>
-                            <ActionButton $variant="danger" onClick={handleDelete}>
-                                <FiTrash2 size={14} /> {t.memo_detail.delete}
-                            </ActionButton>
-                            <ActionButton onClick={() => setIsShareModalOpen(true)}>
+                            <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
                                 <FiShare2 size={14} /> {t.memo_detail.share_memo}
                             </ActionButton>
-                            <ActionButton onClick={() => window.print()}>
+                            <ActionButton onClick={() => window.print()} className="hide-on-mobile" $mobileOrder={6}>
                                 <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                             </ActionButton>
                         </>

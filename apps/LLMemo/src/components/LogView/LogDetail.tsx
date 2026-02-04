@@ -119,7 +119,7 @@ const ActionBar = styled.div`
   }
 `;
 
-const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' }>`
+const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel'; $mobileOrder?: number }>`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -140,6 +140,13 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' 
   font-weight: 600;
   font-size: 13px;
   transition: ${({ theme }) => theme.effects.transition};
+
+  @media (max-width: 480px) {
+    ${({ $mobileOrder }) => $mobileOrder !== undefined && `order: ${$mobileOrder};`}
+    &.hide-on-mobile {
+      display: none !important;
+    }
+  }
 
   &:hover {
     background: ${({ theme, $variant }) =>
@@ -766,15 +773,15 @@ export const LogDetail: React.FC = () => {
                     ) : (
                         <>
                             {!isReadOnly && (
-                                <ActionButton onClick={() => setIsEditing(true)}>
+                                <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
                                     <FiEdit2 size={14} /> {t.log_detail.edit}
                                 </ActionButton>
                             )}
-                            <ActionButton onClick={handleAddThread}>
+                            <ActionButton onClick={handleAddThread} $mobileOrder={2}>
                                 <FiGitMerge size={14} /> {t.log_detail.add_thread}
                             </ActionButton>
                             {!isReadOnly && (
-                                <ActionButton $variant="danger" onClick={handleDelete}>
+                                <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
                                     <FiTrash2 size={14} /> {t.log_detail.delete}
                                 </ActionButton>
                             )}
@@ -788,18 +795,19 @@ export const LogDetail: React.FC = () => {
                                             setMovingLogId?.(Number(id));
                                         }
                                     }}
+                                    $mobileOrder={4}
                                 >
                                     <FiArrowRightCircle size={14} />
                                     {isMovingLocal ? t.log_detail.moving : t.log_detail.move}
                                 </ActionButton>
                             )}
-                            <ActionButton onClick={() => setIsShareModalOpen(true)}>
+                            <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
                                 <FiShare2 size={14} /> {t.log_detail.share_log}
                             </ActionButton>
-                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
+                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
                                 <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
                             </ActionButton>
-                            <ActionButton onClick={() => window.print()} className="hide-on-mobile">
+                            <ActionButton onClick={() => window.print()} className="hide-on-mobile" $mobileOrder={7}>
                                 <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                             </ActionButton>
                         </>

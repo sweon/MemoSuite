@@ -105,6 +105,16 @@ const ActionBar = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   margin-top: ${({ theme }) => theme.spacing.lg};
+
+  @media (max-width: 480px) {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+
+    div {
+      display: contents;
+    }
+  }
 `;
 
 const ResponsiveGroup = styled.div`
@@ -121,13 +131,7 @@ const ResponsiveGroup = styled.div`
   }
 
   @media (max-width: 480px) {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    
-    & > div {
-      display: contents;
-    }
+    display: contents;
   }
 `;
 
@@ -156,6 +160,9 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel';
 
   @media (max-width: 480px) {
     ${({ $mobileOrder }) => $mobileOrder !== undefined && `order: ${$mobileOrder};`}
+    &.hide-on-mobile {
+      display: none !important;
+    }
   }
 
   &:hover {
@@ -1007,10 +1014,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         <ResponsiveGroup>
                             {/* Group 1: Edit, Meaning, Example, Join/Append */}
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <ActionButton onClick={handleMeaning} $mobileOrder={6}>
+                                <ActionButton onClick={handleMeaning} $mobileOrder={7}>
                                     <FiBookOpen size={14} /> {t.word_detail.meaning_button}
                                 </ActionButton>
-                                <ActionButton onClick={handleExample} $mobileOrder={7}>
+                                <ActionButton onClick={handleExample} $mobileOrder={8}>
                                     <FiCoffee size={14} /> {t.word_detail.example_button}
                                 </ActionButton>
                                 <ActionButton onClick={handleAddThread} $mobileOrder={2}>
@@ -1025,7 +1032,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                             setMovingWordId?.(Number(id));
                                         }
                                     }}
-                                    $mobileOrder={5}
+                                    $mobileOrder={4}
                                 >
                                     <FiArrowRightCircle size={14} />
                                     {movingWordId === Number(id) ? t.word_detail.moving : t.word_detail.move}
@@ -1039,10 +1046,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                         <FiEdit2 size={13} /> {t.word_detail.edit || 'Edit'}
                                     </ActionButton>
                                 )}
-                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={5}>
+                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
                                     <FiFolder size={13} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
                                 </ActionButton>
-                                <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={4}>
+                                <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={5}>
                                     <FiShare2 size={13} /> {t.word_detail.share_word}
                                 </ActionButton>
                                 {!isReadOnly && (
@@ -1050,14 +1057,14 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                         <FiTrash2 size={13} /> {t.word_detail.delete}
                                     </ActionButton>
                                 )}
-                                <ActionButton onClick={() => window.print()} $mobileOrder={8}>
+                                <ActionButton onClick={() => window.print()} $mobileOrder={9} className="hide-on-mobile">
                                     <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
                                 </ActionButton>
 
                                 <StarButton
                                     $active={!!log?.isStarred}
                                     onClick={handleToggleStar}
-                                    style={{ padding: '6px', marginLeft: 'auto', order: 9 }}
+                                    style={{ padding: '6px', marginLeft: 'auto', order: 10 }}
                                 >
                                     <FiStar fill={log?.isStarred ? 'currentColor' : 'none'} size={15} />
                                 </StarButton>

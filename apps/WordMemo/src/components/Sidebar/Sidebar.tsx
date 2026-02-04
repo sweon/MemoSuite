@@ -66,7 +66,7 @@ const BrandArea = styled.div`
   display: flex;
   flex-direction: column;
   padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.md} ${theme.spacing.sm}`};
-  gap: 6px;
+  gap: 8px;
 `;
 
 const BrandHeader = styled.div`
