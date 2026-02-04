@@ -620,7 +620,20 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
         className: "fa fa-check-square-o",
         title: language === 'ko' ? "체크리스트" : "Checklist",
       },
-      "link", "image", "horizontal-rule",
+      "link", "image",
+      {
+        name: "drawing",
+        action: () => handleDrawingRef.current(),
+        className: "fa fa-pencil",
+        title: language === 'ko' ? "그리기 삽입 및 편집" : "Insert or Edit Drawing",
+      },
+      {
+        name: "spreadsheet",
+        action: () => handleSpreadsheetRef.current(),
+        className: "fa fa-table",
+        title: language === 'ko' ? "스프레드시트 삽입 및 편집" : "Insert or Edit Spreadsheet",
+      },
+      "horizontal-rule",
       {
         name: "math",
         action: () => handleMath(),
