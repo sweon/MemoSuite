@@ -147,11 +147,10 @@ const ClearButton = styled.button`
   }
 `;
 
-const Button = styled.button`
+const Button = styled.button<{ $color?: string }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  // width: 26px;
   height: 26px;
   padding: 0 12px;
   font-size: 0.75rem;
@@ -160,8 +159,9 @@ const Button = styled.button`
   border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
-  background: #1B4F72;
+  background: ${({ theme, $color }) => $color || theme.colors.primary};
   color: white;
+  white-space: nowrap;
   flex-shrink: 0;
   transition: ${({ theme }) => theme.effects.transition};
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -169,6 +169,16 @@ const Button = styled.button`
   svg {
     width: 14px;
     height: 14px;
+  }
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: ${({ theme }) => theme.shadows.small};
+    filter: brightness(1.1);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
@@ -787,7 +797,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                 navigate('/folders', { replace: true });
                 onCloseMobile();
               }}
-              style={{ background: '#f39c12' }}
+              $color="#f39c12"
             >
               <FiFolder />
               {language === 'ko' ? '폴더' : 'Folders'}
