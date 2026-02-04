@@ -288,8 +288,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
 
     const scrollToComment = (targetId?: number) => {
         const id = targetId ?? lastJumpedCommentId;
-        if (!id) return;
-        const el = document.getElementById(id === -1 ? 'new-comment-editor' : `comment-${id}`);
+        if (id === undefined || id === null) return;
+        let el = document.getElementById(id === -1 ? 'new-comment-editor' : `comment-${id}`);
+        if (!el) {
+            el = document.getElementById('comments-section');
+        }
         if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -422,7 +425,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
 
 
     return (
-        <Section>
+        <Section id="comments-section">
             <SectionHeader>
                 <FiMessageSquare size={20} color={theme.colors.primary} />
                 <h3>{t.comments.title}</h3>
