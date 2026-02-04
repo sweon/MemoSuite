@@ -81,7 +81,7 @@ function AppContent() {
 
   return (
     <ExitGuardProvider>
-      <ColorThemeProvider storageKeyPrefix="handmemo" GlobalStyleComponent={GlobalStyle}>
+      <ColorThemeProvider storageKeyPrefix="handmemo" defaultLightThemeId="handmemo_light" defaultDarkThemeId="handmemo_dark" GlobalStyleComponent={GlobalStyle}>
         <ModalProvider>
           <FolderProvider>
             <SearchProvider>
