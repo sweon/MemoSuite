@@ -32,6 +32,44 @@ const EditorWrapper = styled.div`
       button.active {
         background: ${({ theme }) => theme.colors.border};
       }
+
+      /* Custom icon for drawing button (FiPenTool style) */
+      button[title*="Drawing"] i.fa-pencil::before,
+      button[title*="그리기"] i.fa-pencil::before {
+        content: '';
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        vertical-align: middle;
+        background-color: #D55E00;
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19l7-7 3 3-7 7-3-3z'/%3E%3Cpath d='M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z'/%3E%3Cpath d='M2 2l7.586 7.586'/%3E%3Ccircle cx='11' cy='11' r='2'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 19l7-7 3 3-7 7-3-3z'/%3E%3Cpath d='M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z'/%3E%3Cpath d='M2 2l7.586 7.586'/%3E%3Ccircle cx='11' cy='11' r='2'/%3E%3C/svg%3E");
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+      }
+
+      /* Custom icon for spreadsheet button (simple grid table) */
+      button[title*="Spreadsheet"] i.fa-table::before,
+      button[title*="스프레드시트"] i.fa-table::before {
+        content: '';
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        vertical-align: middle;
+        background-color: #009E73;
+        -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23000'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cline x1='3' y1='9' x2='21' y2='9' stroke='%23000' stroke-width='2'/%3E%3Cline x1='3' y1='15' x2='21' y2='15' stroke='%23000' stroke-width='2'/%3E%3Cline x1='9' y1='3' x2='9' y2='21' stroke='%23000' stroke-width='2'/%3E%3Cline x1='15' y1='3' x2='15' y2='21' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E");
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23000'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2' fill='none' stroke='%23000' stroke-width='2'/%3E%3Cline x1='3' y1='9' x2='21' y2='9' stroke='%23000' stroke-width='2'/%3E%3Cline x1='3' y1='15' x2='21' y2='15' stroke='%23000' stroke-width='2'/%3E%3Cline x1='9' y1='3' x2='9' y2='21' stroke='%23000' stroke-width='2'/%3E%3Cline x1='15' y1='3' x2='15' y2='21' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E");
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+      }
     }
     
     .CodeMirror {
