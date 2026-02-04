@@ -450,7 +450,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
             next.delete(memoId);
             return next;
           });
-        }, 500);
+        }, 1000);
       } else {
         // If pinning, make sure it's removed from recently unpinned list
         setJustUnpinnedIds(prev => {

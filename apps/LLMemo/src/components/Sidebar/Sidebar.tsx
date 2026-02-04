@@ -483,7 +483,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             next.delete(logId);
             return next;
           });
-        }, 500);
+        }, 1000);
       } else {
         // If pinning, make sure it's removed from recently unpinned list
         setJustUnpinnedIds(prev => {

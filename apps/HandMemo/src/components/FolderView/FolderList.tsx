@@ -555,7 +555,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                     next.delete(folder.id!);
                     return next;
                 });
-            }, 500);
+            }, 1000);
         } else {
             // If pinning, make sure it's removed from recently unpinned list
             setJustUnpinnedIds(prev => {
