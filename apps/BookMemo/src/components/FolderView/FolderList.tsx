@@ -442,6 +442,7 @@ export const FolderList: React.FC<FolderListProps> = ({
     });
     const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState('');
+    const [newFolderId, setNewFolderId] = useState<number | null>(null);
     const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
 
     const folders = useLiveQuery(() => db.folders.toArray());
@@ -634,6 +635,16 @@ export const FolderList: React.FC<FolderListProps> = ({
 
         setEditingFolderId(newId);
         setEditingName(newName);
+        setNewFolderId(newId);
+    };
+
+    const handleCancelEdit = async () => {
+        if (newFolderId !== null) {
+            await db.folders.delete(newFolderId);
+        }
+        setEditingFolderId(null);
+        setEditingName("");
+        setNewFolderId(null);
     };
 
     const handleRenameFolder = async (folderId: number) => {
@@ -836,8 +847,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') handleRenameFolder(folder.id!);
                                                             if (e.key === 'Escape') {
-                                                                setEditingFolderId(null);
-                                                                setEditingName('');
+                                                                handleCancelEdit();
                                                             }
                                                         }}
                                                         onClick={(e) => e.stopPropagation()}
@@ -856,7 +866,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                                                             <FiCheck size={16} />
                                                         </ActionButton>
                                                         <ActionButton
-                                                            onClick={(e) => { e.stopPropagation(); setEditingFolderId(null); setEditingName(''); }}
+                                                            onClick={(e) => { e.stopPropagation(); handleCancelEdit(); }}
                                                         >
                                                             <FiX size={16} />
                                                         </ActionButton>
