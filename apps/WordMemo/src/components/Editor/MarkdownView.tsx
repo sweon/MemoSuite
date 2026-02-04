@@ -3,6 +3,7 @@ import { useLanguage } from '@memosuite/shared';
 
 import ReactMarkdown from 'react-markdown';
 
+import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -465,7 +466,8 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
     <MarkdownContainer $tableHeaderBg={tableHeaderBg}>
       <ReactMarkdown
         remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[rehypeRaw, rehypeKatex]}
+        remarkRehypeOptions={{ allowDangerousHtml: true }}
         components={{
           pre: ({ children, ...props }: any) => {
             const child = Array.isArray(children) ? children[0] : children;

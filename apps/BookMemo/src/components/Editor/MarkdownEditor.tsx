@@ -5,6 +5,7 @@ import SimpleMDE from 'react-simplemde-editor';
 import 'easymde/dist/easymde.min.css';
 import ReactMarkdown from 'react-markdown';
 
+import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -199,6 +200,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
   const updateWidgetsRef = useRef<(cm: any) => void>(() => { });
   const lastCursorRef = useRef<any>(null);
   const toggleChecklistRef = useRef<() => void>(() => { });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const findBlock = (type: 'fabric' | 'spreadsheet') => {
     if (!cmRef.current) return { startLine: -1, endLine: -1 };
@@ -314,6 +316,74 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
         }
       }
     }
+    cm.focus();
+  };
+
+  const handleMath = () => {
+    if (!cmRef.current) return;
+    const cm = cmRef.current;
+    const selection = cm.getSelection();
+    cm.replaceSelection(`$${selection}$`);
+    if (!selection) {
+      const cursor = cm.getCursor();
+      cm.setCursor({ line: cursor.line, ch: cursor.ch - 1 });
+    }
+    cm.focus();
+  };
+
+  const handleTime = () => {
+    if (!cmRef.current) return;
+    const cm = cmRef.current;
+    const now = new Date();
+    const formatted = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0') + ' ' +
+      String(now.getHours()).padStart(2, '0') + ':' +
+      String(now.getMinutes()).padStart(2, '0');
+    cm.replaceSelection(formatted);
+    cm.focus();
+  };
+
+  const handleDetails = () => {
+    if (!cmRef.current) return;
+    const cm = cmRef.current;
+    const selection = cm.getSelection();
+    cm.replaceSelection(`<details>\n<summary>${language === 'ko' ? '자세히 보기' : 'Click to view'}</summary>\n\n${selection}\n</details>`);
+    cm.focus();
+  };
+
+  const handleColor = () => {
+    if (!cmRef.current) return;
+    const cm = cmRef.current;
+    const selection = cm.getSelection();
+    cm.replaceSelection(`<span style="color:red">${selection}</span>`);
+    cm.focus();
+  };
+
+  const handleFile = () => {
+    fileInputRef.current?.click();
+  };
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !cmRef.current) return;
+
+    const cm = cmRef.current;
+    const reader = new FileReader();
+
+    if (file.type.startsWith('image/')) {
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        cm.replaceSelection(`![${file.name}](${base64})`);
+        onChange(cm.getValue());
+      };
+      reader.readAsDataURL(file);
+    } else {
+      cm.replaceSelection(`[${file.name}]()`);
+      onChange(cm.getValue());
+    }
+    // Clear input
+    e.target.value = '';
     cm.focus();
   };
 
@@ -453,7 +523,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
       <div className="preview-container">
         <ReactMarkdown
           remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
-          rehypePlugins={[rehypeKatex]}
+          rehypePlugins={[rehypeRaw as any, rehypeKatex]}
+          remarkRehypeOptions={{ allowDangerousHtml: true }}
           components={{
             pre: ({ children, ...props }: any) => {
               const child = Array.isArray(children) ? children[0] : children;
@@ -501,20 +572,38 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
         className: "fa fa-check-square-o",
         title: language === 'ko' ? "체크리스트" : "Checklist",
       },
-      "link", "image",
+      "link", "image", "horizontal-rule",
       {
-        name: "drawing",
-        action: () => handleDrawingRef.current(),
-        className: "fa fa-pencil",
-        title: language === 'ko' ? "그리기 삽입 및 편집" : "Insert or Edit Drawing",
+        name: "math",
+        action: () => handleMath(),
+        className: "fa fa-superscript",
+        title: language === 'ko' ? "수식 (LaTeX)" : "Math (LaTeX)",
       },
       {
-        name: "spreadsheet",
-        action: () => handleSpreadsheetRef.current(),
-        className: "fa fa-table",
-        title: language === 'ko' ? "스프레드시트 삽입 및 편집" : "Insert or Edit Spreadsheet",
+        name: "time",
+        action: () => handleTime(),
+        className: "fa fa-clock-o",
+        title: language === 'ko' ? "현재 시간 삽입" : "Insert Current Time",
       },
-      "preview", "side-by-side", "fullscreen", "guide"
+      {
+        name: "details",
+        action: () => handleDetails(),
+        className: "fa fa-caret-square-o-down",
+        title: language === 'ko' ? "접기/펼치기 (Details)" : "Collapse/Details",
+      },
+      {
+        name: "color",
+        action: () => handleColor(),
+        className: "fa fa-paint-brush",
+        title: language === 'ko' ? "빨간색 글씨" : "Red Text",
+      },
+      {
+        name: "file",
+        action: () => handleFile(),
+        className: "fa fa-paperclip",
+        title: language === 'ko' ? "파일 첨부" : "Attach File",
+      },
+      "guide"
     ] as any,
     autofocus: false,
     status: false,
@@ -590,6 +679,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
 
   return (
     <>
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={onFileChange}
+      />
       <EditorWrapper>
         <SimpleMDE
           value={value}

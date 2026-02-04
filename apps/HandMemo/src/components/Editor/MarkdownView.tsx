@@ -5,6 +5,7 @@ import { db, type Comment } from '../../db';
 
 import ReactMarkdown from 'react-markdown';
 
+import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -2156,7 +2157,8 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
     <MarkdownContainer $tableHeaderBg={tableHeaderBg}>
       <ReactMarkdown
         remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[rehypeRaw, rehypeKatex]}
+        remarkRehypeOptions={{ allowDangerousHtml: true }}
         components={components}
       >
         {content}

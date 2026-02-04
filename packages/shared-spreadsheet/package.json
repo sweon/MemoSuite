@@ -17,6 +17,7 @@
         "@fortune-sheet/react": "^0.18.3",
         "exceljs": "^4.4.0",
         "lucide-react": "^0.300.0",
+        "rehype-raw": "^7.0.0",
         "uuid": "^9.0.0"
     },
     "devDependencies": {
