@@ -560,8 +560,8 @@ export const lightThemes: ColorTheme[] = [
             border: '#eeeeee',
             text: '#1a1a1a',
             textSecondary: '#666666',
-            primary: '#CC79A7', // Reddish Purple
-            primaryHover: '#b56691',
+            primary: '#6C3483', // Royal Purple
+            primaryHover: '#5e2d73',
             danger: '#dc2626',
             success: '#059669',
         }
