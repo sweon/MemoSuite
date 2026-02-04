@@ -18,6 +18,12 @@ const Container = styled.div`
   padding: ${({ theme }) => theme.spacing.lg};
   background: ${({ theme }) => theme.colors.background};
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+
+  @media (max-width: 480px) {
+    padding: ${({ theme }) => theme.spacing.md};
+  }
 `;
 
 const Header = styled.div`
@@ -25,6 +31,12 @@ const Header = styled.div`
   align-items: center;
   justify-content: space-between;
   margin-bottom: ${({ theme }) => theme.spacing.lg};
+  gap: ${({ theme }) => theme.spacing.md};
+
+  @media (max-width: 480px) {
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.sm};
+  }
 `;
 
 const Title = styled.h1`
@@ -32,6 +44,20 @@ const Title = styled.h1`
   font-weight: 800;
   color: ${({ theme }) => theme.colors.text};
   margin: 0;
+
+  @media (max-width: 480px) {
+    font-size: 1.5rem;
+  }
+`;
+
+const HeaderLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  @media (max-width: 480px) {
+    gap: 8px;
+  }
 `;
 
 const SearchWrapper = styled.div`
@@ -55,6 +81,7 @@ const SearchInput = styled.input`
   background: ${({ theme }) => theme.colors.surface};
   color: ${({ theme }) => theme.colors.text};
   font-size: 0.95rem;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;
@@ -78,6 +105,8 @@ const SortSelect = styled.select`
   padding: 10px 12px;
   border-radius: ${({ theme }) => theme.radius.medium};
   border: 1px solid ${({ theme }) => theme.colors.border};
+  box-sizing: border-box;
+  min-width: 0;
   background: ${({ theme }) => theme.colors.surface};
   color: ${({ theme }) => theme.colors.text};
   font-size: 0.9rem;
@@ -109,7 +138,7 @@ const AddButton = styled.button`
   }
 
   @media (max-width: 480px) {
-    padding: 8px 12px;
+    padding: 6px 10px;
     span { display: none; }
   }
 `;
@@ -140,6 +169,15 @@ const ViewModeButton = styled.button<{ $active: boolean }>`
   &:hover {
     background: ${({ $active, theme }) => $active ? theme.colors.primary : theme.colors.background};
     color: ${({ $active }) => $active ? 'white' : undefined};
+  }
+
+  @media (max-width: 480px) {
+    width: 30px;
+    height: 30px;
+    svg {
+      width: 16px;
+      height: 16px;
+    }
   }
 `;
 
@@ -183,7 +221,7 @@ const FolderCard = styled.div<{ $viewMode: ViewMode; $isActive?: boolean; $isRea
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     box-shadow: ${({ theme }) => theme.shadows.medium};
-    transform: ${({ $viewMode }) => $viewMode === 'single-line' ? 'translateX(4px)' : 'translateY(-2px)'};
+    transform: ${({ $viewMode }) => $viewMode === 'single-line' ? 'scale(1.01)' : 'translateY(-2px)'};
   }
 `;
 
@@ -663,7 +701,7 @@ export const FolderList: React.FC<FolderListProps> = ({
     return (
         <Container>
             <Header>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <HeaderLeft>
                     <Title>{t.title}</Title>
                     <ViewModeRow>
                         <ViewModeButton
@@ -688,7 +726,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                             <FiLayout size={18} />
                         </ViewModeButton>
                     </ViewModeRow>
-                </div>
+                </HeaderLeft>
                 <AddButton onClick={handleAddFolder}>
                     <FiPlus size={16} />
                     <span>{t.addFolder}</span>
