@@ -113,6 +113,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
   const handleSpreadsheetRef = useRef<(startLine?: number, endLine?: number) => void>(() => { });
   const updateWidgetsRef = useRef<(cm: any) => void>(() => { });
   const lastCursorRef = useRef<any>(null);
+  const toggleChecklistRef = useRef<() => void>(() => { });
 
   const findBlock = (type: 'fabric' | 'spreadsheet') => {
     if (!cmRef.current) return { startLine: -1, endLine: -1 };
@@ -201,8 +202,40 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
     setIsSpreadsheetOpen(true);
   };
 
+  const toggleChecklist = () => {
+    if (!cmRef.current) return;
+    const cm = cmRef.current;
+    const doc = cm.getDoc();
+    const selections = doc.listSelections();
+
+    for (const sel of selections) {
+      const startLine = Math.min(sel.anchor.line, sel.head.line);
+      const endLine = Math.max(sel.anchor.line, sel.head.line);
+
+      for (let i = startLine; i <= endLine; i++) {
+        const line = doc.getLine(i);
+        const trim = line.trim();
+        if (trim.startsWith('- [ ] ')) {
+          const index = line.indexOf('- [ ] ');
+          doc.replaceRange('', { line: i, ch: index }, { line: i, ch: index + 6 });
+        } else if (trim.startsWith('- [x] ')) {
+          const index = line.indexOf('- [x] ');
+          doc.replaceRange('', { line: i, ch: index }, { line: i, ch: index + 6 });
+        } else {
+          const indentMatch = line.match(/^\s*/);
+          const indent = indentMatch ? indentMatch[0] : '';
+          const content = line.substring(indent.length);
+          doc.replaceRange(`${indent}- [ ] ${content}`, { line: i, ch: 0 }, { line: i, ch: line.length });
+        }
+      }
+    }
+    cm.focus();
+  };
+
   handleDrawingRef.current = handleDrawing;
   handleSpreadsheetRef.current = handleSpreadsheet;
+  toggleChecklistRef.current = toggleChecklist;
+
 
   const handleSaveDrawing = (json: string) => {
     if (!cmRef.current) return;
@@ -376,7 +409,14 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
     placeholder: "Type here... (Markdown + Math supported)",
     previewRender: customRenderer,
     toolbar: [
-      "bold", "italic", "heading", "quote", "unordered-list", "ordered-list", "link", "image",
+      "bold", "italic", "heading", "quote", "unordered-list", "ordered-list",
+      {
+        name: "checklist",
+        action: () => toggleChecklistRef.current(),
+        className: "fa fa-check-square-o",
+        title: language === 'ko' ? "체크리스트" : "Checklist",
+      },
+      "link", "image",
       {
         name: "drawing",
         action: () => handleDrawingRef.current(),
