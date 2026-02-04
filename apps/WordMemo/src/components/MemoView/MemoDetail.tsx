@@ -110,10 +110,6 @@ const ActionBar = styled.div`
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
-
-    div {
-      display: contents;
-    }
   }
 `;
 
@@ -129,6 +125,17 @@ const ResponsiveGroup = styled.div`
     align-items: stretch;
     gap: 0.6rem;
   }
+
+  @media (max-width: 480px) {
+    display: contents;
+  }
+`;
+
+const ButtonGroup = styled.div<{ $flex?: number }>`
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  ${({ $flex }) => $flex !== undefined && `flex: ${$flex};`}
 
   @media (max-width: 480px) {
     display: contents;
@@ -1013,7 +1020,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     ) : (
                         <ResponsiveGroup>
                             {/* Group 1: Edit, Meaning, Example, Join/Append */}
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <ButtonGroup>
                                 <ActionButton onClick={handleMeaning} $mobileOrder={7}>
                                     <FiBookOpen size={14} /> {t.word_detail.meaning_button}
                                 </ActionButton>
@@ -1037,10 +1044,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                     <FiArrowRightCircle size={14} />
                                     {movingWordId === Number(id) ? t.word_detail.moving : t.word_detail.move}
                                 </ActionButton>
-                            </div>
+                            </ButtonGroup>
 
                             {/* Group 2: Share, Delete, Print ... Star */}
-                            <div style={{ display: 'flex', flex: 1, gap: '0.5rem', alignItems: 'center' }}>
+                            <ButtonGroup $flex={1}>
                                 {!isReadOnly && (
                                     <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
                                         <FiEdit2 size={13} /> {t.word_detail.edit || 'Edit'}
@@ -1068,7 +1075,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 >
                                     <FiStar fill={log?.isStarred ? 'currentColor' : 'none'} size={15} />
                                 </StarButton>
-                            </div>
+                            </ButtonGroup>
                         </ResponsiveGroup>
                     )}
                 </ActionBar>
