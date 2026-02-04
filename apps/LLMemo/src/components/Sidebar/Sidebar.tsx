@@ -79,7 +79,7 @@ const AppTitle = styled.div`
   font-size: 1.25rem;
   font-weight: 900;
   letter-spacing: -0.03em;
-  color: #1B4F72;
+  color: #56B4E9;
 `;
 
 const AppVersion = styled.span`
@@ -784,10 +784,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
         <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <TopActions>
-            <Button onClick={() => {
-              navigate('/new');
-              onCloseMobile();
-            }}>
+            <Button
+              onClick={() => {
+                navigate('/new');
+                onCloseMobile();
+              }}
+              $color="#56B4E9"
+            >
               <FiPlus />
               {t.sidebar.new || 'New Log'}
             </Button>
