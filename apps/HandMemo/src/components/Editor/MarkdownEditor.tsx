@@ -115,7 +115,7 @@ const EditorWrapper = styled.div`
       border-color: ${({ theme }) => theme.colors.border};
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
       position: sticky;
-      top: 48px;
+      top: 42px;
 
       @media (max-width: 480px) {
         top: 48px;
