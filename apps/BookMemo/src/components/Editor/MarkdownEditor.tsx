@@ -20,7 +20,13 @@ import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 // Custom styles for the editor to match theme
 const EditorWrapper = styled.div`
+  height: auto;
+  overflow: visible;
+
   .EasyMDEContainer {
+    height: auto;
+    overflow: visible;
+
     .editor-toolbar {
       position: sticky;
       top: 0;
