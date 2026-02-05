@@ -664,7 +664,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
     status: false,
     maxHeight: "500px",
     codeMirrorOptions: {
-      dragDrop: false
+      dragDrop: false,
+      inputStyle: 'contenteditable',
+      spellcheck: false,
     }
   }), [t, language]);
 
