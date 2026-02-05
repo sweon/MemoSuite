@@ -651,7 +651,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     placeholder: "Type here... (Markdown + Math supported)",
     previewRender: customRenderer,
     toolbar: [
-      {
+      ...(isMobile ? [{
         name: "hide-keyboard",
         action: () => {
           setIsKeyboardDisabled(prev => {
@@ -670,7 +670,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         },
         className: "fa fa-keyboard-o",
         title: language === 'ko' ? "키보드 숨기기 토글" : "Toggle Hide Keyboard",
-      },
+      }] : []),
       "bold", "italic", "heading", "quote", "unordered-list", "ordered-list",
       {
         name: "checklist",
@@ -727,7 +727,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       inputStyle: 'contenteditable',
       spellcheck: false,
     }
-  }), [t, language, initialScrollPercentage]);
+  }), [t, language, initialScrollPercentage, isMobile]);
 
   useEffect(() => {
     if (cmRef.current && initialScrollPercentage !== undefined) {
