@@ -201,12 +201,18 @@ const CalendarIconButton = styled(FiCalendar)`
 const ActionBar = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
-  margin-top: ${({ theme }) => theme.spacing.lg};
+  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.xl}`};
+  background: ${({ theme }) => theme.colors.surface};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  position: sticky;
+  top: 0;
+  z-index: 100;
 
   @media (max-width: 480px) {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.sm}`};
   }
 
   @media print {
@@ -923,88 +929,88 @@ export const MemoDetail: React.FC = () => {
                     )}
                 </MetaRow>
 
-                <ActionBar>
-                    {isEditing ? (
-                        <>
+            </Header>
+            <ActionBar>
+                {isEditing ? (
+                    <>
+                        <ActionButton
+                            $variant="primary"
+                            onClick={() => handleSave()}
+                            disabled={!isCurrentlyDirty}
+                            style={{
+                                opacity: !isCurrentlyDirty ? 0.5 : 1,
+                                cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            <FiSave size={14} /> {t.memo_detail.save}
+                        </ActionButton>
+                        <ActionButton onClick={() => {
+                            if (isNew) {
+                                navigate('/');
+                                return;
+                            }
+                            if (searchParams.get('edit')) {
+                                navigate(`/memo/${id}`, { replace: true });
+                            }
+                            setCommentDraft(null);
+                            setIsEditing(false);
+                        }}>
+                            <FiX size={14} /> {t.memo_detail.cancel}
+                        </ActionButton>
+                        {!isNew && (
+                            <ActionButton $variant="danger" onClick={handleDelete}>
+                                <FiTrash2 size={14} /> {t.memo_detail.delete}
+                            </ActionButton>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        {!isCurrentFolderReadOnly && (
+                            <ActionButton onClick={() => setIsEditing(true)}>
+                                <FiEdit2 size={14} /> {t.memo_detail.edit}
+                            </ActionButton>
+                        )}
+                        {!isCurrentFolderReadOnly && (
+                            <ActionButton onClick={handleAddThread}>
+                                <FiPlusCircle size={14} /> {t.memo_detail.append}
+                            </ActionButton>
+                        )}
+                        {!isCurrentFolderReadOnly && (
+                            <ActionButton $variant="danger" onClick={handleDelete}>
+                                <FiTrash2 size={14} /> {t.memo_detail.delete}
+                            </ActionButton>
+                        )}
+                        {!isNew && (
                             <ActionButton
-                                $variant="primary"
-                                onClick={() => handleSave()}
-                                disabled={!isCurrentlyDirty}
-                                style={{
-                                    opacity: !isCurrentlyDirty ? 0.5 : 1,
-                                    cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
+                                $variant={isMovingLocal ? "primary" : undefined}
+                                onClick={() => {
+                                    if (isMovingLocal) {
+                                        setMovingMemoId?.(null);
+                                    } else {
+                                        setMovingMemoId?.(Number(id));
+                                    }
                                 }}
                             >
-                                <FiSave size={14} /> {t.memo_detail.save}
+                                <FiArrowRightCircle size={14} />
+                                {isMovingLocal ? t.memo_detail.moving : t.memo_detail.move}
                             </ActionButton>
-                            <ActionButton onClick={() => {
-                                if (isNew) {
-                                    navigate('/');
-                                    return;
-                                }
-                                if (searchParams.get('edit')) {
-                                    navigate(`/memo/${id}`, { replace: true });
-                                }
-                                setCommentDraft(null);
-                                setIsEditing(false);
-                            }}>
-                                <FiX size={14} /> {t.memo_detail.cancel}
-                            </ActionButton>
-                            {!isNew && (
-                                <ActionButton $variant="danger" onClick={handleDelete}>
-                                    <FiTrash2 size={14} /> {t.memo_detail.delete}
-                                </ActionButton>
-                            )}
-                        </>
-                    ) : (
-                        <>
-                            {!isCurrentFolderReadOnly && (
-                                <ActionButton onClick={() => setIsEditing(true)}>
-                                    <FiEdit2 size={14} /> {t.memo_detail.edit}
-                                </ActionButton>
-                            )}
-                            {!isCurrentFolderReadOnly && (
-                                <ActionButton onClick={handleAddThread}>
-                                    <FiPlusCircle size={14} /> {t.memo_detail.append}
-                                </ActionButton>
-                            )}
-                            {!isCurrentFolderReadOnly && (
-                                <ActionButton $variant="danger" onClick={handleDelete}>
-                                    <FiTrash2 size={14} /> {t.memo_detail.delete}
-                                </ActionButton>
-                            )}
-                            {!isNew && (
-                                <ActionButton
-                                    $variant={isMovingLocal ? "primary" : undefined}
-                                    onClick={() => {
-                                        if (isMovingLocal) {
-                                            setMovingMemoId?.(null);
-                                        } else {
-                                            setMovingMemoId?.(Number(id));
-                                        }
-                                    }}
-                                >
-                                    <FiArrowRightCircle size={14} />
-                                    {isMovingLocal ? t.memo_detail.moving : t.memo_detail.move}
-                                </ActionButton>
-                            )}
-                            <ActionButton onClick={() => setIsShareModalOpen(true)}>
-                                <FiShare2 size={14} /> {t.memo_detail.share_memo}
-                            </ActionButton>
+                        )}
+                        <ActionButton onClick={() => setIsShareModalOpen(true)}>
+                            <FiShare2 size={14} /> {t.memo_detail.share_memo}
+                        </ActionButton>
 
-                            {!isNew && memo && (
-                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
-                                    <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
-                                </ActionButton>
-                            )}
-
-                            <ActionButton $variant="print" onClick={() => window.print()} className="hide-on-mobile">
-                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
+                        {!isNew && memo && (
+                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
+                                <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
                             </ActionButton>
-                        </>
-                    )}
-                </ActionBar>
-            </Header>
+                        )}
+
+                        <ActionButton $variant="print" onClick={() => window.print()} className="hide-on-mobile">
+                            <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
+                        </ActionButton>
+                    </>
+                )}
+            </ActionBar>
 
             {isEditing ? (
                 <ContentPadding>

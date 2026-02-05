@@ -29,11 +29,15 @@ const EditorWrapper = styled.div`
 
     .editor-toolbar {
       position: sticky;
-      top: 0;
+      top: 50px;
       z-index: 50;
       background: ${({ theme }) => theme.colors.surface};
       border-color: ${({ theme }) => theme.colors.border};
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+
+      @media (max-width: 480px) {
+        top: 92px;
+      }
       i {
         color: ${({ theme }) => theme.colors.text};
       }

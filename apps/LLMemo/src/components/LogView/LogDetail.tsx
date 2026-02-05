@@ -121,12 +121,18 @@ const TagInput = styled.input`
 const ActionBar = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
-  margin-top: ${({ theme }) => theme.spacing.lg};
+  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.xl}`};
+  background: ${({ theme }) => theme.colors.surface};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  position: sticky;
+  top: 0;
+  z-index: 100;
 
   @media (max-width: 480px) {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.sm}`};
   }
 `;
 
@@ -751,84 +757,84 @@ export const LogDetail: React.FC = () => {
                     )}
                 </MetaRow>
 
-                <ActionBar>
-                    {isEditing ? (
-                        <>
-                            <ActionButton
-                                $variant="primary"
-                                onClick={handleSave}
-                                disabled={!isCurrentlyDirty}
-                                style={{
-                                    opacity: !isCurrentlyDirty ? 0.5 : 1,
-                                    cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
-                                }}
-                            >
-                                <FiSave size={14} /> {t.log_detail.save}
-                            </ActionButton>
-                            <ActionButton onClick={() => {
-                                if (isNew) {
-                                    navigate('/');
-                                    return;
-                                }
-                                if (searchParams.get('edit')) {
-                                    navigate(`/log/${id}`, { replace: true });
-                                }
-                                currentAutosaveIdRef.current = undefined;
-                                restoredIdRef.current = null;
-                                setIsEditing(false);
-                            }}>
-                                <FiX size={14} /> {t.log_detail.cancel}
-                            </ActionButton>
-                            {!isNew && (
-                                <ActionButton onClick={handleAddThread}>
-                                    <FiGitMerge size={14} /> {t.log_detail.add_thread}
-                                </ActionButton>
-                            )}
-                        </>
-                    ) : (
-                        <>
-                            {!isReadOnly && (
-                                <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
-                                    <FiEdit2 size={14} /> {t.log_detail.edit}
-                                </ActionButton>
-                            )}
-                            <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+            </Header>
+            <ActionBar>
+                {isEditing ? (
+                    <>
+                        <ActionButton
+                            $variant="primary"
+                            onClick={handleSave}
+                            disabled={!isCurrentlyDirty}
+                            style={{
+                                opacity: !isCurrentlyDirty ? 0.5 : 1,
+                                cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            <FiSave size={14} /> {t.log_detail.save}
+                        </ActionButton>
+                        <ActionButton onClick={() => {
+                            if (isNew) {
+                                navigate('/');
+                                return;
+                            }
+                            if (searchParams.get('edit')) {
+                                navigate(`/log/${id}`, { replace: true });
+                            }
+                            currentAutosaveIdRef.current = undefined;
+                            restoredIdRef.current = null;
+                            setIsEditing(false);
+                        }}>
+                            <FiX size={14} /> {t.log_detail.cancel}
+                        </ActionButton>
+                        {!isNew && (
+                            <ActionButton onClick={handleAddThread}>
                                 <FiGitMerge size={14} /> {t.log_detail.add_thread}
                             </ActionButton>
-                            {!isReadOnly && (
-                                <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
-                                    <FiTrash2 size={14} /> {t.log_detail.delete}
-                                </ActionButton>
-                            )}
-                            {!isNew && (
-                                <ActionButton
-                                    $variant={isMovingLocal ? "primary" : undefined}
-                                    onClick={() => {
-                                        if (isMovingLocal) {
-                                            setMovingLogId?.(null);
-                                        } else {
-                                            setMovingLogId?.(Number(id));
-                                        }
-                                    }}
-                                    $mobileOrder={4}
-                                >
-                                    <FiArrowRightCircle size={14} />
-                                    {isMovingLocal ? t.log_detail.moving : t.log_detail.move}
-                                </ActionButton>
-                            )}
-                            <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
-                                <FiShare2 size={14} /> {t.log_detail.share_log}
+                        )}
+                    </>
+                ) : (
+                    <>
+                        {!isReadOnly && (
+                            <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
+                                <FiEdit2 size={14} /> {t.log_detail.edit}
                             </ActionButton>
-                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
-                                <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                        )}
+                        <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                            <FiGitMerge size={14} /> {t.log_detail.add_thread}
+                        </ActionButton>
+                        {!isReadOnly && (
+                            <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
+                                <FiTrash2 size={14} /> {t.log_detail.delete}
                             </ActionButton>
-                            <ActionButton onClick={() => window.print()} className="hide-on-mobile" $mobileOrder={7}>
-                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
+                        )}
+                        {!isNew && (
+                            <ActionButton
+                                $variant={isMovingLocal ? "primary" : undefined}
+                                onClick={() => {
+                                    if (isMovingLocal) {
+                                        setMovingLogId?.(null);
+                                    } else {
+                                        setMovingLogId?.(Number(id));
+                                    }
+                                }}
+                                $mobileOrder={4}
+                            >
+                                <FiArrowRightCircle size={14} />
+                                {isMovingLocal ? t.log_detail.moving : t.log_detail.move}
                             </ActionButton>
-                        </>
-                    )}
-                </ActionBar>
-            </Header>
+                        )}
+                        <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
+                            <FiShare2 size={14} /> {t.log_detail.share_log}
+                        </ActionButton>
+                        <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
+                            <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                        </ActionButton>
+                        <ActionButton onClick={() => window.print()} className="hide-on-mobile" $mobileOrder={7}>
+                            <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
+                        </ActionButton>
+                    </>
+                )}
+            </ActionBar>
 
             {isEditing ? (
                 <ContentPadding>

@@ -115,12 +115,18 @@ const TagInput = styled.input`
 const ActionBar = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
-  margin-top: ${({ theme }) => theme.spacing.lg};
+  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.xl}`};
+  background: ${({ theme }) => theme.colors.surface};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  position: sticky;
+  top: 0;
+  z-index: 100;
 
   @media (max-width: 480px) {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.sm}`};
   }
 `;
 
@@ -993,108 +999,108 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     </MetaRow>
                 </HeaderRow>
 
-                <ActionBar>
-                    {isEditing ? (
-                        <>
-                            <ActionButton
-                                $variant="primary"
-                                onClick={handleSave}
-                                disabled={!isCurrentlyDirty}
-                                style={{
-                                    opacity: !isCurrentlyDirty ? 0.5 : 1,
-                                    cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
-                                }}
-                            >
-                                <FiSave size={14} /> {t.word_detail.save}
-                            </ActionButton>
-                            <ActionButton $variant="cancel" onClick={() => {
-                                if (isPlaceholder) {
-                                    navigate('/', { replace: true });
-                                    return;
-                                }
-                                if (isNew) {
-                                    navigate('/', { replace: true });
-                                    return;
-                                }
-                                if (searchParams.get('edit')) {
-                                    navigate(`/word/${id}`, { replace: true });
-                                }
-                                currentAutosaveIdRef.current = undefined;
-                                restoredIdRef.current = null;
-                                setIsEditing(false);
-                            }}>
-                                <FiX size={14} /> {t.word_detail.cancel}
-                            </ActionButton>
-                            <ActionButton onClick={handleRandomWord}>
-                                <FiList size={14} /> {t.word_detail.random_word}
-                            </ActionButton>
-                            <ActionButton onClick={() => setShowBulkAdd(true)}>
-                                <FiPlus size={14} /> {t.word_detail.bulk_add}
-                            </ActionButton>
-                        </>
-                    ) : (
-                        <ResponsiveGroup>
-                            {/* Group 1: Edit, Meaning, Example, Join/Append */}
-                            <ButtonGroup>
-                                <ActionButton onClick={handleMeaning} $mobileOrder={7}>
-                                    <FiBookOpen size={14} /> {t.word_detail.meaning_button}
-                                </ActionButton>
-                                <ActionButton onClick={handleExample} $mobileOrder={8}>
-                                    <FiCoffee size={14} /> {t.word_detail.example_button}
-                                </ActionButton>
-                                <ActionButton onClick={handleAddThread} $mobileOrder={2}>
-                                    <FiPlusCircle size={14} /> {t.word_detail.append}
-                                </ActionButton>
-                                <ActionButton
-                                    $variant={movingWordId === Number(id) ? "primary" : undefined}
-                                    onClick={() => {
-                                        if (movingWordId === Number(id)) {
-                                            setMovingWordId?.(null);
-                                        } else {
-                                            setMovingWordId?.(Number(id));
-                                        }
-                                    }}
-                                    $mobileOrder={4}
-                                >
-                                    <FiArrowRightCircle size={14} />
-                                    {movingWordId === Number(id) ? t.word_detail.moving : t.word_detail.move}
-                                </ActionButton>
-                            </ButtonGroup>
-
-                            {/* Group 2: Share, Delete, Print ... Star */}
-                            <ButtonGroup $flex={1}>
-                                {!isReadOnly && (
-                                    <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
-                                        <FiEdit2 size={13} /> {t.word_detail.edit || 'Edit'}
-                                    </ActionButton>
-                                )}
-                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
-                                    <FiFolder size={13} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
-                                </ActionButton>
-                                <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={5}>
-                                    <FiShare2 size={13} /> {t.word_detail.share_word}
-                                </ActionButton>
-                                {!isReadOnly && (
-                                    <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
-                                        <FiTrash2 size={13} /> {t.word_detail.delete}
-                                    </ActionButton>
-                                )}
-                                <ActionButton onClick={() => window.print()} $mobileOrder={9} className="hide-on-mobile">
-                                    <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
-                                </ActionButton>
-
-                                <StarButton
-                                    $active={!!log?.isStarred}
-                                    onClick={handleToggleStar}
-                                    style={{ padding: '6px', marginLeft: 'auto', order: 10 }}
-                                >
-                                    <FiStar fill={log?.isStarred ? 'currentColor' : 'none'} size={15} />
-                                </StarButton>
-                            </ButtonGroup>
-                        </ResponsiveGroup>
-                    )}
-                </ActionBar>
             </Header>
+            <ActionBar>
+                {isEditing ? (
+                    <>
+                        <ActionButton
+                            $variant="primary"
+                            onClick={handleSave}
+                            disabled={!isCurrentlyDirty}
+                            style={{
+                                opacity: !isCurrentlyDirty ? 0.5 : 1,
+                                cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            <FiSave size={14} /> {t.word_detail.save}
+                        </ActionButton>
+                        <ActionButton $variant="cancel" onClick={() => {
+                            if (isPlaceholder) {
+                                navigate('/', { replace: true });
+                                return;
+                            }
+                            if (isNew) {
+                                navigate('/', { replace: true });
+                                return;
+                            }
+                            if (searchParams.get('edit')) {
+                                navigate(`/word/${id}`, { replace: true });
+                            }
+                            currentAutosaveIdRef.current = undefined;
+                            restoredIdRef.current = null;
+                            setIsEditing(false);
+                        }}>
+                            <FiX size={14} /> {t.word_detail.cancel}
+                        </ActionButton>
+                        <ActionButton onClick={handleRandomWord}>
+                            <FiList size={14} /> {t.word_detail.random_word}
+                        </ActionButton>
+                        <ActionButton onClick={() => setShowBulkAdd(true)}>
+                            <FiPlus size={14} /> {t.word_detail.bulk_add}
+                        </ActionButton>
+                    </>
+                ) : (
+                    <ResponsiveGroup>
+                        {/* Group 1: Edit, Meaning, Example, Join/Append */}
+                        <ButtonGroup>
+                            <ActionButton onClick={handleMeaning} $mobileOrder={7}>
+                                <FiBookOpen size={14} /> {t.word_detail.meaning_button}
+                            </ActionButton>
+                            <ActionButton onClick={handleExample} $mobileOrder={8}>
+                                <FiCoffee size={14} /> {t.word_detail.example_button}
+                            </ActionButton>
+                            <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                                <FiPlusCircle size={14} /> {t.word_detail.append}
+                            </ActionButton>
+                            <ActionButton
+                                $variant={movingWordId === Number(id) ? "primary" : undefined}
+                                onClick={() => {
+                                    if (movingWordId === Number(id)) {
+                                        setMovingWordId?.(null);
+                                    } else {
+                                        setMovingWordId?.(Number(id));
+                                    }
+                                }}
+                                $mobileOrder={4}
+                            >
+                                <FiArrowRightCircle size={14} />
+                                {movingWordId === Number(id) ? t.word_detail.moving : t.word_detail.move}
+                            </ActionButton>
+                        </ButtonGroup>
+
+                        {/* Group 2: Share, Delete, Print ... Star */}
+                        <ButtonGroup $flex={1}>
+                            {!isReadOnly && (
+                                <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
+                                    <FiEdit2 size={13} /> {t.word_detail.edit || 'Edit'}
+                                </ActionButton>
+                            )}
+                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
+                                <FiFolder size={13} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                            </ActionButton>
+                            <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={5}>
+                                <FiShare2 size={13} /> {t.word_detail.share_word}
+                            </ActionButton>
+                            {!isReadOnly && (
+                                <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
+                                    <FiTrash2 size={13} /> {t.word_detail.delete}
+                                </ActionButton>
+                            )}
+                            <ActionButton onClick={() => window.print()} $mobileOrder={9} className="hide-on-mobile">
+                                <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
+                            </ActionButton>
+
+                            <StarButton
+                                $active={!!log?.isStarred}
+                                onClick={handleToggleStar}
+                                style={{ padding: '6px', marginLeft: 'auto', order: 10 }}
+                            >
+                                <FiStar fill={log?.isStarred ? 'currentColor' : 'none'} size={15} />
+                            </StarButton>
+                        </ButtonGroup>
+                    </ResponsiveGroup>
+                )}
+            </ActionBar>
 
             {
                 isEditing ? (
