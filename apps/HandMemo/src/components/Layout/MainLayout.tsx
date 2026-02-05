@@ -205,6 +205,23 @@ const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: strin
   const uriList = dt.getData('text/uri-list');
   const plain = dt.getData('text/plain')?.trim();
 
+  // 1.2 If we have plain text and it's NOT a single URL, return it as text and avoid aggressive URL extraction from HTML.
+  const isPlainSingleUrl = plain && /^https?:\/\/[^\s]+$/.test(plain);
+  const isPlainDataImage = plain && plain.startsWith('data:image/');
+
+  // If plain text is present and not just a single URL, prioritize it as text content.
+  // This prevents HTML/URI-list parsing from overriding multi-line text.
+  if (plain && !isPlainSingleUrl && !isPlainDataImage) {
+    // Check for spreadsheet data within plain text first
+    if (plain.includes('\t') && plain.includes('\n')) {
+      const sheetData = parseTsvToFortuneSheet(plain);
+      if (sheetData && sheetData[0].celldata.length > 0) {
+        return { spreadsheet: sheetData, title: '스프레드시트' };
+      }
+    }
+    return { text: plain };
+  }
+
   // 1.5 Try to detect spreadsheet data from HTML or TSV
   if (html && (html.includes('<table') || html.includes('luckysheet') || html.includes('fortune'))) {
     const sheetData = parseHtmlTableToFortuneSheet(html);
@@ -213,8 +230,8 @@ const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: strin
     }
   }
 
-  // 2. Try to get image/link from HTML
-  if (html) {
+  // 2. Try to get image/link from HTML ONLY if plain text is empty or a single URL
+  if (html && (!plain || isPlainSingleUrl || isPlainDataImage)) {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
@@ -226,7 +243,7 @@ const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: strin
         const url = cleanImageUrl(link.href);
         const title = link.title || link.innerText?.trim() || (img ? (img.alt || img.title) : undefined);
         if (url && (url.startsWith('http') || url.startsWith('data:image/'))) {
-          return { url, title: title?.trim() || undefined };
+          return { url, title: title?.trim() || undefined, text: plain };
         }
       }
 
@@ -234,7 +251,7 @@ const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: strin
         const url = cleanImageUrl(img.src);
         const title = img.alt || img.title || undefined;
         if (url && (url.startsWith('http') || url.startsWith('data:image/'))) {
-          return { url, title: title?.trim() || undefined };
+          return { url, title: title?.trim() || undefined, text: plain };
         }
       }
     } catch (err) { }
@@ -246,13 +263,21 @@ const extractContentFromEvent = (dt: DataTransfer): { url?: string; text?: strin
     if (lines.length > 0) {
       const url = cleanImageUrl(lines[0]);
       if (url.startsWith('http') || url.startsWith('data:image/')) {
-        return { url };
+        return { url, text: plain };
       }
     }
   }
 
-  // 4. Try text/plain
+  // 4. Handle plain text if it's a single URL or data image (which was not prioritized earlier)
   if (plain) {
+    // If it's a single URL or data image, return it as a URL
+    if (isPlainSingleUrl || isPlainDataImage) {
+      const cleaned = cleanImageUrl(plain);
+      return { url: cleaned };
+    }
+
+    // If it's plain text that wasn't caught by the early prioritization (e.g., single line, not a URL)
+    // or if it contains multiple lines but no URL, treat it as text.
     const lines = plain.split('\n').map(l => l.trim()).filter(Boolean);
     if (lines.length >= 2) {
       const urlIndex = lines.findIndex(l => l.startsWith('http') || l.startsWith('data:image/'));

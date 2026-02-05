@@ -50,6 +50,14 @@ const isImageUrl = (url: string) => {
 const extractUrlFromEvent = (dt: DataTransfer): { url: string; title?: string } | null => {
   if (!dt) return null;
 
+  const plain = dt.getData('text/plain')?.trim();
+
+  // If we have plain text and it's NOT a single URL, return null to allow default text paste.
+  // This prevents pulling a URL from HTML when the user intended to paste text containing links.
+  if (plain && !/^https?:\/\/[^\s]+$/.test(plain) && !plain.startsWith('data:image/')) {
+    return null;
+  }
+
   // 1. Try to get image/link from HTML
   const html = dt.getData('text/html');
   if (html) {
@@ -83,10 +91,9 @@ const extractUrlFromEvent = (dt: DataTransfer): { url: string; title?: string } 
     }
   }
 
-  // 3. Try text/plain
-  const plain = dt.getData('text/plain');
+  // 3. Try text/plain (Fallback if plain is a single URL)
   if (plain && (plain.startsWith('http') || plain.startsWith('data:image/'))) {
-    const cleaned = cleanImageUrl(plain.trim());
+    const cleaned = cleanImageUrl(plain);
     return { url: cleaned };
   }
 
