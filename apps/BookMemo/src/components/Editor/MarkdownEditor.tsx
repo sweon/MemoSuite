@@ -216,7 +216,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const cmRef = useRef<any>(null); // CodeMirror instance
   const { t, language } = useLanguage();
-  const [isKeyboardDisabled, setIsKeyboardDisabled] = useState(false);
+  const [isKeyboardDisabled, setIsKeyboardDisabled] = useState(() =>
+    localStorage.getItem('memosuite_hide_keyboard') === 'true'
+  );
   const editingBlockRef = useRef<{ start: number; end: number } | null>(null);
 
   const handleDrawingRef = useRef<(startLine?: number, endLine?: number) => void>(() => { });
@@ -573,6 +575,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         action: () => {
           setIsKeyboardDisabled(prev => {
             const next = !prev;
+            localStorage.setItem('memosuite_hide_keyboard', String(next));
             if (cmRef.current) {
               const inputField = cmRef.current.getInputField();
               if (inputField) {
@@ -743,6 +746,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           options={options}
           getCodemirrorInstance={(cm) => {
             cmRef.current = cm;
+            if (isKeyboardDisabled) {
+              const inputField = cm.getInputField();
+              if (inputField) {
+                inputField.inputMode = 'none';
+              }
+            }
             if (updateWidgetsRef.current) setTimeout(() => updateWidgetsRef.current(cm), 100);
           }}
         />
