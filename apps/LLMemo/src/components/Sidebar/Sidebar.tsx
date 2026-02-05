@@ -276,6 +276,17 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
+  // Handle folder switching: if current log doesn't belong to folder, go back to root
+  useEffect(() => {
+    if (id && currentFolderId !== null) {
+      db.logs.get(Number(id)).then(log => {
+        if (log && log.folderId !== currentFolderId) {
+          navigate('/', { replace: true });
+        }
+      });
+    }
+  }, [currentFolderId, id, navigate]);
+
   // Decide whether to replace history or push.
   // We only replace if we are already in a sub-page (log detail or settings).
   // If we are at root (/), we MUST push so that back button can return to root.

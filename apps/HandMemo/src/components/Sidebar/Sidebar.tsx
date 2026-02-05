@@ -399,6 +399,17 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
 
   const { currentFolderId, currentFolder, setShowFolderList } = useFolder();
 
+  // Handle folder switching: if current memo doesn't belong to folder, go back to root
+  useEffect(() => {
+    if (id && currentFolderId !== null) {
+      db.memos.get(Number(id)).then(memo => {
+        if (memo && memo.folderId !== currentFolderId) {
+          navigate('/', { replace: true });
+        }
+      });
+    }
+  }, [currentFolderId, id, navigate]);
+
   const lastCommentMap = React.useMemo(() => {
     const map: Record<number, number> = {};
     if (!allComments) return map;

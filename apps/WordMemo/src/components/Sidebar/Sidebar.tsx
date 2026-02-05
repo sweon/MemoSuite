@@ -338,6 +338,17 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
+  // Handle folder switching: if current word doesn't belong to folder, go back to root
+  useEffect(() => {
+    if (id && currentFolderId !== null) {
+      db.words.get(Number(id)).then(word => {
+        if (word && word.folderId !== currentFolderId) {
+          navigate('/', { replace: true });
+        }
+      });
+    }
+  }, [currentFolderId, id, navigate]);
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 

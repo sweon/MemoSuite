@@ -5,7 +5,7 @@ import { Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiFolder } from 'react-icons/fi';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
@@ -272,6 +272,18 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const { currentFolderId, currentFolder, setShowFolderList } = useFolder();
   const navigate = useNavigate();
   const location = useLocation();
+  const { bookId } = useParams<{ bookId: string }>();
+
+  // Handle folder switching: if current book doesn't belong to folder, go back to root
+  useEffect(() => {
+    if (bookId && currentFolderId !== null) {
+      db.books.get(Number(bookId)).then(book => {
+        if (book && book.folderId !== currentFolderId) {
+          navigate('/', { replace: true });
+        }
+      });
+    }
+  }, [currentFolderId, bookId, navigate]);
 
   const onDragEnd = async (result: DropResult) => {
     const { draggableId, destination } = result;
