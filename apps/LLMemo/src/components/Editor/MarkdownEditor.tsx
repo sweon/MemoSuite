@@ -200,9 +200,14 @@ const EditorWrapper = styled.div`
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
+  initialScrollPercentage?: number;
 }
 
-export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange }) => {
+export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
+  value,
+  onChange,
+  initialScrollPercentage
+}) => {
   const [isDrawingOpen, setIsDrawingOpen] = useState(false);
   const [initialDrawingData, setInitialDrawingData] = useState<string | undefined>(undefined);
   const [isSpreadsheetOpen, setIsSpreadsheetOpen] = useState(false);
@@ -601,14 +606,26 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
       },
       "guide"
     ] as any,
-    autofocus: false,
+    autofocus: initialScrollPercentage !== undefined,
     status: false,
     codeMirrorOptions: {
       dragDrop: false,
       inputStyle: 'contenteditable',
       spellcheck: false,
     }
-  }), [t, language]);
+  }), [t, language, initialScrollPercentage]);
+
+  useEffect(() => {
+    if (cmRef.current && initialScrollPercentage !== undefined) {
+      const cm = cmRef.current;
+      setTimeout(() => {
+        const lineCount = cm.lineCount();
+        const targetLine = Math.floor(lineCount * initialScrollPercentage);
+        cm.setCursor({ line: targetLine, ch: 0 });
+        cm.focus();
+      }, 100);
+    }
+  }, [initialScrollPercentage]);
 
   useEffect(() => {
     updateWidgetsRef.current = (cm: any) => {

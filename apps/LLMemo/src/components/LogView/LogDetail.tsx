@@ -218,6 +218,17 @@ export const LogDetail: React.FC = () => {
     const isNew = id === undefined;
 
     const [isEditing, setIsEditing] = useState(isNew);
+    const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const handleStartEdit = () => {
+        if (containerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+            const ratio = scrollTop / (scrollHeight - clientHeight || 1);
+            setPrevScrollRatio(ratio);
+        }
+        setIsEditing(true);
+    };
 
     // Track Sidebar interactions via t parameter to ensure stable modal opening
     const tParam = searchParams.get('t');
@@ -702,7 +713,7 @@ export const LogDetail: React.FC = () => {
     }
 
     return (
-        <Container>
+        <Container ref={containerRef}>
             <Header>
                 {isEditing ? (
                     <TitleInput
@@ -795,7 +806,7 @@ export const LogDetail: React.FC = () => {
                 ) : (
                     <>
                         {!isReadOnly && (
-                            <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
+                            <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
                                 <FiEdit2 size={14} /> {t.log_detail.edit}
                             </ActionButton>
                         )}
@@ -838,7 +849,11 @@ export const LogDetail: React.FC = () => {
 
             {isEditing ? (
                 <ContentPadding>
-                    <MarkdownEditor value={content} onChange={setContent} />
+                    <MarkdownEditor
+                        value={content}
+                        onChange={setContent}
+                        initialScrollPercentage={prevScrollRatio}
+                    />
                 </ContentPadding>
             ) : (
                 <ContentPadding>

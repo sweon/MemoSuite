@@ -327,7 +327,15 @@ export const MemoDetail: React.FC = () => {
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
+    const containerRef = useRef<HTMLDivElement>(null);
+
     const startEditing = () => {
+        if (containerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+            const ratio = scrollTop / (scrollHeight - clientHeight || 1);
+            setPrevScrollRatio(ratio);
+        }
         setIsEditingInternal(true);
         window.history.pushState({ editing: true, isGuard: true }, '');
     };
@@ -851,7 +859,7 @@ export const MemoDetail: React.FC = () => {
     }
 
     return (
-        <Container className="memo-detail-container" onClick={(e) => e.stopPropagation()}>
+        <Container className="memo-detail-container" onClick={(e) => e.stopPropagation()} ref={containerRef}>
             <Header>
                 {isEditing ? (
                     <TitleInput
@@ -1014,7 +1022,11 @@ export const MemoDetail: React.FC = () => {
 
             {isEditing ? (
                 <ContentPadding>
-                    <MarkdownEditor value={content} onChange={setContent} />
+                    <MarkdownEditor
+                        value={content}
+                        onChange={setContent}
+                        initialScrollPercentage={prevScrollRatio}
+                    />
                 </ContentPadding>
             ) : (
                 <>

@@ -301,6 +301,17 @@ export const MemoDetail: React.FC = () => {
     }, [tParam, searchParams, isNew]);
 
     const [isEditing, setIsEditing] = useState(isNew);
+    const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const handleStartEdit = () => {
+        if (containerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+            const ratio = scrollTop / (scrollHeight - clientHeight || 1);
+            setPrevScrollRatio(ratio);
+        }
+        setIsEditing(true);
+    };
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [tags, setTags] = useState(''); // Comma separated for editing
@@ -946,7 +957,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
     }
 
     return (
-        <Container translate="no">
+        <Container translate="no" ref={containerRef}>
             <Header>
                 {isEditing && (
                     <TitleInput
@@ -1071,7 +1082,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         {/* Group 2: Share, Delete, Print ... Star */}
                         <ButtonGroup $flex={1}>
                             {!isReadOnly && (
-                                <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
+                                <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
                                     <FiEdit2 size={13} /> {t.word_detail.edit || 'Edit'}
                                 </ActionButton>
                             )}
@@ -1105,7 +1116,11 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
             {
                 isEditing ? (
                     <ContentPadding>
-                        <MarkdownEditor value={content} onChange={setContent} />
+                        <MarkdownEditor
+                            value={content}
+                            onChange={setContent}
+                            initialScrollPercentage={prevScrollRatio}
+                        />
                     </ContentPadding>
                 ) : (
                     <ContentPadding>

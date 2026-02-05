@@ -293,8 +293,15 @@ export const MemoDetail: React.FC = () => {
 
 
     const [isEditingInternal, setIsEditingInternal] = useState(isNew);
+    const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const startEditing = () => {
+        if (containerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+            const ratio = scrollTop / (scrollHeight - clientHeight || 1);
+            setPrevScrollRatio(ratio);
+        }
         setIsEditingInternal(true);
         window.history.pushState({ editing: true, isGuard: true }, '');
     };
@@ -885,7 +892,7 @@ export const MemoDetail: React.FC = () => {
     }
 
     return (
-        <Container>
+        <Container ref={containerRef}>
             <Header>
                 {book && (
                     <div
@@ -1071,7 +1078,11 @@ export const MemoDetail: React.FC = () => {
 
             {isEditing ? (
                 <ContentPadding>
-                    <MarkdownEditor value={content} onChange={setContent} />
+                    <MarkdownEditor
+                        value={content}
+                        onChange={setContent}
+                        initialScrollPercentage={prevScrollRatio}
+                    />
                 </ContentPadding>
             ) : (
                 <>
