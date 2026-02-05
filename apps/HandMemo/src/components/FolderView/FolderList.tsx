@@ -186,7 +186,7 @@ const FolderGrid = styled.div<{ $viewMode: ViewMode }>`
   grid-template-columns: ${({ $viewMode }) =>
         $viewMode === 'grid'
             ? 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))'
-            : '1fr'};
+            : 'minmax(0, 1fr)'};
   gap: ${({ theme }) => theme.spacing.md};
   width: 100%;
 `;
@@ -809,7 +809,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                                     <div
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
-                                        style={{ display: 'flex', flexDirection: 'column' }} // Maintain layout structure
+                                        style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }} // Maintain layout structure
                                     >
                                         <FolderCard
                                             $isActive={currentFolderId === folder.id}
