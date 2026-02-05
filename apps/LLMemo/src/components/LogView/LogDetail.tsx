@@ -9,13 +9,14 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter, FiFolder, FiArrowRightCircle } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter, FiFolder, FiArrowRightCircle, FiArrowUp } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
 import { useFolder } from '../../contexts/FolderContext';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
+import { Toast } from '../UI/Toast';
 
 import { llmemoSyncAdapter } from '../../utils/backupAdapter';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
@@ -30,6 +31,38 @@ const Container = styled.div`
   padding: 0;
   width: 100%;
   background-color: ${({ theme }) => theme.colors.background};
+`;
+
+const GoToTopButton = styled.button<{ $show: boolean }>`
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  background: ${({ theme }) => theme.colors.primary};
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  opacity: ${({ $show }) => ($show ? 1 : 0)};
+  transform: translateY(${({ $show }) => ($show ? '0' : '20px')});
+  pointer-events: ${({ $show }) => ($show ? 'auto' : 'none')};
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  @media (max-width: 768px) {
+    bottom: 24px;
+    right: 16px;
+  }
 `;
 
 const Header = styled.div`
@@ -218,6 +251,7 @@ export const LogDetail: React.FC = () => {
     const isNew = id === undefined;
 
     const [isEditing, setIsEditing] = useState(isNew);
+    const [showGoToTop, setShowGoToTop] = useState(false);
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -244,6 +278,22 @@ export const LogDetail: React.FC = () => {
             localStorage.setItem('llmemo_last_log_id', id);
         }
     }, [id]);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            setShowGoToTop(container.scrollTop > 300);
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const handleGoToTop = () => {
+        containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     useEffect(() => {
         if (tParam && tParam !== prevTParam.current) {
@@ -285,6 +335,7 @@ export const LogDetail: React.FC = () => {
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
     const { currentFolder, currentFolderId } = useFolder();
     const isReadOnly = currentFolder?.isReadOnly || false;
+    const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
@@ -1005,6 +1056,17 @@ export const LogDetail: React.FC = () => {
                     onSuccess={() => { }}
                 />
             )}
+            {folderMoveToast && (
+                <Toast
+                    message={folderMoveToast}
+                    onClose={() => setFolderMoveToast(null)}
+                    duration={3000}
+                />
+            )}
+
+            <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
+                <FiArrowUp size={24} />
+            </GoToTopButton>
         </Container>
     );
 };

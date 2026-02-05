@@ -10,13 +10,49 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiPrinter, FiFolder, FiPlusCircle, FiArrowRightCircle } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiPrinter, FiFolder, FiPlusCircle, FiArrowRightCircle, FiArrowUp } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
 import { handMemoSyncAdapter } from '../../utils/backupAdapter';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
+
+const GoToTopButton = styled.button<{ $show: boolean }>`
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  background: ${({ theme }) => theme.colors.primary};
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  opacity: ${({ $show }) => ($show ? 1 : 0)};
+  transform: translateY(${({ $show }) => ($show ? '0' : '20px')});
+  pointer-events: ${({ $show }) => ($show ? 'auto' : 'none')};
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  @media (max-width: 768px) {
+    bottom: 24px;
+    right: 16px;
+  }
+
+  @media print {
+    display: none !important;
+  }
+`;
 
 const Container = styled.div`
   display: flex;
@@ -297,6 +333,13 @@ export const MemoDetail: React.FC = () => {
     const [showExitToast, setShowExitToast] = useState(false);
     const lastBackPress = useRef(0);
     const isClosingRef = useRef(false);
+    const [isEditingInternal, setIsEditingInternal] = useState(() => {
+        const isDrawing = searchParams.get('drawing') === 'true';
+        const isSheet = searchParams.get('spreadsheet') === 'true';
+        return isNew && !isDrawing && !isSheet;
+    });
+    const [showGoToTop, setShowGoToTop] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
     const currentAutosaveIdRef = useRef<number | undefined>(undefined);
 
     useEffect(() => {
@@ -305,13 +348,6 @@ export const MemoDetail: React.FC = () => {
         setCommentDraft(null);
         setIsEditingInternal(!id);
     }, [id]);
-
-    // Internal editing state
-    const [isEditingInternal, setIsEditingInternal] = useState(() => {
-        const isDrawing = searchParams.get('drawing') === 'true';
-        const isSheet = searchParams.get('spreadsheet') === 'true';
-        return isNew && !isDrawing && !isSheet;
-    });
 
     // Folder context for read-only mode
     const { currentFolder, currentFolderId } = useFolder();
@@ -328,7 +364,6 @@ export const MemoDetail: React.FC = () => {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
-    const containerRef = useRef<HTMLDivElement>(null);
 
     const startEditing = () => {
         if (containerRef.current) {
@@ -450,6 +485,22 @@ export const MemoDetail: React.FC = () => {
             localStorage.setItem('handmemo_last_memo_id', id);
         }
     }, [id]);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            setShowGoToTop(container.scrollTop > 300);
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const handleGoToTop = () => {
+        containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
@@ -859,7 +910,7 @@ export const MemoDetail: React.FC = () => {
     }
 
     return (
-        <Container className="memo-detail-container" onClick={(e) => e.stopPropagation()} ref={containerRef}>
+        <Container ref={containerRef}>
             <Header>
                 {isEditing ? (
                     <TitleInput
@@ -927,16 +978,16 @@ export const MemoDetail: React.FC = () => {
                                     {t}
                                 </span>
                             ))}
-                            <MetaActions>
-
-                                <MetaActionBtn onClick={() => window.print()} title={language === 'ko' ? '인쇄' : 'Print'}>
-                                    <FiPrinter size={16} /> {language === 'ko' ? '인쇄' : 'Print'}
-                                </MetaActionBtn>
-                            </MetaActions>
                         </>
                     )}
                 </MetaRow>
-
+                {!isEditing && (
+                    <MetaActions>
+                        <MetaActionBtn onClick={() => window.print()} title={language === 'ko' ? '인쇄' : 'Print'}>
+                            <FiPrinter size={16} /> {language === 'ko' ? '인쇄' : 'Print'}
+                        </MetaActionBtn>
+                    </MetaActions>
+                )}
             </Header>
             <ActionBar>
                 {isEditing ? (
@@ -1111,6 +1162,10 @@ export const MemoDetail: React.FC = () => {
                     onClose={() => setShowExitToast(false)}
                 />
             )}
+
+            <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
+                <FiArrowUp size={24} />
+            </GoToTopButton>
 
             {isFabricModalOpen && (
                 <FabricCanvasModal

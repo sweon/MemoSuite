@@ -12,7 +12,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiPlusCircle, FiArrowRightCircle } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiPlusCircle, FiArrowRightCircle, FiArrowUp } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
@@ -24,6 +24,38 @@ import { DeleteChoiceModal } from './DeleteChoiceModal';
 import { StarButton } from '../Sidebar/itemStyles';
 
 import { Toast } from '../UI/Toast';
+
+const GoToTopButton = styled.button<{ $show: boolean }>`
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  background: ${({ theme }) => theme.colors.primary};
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  transition: all 0.3s ease;
+  opacity: ${({ $show }) => ($show ? 1 : 0)};
+  transform: translateY(${({ $show }) => ($show ? '0' : '20px')});
+  pointer-events: ${({ $show }) => ($show ? 'auto' : 'none')};
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  @media (max-width: 768px) {
+    bottom: 24px;
+    right: 16px;
+  }
+`;
 
 const Container = styled.div`
   display: flex;
@@ -275,6 +307,28 @@ export const MemoDetail: React.FC = () => {
         }
     }, [id]);
 
+    const [isEditing, setIsEditing] = useState(isNew);
+    const [showGoToTop, setShowGoToTop] = useState(false);
+    const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            setShowGoToTop(container.scrollTop > 300);
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const handleGoToTop = () => {
+        containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     useEffect(() => {
         if (tParam && tParam !== prevTParam.current) {
             prevTParam.current = tParam;
@@ -299,10 +353,6 @@ export const MemoDetail: React.FC = () => {
             }
         }
     }, [tParam, searchParams, isNew]);
-
-    const [isEditing, setIsEditing] = useState(isNew);
-    const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
-    const containerRef = useRef<HTMLDivElement>(null);
 
     const handleStartEdit = () => {
         if (containerRef.current) {
@@ -957,7 +1007,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
     }
 
     return (
-        <Container translate="no" ref={containerRef}>
+        <Container ref={containerRef}>
             <Header>
                 {isEditing && (
                     <TitleInput
@@ -1268,14 +1318,24 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
                 )
             }
-            {
-                showBulkAdd && (
-                    <BulkAddModal
-                        onClose={() => setShowBulkAdd(false)}
-                        onConfirm={handleBulkConfirm}
-                        isInThread={!!log?.threadId}
-                    />
-                )
+            {folderMoveToast && (
+                <Toast
+                    message={folderMoveToast}
+                    onClose={() => setFolderMoveToast(null)}
+                    duration={3000}
+                />
+            )}
+
+            <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
+                <FiArrowUp size={24} />
+            </GoToTopButton>
+            {showBulkAdd && (
+                <BulkAddModal
+                    onClose={() => setShowBulkAdd(false)}
+                    onConfirm={handleBulkConfirm}
+                    isInThread={!!log?.threadId}
+                />
+            )
             }
             {
                 showShareModal && log?.id && (
