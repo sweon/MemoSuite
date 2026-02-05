@@ -114,13 +114,13 @@ const EditorWrapper = styled.div`
       background: ${({ theme }) => theme.colors.surface};
       border-color: ${({ theme }) => theme.colors.border};
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 42px;
 
-      /* When sticky (EasyMDE adds .editor-toolbar-fixed) */
-      &.editor-toolbar-fixed {
-        background: ${({ theme }) => theme.colors.surface};
-        border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      @media (max-width: 480px) {
+        top: 76px;
       }
+
       i {
         color: ${({ theme }) => theme.colors.text};
       }
