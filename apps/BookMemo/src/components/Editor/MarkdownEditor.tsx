@@ -28,15 +28,16 @@ const EditorWrapper = styled.div`
     overflow: visible;
 
     .editor-toolbar {
-      position: sticky;
-      top: 50px;
       z-index: 50;
       background: ${({ theme }) => theme.colors.surface};
       border-color: ${({ theme }) => theme.colors.border};
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 
-      @media (max-width: 480px) {
-        top: 92px;
+      /* When sticky (EasyMDE adds .editor-toolbar-fixed) */
+      &.editor-toolbar-fixed {
+        background: ${({ theme }) => theme.colors.surface};
+        border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       }
       i {
         color: ${({ theme }) => theme.colors.text};
@@ -212,6 +213,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [initialDrawingData, setInitialDrawingData] = useState<string | undefined>(undefined);
   const [isSpreadsheetOpen, setIsSpreadsheetOpen] = useState(false);
   const [initialSpreadsheetData, setInitialSpreadsheetData] = useState<any>(undefined);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const cmRef = useRef<any>(null); // CodeMirror instance
   const { t, language } = useLanguage();
   const editingBlockRef = useRef<{ start: number; end: number } | null>(null);
@@ -221,6 +223,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const updateWidgetsRef = useRef<(cm: any) => void>(() => { });
   const lastCursorRef = useRef<any>(null);
   const toggleChecklistRef = useRef<() => void>(() => { });
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const findBlock = (type: 'fabric' | 'spreadsheet') => {
     if (!cmRef.current) return { startLine: -1, endLine: -1 };
@@ -607,6 +615,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       "guide"
     ] as any,
     autofocus: initialScrollPercentage !== undefined,
+    toolbarSticky: true,
+    toolbarStickyOffset: isMobile ? 80 : 48,
     status: false,
     codeMirrorOptions: {
       dragDrop: false,
