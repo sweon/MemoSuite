@@ -216,6 +216,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const cmRef = useRef<any>(null); // CodeMirror instance
   const { t, language } = useLanguage();
+  const [isKeyboardDisabled, setIsKeyboardDisabled] = useState(false);
   const editingBlockRef = useRef<{ start: number; end: number } | null>(null);
 
   const handleDrawingRef = useRef<(startLine?: number, endLine?: number) => void>(() => { });
@@ -569,6 +570,25 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     toolbar: [
       "bold", "italic", "heading", "quote", "unordered-list", "ordered-list",
       {
+        name: "hide-keyboard",
+        action: () => {
+          setIsKeyboardDisabled(prev => {
+            const next = !prev;
+            if (cmRef.current) {
+              const inputField = cmRef.current.getInputField();
+              if (inputField) {
+                inputField.inputMode = next ? 'none' : 'text';
+                if (next) inputField.blur();
+                else cmRef.current.focus();
+              }
+            }
+            return next;
+          });
+        },
+        className: "fa fa-keyboard-o",
+        title: language === 'ko' ? "키보드 숨기기 토글" : "Toggle Hide Keyboard",
+      },
+      {
         name: "checklist",
         action: () => toggleChecklistRef.current(),
         className: "fa fa-check-square-o",
@@ -704,6 +724,16 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
   }, [value, language]);
 
+  useEffect(() => {
+    const editorContainer = document.querySelector('.EasyMDEContainer');
+    if (editorContainer) {
+      const btn = editorContainer.querySelector('.fa-keyboard-o')?.parentElement;
+      if (btn) {
+        if (isKeyboardDisabled) btn.classList.add('active');
+        else btn.classList.remove('active');
+      }
+    }
+  }, [isKeyboardDisabled]);
   return (
     <>
       <EditorWrapper>
