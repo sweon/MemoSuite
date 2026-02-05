@@ -9,7 +9,7 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter, FiFolder, FiArrowRightCircle, FiArrowUp } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
@@ -148,6 +148,39 @@ const MetaRow = styled.div`
   font-size: 0.9rem;
   flex-wrap: wrap;
   font-weight: 500;
+`;
+
+const HeaderRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
+const GoToBottomButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: ${({ theme }) => theme.radius.small};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  transition: ${({ theme }) => theme.effects.transition};
+  flex-shrink: 0;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.primary};
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `;
 
 const TagInput = styled.input`
@@ -298,6 +331,12 @@ export const LogDetail: React.FC = () => {
 
     const handleGoToTop = () => {
         containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleGoToBottom = () => {
+        if (containerRef.current) {
+            containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' });
+        }
     };
 
     useEffect(() => {
@@ -796,47 +835,52 @@ export const LogDetail: React.FC = () => {
                         <TitleDisplay>{log?.title}</TitleDisplay>
                     )}
 
-                    <MetaRow>
-                        {isEditing ? (
-                            <>
-                                <ModelSelect
-                                    value={modelId || ''}
-                                    onChange={e => setModelId(Number(e.target.value))}
-                                >
-                                    {models?.map(m => (
-                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                    ))}
-                                </ModelSelect>
-                                <TagInput
-                                    value={tags}
-                                    onChange={e => setTags(e.target.value)}
-                                    placeholder={t.log_detail.tags_placeholder}
-                                />
-                            </>
-                        ) : (
-                            <>
-                                <span>{currentModelName}</span>
-                                <span>•</span>
-                                <span>{log && format(log.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
-                                {log?.tags.map(t => (
-                                    <span
-                                        key={t}
-                                        onClick={() => setSearchQuery(`tag:${t}`)}
-                                        style={{
-                                            background: '#eee',
-                                            padding: '2px 6px',
-                                            borderRadius: '4px',
-                                            fontSize: '12px',
-                                            color: '#333',
-                                            cursor: 'pointer'
-                                        }}
+                    <HeaderRow>
+                        <MetaRow>
+                            {isEditing ? (
+                                <>
+                                    <ModelSelect
+                                        value={modelId || ''}
+                                        onChange={e => setModelId(Number(e.target.value))}
                                     >
-                                        {t}
-                                    </span>
-                                ))}
-                            </>
-                        )}
-                    </MetaRow>
+                                        {models?.map(m => (
+                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                        ))}
+                                    </ModelSelect>
+                                    <TagInput
+                                        value={tags}
+                                        onChange={e => setTags(e.target.value)}
+                                        placeholder={t.log_detail.tags_placeholder}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <span>{currentModelName}</span>
+                                    <span>•</span>
+                                    <span>{log && format(log.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
+                                    {log?.tags.map(t => (
+                                        <span
+                                            key={t}
+                                            onClick={() => setSearchQuery(`tag:${t}`)}
+                                            style={{
+                                                background: '#eee',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                                fontSize: '12px',
+                                                color: '#333',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {t}
+                                        </span>
+                                    ))}
+                                </>
+                            )}
+                        </MetaRow>
+                        <GoToBottomButton onClick={handleGoToBottom} title="Go to Bottom">
+                            <FiArrowDown size={16} />
+                        </GoToBottomButton>
+                    </HeaderRow>
 
                 </Header>
                 <ActionBar>

@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiPlusCircle, FiArrowRightCircle, FiArrowUp } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiPlusCircle, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -140,6 +140,39 @@ const MetaRow = styled.div`
   font-size: 0.9rem;
   flex-wrap: wrap;
   font-weight: 500;
+`;
+
+const HeaderRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
+const GoToBottomButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: ${({ theme }) => theme.radius.small};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  transition: ${({ theme }) => theme.effects.transition};
+  flex-shrink: 0;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.primary};
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `;
 
 const TagInput = styled.input`
@@ -479,6 +512,12 @@ export const MemoDetail: React.FC = () => {
 
     const handleGoToTop = () => {
         containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleGoToBottom = () => {
+        if (containerRef.current) {
+            containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' });
+        }
     };
     const { currentFolderId } = useFolder();
     const { setIsDirty, setAppIsEditing, movingMemoId, setMovingMemoId } = useOutletContext<{
@@ -986,84 +1025,89 @@ export const MemoDetail: React.FC = () => {
                     <TitleDisplay>{memo?.title}</TitleDisplay>
                 )}
 
-                <MetaRow>
-                    {isEditing ? (
-                        <>
-                            <MetaInput
-                                type="number"
-                                value={pageNumber}
-                                onChange={e => {
-                                    const val = e.target.value;
-                                    if (val === '') {
-                                        setPageNumber(val);
-                                        return;
-                                    }
-                                    const num = parseInt(val, 10);
-                                    if (book && book.totalPages && num > book.totalPages) {
-                                        return;
-                                    }
-                                    setPageNumber(val);
-                                }}
-                                placeholder="Page"
-                            />
-
-                            <InputWrapper>
-                                <DateInput
-                                    type={language === 'ko' ? 'text' : 'date'}
-                                    value={date}
-                                    onChange={e => setDate(e.target.value)}
-                                    placeholder={language === 'ko' ? 'YYYY. MM. DD.' : undefined}
-                                />
-                                <CalendarIconButton
-                                    onClick={() => {
-                                        const picker = document.getElementById('memo-date-picker');
-                                        if (picker) (picker as any).showPicker?.() || picker.click();
-                                    }}
-                                />
-                                <input
-                                    id="memo-date-picker"
-                                    type="date"
-                                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-                                    onChange={(e) => {
-                                        const d = new Date(e.target.value);
-                                        if (!isNaN(d.getTime())) {
-                                            setDate(language === 'ko' ? format(d, 'yyyy. MM. dd.') : formatDateForInput(d));
+                <HeaderRow>
+                    <MetaRow>
+                        {isEditing ? (
+                            <>
+                                <MetaInput
+                                    type="number"
+                                    value={pageNumber}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (val === '') {
+                                            setPageNumber(val);
+                                            return;
                                         }
+                                        const num = parseInt(val, 10);
+                                        if (book && book.totalPages && num > book.totalPages) {
+                                            return;
+                                        }
+                                        setPageNumber(val);
                                     }}
+                                    placeholder="Page"
                                 />
-                            </InputWrapper>
 
-                            <TagInput
-                                value={tags}
-                                style={{ flex: 1 }}
-                                onChange={e => setTags(e.target.value)}
-                                placeholder={t.memo_detail.tags_placeholder}
-                            />
-                        </>
-                    ) : (
-                        <>
-                            {memo?.pageNumber && <span>p. {memo.pageNumber}</span>}
-                            <span>•</span>
-                            <span>{memo && format(memo.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
-                            {memo?.tags.map(t => (
-                                <span
-                                    key={t}
-                                    onClick={() => setSearchQuery(`tag:${t}`)}
-                                    style={{
-                                        background: '#eee',
-                                        padding: '2px 6px',
-                                        borderRadius: '4px',
-                                        fontSize: '12px',
-                                        color: '#333',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    {t}
-                                </span>
-                            ))}
-                        </>
-                    )}
-                </MetaRow>
+                                <InputWrapper>
+                                    <DateInput
+                                        type={language === 'ko' ? 'text' : 'date'}
+                                        value={date}
+                                        onChange={e => setDate(e.target.value)}
+                                        placeholder={language === 'ko' ? 'YYYY. MM. DD.' : undefined}
+                                    />
+                                    <CalendarIconButton
+                                        onClick={() => {
+                                            const picker = document.getElementById('memo-date-picker');
+                                            if (picker) (picker as any).showPicker?.() || picker.click();
+                                        }}
+                                    />
+                                    <input
+                                        id="memo-date-picker"
+                                        type="date"
+                                        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                                        onChange={(e) => {
+                                            const d = new Date(e.target.value);
+                                            if (!isNaN(d.getTime())) {
+                                                setDate(language === 'ko' ? format(d, 'yyyy. MM. dd.') : formatDateForInput(d));
+                                            }
+                                        }}
+                                    />
+                                </InputWrapper>
+
+                                <TagInput
+                                    value={tags}
+                                    style={{ flex: 1 }}
+                                    onChange={e => setTags(e.target.value)}
+                                    placeholder={t.memo_detail.tags_placeholder}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                {memo?.pageNumber && <span>p. {memo.pageNumber}</span>}
+                                <span>•</span>
+                                <span>{memo && format(memo.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
+                                {memo?.tags.map(t => (
+                                    <span
+                                        key={t}
+                                        onClick={() => setSearchQuery(`tag:${t}`)}
+                                        style={{
+                                            background: '#eee',
+                                            padding: '2px 6px',
+                                            borderRadius: '4px',
+                                            fontSize: '12px',
+                                            color: '#333',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {t}
+                                    </span>
+                                ))}
+                            </>
+                        )}
+                    </MetaRow>
+                    <GoToBottomButton onClick={handleGoToBottom} title="Go to Bottom">
+                        <FiArrowDown size={16} />
+                    </GoToBottomButton>
+                </HeaderRow>
 
                 {isEditing ? (
                     <QuoteInput

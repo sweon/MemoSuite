@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiPrinter, FiFolder, FiPlusCircle, FiArrowRightCircle, FiArrowUp } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiPrinter, FiFolder, FiPlusCircle, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -201,6 +201,39 @@ const MetaActionBtn = styled.button`
   &:hover {
     color: ${({ theme }) => theme.colors.primary};
     background: ${({ theme }) => theme.colors.background};
+  }
+`;
+
+const HeaderRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
+const GoToBottomButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: ${({ theme }) => theme.radius.small};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  transition: ${({ theme }) => theme.effects.transition};
+  flex-shrink: 0;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.primary};
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
@@ -511,6 +544,12 @@ export const MemoDetail: React.FC = () => {
 
     const handleGoToTop = () => {
         containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleGoToBottom = () => {
+        if (containerRef.current) {
+            containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' });
+        }
     };
 
     const hasDraftChanges = !!commentDraft;
@@ -947,65 +986,70 @@ export const MemoDetail: React.FC = () => {
                         <TitleDisplay>{memo?.title}</TitleDisplay>
                     )}
 
-                    <MetaRow>
-                        {isEditing ? (
-                            <>
+                    <HeaderRow>
+                        <MetaRow>
+                            {isEditing ? (
+                                <>
 
-                                <InputWrapper>
-                                    <DateInput
-                                        type={language === 'ko' ? 'text' : 'date'}
-                                        value={date}
-                                        onChange={e => setDate(e.target.value)}
-                                        placeholder={language === 'ko' ? 'YYYY. MM. DD.' : undefined}
-                                    />
-                                    <CalendarIconButton
-                                        onClick={() => {
-                                            const picker = document.getElementById('memo-date-picker');
-                                            if (picker) (picker as any).showPicker?.() || picker.click();
-                                        }}
-                                    />
-                                    <input
-                                        id="memo-date-picker"
-                                        type="date"
-                                        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-                                        onChange={(e) => {
-                                            const d = new Date(e.target.value);
-                                            if (!isNaN(d.getTime())) {
-                                                setDate(language === 'ko' ? format(d, 'yyyy. MM. dd.') : formatDateForInput(d));
-                                            }
-                                        }}
-                                    />
-                                </InputWrapper>
+                                    <InputWrapper>
+                                        <DateInput
+                                            type={language === 'ko' ? 'text' : 'date'}
+                                            value={date}
+                                            onChange={e => setDate(e.target.value)}
+                                            placeholder={language === 'ko' ? 'YYYY. MM. DD.' : undefined}
+                                        />
+                                        <CalendarIconButton
+                                            onClick={() => {
+                                                const picker = document.getElementById('memo-date-picker');
+                                                if (picker) (picker as any).showPicker?.() || picker.click();
+                                            }}
+                                        />
+                                        <input
+                                            id="memo-date-picker"
+                                            type="date"
+                                            style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                                            onChange={(e) => {
+                                                const d = new Date(e.target.value);
+                                                if (!isNaN(d.getTime())) {
+                                                    setDate(language === 'ko' ? format(d, 'yyyy. MM. dd.') : formatDateForInput(d));
+                                                }
+                                            }}
+                                        />
+                                    </InputWrapper>
 
-                                <TagInput
-                                    value={tags}
-                                    style={{ flex: 1 }}
-                                    onChange={e => setTags(e.target.value)}
-                                    placeholder={t.memo_detail.tags_placeholder}
-                                />
-                            </>
-                        ) : (
-                            <>
-                                <span>{memo && format(memo.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
-                                {memo?.tags.map(t => (
-                                    <span
-                                        key={t}
-                                        onClick={() => setSearchQuery(`tag:${t}`)}
-                                        style={{
-                                            background: '#eee',
-                                            padding: '2px 6px',
-                                            borderRadius: '4px',
-                                            fontSize: '12px',
-                                            color: '#333',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        {t}
-                                    </span>
-                                ))}
-                            </>
-                        )}
-                    </MetaRow>
+                                    <TagInput
+                                        value={tags}
+                                        style={{ flex: 1 }}
+                                        onChange={e => setTags(e.target.value)}
+                                        placeholder={t.memo_detail.tags_placeholder}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <span>{memo && format(memo.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
+                                    {memo?.tags.map(t => (
+                                        <span
+                                            key={t}
+                                            onClick={() => setSearchQuery(`tag:${t}`)}
+                                            style={{
+                                                background: '#eee',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                                fontSize: '12px',
+                                                color: '#333',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {t}
+                                        </span>
+                                    ))}
+                                </>
+                            )}
+                        </MetaRow>
+                        <GoToBottomButton onClick={handleGoToBottom} title="Go to Bottom">
+                            <FiArrowDown size={16} />
+                        </GoToBottomButton>
+                    </HeaderRow>
                     {!isEditing && (
                         <MetaActions>
                             <MetaActionBtn onClick={() => window.print()} title={language === 'ko' ? '인쇄' : 'Print'}>

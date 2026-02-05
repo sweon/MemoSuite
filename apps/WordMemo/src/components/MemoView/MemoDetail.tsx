@@ -12,7 +12,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiPlusCircle, FiArrowRightCircle, FiArrowUp } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiPlusCircle, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
@@ -282,6 +282,32 @@ const HeaderRow = styled.div`
   gap: ${({ theme }) => theme.spacing.md};
 `;
 
+const GoToBottomButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: ${({ theme }) => theme.radius.small};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  transition: ${({ theme }) => theme.effects.transition};
+  flex-shrink: 0;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.primary};
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
 const ContentWrapper = styled.div<{ $isBlurred?: boolean }>`
   position: relative;
   transition: filter 0.4s ease, opacity 0.4s ease;
@@ -332,6 +358,12 @@ export const MemoDetail: React.FC = () => {
 
     const handleGoToTop = () => {
         containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleGoToBottom = () => {
+        if (containerRef.current) {
+            containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' });
+        }
     };
 
     useEffect(() => {
@@ -1077,6 +1109,9 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 </>
                             )}
                         </MetaRow>
+                        <GoToBottomButton onClick={handleGoToBottom} title="Go to Bottom">
+                            <FiArrowDown size={16} />
+                        </GoToBottomButton>
                     </HeaderRow>
 
                 </Header>
