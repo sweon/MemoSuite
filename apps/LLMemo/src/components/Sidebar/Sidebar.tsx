@@ -114,7 +114,7 @@ const SearchInput = styled.input`
   border: 1px solid ${({ theme }) => theme.colors.border};
   background: ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.text};
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   transition: ${({ theme }) => theme.effects.transition};
   
   &:focus {
@@ -211,6 +211,36 @@ const IconButton = styled.button`
     opacity: 0.3;
     cursor: not-allowed;
     transform: none;
+  }
+`;
+
+const FolderChip = styled.div<{ $isReadOnly?: boolean }>`
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: ${({ theme, $isReadOnly }) => $isReadOnly ? '#f59e0b' : theme.colors.text};
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin-top: 4px;
+  padding: 6px 12px;
+  background: ${({ theme }) => theme.colors.background};
+  border-radius: 12px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  transition: all 0.2s ease;
+  width: 100%;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+    background: ${({ theme, $isReadOnly }) => $isReadOnly ? '#fff7ed' : `${theme.colors.primary}11`};
+    color: ${({ theme, $isReadOnly }) => $isReadOnly ? '#d97706' : theme.colors.primary};
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+
+  span {
+    line-height: 1.2;
+    padding: 2px 0;
   }
 `;
 
@@ -809,34 +839,23 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           </div>
 
           {currentFolder && (
-            <div
+            <FolderChip
+              $isReadOnly={currentFolder.isReadOnly}
               onClick={() => {
                 setShowFolderList(true);
                 navigate('/folders', { replace: true, state: { isGuard: true } });
                 onCloseMobile();
               }}
-              style={{
-                fontSize: '0.75rem',
-                color: currentFolder.isReadOnly ? '#f59e0b' : theme.colors.textSecondary,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                cursor: 'pointer',
-                marginTop: '4px',
-                padding: '4px 8px',
-                background: theme.colors.background,
-                borderRadius: theme.radius.small,
-                border: `1px solid ${theme.colors.border}`,
-              }}
+              title={language === 'ko' ? '폴더 변경' : 'Change Folder'}
             >
-              <FiFolder size={12} style={{ flexShrink: 0 }} />
+              <FiFolder size={13} style={{ flexShrink: 0 }} />
               <span>{(currentFolder.name === '기본 폴더' || currentFolder.name === 'Default Folder') ? (language === 'ko' ? '기본 폴더' : 'Default Folder') : currentFolder.name}</span>
               {currentFolder.isReadOnly && (
-                <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                <span style={{ fontSize: '0.65rem', opacity: 0.8, marginLeft: '2px' }}>
                   ({language === 'ko' ? '읽기 전용' : 'Read-only'})
                 </span>
               )}
-            </div>
+            </FolderChip>
           )}
 
           <SearchInputWrapper>
@@ -859,7 +878,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               style={{
                 flex: 1,
                 padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-                fontSize: window.innerWidth <= 768 ? '14px' : 'inherit',
+                fontSize: window.innerWidth <= 768 ? '13px' : '0.75rem',
                 borderRadius: '6px',
                 border: `1px solid ${theme.colors.border}`,
                 background: theme.colors.surface,
