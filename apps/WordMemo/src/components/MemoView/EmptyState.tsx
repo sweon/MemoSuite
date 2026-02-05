@@ -51,14 +51,32 @@ export const EmptyState: React.FC = () => {
   );
 
   React.useEffect(() => {
-    const lastId = localStorage.getItem('wordmemo_last_word_id');
-    if (lastId && folderWordCount && folderWordCount > 0) {
-      const id = parseInt(lastId, 10);
-      db.words.get(id).then(word => {
-        if (word && word.folderId === currentFolderId) {
-          navigate(`/word/${lastId}`, { replace: true });
+    if (folderWordCount && folderWordCount > 0) {
+      const lastId = localStorage.getItem('wordmemo_last_word_id');
+
+      const navigateToLatest = async () => {
+        const latestWord = await db.words
+          .where('folderId').equals(currentFolderId!)
+          .reverse()
+          .sortBy('updatedAt');
+
+        if (latestWord.length > 0) {
+          navigate(`/word/${latestWord[0].id}`, { replace: true });
         }
-      });
+      };
+
+      if (lastId) {
+        const id = parseInt(lastId, 10);
+        db.words.get(id).then(word => {
+          if (word && word.folderId === currentFolderId) {
+            navigate(`/word/${lastId}`, { replace: true });
+          } else {
+            navigateToLatest();
+          }
+        });
+      } else {
+        navigateToLatest();
+      }
     }
   }, [navigate, folderWordCount, currentFolderId]);
 

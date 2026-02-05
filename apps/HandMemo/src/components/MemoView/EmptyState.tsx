@@ -51,14 +51,32 @@ export const EmptyState: React.FC = () => {
   );
 
   React.useEffect(() => {
-    const lastId = localStorage.getItem('handmemo_last_memo_id');
-    if (lastId && folderMemoCount && folderMemoCount > 0) {
-      const id = parseInt(lastId, 10); // HandMemo uses string UUIDs usually, check db.ts
-      db.memos.get(id).then(memo => {
-        if (memo && memo.folderId === currentFolderId) {
-          navigate(`/memo/${lastId}`, { replace: true });
+    if (folderMemoCount && folderMemoCount > 0) {
+      const lastId = localStorage.getItem('handmemo_last_memo_id');
+
+      const navigateToLatest = async () => {
+        const latestMemo = await db.memos
+          .where('folderId').equals(currentFolderId!)
+          .reverse()
+          .sortBy('updatedAt');
+
+        if (latestMemo.length > 0) {
+          navigate(`/memo/${latestMemo[0].id}`, { replace: true });
         }
-      });
+      };
+
+      if (lastId) {
+        const id = parseInt(lastId, 10);
+        db.memos.get(id).then(memo => {
+          if (memo && memo.folderId === currentFolderId) {
+            navigate(`/memo/${lastId}`, { replace: true });
+          } else {
+            navigateToLatest();
+          }
+        });
+      } else {
+        navigateToLatest();
+      }
     }
   }, [navigate, folderMemoCount, currentFolderId]);
 

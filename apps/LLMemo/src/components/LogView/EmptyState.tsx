@@ -51,14 +51,32 @@ export const EmptyState: React.FC = () => {
   );
 
   React.useEffect(() => {
-    const lastId = localStorage.getItem('llmemo_last_log_id');
-    if (lastId && folderLogCount && folderLogCount > 0) {
-      const id = parseInt(lastId, 10);
-      db.logs.get(id).then(log => {
-        if (log && log.folderId === currentFolderId) {
-          navigate(`/log/${lastId}`, { replace: true });
+    if (folderLogCount && folderLogCount > 0) {
+      const lastId = localStorage.getItem('llmemo_last_log_id');
+
+      const navigateToLatest = async () => {
+        const latestLog = await db.logs
+          .where('folderId').equals(currentFolderId!)
+          .reverse()
+          .sortBy('updatedAt');
+
+        if (latestLog.length > 0) {
+          navigate(`/log/${latestLog[0].id}`, { replace: true });
         }
-      });
+      };
+
+      if (lastId) {
+        const id = parseInt(lastId, 10);
+        db.logs.get(id).then(log => {
+          if (log && log.folderId === currentFolderId) {
+            navigate(`/log/${lastId}`, { replace: true });
+          } else {
+            navigateToLatest();
+          }
+        });
+      } else {
+        navigateToLatest();
+      }
     }
   }, [navigate, folderLogCount, currentFolderId]);
 

@@ -51,20 +51,37 @@ export const EmptyState: React.FC = () => {
   );
 
   React.useEffect(() => {
-    const lastBookId = localStorage.getItem('bookmemo_last_book_id');
-    const lastMemoId = localStorage.getItem('bookmemo_last_memo_id');
+    if (folderBookCount && folderBookCount > 0) {
+      const lastBookId = localStorage.getItem('bookmemo_last_book_id');
+      const lastMemoId = localStorage.getItem('bookmemo_last_memo_id');
 
-    if (lastBookId && folderBookCount && folderBookCount > 0) {
-      const bid = parseInt(lastBookId, 10);
-      db.books.get(bid).then(book => {
-        if (book && book.folderId === currentFolderId) {
-          if (lastMemoId) {
-            navigate(`/book/${lastBookId}/memo/${lastMemoId}`, { replace: true });
-          } else {
-            navigate(`/book/${lastBookId}`, { replace: true });
-          }
+      const navigateToLatest = async () => {
+        const latestBook = await db.books
+          .where('folderId').equals(currentFolderId!)
+          .reverse()
+          .sortBy('updatedAt');
+
+        if (latestBook.length > 0) {
+          navigate(`/book/${latestBook[0].id}`, { replace: true });
         }
-      });
+      };
+
+      if (lastBookId) {
+        const bid = parseInt(lastBookId, 10);
+        db.books.get(bid).then(book => {
+          if (book && book.folderId === currentFolderId) {
+            if (lastMemoId) {
+              navigate(`/book/${lastBookId}/memo/${lastMemoId}`, { replace: true });
+            } else {
+              navigate(`/book/${lastBookId}`, { replace: true });
+            }
+          } else {
+            navigateToLatest();
+          }
+        });
+      } else {
+        navigateToLatest();
+      }
     }
   }, [navigate, folderBookCount, currentFolderId]);
 
