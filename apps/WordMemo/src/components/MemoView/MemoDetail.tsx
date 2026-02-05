@@ -12,7 +12,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiPlusCircle, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
@@ -895,51 +895,6 @@ export const MemoDetail: React.FC = () => {
         setIsDeleteModalOpen(false);
         navigate('/', { replace: true });
     };
-
-    const handleAddThread = async () => {
-        if (!word || !id) return;
-
-        const now = new Date();
-        let threadId = word.threadId;
-        let threadOrder = 0;
-
-        try {
-            if (!threadId) {
-                // Create new thread for current word
-                threadId = crypto.randomUUID();
-                await db.words.update(Number(id), {
-                    threadId,
-                    threadOrder: 0
-                });
-                threadOrder = 1;
-            } else {
-                // Find max order in this thread
-                const threadLogs = await db.words.where('threadId').equals(threadId).toArray();
-                const maxOrder = Math.max(...threadLogs.map(l => l.threadOrder || 0));
-                threadOrder = maxOrder + 1;
-            }
-
-            // Create new word in thread
-            const newLogId = await db.words.add({
-                folderId: word.folderId, // Inherit folder
-                title: '', // Empty title implies continuation
-                content: '',
-                tags: word.tags, // Inherit tags
-                sourceId: word.sourceId, // Inherit source
-                createdAt: now,
-                updatedAt: now,
-                threadId,
-                threadOrder,
-                isStarred: 1
-            });
-
-            navigate(`/word/${newLogId}?edit=true`, { replace: true });
-        } catch (error) {
-            console.error("Failed to add thread:", error);
-            await confirm({ message: "Failed to add thread. Please try again.", cancelText: null });
-        }
-    };
-
     const handleRandomWord = async () => {
         const savedLevel = localStorage.getItem('wordLevel');
         const level = savedLevel !== null ? Number(savedLevel) : 1;
@@ -1051,6 +1006,41 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
         }
     };
 
+    const handleExit = async () => {
+        if (!isCurrentlyDirty) {
+            if (isPlaceholder || isNew) {
+                navigate('/', { replace: true });
+            } else if (searchParams.get('edit')) {
+                navigate(`/word/${id}`, { replace: true });
+            }
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
+            setIsEditing(false);
+            return;
+        }
+
+        const options = {
+            message: language === 'ko' ? "저장되지 않은 변경사항이 있습니다. 저장하고 나갈까요?" : "You have unsaved changes. Save and exit?",
+            confirmText: language === 'ko' ? "저장 및 종료" : "Save and Exit",
+            cancelText: language === 'ko' ? "저장하지 않고 종료" : "Exit without Saving"
+        };
+
+        const result = await confirm(options);
+
+        if (result) {
+            await handleSave();
+        } else {
+            if (isPlaceholder || isNew) {
+                navigate('/', { replace: true });
+            } else if (searchParams.get('edit')) {
+                navigate(`/word/${id}`, { replace: true });
+            }
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
+            setIsEditing(false);
+        }
+    };
+
     if (isDeleting || (!isNew && !word)) {
         if (isDeleting) return null;
         return <ScrollContainer>{t.word_detail.loading}</ScrollContainer>;
@@ -1129,23 +1119,8 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                             >
                                 <FiSave size={14} /> {t.word_detail.save}
                             </ActionButton>
-                            <ActionButton $variant="cancel" onClick={() => {
-                                if (isPlaceholder) {
-                                    navigate('/', { replace: true });
-                                    return;
-                                }
-                                if (isNew) {
-                                    navigate('/', { replace: true });
-                                    return;
-                                }
-                                if (searchParams.get('edit')) {
-                                    navigate(`/word/${id}`, { replace: true });
-                                }
-                                currentAutosaveIdRef.current = undefined;
-                                restoredIdRef.current = null;
-                                setIsEditing(false);
-                            }}>
-                                <FiX size={14} /> {t.word_detail.cancel}
+                            <ActionButton $variant="cancel" onClick={handleExit}>
+                                <FiX size={14} /> {t.word_detail.exit}
                             </ActionButton>
                             <ActionButton onClick={handleRandomWord}>
                                 <FiList size={14} /> {t.word_detail.random_word}
@@ -1164,9 +1139,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 <ActionButton onClick={handleExample} $mobileOrder={8}>
                                     <FiCoffee size={14} /> {t.word_detail.example_button}
                                 </ActionButton>
-                                <ActionButton onClick={handleAddThread} $mobileOrder={2}>
-                                    <FiPlusCircle size={14} /> {t.word_detail.append}
-                                </ActionButton>
+
                                 <ActionButton
                                     $variant={movingWordId === Number(id) ? "primary" : undefined}
                                     onClick={() => {

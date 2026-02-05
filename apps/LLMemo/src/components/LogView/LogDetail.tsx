@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+import { SyncModal, useConfirm, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
@@ -295,7 +295,9 @@ export const LogDetail: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { setSearchQuery } = useSearch();
-    const { t, language } = useLanguage();
+    const { language, t } = useLanguage();
+    const { confirm } = useConfirm();
+
     const isNew = id === undefined;
 
     const [isEditing, setIsEditing] = useState(isNew);
@@ -770,50 +772,42 @@ export const LogDetail: React.FC = () => {
         navigate('/', { replace: true });
     };
 
-    const handleAddThread = async () => {
-        if (!log || !id) return;
+    const currentModelName = models?.find(m => m.id === modelId)?.name || t.log_detail.unknown_model;
 
-        const now = new Date();
-        let threadId = log.threadId;
-        let threadOrder = 0;
-
-        try {
-            if (!threadId) {
-                // Create new thread for current log
-                threadId = crypto.randomUUID();
-                await db.logs.update(Number(id), {
-                    threadId,
-                    threadOrder: 0
-                });
-                threadOrder = 1;
-            } else {
-                // Find max order in this thread
-                const threadLogs = await db.logs.where('threadId').equals(threadId).toArray();
-                const maxOrder = Math.max(...threadLogs.map(l => l.threadOrder || 0));
-                threadOrder = maxOrder + 1;
+    const handleExit = async () => {
+        if (!isCurrentlyDirty) {
+            if (isNew) {
+                navigate('/');
+            } else if (searchParams.get('edit')) {
+                navigate(`/log/${id}`, { replace: true });
             }
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
+            setIsEditing(false);
+            return;
+        }
 
-            // Create new log in thread
-            const newLogId = await db.logs.add({
-                folderId: log.folderId, // Inherit folder
-                title: '', // Empty title implies continuation
-                content: '',
-                tags: log.tags, // Inherit tags
-                modelId: log.modelId, // Inherit model
-                createdAt: now,
-                updatedAt: now,
-                threadId,
-                threadOrder
-            });
+        const options = {
+            message: language === 'ko' ? "저장되지 않은 변경사항이 있습니다. 저장하고 나갈까요?" : "You have unsaved changes. Save and exit?",
+            confirmText: language === 'ko' ? "저장 및 종료" : "Save and Exit",
+            cancelText: language === 'ko' ? "저장하지 않고 종료" : "Exit without Saving"
+        };
 
-            navigate(`/log/${newLogId}?edit=true`, { replace: true });
-        } catch (error) {
-            console.error("Failed to add thread:", error);
-            alert("Failed to add thread. Please try again.");
+        const result = await confirm(options);
+
+        if (result) {
+            await handleSave();
+        } else {
+            if (isNew) {
+                navigate('/');
+            } else if (searchParams.get('edit')) {
+                navigate(`/log/${id}`, { replace: true });
+            }
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
+            setIsEditing(false);
         }
     };
-
-    const currentModelName = models?.find(m => m.id === modelId)?.name || t.log_detail.unknown_model;
 
     if (isDeleting || (!isNew && !log)) {
         if (isDeleting) return null;
@@ -897,25 +891,9 @@ export const LogDetail: React.FC = () => {
                             >
                                 <FiSave size={14} /> {t.log_detail.save}
                             </ActionButton>
-                            <ActionButton onClick={() => {
-                                if (isNew) {
-                                    navigate('/');
-                                    return;
-                                }
-                                if (searchParams.get('edit')) {
-                                    navigate(`/log/${id}`, { replace: true });
-                                }
-                                currentAutosaveIdRef.current = undefined;
-                                restoredIdRef.current = null;
-                                setIsEditing(false);
-                            }}>
-                                <FiX size={14} /> {t.log_detail.cancel}
+                            <ActionButton $variant="cancel" onClick={handleExit}>
+                                <FiX size={14} /> {t.log_detail.exit}
                             </ActionButton>
-                            {!isNew && (
-                                <ActionButton onClick={handleAddThread}>
-                                    <FiGitMerge size={14} /> {t.log_detail.add_thread}
-                                </ActionButton>
-                            )}
                         </>
                     ) : (
                         <>
@@ -924,9 +902,6 @@ export const LogDetail: React.FC = () => {
                                     <FiEdit2 size={14} /> {t.log_detail.edit}
                                 </ActionButton>
                             )}
-                            <ActionButton onClick={handleAddThread} $mobileOrder={2}>
-                                <FiGitMerge size={14} /> {t.log_detail.add_thread}
-                            </ActionButton>
                             {!isReadOnly && (
                                 <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
                                     <FiTrash2 size={14} /> {t.log_detail.delete}

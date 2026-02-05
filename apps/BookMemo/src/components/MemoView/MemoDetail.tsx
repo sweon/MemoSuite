@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useLanguage } from '@memosuite/shared';
+import { SyncModal, useConfirm, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiPlusCircle, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -363,6 +363,7 @@ export const MemoDetail: React.FC = () => {
     const [searchParams] = useSearchParams();
     const { setSearchQuery } = useSearch();
     const { t, language } = useLanguage();
+    const { confirm } = useConfirm();
     const isNew = !id;
 
     // Guard Hook
@@ -928,50 +929,6 @@ export const MemoDetail: React.FC = () => {
         }
     };
 
-    const handleAddThread = async () => {
-        if (!memo || !id) return;
-
-        const now = new Date();
-        let threadId = memo.threadId;
-        let threadOrder = 0;
-
-        try {
-            if (!threadId) {
-                // Create new thread for current memo
-                threadId = crypto.randomUUID();
-                await db.memos.update(Number(id), {
-                    threadId,
-                    threadOrder: 0
-                });
-                threadOrder = 1;
-            } else {
-                // Find max order in this thread
-                const threadMemos = await db.memos.where('threadId').equals(threadId).toArray();
-                const maxOrder = Math.max(...threadMemos.map(l => l.threadOrder || 0));
-                threadOrder = maxOrder + 1;
-            }
-
-            // Create new memo in thread
-            const newMemoId = await db.memos.add({
-                folderId: memo.folderId, // Inherit folder
-                bookId: memo.bookId, // Inherit book
-                title: '', // Empty title implies continuation
-                content: '',
-                tags: memo.tags, // Inherit tags
-                pageNumber: memo.pageNumber, // Inherit page number
-                createdAt: now,
-                updatedAt: now,
-                threadId,
-                threadOrder,
-                type: 'normal'
-            });
-
-            navigate(`/book/${memo.bookId}/memo/${newMemoId}?edit=true`, { replace: true });
-        } catch (error) {
-            console.error("Failed to add thread:", error);
-        }
-    };
-
     const handleDelete = async () => {
         if (!id) return;
         setIsDeleteModalOpen(true);
@@ -990,6 +947,37 @@ export const MemoDetail: React.FC = () => {
         localStorage.removeItem('bookmemo_last_book_id'); // Clear book too if going to home
 
         navigate('/', { replace: true });
+    };
+
+    const handleExit = async () => {
+        if (!isCurrentlyDirty) {
+            if (isNew) {
+                navigate('/');
+            } else if (searchParams.get('edit')) {
+                navigate(`/memo/${id}`, { replace: true });
+            }
+            setIsEditing(false);
+            return;
+        }
+
+        const options = {
+            message: language === 'ko' ? "저장되지 않은 변경사항이 있습니다. 저장하고 나갈까요?" : "You have unsaved changes. Save and exit?",
+            confirmText: language === 'ko' ? "저장 및 종료" : "Save and Exit",
+            cancelText: language === 'ko' ? "저장하지 않고 종료" : "Exit without Saving"
+        };
+
+        const result = await confirm(options);
+
+        if (result) {
+            await handleSave();
+        } else {
+            if (isNew) {
+                navigate('/');
+            } else if (searchParams.get('edit')) {
+                navigate(`/memo/${id}`, { replace: true });
+            }
+            setIsEditing(false);
+        }
     };
 
     if (isDeleting || (!isNew && !memo)) {
@@ -1134,17 +1122,8 @@ export const MemoDetail: React.FC = () => {
                         >
                             <FiSave size={14} /> {t.memo_detail.save}
                         </ActionButton>
-                        <ActionButton onClick={() => {
-                            if (isNew) {
-                                navigate('/');
-                                return;
-                            }
-                            if (searchParams.get('edit')) {
-                                navigate(`/memo/${id}`, { replace: true });
-                            }
-                            setIsEditing(false);
-                        }}>
-                            <FiX size={14} /> {t.memo_detail.cancel}
+                        <ActionButton $variant="cancel" onClick={handleExit}>
+                            <FiX size={14} /> {t.memo_detail.exit}
                         </ActionButton>
                         {!isNew && (
                             <ActionButton $variant="danger" onClick={handleDelete}>
@@ -1157,10 +1136,8 @@ export const MemoDetail: React.FC = () => {
                         <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
                             <FiEdit2 size={14} /> {t.memo_detail.edit}
                         </ActionButton>
-                        <ActionButton onClick={handleAddThread} $mobileOrder={2}>
-                            <FiPlusCircle size={14} /> {t.memo_detail.append}
-                        </ActionButton>
-                        <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
+
+                        <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={2}>
                             <FiTrash2 size={14} /> {t.memo_detail.delete}
                         </ActionButton>
                         <ActionButton
