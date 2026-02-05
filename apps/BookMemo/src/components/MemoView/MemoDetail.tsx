@@ -285,7 +285,7 @@ const ActionBar = styled.div`
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 5;
 
   @media (max-width: 480px) {
     display: grid;

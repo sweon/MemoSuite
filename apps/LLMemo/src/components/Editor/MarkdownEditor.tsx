@@ -28,7 +28,7 @@ const EditorWrapper = styled.div`
     overflow: visible;
 
     .editor-toolbar {
-      z-index: 50;
+      z-index: 4;
       background: ${({ theme }) => theme.colors.surface};
       border-color: ${({ theme }) => theme.colors.border};
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
