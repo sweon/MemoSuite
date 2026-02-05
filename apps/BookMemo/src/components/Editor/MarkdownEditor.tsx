@@ -22,8 +22,12 @@ import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism'
 const EditorWrapper = styled.div`
   .EasyMDEContainer {
     .editor-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
       background: ${({ theme }) => theme.colors.surface};
       border-color: ${({ theme }) => theme.colors.border};
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       i {
         color: ${({ theme }) => theme.colors.text};
       }
