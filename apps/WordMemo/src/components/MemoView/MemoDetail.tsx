@@ -408,7 +408,7 @@ export const MemoDetail: React.FC = () => {
 
     const lastSavedState = useRef({ title, content, tags, sourceId, commentDraft });
 
-    const log = useLiveQuery(
+    const word = useLiveQuery(
         () => (id ? db.words.get(Number(id)) : undefined),
         [id]
     );
@@ -423,11 +423,11 @@ export const MemoDetail: React.FC = () => {
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
         ? (title || content || tags || hasDraftChanges)
-        : (!!log && (
-            title !== log.title ||
-            content !== log.content ||
-            tags !== log.tags.join(', ') ||
-            sourceId !== log.sourceId ||
+        : (!!word && (
+            title !== word.title ||
+            content !== word.content ||
+            tags !== word.tags.join(', ') ||
+            sourceId !== word.sourceId ||
             hasDraftChanges
         )));
 
@@ -451,13 +451,13 @@ export const MemoDetail: React.FC = () => {
 
         container.addEventListener('scroll', handleScroll);
         return () => container.removeEventListener('scroll', handleScroll);
-    }, [log]);
+    }, [word]);
 
-    const isPlaceholder = !isNew && id && !log?.title && !log?.content;
+    const isPlaceholder = !isNew && id && !word?.title && !word?.content;
 
     const handleToggleStar = async () => {
-        if (!id || !log) return;
-        await db.words.update(Number(id), { isStarred: log.isStarred ? 0 : 1 });
+        if (!id || !word) return;
+        await db.words.update(Number(id), { isStarred: word.isStarred ? 0 : 1 });
     };
 
     const [showBulkAdd, setShowBulkAdd] = useState(false);
@@ -466,9 +466,9 @@ export const MemoDetail: React.FC = () => {
     const handleBulkConfirm = async (items: { word: string; meaning: string }[], createAsThread: boolean) => {
         const now = new Date();
         const baseSourceId = sourceId || (sources?.[0]?.id);
-        const tagsToUse = log?.tags || [];
+        const tagsToUse = word?.tags || [];
 
-        let targetThreadId = log?.threadId;
+        let targetThreadId = word?.threadId;
         let nextOrder = 0;
 
         if (createAsThread) {
@@ -499,7 +499,7 @@ export const MemoDetail: React.FC = () => {
         });
 
         if (isPlaceholder) {
-            // Delete the placeholder log as it was just a container for the 'Add Thread' action
+            // Delete the placeholder word as it was just a container for the 'Add Thread' action
             await db.words.delete(Number(id));
             await db.comments.where('wordId').equals(Number(id)).delete();
         }
@@ -517,9 +517,9 @@ export const MemoDetail: React.FC = () => {
     const loadedIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (log && loadedIdRef.current !== id) {
+        if (word && loadedIdRef.current !== id) {
             const loadData = async () => {
-                const tagsStr = log.tags.join(', ');
+                const tagsStr = word.tags.join(', ');
 
                 // Check for autosave for initial display
                 const existing = await db.autosaves
@@ -528,10 +528,10 @@ export const MemoDetail: React.FC = () => {
                     .reverse()
                     .sortBy('createdAt');
 
-                let initialTitle = log.title;
-                let initialContent = log.content;
+                let initialTitle = word.title;
+                let initialContent = word.content;
                 let initialTagsStr = tagsStr;
-                let initialSourceId = log.sourceId;
+                let initialSourceId = word.sourceId;
                 let initialCommentDraft: CommentDraft | null = null;
 
                 if (existing.length > 0) {
@@ -566,11 +566,11 @@ export const MemoDetail: React.FC = () => {
             loadData();
         }
 
-        if (log) {
+        if (word) {
             const shouldEdit = searchParams.get('edit') === 'true';
             if (shouldEdit && !isEditing) setIsEditing(true);
 
-            // Restoration prompt for existing log
+            // Restoration prompt for existing word
             const checkExistingAutosave = async () => {
                 if (!isEditing && !shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
 
@@ -585,7 +585,7 @@ export const MemoDetail: React.FC = () => {
 
                 if (existing.length > 0) {
                     const draft = existing[0];
-                    const hasLogChanges = draft.content !== log.content || draft.title !== log.title;
+                    const hasLogChanges = draft.content !== word.content || draft.title !== word.title;
                     const hasCommentDraft = !!draft.commentDraft;
 
                     if (hasLogChanges || hasCommentDraft) {
@@ -626,7 +626,7 @@ export const MemoDetail: React.FC = () => {
                 setIsFabricModalOpen(true);
             }
 
-            // Restoration for new log: Automatically restore without asking
+            // Restoration for new word: Automatically restore without asking
             const checkNewAutosave = async () => {
                 const latest = await db.autosaves
                     .filter(a => a.originalId === undefined)
@@ -658,7 +658,7 @@ export const MemoDetail: React.FC = () => {
             };
             checkNewAutosave();
         }
-    }, [log, isNew, id, searchParams, isEditing]);
+    }, [word, isNew, id, searchParams, isEditing]);
 
     useEffect(() => {
         const initSource = async () => {
@@ -743,7 +743,7 @@ export const MemoDetail: React.FC = () => {
         }, 7000); // 7 seconds
 
         return () => clearInterval(interval);
-    }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft]); // Removed log dependency to prevent interval reset on DB updates
+    }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft]); // Removed word dependency to prevent interval reset on DB updates
 
     const handleSave = async () => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -772,7 +772,7 @@ export const MemoDetail: React.FC = () => {
                 navigate(`/word/${id}`, { replace: true });
             }
 
-            // Cleanup autosaves for this log
+            // Cleanup autosaves for this word
             await db.autosaves.where('originalId').equals(Number(id)).delete();
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
@@ -789,7 +789,7 @@ export const MemoDetail: React.FC = () => {
                 isStarred: 1
             });
 
-            // Cleanup all new log autosaves
+            // Cleanup all new word autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
             navigate(`/word/${newId}`, { replace: true });
@@ -797,14 +797,14 @@ export const MemoDetail: React.FC = () => {
     };
 
     const handleDelete = async () => {
-        if (!id || !log) return;
+        if (!id || !word) return;
 
         // Check if it's a thread head and has other logs
-        const isHead = !!(log.threadId && log.threadOrder === 0);
+        const isHead = !!(word.threadId && word.threadOrder === 0);
         let hasOthers = false;
 
-        if (isHead && log.threadId) {
-            const threadLogs = await db.words.where('threadId').equals(log.threadId).toArray();
+        if (isHead && word.threadId) {
+            const threadLogs = await db.words.where('threadId').equals(word.threadId).toArray();
             hasOthers = threadLogs.length > 1;
         }
 
@@ -813,10 +813,10 @@ export const MemoDetail: React.FC = () => {
     };
 
     const performDeleteLogOnly = async () => {
-        if (!id || !log) return;
+        if (!id || !word) return;
         setIsDeleting(true);
 
-        const threadId = log.threadId;
+        const threadId = word.threadId;
         const currentId = Number(id);
 
         await db.words.delete(currentId);
@@ -843,10 +843,10 @@ export const MemoDetail: React.FC = () => {
     };
 
     const performDeleteThread = async () => {
-        if (!log || !log.threadId) return;
+        if (!word || !word.threadId) return;
         setIsDeleting(true);
 
-        const threadId = log.threadId;
+        const threadId = word.threadId;
         const threadLogs = await db.words.where('threadId').equals(threadId).toArray();
         const wordIds = threadLogs.map(l => l.id!);
 
@@ -865,15 +865,15 @@ export const MemoDetail: React.FC = () => {
     };
 
     const handleAddThread = async () => {
-        if (!log || !id) return;
+        if (!word || !id) return;
 
         const now = new Date();
-        let threadId = log.threadId;
+        let threadId = word.threadId;
         let threadOrder = 0;
 
         try {
             if (!threadId) {
-                // Create new thread for current log
+                // Create new thread for current word
                 threadId = crypto.randomUUID();
                 await db.words.update(Number(id), {
                     threadId,
@@ -887,13 +887,13 @@ export const MemoDetail: React.FC = () => {
                 threadOrder = maxOrder + 1;
             }
 
-            // Create new log in thread
+            // Create new word in thread
             const newLogId = await db.words.add({
-                folderId: log.folderId, // Inherit folder
+                folderId: word.folderId, // Inherit folder
                 title: '', // Empty title implies continuation
                 content: '',
-                tags: log.tags, // Inherit tags
-                sourceId: log.sourceId, // Inherit source
+                tags: word.tags, // Inherit tags
+                sourceId: word.sourceId, // Inherit source
                 createdAt: now,
                 updatedAt: now,
                 threadId,
@@ -957,7 +957,7 @@ Please respond in Korean. Start directly with the word/idiom on the first line, 
     };
 
     const handleExample = async () => {
-        const wordToUse = title || log?.title;
+        const wordToUse = title || word?.title;
         if (!wordToUse) {
             setToastMessage("단어를 먼저 입력해 주세요.");
             return;
@@ -989,7 +989,7 @@ Skip any introductory or concluding remarks.`;
     };
 
     const handleMeaning = async () => {
-        const wordToUse = title || log?.title;
+        const wordToUse = title || word?.title;
         if (!wordToUse) {
             setToastMessage("단어를 먼저 입력해 주세요.");
             return;
@@ -1019,7 +1019,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
         }
     };
 
-    if (isDeleting || (!isNew && !log)) {
+    if (isDeleting || (!isNew && !word)) {
         if (isDeleting) return null;
         return <ScrollContainer>{t.word_detail.loading}</ScrollContainer>;
     }
@@ -1057,8 +1057,8 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 <>
                                     <span>{sources?.find(s => s.id === sourceId)?.name || t.word_detail.unknown_source}</span>
                                     <span>•</span>
-                                    <span>{log && format(log.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
-                                    {log?.tags.map(t => (
+                                    <span>{word && format(word.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
+                                    {word?.tags.map(t => (
                                         <span
                                             key={t}
                                             onClick={() => setSearchQuery(`tag:${t} `)}
@@ -1171,11 +1171,11 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 </ActionButton>
 
                                 <StarButton
-                                    $active={!!log?.isStarred}
+                                    $active={!!word?.isStarred}
                                     onClick={handleToggleStar}
                                     style={{ padding: '6px', marginLeft: 'auto', order: 10 }}
                                 >
-                                    <FiStar fill={log?.isStarred ? 'currentColor' : 'none'} size={15} />
+                                    <FiStar fill={word?.isStarred ? 'currentColor' : 'none'} size={15} />
                                 </StarButton>
                             </ButtonGroup>
                         </ResponsiveGroup>
@@ -1216,10 +1216,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         </ContentPadding>
                     )
                 }
-                {!isEditing && !isNew && log && (
+                {!isEditing && !isNew && word && (
                     <CommentsWrapper>
                         <CommentsSection
-                            wordId={log.id!}
+                            wordId={word.id!}
                             initialEditingState={commentDraft}
                             onEditingChange={setCommentDraft}
                         />
@@ -1349,23 +1349,23 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     <BulkAddModal
                         onClose={() => setShowBulkAdd(false)}
                         onConfirm={handleBulkConfirm}
-                        isInThread={!!log?.threadId}
+                        isInThread={!!word?.threadId}
                     />
                 )}
-                {showShareModal && log?.id && (
+                {showShareModal && word?.id && (
                     <SyncModal
                         isOpen={showShareModal}
                         onClose={() => setShowShareModal(false)}
                         adapter={wordMemoSyncAdapter}
-                        initialItemId={log.id}
+                        initialItemId={word.id}
                         t={t}
                         language={language}
                     />
                 )}
-                {isFolderMoveModalOpen && log?.id && (
+                {isFolderMoveModalOpen && word?.id && (
                     <FolderMoveModal
-                        memoId={log.id}
-                        currentFolderId={log.folderId || null}
+                        memoId={word.id}
+                        currentFolderId={word.folderId || null}
                         onClose={() => setIsFolderMoveModalOpen(false)}
                         onSuccess={(msg) => setToastMessage(msg)}
                     />
