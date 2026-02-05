@@ -708,17 +708,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               <FiPlus />
               {language === 'ko' ? '새 책' : 'New Book'}
             </Button>
-
-            <Button
-              onClick={() => {
-                navigate('/folders', { replace: true });
-                onCloseMobile(true);
-              }}
-              style={{ background: '#f39c12' }}
-            >
-              <FiFolder />
-              {language === 'ko' ? '폴더' : 'Folders'}
-            </Button>
           </TopActions>
         </Header>
 

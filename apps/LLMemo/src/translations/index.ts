@@ -1,7 +1,7 @@
 export const translations = {
     en: {
         sidebar: {
-            new: "New",
+            new: "New Log",
             search: "Search... (tag: for tags/models)",
             decrease_font: "Decrease Font Size",
             increase_font: "Increase Font Size",

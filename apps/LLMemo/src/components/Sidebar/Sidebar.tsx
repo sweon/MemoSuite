@@ -887,17 +887,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               <FiPlus />
               {t.sidebar.new || 'New Log'}
             </Button>
-
-            <Button
-              onClick={() => {
-                navigate('/folders', { replace: true });
-                onCloseMobile();
-              }}
-              $color="#f39c12"
-            >
-              <FiFolder />
-              {language === 'ko' ? '폴더' : 'Folders'}
-            </Button>
           </TopActions>
         </Header>
 

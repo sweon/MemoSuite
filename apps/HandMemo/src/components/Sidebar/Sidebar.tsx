@@ -917,18 +917,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
               <RiTable2 />
               {language === 'ko' ? '시트' : 'Sheet'}
             </Button>
-            <Button
-              $color="#f39c12"
-              onClick={() => {
-                handleSafeNavigation(() => {
-                  setShowFolderList(true);
-                  navigate('/folders', { replace: true, state: { isGuard: true } });
-                  onCloseMobile(true);
-                });
-              }}>
-              <FiFolder />
-              {language === 'ko' ? '폴더' : 'Folders'}
-            </Button>
           </TopActions>
         </Header>
 
