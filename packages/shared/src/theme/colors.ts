@@ -1128,8 +1128,8 @@ export const darkThemes: ColorTheme[] = [
             border: '#262626',
             text: '#ededed',
             textSecondary: '#a1a1a1',
-            primary: '#CC79A7',
-            primaryHover: '#df96bd',
+            primary: '#6C3483',
+            primaryHover: '#8e54a3',
             danger: '#f87171',
             success: '#34d399',
         }

@@ -19,7 +19,7 @@ export default defineConfig({
       manifest: {
         name: 'BookMemo',
         short_name: 'BookMemo',
-        theme_color: '#2D6E7E',
+        theme_color: '#6C3483',
         icons: [
           {
             src: 'pwa-192x192.png',
