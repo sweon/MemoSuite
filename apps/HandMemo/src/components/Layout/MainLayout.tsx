@@ -1127,6 +1127,9 @@ export const MainLayout: React.FC = () => {
 
   useEffect(() => {
     const handleGlobalDrop = async (e: DragEvent) => {
+      // If we are editing, we shouldn't trigger the global drop behavior which creates a NEW memo
+      if (isAppEditing) return;
+
       // Check if we are in a CodeMirror editor area. If so, let the editor handle it.
       const target = e.target as HTMLElement;
       if (target.closest?.('.CodeMirror') || target.closest?.('.EasyMDEContainer') ||
@@ -1227,6 +1230,9 @@ export const MainLayout: React.FC = () => {
     };
 
     const handleGlobalPaste = async (e: ClipboardEvent) => {
+      // If we are editing, we shouldn't trigger the global paste behavior which creates a NEW memo
+      if (isAppEditing) return;
+
       // Same target detection as drop
       const target = e.target as HTMLElement;
       if (target.closest?.('.CodeMirror') || target.closest?.('.EasyMDEContainer') ||
@@ -1350,7 +1356,7 @@ export const MainLayout: React.FC = () => {
       window.removeEventListener('paste', handleGlobalPaste);
       window.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [location.pathname, navigate, currentFolderId, language, confirm]);
+  }, [location.pathname, navigate, currentFolderId, language, confirm, isAppEditing]);
 
   // Resize handle is visible:
   // - Desktop: always visible
