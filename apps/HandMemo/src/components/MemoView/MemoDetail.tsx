@@ -563,10 +563,11 @@ export const MemoDetail: React.FC = () => {
     // State reset on ID change is now handled by the 'key' prop in App.tsx
 
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
-    const contentDrawingData = React.useMemo(() => {
-        const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
-        return match ? match[1] : undefined;
-    }, [content]);
+    // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
+    // const contentDrawingData = React.useMemo(() => {
+    //     const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
+    //     return match ? match[1] : undefined;
+    // }, [content]);
 
     const memo = useLiveQuery(
         () => (id ? db.memos.get(Number(id)) : undefined),
@@ -578,7 +579,7 @@ export const MemoDetail: React.FC = () => {
         movingMemoId: number | null,
         setMovingMemoId: (id: number | null) => void
     }>();
-    const isMovingLocal = movingMemoId === Number(id);
+    // const isMovingLocal = movingMemoId === Number(id);
 
     useEffect(() => {
         if (id) {
