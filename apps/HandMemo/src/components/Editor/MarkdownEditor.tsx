@@ -118,7 +118,7 @@ const EditorWrapper = styled.div`
       top: 42px;
 
       @media (max-width: 480px) {
-        top: 68px;
+        top: 42px;
       }
 
       i {
