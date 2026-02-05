@@ -36,7 +36,7 @@ const EditorWrapper = styled.div`
       top: 42px;
 
       @media (max-width: 480px) {
-        top: 76px;
+        top: 68px;
       }
 
       i {
