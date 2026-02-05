@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiPrinter, FiFolder, FiPlusCircle, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiPrinter, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -1122,7 +1122,7 @@ export const MemoDetail: React.FC = () => {
 
                             {!isCurrentFolderReadOnly && !isNew && (
                                 <ActionButton onClick={handleAddThread}>
-                                    <FiPlusCircle size={14} /> {t.memo_detail.append}
+                                    <FiGitMerge size={14} /> {t.memo_detail.append}
                                 </ActionButton>
                             )}
 

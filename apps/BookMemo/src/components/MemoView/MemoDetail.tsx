@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiPlusCircle, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -1182,7 +1182,7 @@ export const MemoDetail: React.FC = () => {
                         </ActionButton>
                         {!isNew && (
                             <ActionButton onClick={handleAddThread} $mobileOrder={2}>
-                                <FiPlusCircle size={14} /> {t.memo_detail.append}
+                                <FiGitMerge size={14} /> {t.memo_detail.append}
                             </ActionButton>
                         )}
 

@@ -12,7 +12,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiPlusCircle, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
@@ -1184,7 +1184,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                     <FiCoffee size={14} /> {t.word_detail.example_button}
                                 </ActionButton>
                                 <ActionButton onClick={handleAddThread} $mobileOrder={2}>
-                                    <FiPlusCircle size={14} /> {t.word_detail.append}
+                                    <FiGitMerge size={14} /> {t.word_detail.append}
                                 </ActionButton>
 
                                 <ActionButton
