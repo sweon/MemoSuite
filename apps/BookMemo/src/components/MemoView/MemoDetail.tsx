@@ -81,9 +81,6 @@ const TitleDisplay = styled.h1`
   margin: 0 0 ${({ theme }) => theme.spacing.sm} 0;
   color: ${({ theme }) => theme.colors.text};
   letter-spacing: -0.04em;
-  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary})`};
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
 `;
 
 const MetaRow = styled.div`

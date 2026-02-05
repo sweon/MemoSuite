@@ -58,7 +58,7 @@ const Header = styled.div`
 const BookTitle = styled.h1`
   margin: 0 0 0.25rem 0;
   font-size: 1.8rem;
-  color: ${({ theme }) => theme.colors.primary};
+  color: ${({ theme }) => theme.colors.text};
 `;
 const MetaInfo = styled.div`
   display: flex;
@@ -94,7 +94,7 @@ const ProgressBar = styled.div<{ $percent: number }>`
     left: 0;
     height: 100%;
     width: ${props => props.$percent}%;
-    background: ${({ theme }) => theme.colors.primary};
+    background: #94a3b8;
     transition: width 0.3s ease;
   }
 `;

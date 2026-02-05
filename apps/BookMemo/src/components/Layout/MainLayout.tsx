@@ -93,7 +93,7 @@ const MobileHeader = styled.div`
     font-size: 1.1rem;
     font-weight: 900;
     letter-spacing: -0.03em;
-    color: #6C3483;
+    color: ${({ theme }) => theme.colors.text};
   }
 
   @media (max-width: 768px) {
