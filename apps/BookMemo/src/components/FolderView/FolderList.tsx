@@ -720,7 +720,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         },
         empty: language === 'ko' ? '폴더가 없습니다.' : 'No folders yet.',
         viewMode: {
-            single: language === 'ko' ? '한 줄 보기' : 'Single Line',
+            single: language === 'ko' ? '리스트' : 'List',
             grid: language === 'ko' ? '그리드 보기' : 'Grid',
             preview: language === 'ko' ? '미리보기' : 'Preview',
         },
