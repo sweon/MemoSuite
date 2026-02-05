@@ -17,39 +17,16 @@ import { CommentsSection } from './CommentsSection';
 import { bookMemoSyncAdapter } from '../../utils/backupAdapter';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
 
-const GoToTopButton = styled.button<{ $show: boolean }>`
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 44px;
-  height: 44px;
-  border-radius: 22px;
-  background: ${({ theme }) => theme.colors.primary};
-  color: white;
-  border: none;
+const MainWrapper = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  transition: all 0.3s ease;
-  opacity: ${({ $show }) => ($show ? 1 : 0)};
-  transform: translateY(${({ $show }) => ($show ? '0' : '20px')});
-  pointer-events: ${({ $show }) => ($show ? 'auto' : 'none')};
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  }
-
-  @media (max-width: 768px) {
-    bottom: 24px;
-    right: 16px;
-  }
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
 `;
 
-const Container = styled.div`
+const ScrollContainer = styled.div`
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -58,6 +35,44 @@ const Container = styled.div`
   overflow-x: hidden;
   padding: 0;
   width: 100%;
+`;
+
+const GoToTopButton = styled.button<{ $show: boolean }>`
+  position: absolute;
+  bottom: 32px;
+  right: 32px;
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryHover || theme.colors.primary})`};
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: ${({ theme }) => theme.shadows.large || '0 8px 25px rgba(0, 0, 0, 0.2)'};
+  z-index: 10000;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  opacity: ${({ $show }) => ($show ? 1 : 0)};
+  transform: scale(${({ $show }) => ($show ? 1 : 0.5)}) translateY(${({ $show }) => ($show ? '0' : '30px')});
+  pointer-events: ${({ $show }) => ($show ? 'auto' : 'none')};
+
+  &:hover {
+    transform: scale(1.1) translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  @media (max-width: 768px) {
+    bottom: 24px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+  }
 `;
 
 const Header = styled.div`
@@ -460,17 +475,7 @@ export const MemoDetail: React.FC = () => {
         }
     }
 
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
 
-        const handleScroll = () => {
-            setShowGoToTop(container.scrollTop > 300);
-        };
-
-        container.addEventListener('scroll', handleScroll);
-        return () => container.removeEventListener('scroll', handleScroll);
-    }, []);
 
     const handleGoToTop = () => {
         containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -521,6 +526,19 @@ export const MemoDetail: React.FC = () => {
             if (setAppIsEditing) setAppIsEditing(false);
         };
     }, [isEditing, hasDraftChanges, setIsDirty, setAppIsEditing]);
+
+    // scroll 이벤트 리스너 등록 (memo가 로드된 후)
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            setShowGoToTop(container.scrollTop > 300);
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [memo]);
 
     const loadedIdRef = useRef<string | null>(null);
 
@@ -937,11 +955,11 @@ export const MemoDetail: React.FC = () => {
 
     if (isDeleting || (!isNew && !memo)) {
         if (isDeleting) return null;
-        return <Container>{t.memo_detail.loading}</Container>;
+        return <ScrollContainer>{t.memo_detail.loading}</ScrollContainer>;
     }
 
     return (
-        <Container ref={containerRef}>
+        <MainWrapper>
             <Header>
                 {book && (
                     <div
@@ -1125,79 +1143,67 @@ export const MemoDetail: React.FC = () => {
                 )}
             </ActionBar>
 
-            {isEditing ? (
-                <ContentPadding>
-                    <MarkdownEditor
-                        value={content}
-                        onChange={setContent}
-                        initialScrollPercentage={prevScrollRatio}
-                    />
-                </ContentPadding>
-            ) : (
-                <>
+            <ScrollContainer ref={containerRef}>
+                {isEditing ? (
                     <ContentPadding>
-                        <MarkdownView
-                            content={content}
-                            onEditDrawing={(json) => {
-                                setEditingDrawingData(json);
-                                setIsFabricModalOpen(true);
-                            }}
-                            onEditSpreadsheet={(json) => {
-                                try {
-                                    setEditingSpreadsheetData(JSON.parse(json));
-                                    setIsSpreadsheetModalOpen(true);
-                                } catch (e) {
-                                    console.error('Failed to parse spreadsheet JSON for editing', e);
-                                }
-                            }}
+                        <MarkdownEditor
+                            value={content}
+                            onChange={setContent}
+                            initialScrollPercentage={prevScrollRatio}
                         />
                     </ContentPadding>
-                </>
-            )}
+                ) : (
+                    <>
+                        <ContentPadding>
+                            <MarkdownView
+                                content={content}
+                                onEditDrawing={(json) => {
+                                    setEditingDrawingData(json);
+                                    setIsFabricModalOpen(true);
+                                }}
+                                onEditSpreadsheet={(json) => {
+                                    try {
+                                        setEditingSpreadsheetData(JSON.parse(json));
+                                        setIsSpreadsheetModalOpen(true);
+                                    } catch (e) {
+                                        console.error('Failed to parse spreadsheet JSON for editing', e);
+                                    }
+                                }}
+                            />
+                        </ContentPadding>
+                    </>
+                )}
 
-            {!isEditing && !isNew && memo && (
-                <CommentsWrapper>
-                    <CommentsSection
-                        memoId={memo.id!}
-                        initialEditingState={commentDraft}
-                        onEditingChange={setCommentDraft}
+                {!isEditing && !isNew && memo && (
+                    <CommentsWrapper>
+                        <CommentsSection
+                            memoId={memo.id!}
+                            initialEditingState={commentDraft}
+                            onEditingChange={setCommentDraft}
+                        />
+                    </CommentsWrapper>
+                )}
+
+                {!isNew && memo && (
+                    <SyncModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        adapter={bookMemoSyncAdapter}
+                        initialItemId={memo.id!}
+                        t={t}
+                        language={language}
                     />
-                </CommentsWrapper>
-            )}
+                )}
 
-            {!isNew && memo && (
-                <SyncModal
-                    isOpen={isShareModalOpen}
-                    onClose={() => setIsShareModalOpen(false)}
-                    adapter={bookMemoSyncAdapter}
-                    initialItemId={memo.id!}
-                    t={t}
-                    language={language}
-                />
-            )}
-
-            {isDeleteModalOpen && (
-                <DeleteChoiceModal
-                    onClose={() => setIsDeleteModalOpen(false)}
-                    onDeleteMemoOnly={performDeleteMemoOnly}
-                    onDeleteThread={() => performDeleteMemoOnly()}
-                    isThreadHead={false}
-                />
-            )}
-
-            <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
-                <FiArrowUp size={24} />
-            </GoToTopButton>
-
-            {showExitToast && (
-                <Toast
-                    variant="warning"
-                    position="centered"
-                    icon={<FiAlertTriangle size={14} />}
-                    message={t.android?.exit_warning || "Press back again\nto exit editing."}
-                    onClose={() => setShowExitToast(false)}
-                />
-            )}
+                {isDeleteModalOpen && (
+                    <DeleteChoiceModal
+                        onClose={() => setIsDeleteModalOpen(false)}
+                        onDeleteMemoOnly={performDeleteMemoOnly}
+                        onDeleteThread={() => performDeleteMemoOnly()}
+                        isThreadHead={false}
+                    />
+                )}
+            </ScrollContainer>
 
             {isFabricModalOpen && (
                 <FabricCanvasModal
@@ -1318,6 +1324,22 @@ export const MemoDetail: React.FC = () => {
                 initialData={editingSpreadsheetData}
                 language={language as 'en' | 'ko'}
             />
-        </Container>
+
+            {
+                showExitToast && (
+                    <Toast
+                        variant="warning"
+                        position="centered"
+                        icon={<FiAlertTriangle size={14} />}
+                        message={t.android?.exit_warning || "Press back again\nto exit editing."}
+                        onClose={() => setShowExitToast(false)}
+                    />
+                )
+            }
+
+            <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
+                <FiArrowUp size={24} />
+            </GoToTopButton>
+        </MainWrapper >
     );
 };

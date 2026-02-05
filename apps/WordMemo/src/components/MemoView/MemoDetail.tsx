@@ -25,39 +25,16 @@ import { StarButton } from '../Sidebar/itemStyles';
 
 import { Toast } from '../UI/Toast';
 
-const GoToTopButton = styled.button<{ $show: boolean }>`
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 44px;
-  height: 44px;
-  border-radius: 22px;
-  background: ${({ theme }) => theme.colors.primary};
-  color: white;
-  border: none;
+const MainWrapper = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  transition: all 0.3s ease;
-  opacity: ${({ $show }) => ($show ? 1 : 0)};
-  transform: translateY(${({ $show }) => ($show ? '0' : '20px')});
-  pointer-events: ${({ $show }) => ($show ? 'auto' : 'none')};
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  }
-
-  @media (max-width: 768px) {
-    bottom: 24px;
-    right: 16px;
-  }
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
 `;
 
-const Container = styled.div`
+const ScrollContainer = styled.div`
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -67,6 +44,44 @@ const Container = styled.div`
   padding: 0;
   width: 100%;
   background-color: ${({ theme }) => theme.colors.background};
+`;
+
+const GoToTopButton = styled.button<{ $show: boolean }>`
+  position: absolute;
+  bottom: 32px;
+  right: 32px;
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryHover || theme.colors.primary})`};
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: ${({ theme }) => theme.shadows.large || '0 8px 25px rgba(0, 0, 0, 0.2)'};
+  z-index: 10000;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  opacity: ${({ $show }) => ($show ? 1 : 0)};
+  transform: scale(${({ $show }) => ($show ? 1 : 0.5)}) translateY(${({ $show }) => ($show ? '0' : '30px')});
+  pointer-events: ${({ $show }) => ($show ? 'auto' : 'none')};
+
+  &:hover {
+    transform: scale(1.1) translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  @media (max-width: 768px) {
+    bottom: 24px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+  }
 `;
 
 const Header = styled.div`
@@ -313,17 +328,7 @@ export const MemoDetail: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
 
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
 
-        const handleScroll = () => {
-            setShowGoToTop(container.scrollTop > 300);
-        };
-
-        container.addEventListener('scroll', handleScroll);
-        return () => container.removeEventListener('scroll', handleScroll);
-    }, []);
 
     const handleGoToTop = () => {
         containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -434,6 +439,19 @@ export const MemoDetail: React.FC = () => {
             if (setAppIsEditing) setAppIsEditing(false);
         };
     }, [isEditing, hasDraftChanges, setIsDirty, setAppIsEditing]);
+
+    // scroll 이벤트 리스너 등록 (log가 로드된 후)
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            setShowGoToTop(container.scrollTop > 300);
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [log]);
 
     const isPlaceholder = !isNew && id && !log?.title && !log?.content;
 
@@ -1003,342 +1021,338 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
     if (isDeleting || (!isNew && !log)) {
         if (isDeleting) return null;
-        return <Container>{t.word_detail.loading}</Container>;
+        return <ScrollContainer>{t.word_detail.loading}</ScrollContainer>;
     }
 
     return (
-        <Container ref={containerRef}>
-            <Header>
-                {isEditing && (
-                    <TitleInput
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                        placeholder={t.word_detail.title_placeholder}
-                    />
-                )}
-                <HeaderRow>
-                    <MetaRow>
-                        {isEditing ? (
-                            <>
-                                <SourceSelect
-                                    value={sourceId || ''}
-                                    onChange={e => setSourceId(Number(e.target.value))}
-                                >
-                                    {sources?.map(s => (
-                                        <option key={s.id} value={s.id}>{s.name}</option>
-                                    ))}
-                                </SourceSelect>
-                                <TagInput
-                                    value={tags}
-                                    onChange={e => setTags(e.target.value)}
-                                    placeholder={t.word_detail.tags_placeholder}
-                                />
-                            </>
-                        ) : (
-                            <>
-                                <span>{sources?.find(s => s.id === sourceId)?.name || t.word_detail.unknown_source}</span>
-                                <span>•</span>
-                                <span>{log && format(log.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
-                                {log?.tags.map(t => (
-                                    <span
-                                        key={t}
-                                        onClick={() => setSearchQuery(`tag:${t} `)}
-                                        style={{
-                                            background: '#eee',
-                                            padding: '2px 6px',
-                                            borderRadius: '4px',
-                                            fontSize: '12px',
-                                            color: '#333',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        {t}
-                                    </span>
-                                ))}
-                            </>
-                        )}
-                    </MetaRow>
-                </HeaderRow>
-
-            </Header>
-            <ActionBar>
-                {isEditing ? (
-                    <>
-                        <ActionButton
-                            $variant="primary"
-                            onClick={handleSave}
-                            disabled={!isCurrentlyDirty}
-                            style={{
-                                opacity: !isCurrentlyDirty ? 0.5 : 1,
-                                cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
-                            }}
-                        >
-                            <FiSave size={14} /> {t.word_detail.save}
-                        </ActionButton>
-                        <ActionButton $variant="cancel" onClick={() => {
-                            if (isPlaceholder) {
-                                navigate('/', { replace: true });
-                                return;
-                            }
-                            if (isNew) {
-                                navigate('/', { replace: true });
-                                return;
-                            }
-                            if (searchParams.get('edit')) {
-                                navigate(`/word/${id}`, { replace: true });
-                            }
-                            currentAutosaveIdRef.current = undefined;
-                            restoredIdRef.current = null;
-                            setIsEditing(false);
-                        }}>
-                            <FiX size={14} /> {t.word_detail.cancel}
-                        </ActionButton>
-                        <ActionButton onClick={handleRandomWord}>
-                            <FiList size={14} /> {t.word_detail.random_word}
-                        </ActionButton>
-                        <ActionButton onClick={() => setShowBulkAdd(true)}>
-                            <FiPlus size={14} /> {t.word_detail.bulk_add}
-                        </ActionButton>
-                    </>
-                ) : (
-                    <ResponsiveGroup>
-                        {/* Group 1: Edit, Meaning, Example, Join/Append */}
-                        <ButtonGroup>
-                            <ActionButton onClick={handleMeaning} $mobileOrder={7}>
-                                <FiBookOpen size={14} /> {t.word_detail.meaning_button}
-                            </ActionButton>
-                            <ActionButton onClick={handleExample} $mobileOrder={8}>
-                                <FiCoffee size={14} /> {t.word_detail.example_button}
-                            </ActionButton>
-                            <ActionButton onClick={handleAddThread} $mobileOrder={2}>
-                                <FiPlusCircle size={14} /> {t.word_detail.append}
-                            </ActionButton>
-                            <ActionButton
-                                $variant={movingWordId === Number(id) ? "primary" : undefined}
-                                onClick={() => {
-                                    if (movingWordId === Number(id)) {
-                                        setMovingWordId?.(null);
-                                    } else {
-                                        setMovingWordId?.(Number(id));
-                                    }
-                                }}
-                                $mobileOrder={4}
-                            >
-                                <FiArrowRightCircle size={14} />
-                                {movingWordId === Number(id) ? t.word_detail.moving : t.word_detail.move}
-                            </ActionButton>
-                        </ButtonGroup>
-
-                        {/* Group 2: Share, Delete, Print ... Star */}
-                        <ButtonGroup $flex={1}>
-                            {!isReadOnly && (
-                                <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
-                                    <FiEdit2 size={13} /> {t.word_detail.edit || 'Edit'}
-                                </ActionButton>
-                            )}
-                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
-                                <FiFolder size={13} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
-                            </ActionButton>
-                            <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={5}>
-                                <FiShare2 size={13} /> {t.word_detail.share_word}
-                            </ActionButton>
-                            {!isReadOnly && (
-                                <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
-                                    <FiTrash2 size={13} /> {t.word_detail.delete}
-                                </ActionButton>
-                            )}
-                            <ActionButton onClick={() => window.print()} $mobileOrder={9} className="hide-on-mobile">
-                                <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
-                            </ActionButton>
-
-                            <StarButton
-                                $active={!!log?.isStarred}
-                                onClick={handleToggleStar}
-                                style={{ padding: '6px', marginLeft: 'auto', order: 10 }}
-                            >
-                                <FiStar fill={log?.isStarred ? 'currentColor' : 'none'} size={15} />
-                            </StarButton>
-                        </ButtonGroup>
-                    </ResponsiveGroup>
-                )}
-            </ActionBar>
-
-            {
-                isEditing ? (
-                    <ContentPadding>
-                        <MarkdownEditor
-                            value={content}
-                            onChange={setContent}
-                            initialScrollPercentage={prevScrollRatio}
+        <MainWrapper>
+            <ScrollContainer ref={containerRef}>
+                <Header>
+                    {isEditing && (
+                        <TitleInput
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            placeholder={t.word_detail.title_placeholder}
                         />
-                    </ContentPadding>
-                ) : (
-                    <ContentPadding>
-                        <ContentWrapper $isBlurred={studyMode === 'hide-meanings'}>
-                            <MarkdownView
-                                content={content}
-                                isReadOnly={isReadOnly}
-                                onEditDrawing={(json) => {
-                                    if (isReadOnly) return;
-                                    setEditingDrawingData(json);
-                                    setIsFabricModalOpen(true);
+                    )}
+                    <HeaderRow>
+                        <MetaRow>
+                            {isEditing ? (
+                                <>
+                                    <SourceSelect
+                                        value={sourceId || ''}
+                                        onChange={e => setSourceId(Number(e.target.value))}
+                                    >
+                                        {sources?.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                    </SourceSelect>
+                                    <TagInput
+                                        value={tags}
+                                        onChange={e => setTags(e.target.value)}
+                                        placeholder={t.word_detail.tags_placeholder}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <span>{sources?.find(s => s.id === sourceId)?.name || t.word_detail.unknown_source}</span>
+                                    <span>•</span>
+                                    <span>{log && format(log.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
+                                    {log?.tags.map(t => (
+                                        <span
+                                            key={t}
+                                            onClick={() => setSearchQuery(`tag:${t} `)}
+                                            style={{
+                                                background: '#eee',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                                fontSize: '12px',
+                                                color: '#333',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {t}
+                                        </span>
+                                    ))}
+                                </>
+                            )}
+                        </MetaRow>
+                    </HeaderRow>
+
+                </Header>
+                <ActionBar>
+                    {isEditing ? (
+                        <>
+                            <ActionButton
+                                $variant="primary"
+                                onClick={handleSave}
+                                disabled={!isCurrentlyDirty}
+                                style={{
+                                    opacity: !isCurrentlyDirty ? 0.5 : 1,
+                                    cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
                                 }}
-                                onEditSpreadsheet={(json) => {
-                                    if (isReadOnly) return;
-                                    try {
-                                        setEditingSpreadsheetData(JSON.parse(json));
-                                        setIsSpreadsheetModalOpen(true);
-                                    } catch (e) {
-                                        console.error('Failed to parse spreadsheet JSON for editing', e);
-                                    }
-                                }}
+                            >
+                                <FiSave size={14} /> {t.word_detail.save}
+                            </ActionButton>
+                            <ActionButton $variant="cancel" onClick={() => {
+                                if (isPlaceholder) {
+                                    navigate('/', { replace: true });
+                                    return;
+                                }
+                                if (isNew) {
+                                    navigate('/', { replace: true });
+                                    return;
+                                }
+                                if (searchParams.get('edit')) {
+                                    navigate(`/word/${id}`, { replace: true });
+                                }
+                                currentAutosaveIdRef.current = undefined;
+                                restoredIdRef.current = null;
+                                setIsEditing(false);
+                            }}>
+                                <FiX size={14} /> {t.word_detail.cancel}
+                            </ActionButton>
+                            <ActionButton onClick={handleRandomWord}>
+                                <FiList size={14} /> {t.word_detail.random_word}
+                            </ActionButton>
+                            <ActionButton onClick={() => setShowBulkAdd(true)}>
+                                <FiPlus size={14} /> {t.word_detail.bulk_add}
+                            </ActionButton>
+                        </>
+                    ) : (
+                        <ResponsiveGroup>
+                            {/* Group 1: Edit, Meaning, Example, Join/Append */}
+                            <ButtonGroup>
+                                <ActionButton onClick={handleMeaning} $mobileOrder={7}>
+                                    <FiBookOpen size={14} /> {t.word_detail.meaning_button}
+                                </ActionButton>
+                                <ActionButton onClick={handleExample} $mobileOrder={8}>
+                                    <FiCoffee size={14} /> {t.word_detail.example_button}
+                                </ActionButton>
+                                <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                                    <FiPlusCircle size={14} /> {t.word_detail.append}
+                                </ActionButton>
+                                <ActionButton
+                                    $variant={movingWordId === Number(id) ? "primary" : undefined}
+                                    onClick={() => {
+                                        if (movingWordId === Number(id)) {
+                                            setMovingWordId?.(null);
+                                        } else {
+                                            setMovingWordId?.(Number(id));
+                                        }
+                                    }}
+                                    $mobileOrder={4}
+                                >
+                                    <FiArrowRightCircle size={14} />
+                                    {movingWordId === Number(id) ? t.word_detail.moving : t.word_detail.move}
+                                </ActionButton>
+                            </ButtonGroup>
+
+                            {/* Group 2: Share, Delete, Print ... Star */}
+                            <ButtonGroup $flex={1}>
+                                {!isReadOnly && (
+                                    <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
+                                        <FiEdit2 size={13} /> {t.word_detail.edit || 'Edit'}
+                                    </ActionButton>
+                                )}
+                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
+                                    <FiFolder size={13} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                                </ActionButton>
+                                <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={5}>
+                                    <FiShare2 size={13} /> {t.word_detail.share_word}
+                                </ActionButton>
+                                {!isReadOnly && (
+                                    <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
+                                        <FiTrash2 size={13} /> {t.word_detail.delete}
+                                    </ActionButton>
+                                )}
+                                <ActionButton onClick={() => window.print()} $mobileOrder={9} className="hide-on-mobile">
+                                    <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
+                                </ActionButton>
+
+                                <StarButton
+                                    $active={!!log?.isStarred}
+                                    onClick={handleToggleStar}
+                                    style={{ padding: '6px', marginLeft: 'auto', order: 10 }}
+                                >
+                                    <FiStar fill={log?.isStarred ? 'currentColor' : 'none'} size={15} />
+                                </StarButton>
+                            </ButtonGroup>
+                        </ResponsiveGroup>
+                    )}
+                </ActionBar>
+
+                {
+                    isEditing ? (
+                        <ContentPadding>
+                            <MarkdownEditor
+                                value={content}
+                                onChange={setContent}
+                                initialScrollPercentage={prevScrollRatio}
                             />
-                        </ContentWrapper>
-                    </ContentPadding>
-                )
-            }
-            {!isEditing && !isNew && log && (
-                <CommentsWrapper>
-                    <CommentsSection
-                        wordId={log.id!}
-                        initialEditingState={commentDraft}
-                        onEditingChange={setCommentDraft}
-                    />
-                </CommentsWrapper>
-            )}
+                        </ContentPadding>
+                    ) : (
+                        <ContentPadding>
+                            <ContentWrapper $isBlurred={studyMode === 'hide-meanings'}>
+                                <MarkdownView
+                                    content={content}
+                                    isReadOnly={isReadOnly}
+                                    onEditDrawing={(json) => {
+                                        if (isReadOnly) return;
+                                        setEditingDrawingData(json);
+                                        setIsFabricModalOpen(true);
+                                    }}
+                                    onEditSpreadsheet={(json) => {
+                                        if (isReadOnly) return;
+                                        try {
+                                            setEditingSpreadsheetData(JSON.parse(json));
+                                            setIsSpreadsheetModalOpen(true);
+                                        } catch (e) {
+                                            console.error('Failed to parse spreadsheet JSON for editing', e);
+                                        }
+                                    }}
+                                />
+                            </ContentWrapper>
+                        </ContentPadding>
+                    )
+                }
+                {!isEditing && !isNew && log && (
+                    <CommentsWrapper>
+                        <CommentsSection
+                            wordId={log.id!}
+                            initialEditingState={commentDraft}
+                            onEditingChange={setCommentDraft}
+                        />
+                    </CommentsWrapper>
+                )}
 
-            {
-                isFabricModalOpen && (
-                    <FabricCanvasModal
-                        key={tParam || 'default'} // Force re-mount on new requests
-                        language={language}
-                        initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
-                        onSave={async (json: string) => {
-                            const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
-                            let found = false;
-                            const newContent = content.replace(fabricRegex, (match, p1) => {
-                                if (!found && p1.trim() === editingDrawingData?.trim()) {
-                                    found = true;
-                                    return `\`\`\`fabric\n${json}\n\`\`\``;
-                                }
-                                return match;
-                            });
-
-                            setContent(newContent);
-                            if (id) {
-                                await db.words.update(Number(id), {
-                                    content: newContent,
-                                    updatedAt: new Date()
+                {
+                    isFabricModalOpen && (
+                        <FabricCanvasModal
+                            key={tParam || 'default'} // Force re-mount on new requests
+                            language={language}
+                            initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
+                            onSave={async (json: string) => {
+                                const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                                let found = false;
+                                const newContent = content.replace(fabricRegex, (match, p1) => {
+                                    if (!found && p1.trim() === editingDrawingData?.trim()) {
+                                        found = true;
+                                        return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    }
+                                    return match;
                                 });
-                            }
-                            setIsFabricModalOpen(false);
-                            setEditingDrawingData(undefined);
-                        }}
-                        onAutosave={(json) => {
-                            const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
-                            let found = false;
-                            const newContent = content.replace(fabricRegex, (match, p1) => {
-                                if (!found && p1.trim() === editingDrawingData?.trim()) {
-                                    found = true;
-                                    return `\`\`\`fabric\n${json}\n\`\`\``;
+
+                                setContent(newContent);
+                                if (id) {
+                                    await db.words.update(Number(id), {
+                                        content: newContent,
+                                        updatedAt: new Date()
+                                    });
                                 }
-                                return match;
-                            });
-                            if (newContent !== content) setContent(newContent);
-                        }}
-                        onClose={() => {
-                            setIsFabricModalOpen(false);
-                            setEditingDrawingData(undefined);
-                        }}
-                    />
-                )
-            }
+                                setIsFabricModalOpen(false);
+                                setEditingDrawingData(undefined);
+                            }}
+                            onAutosave={(json) => {
+                                const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                                let found = false;
+                                const newContent = content.replace(fabricRegex, (match, p1) => {
+                                    if (!found && p1.trim() === editingDrawingData?.trim()) {
+                                        found = true;
+                                        return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    }
+                                    return match;
+                                });
+                                if (newContent !== content) setContent(newContent);
+                            }}
+                            onClose={() => {
+                                setIsFabricModalOpen(false);
+                                setEditingDrawingData(undefined);
+                            }}
+                        />
+                    )
+                }
 
-            <SpreadsheetModal
-                isOpen={isSpreadsheetModalOpen}
-                onClose={() => {
-                    setIsSpreadsheetModalOpen(false);
-                    setEditingSpreadsheetData(undefined);
-                }}
-                onSave={async (data: any) => {
-                    const json = JSON.stringify(data);
-                    const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
-                    let found = false;
-                    const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
+                <SpreadsheetModal
+                    isOpen={isSpreadsheetModalOpen}
+                    onClose={() => {
+                        setIsSpreadsheetModalOpen(false);
+                        setEditingSpreadsheetData(undefined);
+                    }}
+                    onSave={async (data: any) => {
+                        const json = JSON.stringify(data);
+                        const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
+                        let found = false;
+                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
 
-                    const newContent = content.replace(spreadsheetRegex, (match, p1) => {
-                        if (!found && p1.trim() === targetRaw) {
-                            found = true;
-                            return `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                        }
-                        return match;
-                    });
-
-                    setContent(newContent);
-                    if (id) {
-                        await db.words.update(Number(id), {
-                            content: newContent,
-                            updatedAt: new Date()
+                        const newContent = content.replace(spreadsheetRegex, (match, p1) => {
+                            if (!found && p1.trim() === targetRaw) {
+                                found = true;
+                                return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                            }
+                            return match;
                         });
-                    }
-                    setIsSpreadsheetModalOpen(false);
-                    setEditingSpreadsheetData(undefined);
-                }}
-                onAutosave={(data) => {
-                    const json = JSON.stringify(data);
-                    const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
-                    let found = false;
-                    const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
 
-                    const newContent = content.replace(spreadsheetRegex, (match, p1) => {
-                        if (!found && p1.trim() === targetRaw) {
-                            found = true;
-                            return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        setContent(newContent);
+                        if (id) {
+                            await db.words.update(Number(id), {
+                                content: newContent,
+                                updatedAt: new Date()
+                            });
                         }
-                        return match;
-                    });
-                    if (newContent !== content) setContent(newContent);
-                }}
-                initialData={editingSpreadsheetData}
-                language={language as 'en' | 'ko'}
-            />
+                        setIsSpreadsheetModalOpen(false);
+                        setEditingSpreadsheetData(undefined);
+                    }}
+                    onAutosave={(data) => {
+                        const json = JSON.stringify(data);
+                        const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
+                        let found = false;
+                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
 
-            {
-                isDeleteModalOpen && (
-                    <DeleteChoiceModal
-                        onClose={() => setIsDeleteModalOpen(false)}
-                        onDeleteWordOnly={performDeleteLogOnly}
-                        onDeleteThread={performDeleteThread}
-                        isThreadHead={isDeletingThreadHead}
+                        const newContent = content.replace(spreadsheetRegex, (match, p1) => {
+                            if (!found && p1.trim() === targetRaw) {
+                                found = true;
+                                return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                            }
+                            return match;
+                        });
+                        if (newContent !== content) setContent(newContent);
+                    }}
+                    initialData={editingSpreadsheetData}
+                    language={language as 'en' | 'ko'}
+                />
+
+                {
+                    isDeleteModalOpen && (
+                        <DeleteChoiceModal
+                            onClose={() => setIsDeleteModalOpen(false)}
+                            onDeleteWordOnly={performDeleteLogOnly}
+                            onDeleteThread={performDeleteThread}
+                            isThreadHead={isDeletingThreadHead}
+                        />
+                    )
+                }
+                {
+                    toastMessage && (
+                        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+                    )
+                }
+                {folderMoveToast && (
+                    <Toast
+                        message={folderMoveToast}
+                        onClose={() => setFolderMoveToast(null)}
+                        duration={3000}
                     />
-                )
-            }
-            {
-                toastMessage && (
-                    <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-                )
-            }
-            {folderMoveToast && (
-                <Toast
-                    message={folderMoveToast}
-                    onClose={() => setFolderMoveToast(null)}
-                    duration={3000}
-                />
-            )}
+                )}
 
-            <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
-                <FiArrowUp size={24} />
-            </GoToTopButton>
-            {showBulkAdd && (
-                <BulkAddModal
-                    onClose={() => setShowBulkAdd(false)}
-                    onConfirm={handleBulkConfirm}
-                    isInThread={!!log?.threadId}
-                />
-            )
-            }
-            {
-                showShareModal && log?.id && (
+                {showBulkAdd && (
+                    <BulkAddModal
+                        onClose={() => setShowBulkAdd(false)}
+                        onConfirm={handleBulkConfirm}
+                        isInThread={!!log?.threadId}
+                    />
+                )}
+                {showShareModal && log?.id && (
                     <SyncModal
                         isOpen={showShareModal}
                         onClose={() => setShowShareModal(false)}
@@ -1347,16 +1361,19 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         t={t}
                         language={language}
                     />
-                )
-            }
-            {isFolderMoveModalOpen && log?.id && (
-                <FolderMoveModal
-                    memoId={log.id}
-                    currentFolderId={log.folderId || null}
-                    onClose={() => setIsFolderMoveModalOpen(false)}
-                    onSuccess={(msg) => setToastMessage(msg)}
-                />
-            )}
-        </Container >
+                )}
+                {isFolderMoveModalOpen && log?.id && (
+                    <FolderMoveModal
+                        memoId={log.id}
+                        currentFolderId={log.folderId || null}
+                        onClose={() => setIsFolderMoveModalOpen(false)}
+                        onSuccess={(msg) => setToastMessage(msg)}
+                    />
+                )}
+            </ScrollContainer>
+            <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
+                <FiArrowUp size={24} />
+            </GoToTopButton>
+        </MainWrapper>
     );
 };

@@ -19,34 +19,40 @@ import { DeleteChoiceModal } from './DeleteChoiceModal';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
 
 const GoToTopButton = styled.button<{ $show: boolean }>`
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 44px;
-  height: 44px;
-  border-radius: 22px;
-  background: ${({ theme }) => theme.colors.primary};
+  position: absolute;
+  bottom: 32px;
+  right: 32px;
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryHover || theme.colors.primary})`};
   color: white;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  transition: all 0.3s ease;
+  box-shadow: ${({ theme }) => theme.shadows.large || '0 8px 25px rgba(0, 0, 0, 0.2)'};
+  z-index: 10000;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   opacity: ${({ $show }) => ($show ? 1 : 0)};
-  transform: translateY(${({ $show }) => ($show ? '0' : '20px')});
+  transform: scale(${({ $show }) => ($show ? 1 : 0.5)}) translateY(${({ $show }) => ($show ? '0' : '30px')});
   pointer-events: ${({ $show }) => ($show ? 'auto' : 'none')};
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    transform: scale(1.1) translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 
   @media (max-width: 768px) {
     bottom: 24px;
-    right: 16px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
   }
 
   @media print {
@@ -54,7 +60,22 @@ const GoToTopButton = styled.button<{ $show: boolean }>`
   }
 `;
 
-const Container = styled.div`
+const MainWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+
+  @media print {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+`;
+
+const ScrollContainer = styled.div`
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -486,17 +507,7 @@ export const MemoDetail: React.FC = () => {
         }
     }, [id]);
 
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
 
-        const handleScroll = () => {
-            setShowGoToTop(container.scrollTop > 300);
-        };
-
-        container.addEventListener('scroll', handleScroll);
-        return () => container.removeEventListener('scroll', handleScroll);
-    }, []);
 
     const handleGoToTop = () => {
         containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -516,6 +527,19 @@ export const MemoDetail: React.FC = () => {
         setAppIsEditing(isEditing || (!!commentDraft && commentDraft.content.trim().length > 0));
         return () => setAppIsEditing(false);
     }, [isEditing, commentDraft, setAppIsEditing]);
+
+    // scroll 이벤트 리스너 등록 (memo가 로드된 후)
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            setShowGoToTop(container.scrollTop > 300);
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [memo]);
 
     const loadedIdRef = useRef<string | null>(null);
 
@@ -906,308 +930,393 @@ export const MemoDetail: React.FC = () => {
 
     if (isDeleting || (!isNew && !memo)) {
         if (isDeleting) return null;
-        return <Container>{t.memo_detail.loading}</Container>;
+        return <ScrollContainer>{t.memo_detail.loading}</ScrollContainer>;
     }
 
     return (
-        <Container ref={containerRef}>
-            <Header>
-                {isEditing ? (
-                    <TitleInput
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                        placeholder={t.memo_detail.title_placeholder}
-                    />
-                ) : (
-                    <TitleDisplay>{memo?.title}</TitleDisplay>
-                )}
+        <MainWrapper onClick={(e) => e.stopPropagation()}>
+            <ScrollContainer ref={containerRef}>
+                <Header>
+                    {isEditing ? (
+                        <TitleInput
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            placeholder={t.memo_detail.title_placeholder}
+                        />
+                    ) : (
+                        <TitleDisplay>{memo?.title}</TitleDisplay>
+                    )}
 
-                <MetaRow>
+                    <MetaRow>
+                        {isEditing ? (
+                            <>
+
+                                <InputWrapper>
+                                    <DateInput
+                                        type={language === 'ko' ? 'text' : 'date'}
+                                        value={date}
+                                        onChange={e => setDate(e.target.value)}
+                                        placeholder={language === 'ko' ? 'YYYY. MM. DD.' : undefined}
+                                    />
+                                    <CalendarIconButton
+                                        onClick={() => {
+                                            const picker = document.getElementById('memo-date-picker');
+                                            if (picker) (picker as any).showPicker?.() || picker.click();
+                                        }}
+                                    />
+                                    <input
+                                        id="memo-date-picker"
+                                        type="date"
+                                        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                                        onChange={(e) => {
+                                            const d = new Date(e.target.value);
+                                            if (!isNaN(d.getTime())) {
+                                                setDate(language === 'ko' ? format(d, 'yyyy. MM. dd.') : formatDateForInput(d));
+                                            }
+                                        }}
+                                    />
+                                </InputWrapper>
+
+                                <TagInput
+                                    value={tags}
+                                    style={{ flex: 1 }}
+                                    onChange={e => setTags(e.target.value)}
+                                    placeholder={t.memo_detail.tags_placeholder}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <span>{memo && format(memo.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
+                                {memo?.tags.map(t => (
+                                    <span
+                                        key={t}
+                                        onClick={() => setSearchQuery(`tag:${t}`)}
+                                        style={{
+                                            background: '#eee',
+                                            padding: '2px 6px',
+                                            borderRadius: '4px',
+                                            fontSize: '12px',
+                                            color: '#333',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {t}
+                                    </span>
+                                ))}
+                            </>
+                        )}
+                    </MetaRow>
+                    {!isEditing && (
+                        <MetaActions>
+                            <MetaActionBtn onClick={() => window.print()} title={language === 'ko' ? '인쇄' : 'Print'}>
+                                <FiPrinter size={16} /> {language === 'ko' ? '인쇄' : 'Print'}
+                            </MetaActionBtn>
+                        </MetaActions>
+                    )}
+                </Header>
+                <ActionBar>
                     {isEditing ? (
                         <>
-
-                            <InputWrapper>
-                                <DateInput
-                                    type={language === 'ko' ? 'text' : 'date'}
-                                    value={date}
-                                    onChange={e => setDate(e.target.value)}
-                                    placeholder={language === 'ko' ? 'YYYY. MM. DD.' : undefined}
-                                />
-                                <CalendarIconButton
-                                    onClick={() => {
-                                        const picker = document.getElementById('memo-date-picker');
-                                        if (picker) (picker as any).showPicker?.() || picker.click();
-                                    }}
-                                />
-                                <input
-                                    id="memo-date-picker"
-                                    type="date"
-                                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-                                    onChange={(e) => {
-                                        const d = new Date(e.target.value);
-                                        if (!isNaN(d.getTime())) {
-                                            setDate(language === 'ko' ? format(d, 'yyyy. MM. dd.') : formatDateForInput(d));
-                                        }
-                                    }}
-                                />
-                            </InputWrapper>
-
-                            <TagInput
-                                value={tags}
-                                style={{ flex: 1 }}
-                                onChange={e => setTags(e.target.value)}
-                                placeholder={t.memo_detail.tags_placeholder}
-                            />
+                            <ActionButton
+                                $variant="primary"
+                                onClick={() => handleSave()}
+                                disabled={!isCurrentlyDirty}
+                                style={{
+                                    opacity: !isCurrentlyDirty ? 0.5 : 1,
+                                    cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                <FiSave size={14} /> {t.memo_detail.save}
+                            </ActionButton>
+                            <ActionButton onClick={() => {
+                                if (isNew) {
+                                    navigate('/');
+                                    return;
+                                }
+                                if (searchParams.get('edit')) {
+                                    navigate(`/memo/${id}`, { replace: true });
+                                }
+                                setCommentDraft(null);
+                                setIsEditing(false);
+                            }}>
+                                <FiX size={14} /> {t.memo_detail.cancel}
+                            </ActionButton>
+                            {!isNew && (
+                                <ActionButton $variant="danger" onClick={handleDelete}>
+                                    <FiTrash2 size={14} /> {t.memo_detail.delete}
+                                </ActionButton>
+                            )}
                         </>
                     ) : (
                         <>
-                            <span>{memo && format(memo.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
-                            {memo?.tags.map(t => (
-                                <span
-                                    key={t}
-                                    onClick={() => setSearchQuery(`tag:${t}`)}
-                                    style={{
-                                        background: '#eee',
-                                        padding: '2px 6px',
-                                        borderRadius: '4px',
-                                        fontSize: '12px',
-                                        color: '#333',
-                                        cursor: 'pointer'
+                            {!isCurrentFolderReadOnly && (
+                                <ActionButton onClick={() => setIsEditing(true)}>
+                                    <FiEdit2 size={14} /> {t.memo_detail.edit}
+                                </ActionButton>
+                            )}
+                            {!isCurrentFolderReadOnly && (
+                                <ActionButton onClick={handleAddThread}>
+                                    <FiPlusCircle size={14} /> {t.memo_detail.append}
+                                </ActionButton>
+                            )}
+                            {!isCurrentFolderReadOnly && (
+                                <ActionButton $variant="danger" onClick={handleDelete}>
+                                    <FiTrash2 size={14} /> {t.memo_detail.delete}
+                                </ActionButton>
+                            )}
+                            {!isNew && (
+                                <ActionButton
+                                    $variant={isMovingLocal ? "primary" : undefined}
+                                    onClick={() => {
+                                        if (isMovingLocal) {
+                                            setMovingMemoId?.(null);
+                                        } else {
+                                            setMovingMemoId?.(Number(id));
+                                        }
                                     }}
                                 >
-                                    {t}
-                                </span>
-                            ))}
+                                    <FiArrowRightCircle size={14} />
+                                    {isMovingLocal ? t.memo_detail.moving : t.memo_detail.move}
+                                </ActionButton>
+                            )}
+                            <ActionButton onClick={() => setIsShareModalOpen(true)}>
+                                <FiShare2 size={14} /> {t.memo_detail.share_memo}
+                            </ActionButton>
+
+                            {!isNew && memo && (
+                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
+                                    <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                                </ActionButton>
+                            )}
+
+                            <ActionButton $variant="print" onClick={() => window.print()} className="hide-on-mobile">
+                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
+                            </ActionButton>
                         </>
                     )}
-                </MetaRow>
-                {!isEditing && (
-                    <MetaActions>
-                        <MetaActionBtn onClick={() => window.print()} title={language === 'ko' ? '인쇄' : 'Print'}>
-                            <FiPrinter size={16} /> {language === 'ko' ? '인쇄' : 'Print'}
-                        </MetaActionBtn>
-                    </MetaActions>
-                )}
-            </Header>
-            <ActionBar>
+                </ActionBar>
+
                 {isEditing ? (
-                    <>
-                        <ActionButton
-                            $variant="primary"
-                            onClick={() => handleSave()}
-                            disabled={!isCurrentlyDirty}
-                            style={{
-                                opacity: !isCurrentlyDirty ? 0.5 : 1,
-                                cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
-                            }}
-                        >
-                            <FiSave size={14} /> {t.memo_detail.save}
-                        </ActionButton>
-                        <ActionButton onClick={() => {
-                            if (isNew) {
-                                navigate('/');
-                                return;
-                            }
-                            if (searchParams.get('edit')) {
-                                navigate(`/memo/${id}`, { replace: true });
-                            }
-                            setCommentDraft(null);
-                            setIsEditing(false);
-                        }}>
-                            <FiX size={14} /> {t.memo_detail.cancel}
-                        </ActionButton>
-                        {!isNew && (
-                            <ActionButton $variant="danger" onClick={handleDelete}>
-                                <FiTrash2 size={14} /> {t.memo_detail.delete}
-                            </ActionButton>
-                        )}
-                    </>
-                ) : (
-                    <>
-                        {!isCurrentFolderReadOnly && (
-                            <ActionButton onClick={() => setIsEditing(true)}>
-                                <FiEdit2 size={14} /> {t.memo_detail.edit}
-                            </ActionButton>
-                        )}
-                        {!isCurrentFolderReadOnly && (
-                            <ActionButton onClick={handleAddThread}>
-                                <FiPlusCircle size={14} /> {t.memo_detail.append}
-                            </ActionButton>
-                        )}
-                        {!isCurrentFolderReadOnly && (
-                            <ActionButton $variant="danger" onClick={handleDelete}>
-                                <FiTrash2 size={14} /> {t.memo_detail.delete}
-                            </ActionButton>
-                        )}
-                        {!isNew && (
-                            <ActionButton
-                                $variant={isMovingLocal ? "primary" : undefined}
-                                onClick={() => {
-                                    if (isMovingLocal) {
-                                        setMovingMemoId?.(null);
-                                    } else {
-                                        setMovingMemoId?.(Number(id));
-                                    }
-                                }}
-                            >
-                                <FiArrowRightCircle size={14} />
-                                {isMovingLocal ? t.memo_detail.moving : t.memo_detail.move}
-                            </ActionButton>
-                        )}
-                        <ActionButton onClick={() => setIsShareModalOpen(true)}>
-                            <FiShare2 size={14} /> {t.memo_detail.share_memo}
-                        </ActionButton>
-
-                        {!isNew && memo && (
-                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
-                                <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
-                            </ActionButton>
-                        )}
-
-                        <ActionButton $variant="print" onClick={() => window.print()} className="hide-on-mobile">
-                            <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
-                        </ActionButton>
-                    </>
-                )}
-            </ActionBar>
-
-            {isEditing ? (
-                <ContentPadding>
-                    <MarkdownEditor
-                        value={content}
-                        onChange={setContent}
-                        initialScrollPercentage={prevScrollRatio}
-                    />
-                </ContentPadding>
-            ) : (
-                <>
                     <ContentPadding>
-                        <MarkdownView
-                            content={memo?.content || ''}
-                            memoId={Number(id)}
-                            isReadOnly={isCurrentFolderReadOnly}
-                            onEditDrawing={(json) => {
-                                setEditingDrawingData(json);
-                                setIsFabricModalOpen(true);
-                            }}
-                            onEditSpreadsheet={(json) => {
-                                try {
-                                    setEditingSpreadsheetData(JSON.parse(json));
-                                    setIsSpreadsheetModalOpen(true);
-                                } catch (e) {
-                                    console.error('Failed to parse spreadsheet JSON for editing', e);
-                                }
-                            }}
+                        <MarkdownEditor
+                            value={content}
+                            onChange={setContent}
+                            initialScrollPercentage={prevScrollRatio}
                         />
                     </ContentPadding>
-                    <CommentsWrapper>
-                        {!isNew && memo && (
-                            <CommentsSection
-                                key={`${memo.id!}-${commentRestorationVersion}`}
-                                memoId={memo.id!}
-                                initialEditingState={commentDraft}
-                                onEditingChange={setCommentDraft}
+                ) : (
+                    <>
+                        <ContentPadding>
+                            <MarkdownView
+                                content={memo?.content || ''}
+                                memoId={Number(id)}
+                                isReadOnly={isCurrentFolderReadOnly}
+                                onEditDrawing={(json) => {
+                                    setEditingDrawingData(json);
+                                    setIsFabricModalOpen(true);
+                                }}
+                                onEditSpreadsheet={(json) => {
+                                    try {
+                                        setEditingSpreadsheetData(JSON.parse(json));
+                                        setIsSpreadsheetModalOpen(true);
+                                    } catch (e) {
+                                        console.error('Failed to parse spreadsheet JSON for editing', e);
+                                    }
+                                }}
                             />
-                        )}
-                    </CommentsWrapper>
-                </>
-            )}
+                        </ContentPadding>
+                        <CommentsWrapper>
+                            {!isNew && memo && (
+                                <CommentsSection
+                                    key={`${memo.id!}-${commentRestorationVersion}`}
+                                    memoId={memo.id!}
+                                    initialEditingState={commentDraft}
+                                    onEditingChange={setCommentDraft}
+                                />
+                            )}
+                        </CommentsWrapper>
+                    </>
+                )}
 
-            {!isNew && memo && (
-                <SyncModal
-                    isOpen={isShareModalOpen}
-                    onClose={() => setIsShareModalOpen(false)}
-                    adapter={handMemoSyncAdapter}
-                    initialItemId={memo.id!}
-                    t={t}
-                    language={language}
-                />
-            )}
+                {!isNew && memo && (
+                    <SyncModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => setIsShareModalOpen(false)}
+                        adapter={handMemoSyncAdapter}
+                        initialItemId={memo.id!}
+                        t={t}
+                        language={language}
+                    />
+                )}
 
-            {isDeleteModalOpen && (
-                <DeleteChoiceModal
-                    onClose={() => setIsDeleteModalOpen(false)}
-                    onDeleteMemoOnly={performDeleteMemoOnly}
-                    onDeleteThread={() => performDeleteMemoOnly()}
-                    isThreadHead={false}
-                />
-            )}
+                {isDeleteModalOpen && (
+                    <DeleteChoiceModal
+                        onClose={() => setIsDeleteModalOpen(false)}
+                        onDeleteMemoOnly={performDeleteMemoOnly}
+                        onDeleteThread={() => performDeleteMemoOnly()}
+                        isThreadHead={false}
+                    />
+                )}
 
-            {isFolderMoveModalOpen && memo && currentFolder && (
-                <FolderMoveModal
-                    memoId={memo.id!}
-                    currentFolderId={currentFolder.id}
-                    onClose={() => setIsFolderMoveModalOpen(false)}
-                    onSuccess={(message) => {
-                        setFolderMoveToast(message);
-                        setTimeout(() => setFolderMoveToast(null), 3000);
+                {isFolderMoveModalOpen && memo && currentFolder && (
+                    <FolderMoveModal
+                        memoId={memo.id!}
+                        currentFolderId={currentFolder.id}
+                        onClose={() => setIsFolderMoveModalOpen(false)}
+                        onSuccess={(message) => {
+                            setFolderMoveToast(message);
+                            setTimeout(() => setFolderMoveToast(null), 3000);
+                        }}
+                    />
+                )}
+
+                {folderMoveToast && (
+                    <Toast
+                        message={folderMoveToast}
+                        onClose={() => setFolderMoveToast(null)}
+                        duration={3000}
+                    />
+                )}
+
+                {showExitToast && (
+                    <Toast
+                        variant="warning"
+                        position="centered"
+                        icon={<FiAlertTriangle size={14} />}
+                        message={t.android?.exit_warning || "Press back again\nto exit editing."}
+                        onClose={() => setShowExitToast(false)}
+                    />
+                )}
+
+                {isFabricModalOpen && (
+                    <FabricCanvasModal
+                        key={tParam || 'default'} // Force re-mount on new requests
+                        language={language}
+                        initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
+                        onSave={async (json: string) => {
+                            const isInitialDrawing = searchParams.get('drawing') === 'true';
+
+                            // Close modal early for better responsiveness
+                            setIsFabricModalOpen(false);
+                            setEditingDrawingData(undefined);
+
+                            let newContent = content;
+                            const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+
+                            if (editingDrawingData) {
+                                // Find the specific block and replace it
+                                let found = false;
+                                newContent = content.replace(fabricRegex, (match, p1) => {
+                                    if (!found && p1.trim() === editingDrawingData.trim()) {
+                                        found = true;
+                                        return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    }
+                                    return match;
+                                });
+                            } else if (isInitialDrawing || content.trim().startsWith('```fabric')) {
+                                // If it's a new drawing or content starts with fabric, replace/set purely
+                                newContent = `\`\`\`fabric\n${json}\n\`\`\``;
+                            } else {
+                                // Try to replace existing or append
+                                if (content.includes('```fabric')) {
+                                    newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
+                                } else {
+                                    newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                }
+                            }
+
+                            setContent(newContent);
+
+                            // If it's a new drawing memo from sidebar, ask for title and auto-save
+                            if (isNew && isInitialDrawing) {
+                                const inputTitle = await modalPrompt({
+                                    message: t.memo_detail.title_prompt,
+                                    placeholder: t.memo_detail.untitled
+                                });
+                                const finalTitle = inputTitle?.trim() || t.memo_detail.untitled;
+
+                                setTitle(finalTitle);
+
+                                // Trigger save with new content and title
+                                handleSave(finalTitle, newContent);
+                            } else {
+                                // Auto-save if viewing existing memo
+                                if (id && memo) {
+                                    await db.memos.update(Number(id), {
+                                        content: newContent,
+                                        updatedAt: new Date()
+                                    });
+                                }
+                            }
+                        }}
+                        onAutosave={(json) => {
+                            let newContent = content;
+                            const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+
+                            if (editingDrawingData) {
+                                let found = false;
+                                newContent = content.replace(fabricRegex, (match, p1) => {
+                                    if (!found && p1.trim() === editingDrawingData.trim()) {
+                                        found = true;
+                                        return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    }
+                                    return match;
+                                });
+                            } else if (searchParams.get('drawing') === 'true' || content.trim().startsWith('```fabric')) {
+                                newContent = `\`\`\`fabric\n${json}\n\`\`\``;
+                            } else {
+                                if (content.includes('```fabric')) {
+                                    newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
+                                } else {
+                                    newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                }
+                            }
+                            if (newContent !== content) setContent(newContent);
+                        }}
+                        onClose={() => {
+                            setIsFabricModalOpen(false);
+                            setEditingDrawingData(undefined);
+                        }}
+                    />
+                )}
+
+                <SpreadsheetModal
+                    isOpen={isSpreadsheetModalOpen}
+                    onClose={() => {
+                        setIsSpreadsheetModalOpen(false);
+                        setEditingSpreadsheetData(undefined);
                     }}
-                />
-            )}
+                    onSave={async (data: any) => {
+                        const json = JSON.stringify(data);
+                        let newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
 
-            {folderMoveToast && (
-                <Toast
-                    message={folderMoveToast}
-                    onClose={() => setFolderMoveToast(null)}
-                    duration={3000}
-                />
-            )}
+                        // Close modal early
+                        setIsSpreadsheetModalOpen(false);
+                        setEditingSpreadsheetData(undefined);
 
-            {showExitToast && (
-                <Toast
-                    variant="warning"
-                    position="centered"
-                    icon={<FiAlertTriangle size={14} />}
-                    message={t.android?.exit_warning || "Press back again\nto exit editing."}
-                    onClose={() => setShowExitToast(false)}
-                />
-            )}
-
-            <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
-                <FiArrowUp size={24} />
-            </GoToTopButton>
-
-            {isFabricModalOpen && (
-                <FabricCanvasModal
-                    key={tParam || 'default'} // Force re-mount on new requests
-                    language={language}
-                    initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
-                    onSave={async (json: string) => {
-                        const isInitialDrawing = searchParams.get('drawing') === 'true';
-
-                        // Close modal early for better responsiveness
-                        setIsFabricModalOpen(false);
-                        setEditingDrawingData(undefined);
-
-                        let newContent = content;
-                        const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
-
-                        if (editingDrawingData) {
-                            // Find the specific block and replace it
+                        if (editingSpreadsheetData) {
                             let found = false;
-                            newContent = content.replace(fabricRegex, (match, p1) => {
-                                if (!found && p1.trim() === editingDrawingData.trim()) {
+                            const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
+                            newContent = content.replace(spreadsheetRegex, (match, p1) => {
+                                if (!found && p1.trim() === targetRaw) {
                                     found = true;
-                                    return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    return `\`\`\`spreadsheet\n${json}\n\`\`\``;
                                 }
                                 return match;
                             });
-                        } else if (isInitialDrawing || content.trim().startsWith('```fabric')) {
-                            // If it's a new drawing or content starts with fabric, replace/set purely
-                            newContent = `\`\`\`fabric\n${json}\n\`\`\``;
-                        } else {
-                            // Try to replace existing or append
-                            if (content.includes('```fabric')) {
-                                newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
-                            } else {
-                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
-                            }
+                        } else if (content.includes('```spreadsheet')) {
+                            newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
+                        } else if (content.trim()) {
+                            newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
                         }
 
                         setContent(newContent);
 
-                        // If it's a new drawing memo from sidebar, ask for title and auto-save
-                        if (isNew && isInitialDrawing) {
+                        const isInitialSpreadsheet = searchParams.get('spreadsheet') === 'true';
+
+                        // If it's a new spreadsheet memo from sidebar, ask for title and auto-save
+                        if (isNew && isInitialSpreadsheet) {
                             const inputTitle = await modalPrompt({
                                 message: t.memo_detail.title_prompt,
                                 placeholder: t.memo_detail.untitled
@@ -1219,7 +1328,6 @@ export const MemoDetail: React.FC = () => {
                             // Trigger save with new content and title
                             handleSave(finalTitle, newContent);
                         } else {
-                            // Auto-save if viewing existing memo
                             if (id && memo) {
                                 await db.memos.update(Number(id), {
                                     content: newContent,
@@ -1228,123 +1336,40 @@ export const MemoDetail: React.FC = () => {
                             }
                         }
                     }}
-                    onAutosave={(json) => {
+                    onAutosave={(data) => {
+                        const json = JSON.stringify(data);
                         let newContent = content;
-                        const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                        const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
 
-                        if (editingDrawingData) {
+                        if (editingSpreadsheetData) {
                             let found = false;
-                            newContent = content.replace(fabricRegex, (match, p1) => {
-                                if (!found && p1.trim() === editingDrawingData.trim()) {
+                            const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
+                            newContent = content.replace(spreadsheetRegex, (match, p1) => {
+                                if (!found && p1.trim() === targetRaw) {
                                     found = true;
-                                    return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    return `\`\`\`spreadsheet\n${json}\n\`\`\``;
                                 }
                                 return match;
                             });
-                        } else if (searchParams.get('drawing') === 'true' || content.trim().startsWith('```fabric')) {
-                            newContent = `\`\`\`fabric\n${json}\n\`\`\``;
+                        } else if (content.includes('```spreadsheet')) {
+                            newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
+                        } else if (searchParams.get('spreadsheet') === 'true' || content.trim().startsWith('```spreadsheet')) {
+                            newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        } else if (content.trim()) {
+                            newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
                         } else {
-                            if (content.includes('```fabric')) {
-                                newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
-                            } else {
-                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
-                            }
+                            newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
                         }
+
                         if (newContent !== content) setContent(newContent);
                     }}
-                    onClose={() => {
-                        setIsFabricModalOpen(false);
-                        setEditingDrawingData(undefined);
-                    }}
+                    initialData={editingSpreadsheetData}
+                    language={language as 'en' | 'ko'}
                 />
-            )}
-
-            <SpreadsheetModal
-                isOpen={isSpreadsheetModalOpen}
-                onClose={() => {
-                    setIsSpreadsheetModalOpen(false);
-                    setEditingSpreadsheetData(undefined);
-                }}
-                onSave={async (data: any) => {
-                    const json = JSON.stringify(data);
-                    let newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                    const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
-
-                    // Close modal early
-                    setIsSpreadsheetModalOpen(false);
-                    setEditingSpreadsheetData(undefined);
-
-                    if (editingSpreadsheetData) {
-                        let found = false;
-                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
-                        newContent = content.replace(spreadsheetRegex, (match, p1) => {
-                            if (!found && p1.trim() === targetRaw) {
-                                found = true;
-                                return `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                            }
-                            return match;
-                        });
-                    } else if (content.includes('```spreadsheet')) {
-                        newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
-                    } else if (content.trim()) {
-                        newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
-                    }
-
-                    setContent(newContent);
-
-                    const isInitialSpreadsheet = searchParams.get('spreadsheet') === 'true';
-
-                    // If it's a new spreadsheet memo from sidebar, ask for title and auto-save
-                    if (isNew && isInitialSpreadsheet) {
-                        const inputTitle = await modalPrompt({
-                            message: t.memo_detail.title_prompt,
-                            placeholder: t.memo_detail.untitled
-                        });
-                        const finalTitle = inputTitle?.trim() || t.memo_detail.untitled;
-
-                        setTitle(finalTitle);
-
-                        // Trigger save with new content and title
-                        handleSave(finalTitle, newContent);
-                    } else {
-                        if (id && memo) {
-                            await db.memos.update(Number(id), {
-                                content: newContent,
-                                updatedAt: new Date()
-                            });
-                        }
-                    }
-                }}
-                onAutosave={(data) => {
-                    const json = JSON.stringify(data);
-                    let newContent = content;
-                    const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
-
-                    if (editingSpreadsheetData) {
-                        let found = false;
-                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
-                        newContent = content.replace(spreadsheetRegex, (match, p1) => {
-                            if (!found && p1.trim() === targetRaw) {
-                                found = true;
-                                return `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                            }
-                            return match;
-                        });
-                    } else if (content.includes('```spreadsheet')) {
-                        newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
-                    } else if (searchParams.get('spreadsheet') === 'true' || content.trim().startsWith('```spreadsheet')) {
-                        newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                    } else if (content.trim()) {
-                        newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
-                    } else {
-                        newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                    }
-
-                    if (newContent !== content) setContent(newContent);
-                }}
-                initialData={editingSpreadsheetData}
-                language={language as 'en' | 'ko'}
-            />
-        </Container>
+            </ScrollContainer>
+            <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
+                <FiArrowUp size={24} />
+            </GoToTopButton>
+        </MainWrapper>
     );
 };
