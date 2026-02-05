@@ -9,7 +9,7 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
@@ -772,7 +772,51 @@ export const LogDetail: React.FC = () => {
         navigate('/', { replace: true });
     };
 
+    const handleAddThread = async () => {
+        if (!log || !id) return;
+
+        const now = new Date();
+        let threadId = log.threadId;
+        let threadOrder = 0;
+
+        try {
+            if (!threadId) {
+                // Create new thread for current log
+                threadId = crypto.randomUUID();
+                await db.logs.update(Number(id), {
+                    threadId,
+                    threadOrder: 0
+                });
+                threadOrder = 1;
+            } else {
+                // Find max order in this thread
+                const threadLogs = await db.logs.where('threadId').equals(threadId).toArray();
+                const maxOrder = Math.max(...threadLogs.map(l => l.threadOrder || 0));
+                threadOrder = maxOrder + 1;
+            }
+
+            // Create new log in thread
+            const newLogId = await db.logs.add({
+                folderId: log.folderId, // Inherit folder
+                title: '', // Empty title implies continuation
+                content: '',
+                tags: log.tags, // Inherit tags
+                modelId: log.modelId, // Inherit model
+                createdAt: now,
+                updatedAt: now,
+                threadId,
+                threadOrder
+            });
+
+            navigate(`/log/${newLogId}?edit=true`, { replace: true });
+        } catch (error) {
+            console.error("Failed to add thread:", error);
+            await confirm({ message: "Failed to add thread. Please try again.", cancelText: null });
+        }
+    };
+
     const currentModelName = models?.find(m => m.id === modelId)?.name || t.log_detail.unknown_model;
+
 
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
@@ -900,6 +944,11 @@ export const LogDetail: React.FC = () => {
                             {!isReadOnly && (
                                 <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
                                     <FiEdit2 size={14} /> {t.log_detail.edit}
+                                </ActionButton>
+                            )}
+                            {!isNew && (
+                                <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                                    <FiGitMerge size={14} /> {t.log_detail.add_thread}
                                 </ActionButton>
                             )}
                             {!isReadOnly && (

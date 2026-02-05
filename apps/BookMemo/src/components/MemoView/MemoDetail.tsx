@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiPlusCircle, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -929,6 +929,50 @@ export const MemoDetail: React.FC = () => {
         }
     };
 
+    const handleAddThread = async () => {
+        if (!memo || !id) return;
+
+        const now = new Date();
+        let threadId = memo.threadId;
+        let threadOrder = 0;
+
+        try {
+            if (!threadId) {
+                // Create new thread for current memo
+                threadId = crypto.randomUUID();
+                await db.memos.update(Number(id), {
+                    threadId,
+                    threadOrder: 0
+                });
+                threadOrder = 1;
+            } else {
+                // Find max order in this thread
+                const threadMemos = await db.memos.where('threadId').equals(threadId).toArray();
+                const maxOrder = Math.max(...threadMemos.map(l => l.threadOrder || 0));
+                threadOrder = maxOrder + 1;
+            }
+
+            // Create new memo in thread
+            const newMemoId = await db.memos.add({
+                folderId: memo.folderId, // Inherit folder
+                bookId: memo.bookId, // Inherit book
+                title: '', // Empty title implies continuation
+                content: '',
+                tags: memo.tags, // Inherit tags
+                pageNumber: memo.pageNumber, // Inherit page number
+                createdAt: now,
+                updatedAt: now,
+                threadId,
+                threadOrder,
+                type: 'normal'
+            });
+
+            navigate(`/book/${memo.bookId}/memo/${newMemoId}?edit=true`, { replace: true });
+        } catch (error) {
+            console.error("Failed to add thread:", error);
+        }
+    };
+
     const handleDelete = async () => {
         if (!id) return;
         setIsDeleteModalOpen(true);
@@ -1136,6 +1180,11 @@ export const MemoDetail: React.FC = () => {
                         <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
                             <FiEdit2 size={14} /> {t.memo_detail.edit}
                         </ActionButton>
+                        {!isNew && (
+                            <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                                <FiPlusCircle size={14} /> {t.memo_detail.append}
+                            </ActionButton>
+                        )}
 
                         <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={2}>
                             <FiTrash2 size={14} /> {t.memo_detail.delete}
