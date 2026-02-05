@@ -110,15 +110,15 @@ const EditorWrapper = styled.div`
     overflow: visible;
 
     .editor-toolbar {
-      z-index: 4;
+      z-index: 10;
       background: ${({ theme }) => theme.colors.surface};
       border-color: ${({ theme }) => theme.colors.border};
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
       position: sticky;
-      top: 42px;
+      top: 48px;
 
       @media (max-width: 480px) {
-        top: 42px;
+        top: 48px;
       }
 
       i {
@@ -719,13 +719,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       "guide"
     ] as any,
     autofocus: initialScrollPercentage !== undefined,
-    toolbarSticky: true,
-    toolbarStickyOffset: isMobile ? 90 : 48,
+    toolbarSticky: false,
     status: false,
     codeMirrorOptions: {
       dragDrop: false,
       inputStyle: 'contenteditable',
       spellcheck: false,
+      cursorScrollMargin: 100,
     }
   }), [t, language, initialScrollPercentage, isMobile]);
 

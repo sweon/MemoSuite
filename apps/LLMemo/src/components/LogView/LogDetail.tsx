@@ -213,7 +213,8 @@ const ActionBar = styled.div`
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
-    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.sm}`};
+    padding: ${({ theme }) => theme.spacing.sm};
+    min-height: 48px;
   }
 `;
 
