@@ -85,6 +85,7 @@ const ScrollContainer = styled.div`
   padding: 0;
   width: 100%;
   -webkit-overflow-scrolling: touch;
+  scroll-padding-top: var(--sticky-offset, 0px);
 
   @media print {
     height: auto !important;
@@ -311,7 +312,7 @@ const ActionBar = styled.div`
   }
 `;
 
-const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' | 'pdf' | 'print' }>`
+const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' | 'pdf' | 'print'; $mobileOrder?: number }>`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -360,6 +361,35 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' 
   }
 `;
 
+const ResponsiveGroup = styled.div`
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  gap: 1rem;
+  align-items: center;
+
+  @media (max-width: 1100px) and (min-width: 481px) {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.6rem;
+  }
+
+  @media (max-width: 480px) {
+    display: contents;
+  }
+`;
+
+const ButtonGroup = styled.div<{ $flex?: number }>`
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  ${({ $flex }) => $flex !== undefined && `flex: ${$flex};`}
+
+  @media (max-width: 480px) {
+    display: contents;
+  }
+`;
+
 const formatDateForInput = (date: Date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -397,6 +427,20 @@ export const MemoDetail: React.FC = () => {
     const [showGoToTop, setShowGoToTop] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const currentAutosaveIdRef = useRef<number | undefined>(undefined);
+
+    const [headerHeight, setHeaderHeight] = useState(0);
+    const actionBarRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!actionBarRef.current) return;
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                setHeaderHeight(entry.contentRect.height);
+            }
+        });
+        observer.observe(actionBarRef.current);
+        return () => observer.disconnect();
+    }, [isEditingInternal]); // re-observe when editing toggles as action bar content changes
 
     useEffect(() => {
         currentAutosaveIdRef.current = undefined;
@@ -1004,9 +1048,17 @@ export const MemoDetail: React.FC = () => {
         return <ScrollContainer>{t.memo_detail.loading}</ScrollContainer>;
     }
 
+    // Layout effect removed as we use the effect at the top of component
+
+    // Removed unused handleFolderMove
+
+
     return (
-        <MainWrapper onClick={(e) => e.stopPropagation()}>
-            <ScrollContainer ref={containerRef}>
+        <MainWrapper>
+            <ScrollContainer
+                ref={containerRef}
+                style={{ '--sticky-offset': headerHeight ? `${headerHeight}px` : undefined } as React.CSSProperties}
+            >
                 <Header>
                     {isEditing ? (
                         <TitleInput
@@ -1090,7 +1142,7 @@ export const MemoDetail: React.FC = () => {
                         </MetaActions>
                     )}
                 </Header>
-                <ActionBar>
+                <ActionBar ref={actionBarRef}>
                     {isEditing ? (
                         <>
                             <ActionButton
@@ -1114,53 +1166,46 @@ export const MemoDetail: React.FC = () => {
                             )}
                         </>
                     ) : (
-                        <>
-                            {!isCurrentFolderReadOnly && (
-                                <ActionButton onClick={() => setIsEditing(true)}>
+                        <ResponsiveGroup>
+                            <ButtonGroup>
+                                <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
                                     <FiEdit2 size={14} /> {t.memo_detail.edit}
                                 </ActionButton>
-                            )}
-
-                            {!isCurrentFolderReadOnly && !isNew && (
-                                <ActionButton onClick={handleAddThread}>
-                                    <FiGitMerge size={14} /> {t.memo_detail.append}
-                                </ActionButton>
-                            )}
-
-                            {!isCurrentFolderReadOnly && (
-                                <ActionButton $variant="danger" onClick={handleDelete}>
+                                {!isNew && (
+                                    <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                                        <FiGitMerge size={14} /> {t.memo_detail.append}
+                                    </ActionButton>
+                                )}
+                                <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
                                     <FiTrash2 size={14} /> {t.memo_detail.delete}
                                 </ActionButton>
-                            )}
-                            {!isNew && (
                                 <ActionButton
-                                    $variant={isMovingLocal ? "primary" : undefined}
+                                    $variant={movingMemoId === Number(id) ? "primary" : undefined}
                                     onClick={() => {
-                                        if (isMovingLocal) {
+                                        if (movingMemoId === Number(id)) {
                                             setMovingMemoId?.(null);
                                         } else {
                                             setMovingMemoId?.(Number(id));
                                         }
                                     }}
+                                    $mobileOrder={4}
                                 >
                                     <FiArrowRightCircle size={14} />
-                                    {isMovingLocal ? t.memo_detail.moving : t.memo_detail.move}
+                                    {movingMemoId === Number(id) ? t.memo_detail.moving : t.memo_detail.move}
                                 </ActionButton>
-                            )}
-                            <ActionButton onClick={() => setIsShareModalOpen(true)}>
-                                <FiShare2 size={14} /> {t.memo_detail.share_memo}
-                            </ActionButton>
-
-                            {!isNew && memo && (
-                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)}>
+                            </ButtonGroup>
+                            <ButtonGroup $flex={1}>
+                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
                                     <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
                                 </ActionButton>
-                            )}
-
-                            <ActionButton $variant="print" onClick={() => window.print()} className="hide-on-mobile">
-                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
-                            </ActionButton>
-                        </>
+                                <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
+                                    <FiShare2 size={14} /> {t.memo_detail.share_memo}
+                                </ActionButton>
+                                <ActionButton onClick={() => window.print()} className="hide-on-mobile" $mobileOrder={7}>
+                                    <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
+                                </ActionButton>
+                            </ButtonGroup>
+                        </ResponsiveGroup>
                     )}
                 </ActionBar>
 
@@ -1176,7 +1221,7 @@ export const MemoDetail: React.FC = () => {
                     <>
                         <ContentPadding>
                             <MarkdownView
-                                content={memo?.content || ''}
+                                content={content}
                                 memoId={Number(id)}
                                 isReadOnly={isCurrentFolderReadOnly}
                                 onEditDrawing={(json) => {
@@ -1193,17 +1238,18 @@ export const MemoDetail: React.FC = () => {
                                 }}
                             />
                         </ContentPadding>
-                        <CommentsWrapper>
-                            {!isNew && memo && (
-                                <CommentsSection
-                                    key={`${memo.id!}-${commentRestorationVersion}`}
-                                    memoId={memo.id!}
-                                    initialEditingState={commentDraft}
-                                    onEditingChange={setCommentDraft}
-                                />
-                            )}
-                        </CommentsWrapper>
                     </>
+                )}
+
+                {!isEditing && !isNew && memo && (
+                    <CommentsWrapper>
+                        <CommentsSection
+                            key={`${memo.id!}-${commentRestorationVersion}`}
+                            memoId={memo.id!}
+                            initialEditingState={commentDraft}
+                            onEditingChange={setCommentDraft}
+                        />
+                    </CommentsWrapper>
                 )}
 
                 {!isNew && memo && (
@@ -1226,14 +1272,15 @@ export const MemoDetail: React.FC = () => {
                     />
                 )}
 
-                {isFolderMoveModalOpen && memo && currentFolder && (
+                {isFolderMoveModalOpen && memo && (
                     <FolderMoveModal
                         memoId={memo.id!}
-                        currentFolderId={currentFolder.id}
+                        currentFolderId={currentFolderId}
                         onClose={() => setIsFolderMoveModalOpen(false)}
                         onSuccess={(message) => {
                             setFolderMoveToast(message);
                             setTimeout(() => setFolderMoveToast(null), 3000);
+                            setIsFolderMoveModalOpen(false);
                         }}
                     />
                 )}
@@ -1251,28 +1298,18 @@ export const MemoDetail: React.FC = () => {
                         variant="warning"
                         position="centered"
                         icon={<FiAlertTriangle size={14} />}
-                        message={t.android?.exit_warning || "Press back again\nto exit editing."}
+                        message={t.memo_detail.exit_toast || "Press back again to exit"}
                         onClose={() => setShowExitToast(false)}
                     />
                 )}
-
                 {isFabricModalOpen && (
                     <FabricCanvasModal
-                        key={tParam || 'default'} // Force re-mount on new requests
-                        language={language}
-                        initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
-                        onSave={async (json: string) => {
-                            const isInitialDrawing = searchParams.get('drawing') === 'true';
-
-                            // Close modal early for better responsiveness
-                            setIsFabricModalOpen(false);
-                            setEditingDrawingData(undefined);
-
+                        initialData={editingDrawingData}
+                        onSave={async (json) => {
                             let newContent = content;
                             const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
 
                             if (editingDrawingData) {
-                                // Find the specific block and replace it
                                 let found = false;
                                 newContent = content.replace(fabricRegex, (match, p1) => {
                                     if (!found && p1.trim() === editingDrawingData.trim()) {
@@ -1281,41 +1318,25 @@ export const MemoDetail: React.FC = () => {
                                     }
                                     return match;
                                 });
-                            } else if (isInitialDrawing || content.trim().startsWith('```fabric')) {
-                                // If it's a new drawing or content starts with fabric, replace/set purely
+                            } else if (content.trim().startsWith('```fabric')) {
                                 newContent = `\`\`\`fabric\n${json}\n\`\`\``;
                             } else {
-                                // Try to replace existing or append
-                                if (content.includes('```fabric')) {
-                                    newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
-                                } else {
-                                    newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
-                                }
+                                newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
                             }
 
                             setContent(newContent);
-
-                            // If it's a new drawing memo from sidebar, ask for title and auto-save
-                            if (isNew && isInitialDrawing) {
-                                const inputTitle = await modalPrompt({
-                                    message: t.memo_detail.title_prompt,
-                                    placeholder: t.memo_detail.untitled
+                            if (id && memo) {
+                                await db.memos.update(Number(id), {
+                                    content: newContent,
+                                    updatedAt: new Date()
                                 });
-                                const finalTitle = inputTitle?.trim() || t.memo_detail.untitled;
-
-                                setTitle(finalTitle);
-
-                                // Trigger save with new content and title
-                                handleSave(finalTitle, newContent);
-                            } else {
-                                // Auto-save if viewing existing memo
-                                if (id && memo) {
-                                    await db.memos.update(Number(id), {
-                                        content: newContent,
-                                        updatedAt: new Date()
-                                    });
-                                }
                             }
+                            setIsFabricModalOpen(false);
+                            setEditingDrawingData(undefined);
+                        }}
+                        onClose={() => {
+                            setIsFabricModalOpen(false);
+                            setEditingDrawingData(undefined);
                         }}
                         onAutosave={(json) => {
                             let newContent = content;
@@ -1340,10 +1361,6 @@ export const MemoDetail: React.FC = () => {
                                 }
                             }
                             if (newContent !== content) setContent(newContent);
-                        }}
-                        onClose={() => {
-                            setIsFabricModalOpen(false);
-                            setEditingDrawingData(undefined);
                         }}
                     />
                 )}

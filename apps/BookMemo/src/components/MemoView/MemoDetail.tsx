@@ -35,6 +35,7 @@ const ScrollContainer = styled.div`
   overflow-x: hidden;
   padding: 0;
   width: 100%;
+  scroll-padding-top: var(--sticky-offset, 0px);
 `;
 
 const GoToTopButton = styled.button<{ $show: boolean }>`
@@ -378,6 +379,20 @@ export const MemoDetail: React.FC = () => {
     const [showGoToTop, setShowGoToTop] = useState(false);
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const [headerHeight, setHeaderHeight] = useState(0);
+    const actionBarRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!actionBarRef.current) return;
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                setHeaderHeight(entry.contentRect.height);
+            }
+        });
+        observer.observe(actionBarRef.current);
+        return () => observer.disconnect();
+    }, [isEditingInternal]); // re-observe when editing toggles as action bar content changes
 
     const startEditing = () => {
         if (containerRef.current) {
@@ -1032,189 +1047,192 @@ export const MemoDetail: React.FC = () => {
 
     return (
         <MainWrapper>
-            <Header>
-                {book && (
-                    <div
-                        className="back-to-book"
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', cursor: 'pointer', color: '#666' }}
-                        onClick={() => navigate(`/book/${book.id}`)}
-                    >
-                        <style>{`
-                            @media (max-width: 768px) {
-                                .back-to-book { display: none !important; }
-                            }
-                        `}</style>
-                        <FiArrowLeft /> Back to {book.title}
-                    </div>
-                )}
-
-                {isEditing ? (
-                    <TitleInput
-                        value={title}
-                        onChange={e => setTitle(e.target.value)}
-                        placeholder={t.memo_detail.title_placeholder}
-                    />
-                ) : (
-                    <TitleDisplay>{memo?.title}</TitleDisplay>
-                )}
-
-                <HeaderRow>
-                    <MetaRow>
-                        {isEditing ? (
-                            <>
-                                <MetaInput
-                                    type="number"
-                                    value={pageNumber}
-                                    onChange={e => {
-                                        const val = e.target.value;
-                                        if (val === '') {
-                                            setPageNumber(val);
-                                            return;
-                                        }
-                                        const num = parseInt(val, 10);
-                                        if (book && book.totalPages && num > book.totalPages) {
-                                            return;
-                                        }
-                                        setPageNumber(val);
-                                    }}
-                                    placeholder="Page"
-                                />
-
-                                <InputWrapper>
-                                    <DateInput
-                                        type={language === 'ko' ? 'text' : 'date'}
-                                        value={date}
-                                        onChange={e => setDate(e.target.value)}
-                                        placeholder={language === 'ko' ? 'YYYY. MM. DD.' : undefined}
-                                    />
-                                    <CalendarIconButton
-                                        onClick={() => {
-                                            const picker = document.getElementById('memo-date-picker');
-                                            if (picker) (picker as any).showPicker?.() || picker.click();
-                                        }}
-                                    />
-                                    <input
-                                        id="memo-date-picker"
-                                        type="date"
-                                        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-                                        onChange={(e) => {
-                                            const d = new Date(e.target.value);
-                                            if (!isNaN(d.getTime())) {
-                                                setDate(language === 'ko' ? format(d, 'yyyy. MM. dd.') : formatDateForInput(d));
-                                            }
-                                        }}
-                                    />
-                                </InputWrapper>
-
-                                <TagInput
-                                    value={tags}
-                                    style={{ flex: 1 }}
-                                    onChange={e => setTags(e.target.value)}
-                                    placeholder={t.memo_detail.tags_placeholder}
-                                />
-                            </>
-                        ) : (
-                            <>
-                                {memo?.pageNumber && <span>p. {memo.pageNumber}</span>}
-                                <span>•</span>
-                                <span>{memo && format(memo.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
-                                {memo?.tags.map(t => (
-                                    <span
-                                        key={t}
-                                        onClick={() => setSearchQuery(`tag:${t}`)}
-                                        style={{
-                                            background: '#eee',
-                                            padding: '2px 6px',
-                                            borderRadius: '4px',
-                                            fontSize: '12px',
-                                            color: '#333',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        {t}
-                                    </span>
-                                ))}
-                            </>
-                        )}
-                    </MetaRow>
-                    <GoToBottomButton onClick={handleGoToBottom} title="Go to Bottom">
-                        <FiArrowDown size={16} />
-                    </GoToBottomButton>
-                </HeaderRow>
-
-                {isEditing ? (
-                    <QuoteInput
-                        placeholder="Quote from book (optional)..."
-                        value={quote}
-                        onChange={e => setQuote(e.target.value)}
-                    />
-                ) : (
-                    quote && <QuoteDisplay>“{quote}”</QuoteDisplay>
-                )}
-
-            </Header>
-            <ActionBar>
-                {isEditing ? (
-                    <>
-                        <ActionButton
-                            $variant="primary"
-                            onClick={handleSave}
-                            disabled={!isCurrentlyDirty || (!!quote.trim() && !pageNumber)}
-                            style={{
-                                opacity: (!isCurrentlyDirty || (!!quote.trim() && !pageNumber)) ? 0.5 : 1,
-                                cursor: (!isCurrentlyDirty || (!!quote.trim() && !pageNumber)) ? 'not-allowed' : 'pointer'
-                            }}
+            <ScrollContainer
+                ref={containerRef}
+                style={{ '--sticky-offset': headerHeight ? `${headerHeight}px` : undefined } as React.CSSProperties}
+            >
+                <Header>
+                    {book && (
+                        <div
+                            className="back-to-book"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', cursor: 'pointer', color: '#666' }}
+                            onClick={() => navigate(`/book/${book.id}`)}
                         >
-                            <FiSave size={14} /> {t.memo_detail.save}
-                        </ActionButton>
-                        <ActionButton $variant="cancel" onClick={handleExit}>
-                            <FiX size={14} /> {t.memo_detail.exit}
-                        </ActionButton>
-                        {!isNew && (
-                            <ActionButton $variant="danger" onClick={handleDelete}>
+                            <style>{`
+                                @media (max-width: 768px) {
+                                    .back-to-book { display: none !important; }
+                                }
+                            `}</style>
+                            <FiArrowLeft /> Back to {book.title}
+                        </div>
+                    )}
+
+                    {isEditing ? (
+                        <TitleInput
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            placeholder={t.memo_detail.title_placeholder}
+                        />
+                    ) : (
+                        <TitleDisplay>{memo?.title}</TitleDisplay>
+                    )}
+
+                    <HeaderRow>
+                        <MetaRow>
+                            {isEditing ? (
+                                <>
+                                    <MetaInput
+                                        type="number"
+                                        value={pageNumber}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            if (val === '') {
+                                                setPageNumber(val);
+                                                return;
+                                            }
+                                            const num = parseInt(val, 10);
+                                            if (book && book.totalPages && num > book.totalPages) {
+                                                return;
+                                            }
+                                            setPageNumber(val);
+                                        }}
+                                        placeholder="Page"
+                                    />
+
+                                    <InputWrapper>
+                                        <DateInput
+                                            type={language === 'ko' ? 'text' : 'date'}
+                                            value={date}
+                                            onChange={e => setDate(e.target.value)}
+                                            placeholder={language === 'ko' ? 'YYYY. MM. DD.' : undefined}
+                                        />
+                                        <CalendarIconButton
+                                            onClick={() => {
+                                                const picker = document.getElementById('memo-date-picker');
+                                                if (picker) (picker as any).showPicker?.() || picker.click();
+                                            }}
+                                        />
+                                        <input
+                                            id="memo-date-picker"
+                                            type="date"
+                                            style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                                            onChange={(e) => {
+                                                const d = new Date(e.target.value);
+                                                if (!isNaN(d.getTime())) {
+                                                    setDate(language === 'ko' ? format(d, 'yyyy. MM. dd.') : formatDateForInput(d));
+                                                }
+                                            }}
+                                        />
+                                    </InputWrapper>
+
+                                    <TagInput
+                                        value={tags}
+                                        style={{ flex: 1 }}
+                                        onChange={e => setTags(e.target.value)}
+                                        placeholder={t.memo_detail.tags_placeholder}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    {memo?.pageNumber && <span>p. {memo.pageNumber}</span>}
+                                    <span>•</span>
+                                    <span>{memo && format(memo.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
+                                    {memo?.tags.map(t => (
+                                        <span
+                                            key={t}
+                                            onClick={() => setSearchQuery(`tag:${t}`)}
+                                            style={{
+                                                background: '#eee',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                                fontSize: '12px',
+                                                color: '#333',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {t}
+                                        </span>
+                                    ))}
+                                </>
+                            )}
+                        </MetaRow>
+                        <GoToBottomButton onClick={handleGoToBottom} title="Go to Bottom">
+                            <FiArrowDown size={16} />
+                        </GoToBottomButton>
+                    </HeaderRow>
+
+                    {isEditing ? (
+                        <QuoteInput
+                            placeholder="Quote from book (optional)..."
+                            value={quote}
+                            onChange={e => setQuote(e.target.value)}
+                        />
+                    ) : (
+                        quote && <QuoteDisplay>“{quote}”</QuoteDisplay>
+                    )}
+
+                </Header>
+                <ActionBar ref={actionBarRef}>
+                    {isEditing ? (
+                        <>
+                            <ActionButton
+                                $variant="primary"
+                                onClick={handleSave}
+                                disabled={!isCurrentlyDirty || (!!quote.trim() && !pageNumber)}
+                                style={{
+                                    opacity: (!isCurrentlyDirty || (!!quote.trim() && !pageNumber)) ? 0.5 : 1,
+                                    cursor: (!isCurrentlyDirty || (!!quote.trim() && !pageNumber)) ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                <FiSave size={14} /> {t.memo_detail.save}
+                            </ActionButton>
+                            <ActionButton $variant="cancel" onClick={handleExit}>
+                                <FiX size={14} /> {t.memo_detail.exit}
+                            </ActionButton>
+                            {!isNew && (
+                                <ActionButton $variant="danger" onClick={handleDelete}>
+                                    <FiTrash2 size={14} /> {t.memo_detail.delete}
+                                </ActionButton>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
+                                <FiEdit2 size={14} /> {t.memo_detail.edit}
+                            </ActionButton>
+                            {!isNew && (
+                                <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                                    <FiGitMerge size={14} /> {t.memo_detail.append}
+                                </ActionButton>
+                            )}
+
+                            <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={2}>
                                 <FiTrash2 size={14} /> {t.memo_detail.delete}
                             </ActionButton>
-                        )}
-                    </>
-                ) : (
-                    <>
-                        <ActionButton onClick={() => setIsEditing(true)} $mobileOrder={1}>
-                            <FiEdit2 size={14} /> {t.memo_detail.edit}
-                        </ActionButton>
-                        {!isNew && (
-                            <ActionButton onClick={handleAddThread} $mobileOrder={2}>
-                                <FiGitMerge size={14} /> {t.memo_detail.append}
+                            <ActionButton
+                                $variant={movingMemoId === Number(id) ? "primary" : undefined}
+                                onClick={() => {
+                                    if (movingMemoId === Number(id)) {
+                                        setMovingMemoId?.(null);
+                                    } else {
+                                        setMovingMemoId?.(Number(id));
+                                    }
+                                }}
+                                $mobileOrder={4}
+                            >
+                                <FiArrowRightCircle size={14} />
+                                {movingMemoId === Number(id) ? t.memo_detail.moving : t.memo_detail.move}
                             </ActionButton>
-                        )}
+                            <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
+                                <FiShare2 size={14} /> {t.memo_detail.share_memo}
+                            </ActionButton>
+                            <ActionButton onClick={() => window.print()} className="hide-on-mobile" $mobileOrder={6}>
+                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
+                            </ActionButton>
+                        </>
+                    )}
+                </ActionBar>
 
-                        <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={2}>
-                            <FiTrash2 size={14} /> {t.memo_detail.delete}
-                        </ActionButton>
-                        <ActionButton
-                            $variant={movingMemoId === Number(id) ? "primary" : undefined}
-                            onClick={() => {
-                                if (movingMemoId === Number(id)) {
-                                    setMovingMemoId?.(null);
-                                } else {
-                                    setMovingMemoId?.(Number(id));
-                                }
-                            }}
-                            $mobileOrder={4}
-                        >
-                            <FiArrowRightCircle size={14} />
-                            {movingMemoId === Number(id) ? t.memo_detail.moving : t.memo_detail.move}
-                        </ActionButton>
-                        <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
-                            <FiShare2 size={14} /> {t.memo_detail.share_memo}
-                        </ActionButton>
-                        <ActionButton onClick={() => window.print()} className="hide-on-mobile" $mobileOrder={6}>
-                            <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
-                        </ActionButton>
-                    </>
-                )}
-            </ActionBar>
-
-            <ScrollContainer ref={containerRef}>
                 {isEditing ? (
                     <ContentPadding>
                         <MarkdownEditor

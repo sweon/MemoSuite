@@ -40,6 +40,7 @@ const ScrollContainer = styled.div`
   padding: 0;
   width: 100%;
   background-color: ${({ theme }) => theme.colors.background};
+  scroll-padding-top: var(--sticky-offset, 0px);
 `;
 
 const GoToTopButton = styled.button<{ $show: boolean }>`
@@ -305,6 +306,20 @@ export const LogDetail: React.FC = () => {
     const [showGoToTop, setShowGoToTop] = useState(false);
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const [headerHeight, setHeaderHeight] = useState(0);
+    const actionBarRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!actionBarRef.current) return;
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                setHeaderHeight(entry.contentRect.height);
+            }
+        });
+        observer.observe(actionBarRef.current);
+        return () => observer.disconnect();
+    }, [isEditing]); // re-observe when editing toggles as action bar content changes
 
     const handleStartEdit = () => {
         if (containerRef.current) {
@@ -861,7 +876,10 @@ export const LogDetail: React.FC = () => {
 
     return (
         <MainWrapper>
-            <ScrollContainer ref={containerRef}>
+            <ScrollContainer
+                ref={containerRef}
+                style={{ '--sticky-offset': headerHeight ? `${headerHeight}px` : undefined } as React.CSSProperties}
+            >
                 <Header>
                     {isEditing ? (
                         <TitleInput
@@ -922,7 +940,7 @@ export const LogDetail: React.FC = () => {
                     </HeaderRow>
 
                 </Header>
-                <ActionBar>
+                <ActionBar ref={actionBarRef}>
                     {isEditing ? (
                         <>
                             <ActionButton

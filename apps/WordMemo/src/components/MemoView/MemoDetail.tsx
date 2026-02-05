@@ -44,6 +44,7 @@ const ScrollContainer = styled.div`
   padding: 0;
   width: 100%;
   background-color: ${({ theme }) => theme.colors.background};
+  scroll-padding-top: var(--sticky-offset, 0px);
 `;
 
 const GoToTopButton = styled.button<{ $show: boolean }>`
@@ -354,6 +355,20 @@ export const MemoDetail: React.FC = () => {
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
     const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
+
+    const [headerHeight, setHeaderHeight] = useState(0);
+    const actionBarRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!actionBarRef.current) return;
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                setHeaderHeight(entry.contentRect.height);
+            }
+        });
+        observer.observe(actionBarRef.current);
+        return () => observer.disconnect();
+    }, [isEditing]); // re-observe when editing toggles as action bar content changes
 
 
 
@@ -1093,7 +1108,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
     return (
         <MainWrapper>
-            <ScrollContainer ref={containerRef}>
+            <ScrollContainer
+                ref={containerRef}
+                style={{ '--sticky-offset': headerHeight ? `${headerHeight}px` : undefined } as React.CSSProperties}
+            >
                 <Header>
                     {isEditing && (
                         <TitleInput
@@ -1150,7 +1168,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     </HeaderRow>
 
                 </Header>
-                <ActionBar>
+                <ActionBar ref={actionBarRef}>
                     {isEditing ? (
                         <>
                             <ActionButton
@@ -1272,15 +1290,17 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         </ContentPadding>
                     )
                 }
-                {!isEditing && !isNew && word && (
-                    <CommentsWrapper>
-                        <CommentsSection
-                            wordId={word.id!}
-                            initialEditingState={commentDraft}
-                            onEditingChange={setCommentDraft}
-                        />
-                    </CommentsWrapper>
-                )}
+                {
+                    !isEditing && !isNew && word && (
+                        <CommentsWrapper>
+                            <CommentsSection
+                                wordId={word.id!}
+                                initialEditingState={commentDraft}
+                                onEditingChange={setCommentDraft}
+                            />
+                        </CommentsWrapper>
+                    )
+                }
 
                 {
                     isFabricModalOpen && (
@@ -1393,43 +1413,51 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
                     )
                 }
-                {folderMoveToast && (
-                    <Toast
-                        message={folderMoveToast}
-                        onClose={() => setFolderMoveToast(null)}
-                        duration={3000}
-                    />
-                )}
+                {
+                    folderMoveToast && (
+                        <Toast
+                            message={folderMoveToast}
+                            onClose={() => setFolderMoveToast(null)}
+                            duration={3000}
+                        />
+                    )
+                }
 
-                {showBulkAdd && (
-                    <BulkAddModal
-                        onClose={() => setShowBulkAdd(false)}
-                        onConfirm={handleBulkConfirm}
-                        isInThread={!!word?.threadId}
-                    />
-                )}
-                {showShareModal && word?.id && (
-                    <SyncModal
-                        isOpen={showShareModal}
-                        onClose={() => setShowShareModal(false)}
-                        adapter={wordMemoSyncAdapter}
-                        initialItemId={word.id}
-                        t={t}
-                        language={language}
-                    />
-                )}
-                {isFolderMoveModalOpen && word?.id && (
-                    <FolderMoveModal
-                        memoId={word.id}
-                        currentFolderId={word.folderId || null}
-                        onClose={() => setIsFolderMoveModalOpen(false)}
-                        onSuccess={(msg) => setToastMessage(msg)}
-                    />
-                )}
-            </ScrollContainer>
+                {
+                    showBulkAdd && (
+                        <BulkAddModal
+                            onClose={() => setShowBulkAdd(false)}
+                            onConfirm={handleBulkConfirm}
+                            isInThread={!!word?.threadId}
+                        />
+                    )
+                }
+                {
+                    showShareModal && word?.id && (
+                        <SyncModal
+                            isOpen={showShareModal}
+                            onClose={() => setShowShareModal(false)}
+                            adapter={wordMemoSyncAdapter}
+                            initialItemId={word.id}
+                            t={t}
+                            language={language}
+                        />
+                    )
+                }
+                {
+                    isFolderMoveModalOpen && word?.id && (
+                        <FolderMoveModal
+                            memoId={word.id}
+                            currentFolderId={word.folderId || null}
+                            onClose={() => setIsFolderMoveModalOpen(false)}
+                            onSuccess={(msg) => setToastMessage(msg)}
+                        />
+                    )
+                }
+            </ScrollContainer >
             <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
                 <FiArrowUp size={24} />
             </GoToTopButton>
-        </MainWrapper>
+        </MainWrapper >
     );
 };
