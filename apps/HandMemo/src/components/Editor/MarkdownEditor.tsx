@@ -159,6 +159,8 @@ const EditorWrapper = styled.div`
     }
     
     .CodeMirror {
+      height: auto !important;
+      min-height: 300px;
       background: ${({ theme }) => theme.colors.background};
       color: ${({ theme }) => theme.colors.text};
       border-color: ${({ theme }) => theme.colors.border};
@@ -672,7 +674,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ value, onChange 
     ] as any,
     autofocus: false,
     status: false,
-    maxHeight: "500px",
     codeMirrorOptions: {
       dragDrop: false,
       inputStyle: 'contenteditable',

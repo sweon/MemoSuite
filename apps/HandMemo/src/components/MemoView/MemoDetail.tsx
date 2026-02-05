@@ -21,6 +21,8 @@ import { FolderMoveModal } from '../FolderView/FolderMoveModal';
 const Container = styled.div`
   display: flex;
   flex-direction: column;
+  flex: 1;
+  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0;
