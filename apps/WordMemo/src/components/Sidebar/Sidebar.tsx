@@ -55,11 +55,15 @@ const SidebarContainer = styled.div`
 
 const Header = styled.div`
   padding: 0.5rem;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.surface};
+`;
+
+const StickyHeaderArea = styled.div`
   position: sticky;
   top: 0;
   z-index: 10;
   background: ${({ theme }) => theme.colors.surface};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
 const BrandArea = styled.div`
@@ -944,8 +948,10 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               <option value="source-asc">{language === 'ko' ? '출처 (오름차순)' : 'Source (Asc)'}</option>
             </select>
           </div>
+        </BrandArea>
 
-          <div>
+        <StickyHeaderArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+          <div style={{ padding: '0 1rem 0.5rem' }}>
             <StudyModeGroup>
               <StudyModeOption
                 $active={studyMode === 'hide-meanings'}
@@ -961,19 +967,19 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               </StudyModeOption>
             </StudyModeGroup>
           </div>
-        </BrandArea>
 
-        <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
-          <TopActions>
-            <Button onClick={() => {
-              navigate('/new', { replace: true, state: { isGuard: true } });
-              onCloseMobile();
-            }}>
-              <FiPlus size={16} />
-              {language === 'ko' ? '새 단어' : 'New Word'}
-            </Button>
-          </TopActions>
-        </Header>
+          <Header>
+            <TopActions>
+              <Button onClick={() => {
+                navigate('/new', { replace: true, state: { isGuard: true } });
+                onCloseMobile();
+              }}>
+                <FiPlus size={16} />
+                {language === 'ko' ? '새 단어' : 'New Word'}
+              </Button>
+            </TopActions>
+          </Header>
+        </StickyHeaderArea>
 
         <WordList id="sidebar-log-list" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <Droppable droppableId="sidebar-droppable" isCombineEnabled>
@@ -1028,9 +1034,11 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
         </WordList>
       </ScrollableArea>
 
-      {toastMessage && (
-        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-      )}
+      {
+        toastMessage && (
+          <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+        )
+      }
 
       <SyncModal
         isOpen={isSyncModalOpen}
@@ -1039,7 +1047,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
         t={t}
         language={language}
       />
-    </SidebarContainer>
+    </SidebarContainer >
   );
 });
 
