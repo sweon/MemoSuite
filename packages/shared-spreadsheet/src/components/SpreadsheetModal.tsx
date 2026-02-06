@@ -195,11 +195,7 @@ const DialogMessage = styled.p`
   line-height: 1.5;
 `;
 
-const DialogButtons = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-`;
+
 
 interface SpreadsheetModalProps {
   isOpen: boolean;
