@@ -300,11 +300,19 @@ const ActionBar = styled.div`
   z-index: 5;
 
   @media (max-width: 480px) {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
     gap: 8px;
     padding: ${({ theme }) => theme.spacing.sm};
     min-height: 48px;
+    
+    /* Hide scrollbar */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   @media print {
