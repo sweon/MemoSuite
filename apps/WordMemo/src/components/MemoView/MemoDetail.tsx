@@ -1243,14 +1243,14 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={5}>
                                     <FiShare2 size={13} /> {t.word_detail.share_word}
                                 </ActionButton>
-                                {!isReadOnly && (
-                                    <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={3}>
-                                        <FiTrash2 size={13} /> {t.word_detail.delete}
-                                    </ActionButton>
-                                )}
                                 <ActionButton onClick={() => window.print()} $mobileOrder={9} className="hide-on-mobile">
                                     <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
                                 </ActionButton>
+                                {!isReadOnly && (
+                                    <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={11}>
+                                        <FiTrash2 size={13} /> {t.word_detail.delete}
+                                    </ActionButton>
+                                )}
 
                                 <StarButton
                                     $active={!!word?.isStarred}

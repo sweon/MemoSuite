@@ -1213,10 +1213,6 @@ export const MemoDetail: React.FC = () => {
                                     <FiGitMerge size={14} /> {t.memo_detail.append}
                                 </ActionButton>
                             )}
-
-                            <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={2}>
-                                <FiTrash2 size={14} /> {t.memo_detail.delete}
-                            </ActionButton>
                             <ActionButton
                                 $variant={movingMemoId === Number(id) ? "primary" : undefined}
                                 onClick={() => {
@@ -1236,6 +1232,9 @@ export const MemoDetail: React.FC = () => {
                             </ActionButton>
                             <ActionButton onClick={() => window.print()} className="hide-on-mobile" $mobileOrder={6}>
                                 <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
+                            </ActionButton>
+                            <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={7}>
+                                <FiTrash2 size={14} /> {t.memo_detail.delete}
                             </ActionButton>
                         </>
                     )}
