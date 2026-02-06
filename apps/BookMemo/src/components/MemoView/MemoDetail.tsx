@@ -10,12 +10,13 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiPrinter, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiFolder } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
 import { bookMemoSyncAdapter } from '../../utils/backupAdapter';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
+import { FolderMoveModal } from '../FolderView/FolderMoveModal';
 
 const MainWrapper = styled.div`
   display: flex;
@@ -452,6 +453,8 @@ export const MemoDetail: React.FC = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isFabricModalOpen, setIsFabricModalOpen] = useState(false);
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
+    const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
+    const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -1206,6 +1209,9 @@ export const MemoDetail: React.FC = () => {
                                     <FiGitMerge size={14} /> {t.memo_detail.append}
                                 </ActionButton>
                             )}
+                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={4}>
+                                <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                            </ActionButton>
                             <ActionButton
                                 $variant={movingMemoId === Number(id) ? "primary" : undefined}
                                 onClick={() => {
@@ -1215,16 +1221,13 @@ export const MemoDetail: React.FC = () => {
                                         setMovingMemoId?.(Number(id));
                                     }
                                 }}
-                                $mobileOrder={4}
+                                $mobileOrder={6}
                             >
                                 <FiArrowRightCircle size={14} />
                                 {movingMemoId === Number(id) ? t.memo_detail.moving : t.memo_detail.move}
                             </ActionButton>
                             <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
                                 <FiShare2 size={14} /> {t.memo_detail.share_memo}
-                            </ActionButton>
-                            <ActionButton onClick={() => window.print()} $mobileOrder={6}>
-                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                             </ActionButton>
                             <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={7}>
                                 <FiTrash2 size={14} /> {t.memo_detail.delete}
@@ -1425,6 +1428,29 @@ export const MemoDetail: React.FC = () => {
                     />
                 )
             }
+
+            {
+                isFolderMoveModalOpen && memo?.id && (
+                    <FolderMoveModal
+                        memoId={memo.id}
+                        currentFolderId={currentFolderId || undefined}
+                        onClose={() => setIsFolderMoveModalOpen(false)}
+                        onSuccess={(message) => {
+                            setFolderMoveToast(message);
+                            setTimeout(() => setFolderMoveToast(null), 3000);
+                            setIsFolderMoveModalOpen(false);
+                        }}
+                    />
+                )
+            }
+
+            {folderMoveToast && (
+                <Toast
+                    message={folderMoveToast}
+                    onClose={() => setFolderMoveToast(null)}
+                    duration={3000}
+                />
+            )}
 
             <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
                 <FiArrowUp size={24} />

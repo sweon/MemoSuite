@@ -12,7 +12,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiPrinter, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
@@ -1201,19 +1201,8 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                     <FiGitMerge size={14} /> {t.word_detail.append}
                                 </ActionButton>
 
-                                <ActionButton
-                                    $variant={movingWordId === Number(id) ? "primary" : undefined}
-                                    onClick={() => {
-                                        if (movingWordId === Number(id)) {
-                                            setMovingWordId?.(null);
-                                        } else {
-                                            setMovingWordId?.(Number(id));
-                                        }
-                                    }}
-                                    $mobileOrder={4}
-                                >
-                                    <FiArrowRightCircle size={14} />
-                                    {movingWordId === Number(id) ? t.word_detail.moving : t.word_detail.move}
+                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={4}>
+                                    <FiFolder size={13} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
                                 </ActionButton>
                             </ButtonGroup>
 
@@ -1224,14 +1213,22 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                         <FiEdit2 size={13} /> {t.word_detail.edit || 'Edit'}
                                     </ActionButton>
                                 )}
-                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
-                                    <FiFolder size={13} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                                <ActionButton
+                                    $variant={movingWordId === Number(id) ? "primary" : undefined}
+                                    onClick={() => {
+                                        if (movingWordId === Number(id)) {
+                                            setMovingWordId?.(null);
+                                        } else {
+                                            setMovingWordId?.(Number(id));
+                                        }
+                                    }}
+                                    $mobileOrder={6}
+                                >
+                                    <FiArrowRightCircle size={14} />
+                                    {movingWordId === Number(id) ? t.word_detail.moving : t.word_detail.move}
                                 </ActionButton>
                                 <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={5}>
                                     <FiShare2 size={13} /> {t.word_detail.share_word}
-                                </ActionButton>
-                                <ActionButton onClick={() => window.print()} $mobileOrder={10}>
-                                    <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
                                 </ActionButton>
                                 {!isReadOnly && (
                                     <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={11}>

@@ -202,7 +202,7 @@ const InfoText = styled.p`
 
 interface FolderMoveModalProps {
     memoId: number;
-    currentFolderId: number;
+    currentFolderId: number | null | undefined;
     onClose: () => void;
     onSuccess: (message: string) => void;
 }

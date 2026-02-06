@@ -9,7 +9,7 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiPrinter, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
@@ -972,6 +972,14 @@ export const LogDetail: React.FC = () => {
                                 </ActionButton>
                             )}
                             {!isNew && (
+                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={4}>
+                                    <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                                </ActionButton>
+                            )}
+                            <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
+                                <FiShare2 size={14} /> {t.log_detail.share_log}
+                            </ActionButton>
+                            {!isNew && (
                                 <ActionButton
                                     $variant={isMovingLocal ? "primary" : undefined}
                                     onClick={() => {
@@ -981,21 +989,12 @@ export const LogDetail: React.FC = () => {
                                             setMovingLogId?.(Number(id));
                                         }
                                     }}
-                                    $mobileOrder={4}
+                                    $mobileOrder={6}
                                 >
                                     <FiArrowRightCircle size={14} />
                                     {isMovingLocal ? t.log_detail.moving : t.log_detail.move}
                                 </ActionButton>
                             )}
-                            <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
-                                <FiShare2 size={14} /> {t.log_detail.share_log}
-                            </ActionButton>
-                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
-                                <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
-                            </ActionButton>
-                            <ActionButton onClick={() => window.print()} $mobileOrder={7}>
-                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
-                            </ActionButton>
                             {!isReadOnly && (
                                 <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={8}>
                                     <FiTrash2 size={14} /> {t.log_detail.delete}

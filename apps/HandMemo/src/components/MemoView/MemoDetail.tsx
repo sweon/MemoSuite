@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiPrinter, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -174,36 +174,7 @@ const MetaRow = styled.div`
   width: 100%;
 `;
 
-const MetaActions = styled.div`
-  display: none;
-  
-  @media (max-width: 768px) {
-    display: flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing.md};
-    margin-left: auto;
-  }
-`;
 
-const MetaActionBtn = styled.button`
-  background: transparent;
-  border: none;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
-  border-radius: ${({ theme }) => theme.radius.small};
-  transition: ${({ theme }) => theme.effects.transition};
-  font-size: 0.8rem;
-  font-weight: 600;
-
-  &:hover {
-    color: ${({ theme }) => theme.colors.primary};
-    background: ${({ theme }) => theme.colors.background};
-  }
-`;
 
 const HeaderRow = styled.div`
   display: flex;
@@ -1130,13 +1101,7 @@ export const MemoDetail: React.FC = () => {
                             <FiArrowDown size={16} />
                         </GoToBottomButton>
                     </HeaderRow>
-                    {!isEditing && (
-                        <MetaActions>
-                            <MetaActionBtn onClick={() => window.print()} title={language === 'ko' ? '인쇄' : 'Print'}>
-                                <FiPrinter size={16} /> {language === 'ko' ? '인쇄' : 'Print'}
-                            </MetaActionBtn>
-                        </MetaActions>
-                    )}
+
                 </Header>
                 <ActionBar ref={actionBarRef}>
                     {isEditing ? (
@@ -1172,6 +1137,11 @@ export const MemoDetail: React.FC = () => {
                                         <FiGitMerge size={14} /> {t.memo_detail.append}
                                     </ActionButton>
                                 )}
+                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={4}>
+                                    <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                                </ActionButton>
+                            </ButtonGroup>
+                            <ButtonGroup $flex={1}>
                                 <ActionButton
                                     $variant={movingMemoId === Number(id) ? "primary" : undefined}
                                     onClick={() => {
@@ -1181,21 +1151,13 @@ export const MemoDetail: React.FC = () => {
                                             setMovingMemoId?.(Number(id));
                                         }
                                     }}
-                                    $mobileOrder={4}
+                                    $mobileOrder={6}
                                 >
                                     <FiArrowRightCircle size={14} />
                                     {movingMemoId === Number(id) ? t.memo_detail.moving : t.memo_detail.move}
                                 </ActionButton>
-                            </ButtonGroup>
-                            <ButtonGroup $flex={1}>
-                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
-                                    <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
-                                </ActionButton>
                                 <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
                                     <FiShare2 size={14} /> {t.memo_detail.share_memo}
-                                </ActionButton>
-                                <ActionButton onClick={() => window.print()} $mobileOrder={7}>
-                                    <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                                 </ActionButton>
                                 <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={8}>
                                     <FiTrash2 size={14} /> {t.memo_detail.delete}
@@ -1451,6 +1413,6 @@ export const MemoDetail: React.FC = () => {
             <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
                 <FiArrowUp size={24} />
             </GoToTopButton>
-        </MainWrapper>
+        </MainWrapper >
     );
 };
