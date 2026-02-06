@@ -979,9 +979,6 @@ export const LogDetail: React.FC = () => {
                             <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
                                 <FiShare2 size={14} /> {t.log_detail.share_log}
                             </ActionButton>
-                            <ActionButton onClick={() => window.print()} $mobileOrder={7}>
-                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
-                            </ActionButton>
                             {!isNew && (
                                 <ActionButton
                                     $variant={isMovingLocal ? "primary" : undefined}
@@ -998,6 +995,9 @@ export const LogDetail: React.FC = () => {
                                     {isMovingLocal ? t.log_detail.moving : t.log_detail.move}
                                 </ActionButton>
                             )}
+                            <ActionButton onClick={() => window.print()} $mobileOrder={7}>
+                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
+                            </ActionButton>
                             {!isReadOnly && (
                                 <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={8}>
                                     <FiTrash2 size={14} /> {t.log_detail.delete}
