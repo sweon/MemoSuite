@@ -303,7 +303,7 @@ export const LogDetail: React.FC = () => {
     const [searchParams] = useSearchParams();
     const { setSearchQuery } = useSearch();
     const { language, t } = useLanguage();
-    const { confirm } = useConfirm();
+    const { confirm, choice } = useConfirm() as any;
 
     const isNew = id === undefined;
 
@@ -852,24 +852,46 @@ export const LogDetail: React.FC = () => {
             return;
         }
 
-        const options = {
-            message: language === 'ko' ? "저장되지 않은 변경사항이 있습니다. 저장하고 나갈까요?" : "You have unsaved changes. Save and exit?",
+        const result = await (choice as any)({
+            message: language === 'ko' ? "저장되지 않은 변경사항이 있습니다. 어떻게 할까요?" : "You have unsaved changes. What would you like to do?",
             confirmText: language === 'ko' ? "저장 및 종료" : "Save and Exit",
-            cancelText: language === 'ko' ? "저장하지 않고 종료" : "Exit without Saving"
-        };
+            neutralText: language === 'ko' ? "저장하지 않고 종료" : "Exit without Saving",
+            cancelText: language === 'ko' ? "취소" : "Cancel"
+        });
 
-        const result = await confirm(options);
-
-        if (result) {
+        if (result === 'confirm') {
             await handleSave();
-        } else {
             if (isNew) {
                 navigate('/');
             } else if (searchParams.get('edit')) {
                 navigate(`/log/${id}`, { replace: true });
             }
+            setIsEditing(false);
+        } else if (result === 'neutral') {
+            // Cleanup autosaves on exit without saving
+            if (id) {
+                await db.autosaves.where('originalId').equals(Number(id)).delete();
+            } else {
+                await db.autosaves.filter(a => a.originalId === undefined).delete();
+            }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
+
+            if (isNew) {
+                navigate('/');
+            } else {
+                // Reset states to original log data
+                if (log) {
+                    setTitle(log.title);
+                    setContent(log.content);
+                    setTags(log.tags.join(', '));
+                    setModelId(log.modelId);
+                    setCommentDraft(null);
+                }
+                if (searchParams.get('edit')) {
+                    navigate(`/log/${id}`, { replace: true });
+                }
+            }
             setIsEditing(false);
         }
     };

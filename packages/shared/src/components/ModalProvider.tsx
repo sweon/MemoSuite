@@ -6,6 +6,7 @@ export interface ConfirmOptions {
     message: string;
     confirmText?: string;
     cancelText?: string | null;
+    neutralText?: string; // Added for choice
     isDestructive?: boolean;
 }
 
@@ -17,9 +18,12 @@ export interface PromptOptions {
     cancelText?: string;
 }
 
+type ChoiceResult = 'confirm' | 'cancel' | 'neutral';
+
 interface ModalContextType {
     confirm: (messageOrOptions: string | ConfirmOptions) => Promise<boolean>;
     prompt: (messageOrOptions: string | PromptOptions) => Promise<string | null>;
+    choice: (options: ConfirmOptions) => Promise<ChoiceResult>;
 }
 
 const ModalContext = createContext<ModalContextType | undefined>(undefined);
@@ -28,11 +32,13 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
         options: ConfirmOptions;
-        resolve: ((value: boolean) => void) | null;
+        resolve: ((value: any) => void) | null;
+        isChoice: boolean;
     }>({
         isOpen: false,
         options: { message: '' },
-        resolve: null
+        resolve: null,
+        isChoice: false
     });
 
     const [promptState, setPromptState] = useState<{
@@ -54,7 +60,19 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setConfirmState({
                 isOpen: true,
                 options,
-                resolve
+                resolve,
+                isChoice: false
+            });
+        });
+    }, []);
+
+    const choice = useCallback((options: ConfirmOptions) => {
+        return new Promise<ChoiceResult>((resolve) => {
+            setConfirmState({
+                isOpen: true,
+                options,
+                resolve,
+                isChoice: true
             });
         });
     }, []);
@@ -73,7 +91,7 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
     }, []);
 
-    const handleConfirmClose = (result: boolean) => {
+    const handleConfirmClose = (result: boolean | ChoiceResult) => {
         if (confirmState.resolve) {
             confirmState.resolve(result);
         }
@@ -88,16 +106,18 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     return (
-        <ModalContext.Provider value={{ confirm, prompt }}>
+        <ModalContext.Provider value={{ confirm, prompt, choice }}>
             {children}
             <ConfirmModal
                 isOpen={confirmState.isOpen}
                 message={confirmState.options.message}
                 confirmText={confirmState.options.confirmText}
                 cancelText={confirmState.options.cancelText}
+                neutralText={confirmState.options.neutralText}
                 isDestructive={confirmState.options.isDestructive}
-                onConfirm={() => handleConfirmClose(true)}
-                onCancel={() => handleConfirmClose(false)}
+                onConfirm={() => handleConfirmClose(confirmState.isChoice ? 'confirm' : true)}
+                onCancel={() => handleConfirmClose(confirmState.isChoice ? 'cancel' : false)}
+                onNeutral={() => handleConfirmClose('neutral')}
             />
             <PromptModal
                 isOpen={promptState.isOpen}
