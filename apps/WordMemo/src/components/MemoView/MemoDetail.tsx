@@ -10,6 +10,7 @@ import { useStudyMode } from '../../contexts/StudyModeContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
+import { BlurredText } from '../UI/BlurredText';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
 import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiPrinter } from 'react-icons/fi';
@@ -116,7 +117,7 @@ const CommentsWrapper = styled.div`
 `;
 
 const TitleInput = styled.input`
-  font-size: 1.5rem;
+  font-size: 2.25rem;
   font-weight: 800;
   width: 100%;
   border: none;
@@ -132,6 +133,17 @@ const TitleInput = styled.input`
   &::placeholder {
     opacity: 0.3;
   }
+`;
+
+const TitleDisplay = styled.h1`
+  font-size: 2.25rem;
+  font-weight: 900;
+  margin: 0 0 ${({ theme }) => theme.spacing.sm} 0;
+  color: ${({ theme }) => theme.colors.text};
+  letter-spacing: -0.04em;
+  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary})`};
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 `;
 
 const MetaRow = styled.div`
@@ -1157,12 +1169,18 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 style={{ '--sticky-offset': headerHeight ? `${headerHeight}px` : undefined } as React.CSSProperties}
             >
                 <Header>
-                    {isEditing && (
+                    {isEditing ? (
                         <TitleInput
                             value={title}
                             onChange={e => setTitle(e.target.value)}
                             placeholder={t.word_detail.title_placeholder}
                         />
+                    ) : (
+                        <TitleDisplay>
+                            <BlurredText $isBlurred={studyMode === 'hide-words'}>
+                                {word?.title}
+                            </BlurredText>
+                        </TitleDisplay>
                     )}
                     <HeaderRow>
                         <MetaRow>
@@ -1314,6 +1332,8 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                             <ContentWrapper $isBlurred={studyMode === 'hide-meanings'}>
                                 <MarkdownView
                                     content={content}
+                                    wordTitle={word?.title}
+                                    studyMode={studyMode}
                                     isReadOnly={isReadOnly}
                                     onEditDrawing={(json) => {
                                         if (isReadOnly) return;

@@ -128,6 +128,26 @@ const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
       font-weight: 600;
     }
   }
+
+  .study-blur {
+    transition: filter 0.2s ease, opacity 0.2s ease;
+    display: inline-block;
+    filter: blur(8px);
+    opacity: 0.7;
+    cursor: default;
+    
+    &:hover, &:active {
+      filter: blur(0);
+      opacity: 1;
+      transition: filter 0.3s ease 1.2s, opacity 0.3s ease 1.2s;
+    }
+
+    @media (hover: none) {
+        &:active {
+            transition-delay: 0s;
+        }
+    }
+  }
 `;
 
 const PREVIEW_CACHE = new Map<string, string>();
@@ -446,6 +466,8 @@ const SpreadsheetPreview = ({ json, onClick }: { json: string; onClick?: () => v
 
 interface MarkdownViewProps {
   content: string;
+  wordTitle?: string;
+  studyMode?: 'none' | 'hide-meanings' | 'hide-words';
   isReadOnly?: boolean;
   tableHeaderBg?: string;
   onEditDrawing?: (json: string) => void;
@@ -454,6 +476,8 @@ interface MarkdownViewProps {
 
 export const MarkdownView: React.FC<MarkdownViewProps> = ({
   content,
+  wordTitle,
+  studyMode,
   isReadOnly = false,
   tableHeaderBg,
   onEditDrawing,
@@ -461,6 +485,16 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
 }) => {
   const theme = useTheme() as any;
   const isDark = theme.mode === 'dark';
+
+  const processedContent = React.useMemo(() => {
+    if (studyMode === 'hide-words' && wordTitle) {
+      // Escaping for regex
+      const escapedTitle = wordTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escapedTitle})`, 'gi');
+      return content.replace(regex, '<span class="study-blur">$1</span>');
+    }
+    return content;
+  }, [content, studyMode, wordTitle]);
 
   return (
     <MarkdownContainer $tableHeaderBg={tableHeaderBg}>
@@ -511,7 +545,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
           }
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </MarkdownContainer>
   );
