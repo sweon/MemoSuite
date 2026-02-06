@@ -27,6 +27,8 @@ const SidebarWrapper = styled.div<{ $isOpen: boolean; $width: number }>`
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.1s linear;
   position: relative;
   z-index: 20;
+  user-select: none;
+  -webkit-user-select: none;
 
   @media (max-width: 768px) {
     width: ${({ $width }) => $width}px !important;
@@ -47,6 +49,8 @@ const ContentWrapper = styled.div`
   overflow: hidden;
   position: relative;
   background-color: ${({ theme }) => theme.colors.background};
+  user-select: text;
+  -webkit-user-select: text;
 `;
 
 const SidebarInactiveOverlay = styled.div<{ $isEditing: boolean }>`
