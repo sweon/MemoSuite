@@ -280,6 +280,7 @@ const QuoteDisplay = styled.div`
 
 const ActionBar = styled.div`
   display: flex;
+  flex-wrap: wrap;
   gap: ${({ theme }) => theme.spacing.sm};
   padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.xl}`};
   background: ${({ theme }) => theme.colors.surface};

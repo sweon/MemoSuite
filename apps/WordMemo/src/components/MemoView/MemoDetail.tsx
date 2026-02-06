@@ -185,12 +185,7 @@ const ResponsiveGroup = styled.div`
   width: 100%;
   gap: 1rem;
   align-items: center;
-
-  @media (max-width: 1100px) and (min-width: 481px) {
-    flex-direction: column-reverse;
-    align-items: stretch;
-    gap: 0.6rem;
-  }
+  flex-wrap: wrap;
 
   @media (max-width: 480px) {
     display: contents;
