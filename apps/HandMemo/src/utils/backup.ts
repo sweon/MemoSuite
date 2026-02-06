@@ -98,6 +98,9 @@ export const mergeBackupData = async (data: any) => {
                 const { id, ...memoData } = l;
                 memoData.createdAt = createdAt;
                 memoData.updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
+                if (l.pinnedAt) {
+                    memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                }
 
                 // Ensure data has a folderId
                 if (!memoData.folderId) {

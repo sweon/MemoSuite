@@ -122,6 +122,9 @@ export const mergeBackupData = async (data: any) => {
                 if (b.completedDate) {
                     bookData.completedDate = typeof b.completedDate === 'string' ? new Date(b.completedDate) : b.completedDate;
                 }
+                if (b.pinnedAt) {
+                    bookData.pinnedAt = typeof b.pinnedAt === 'string' ? new Date(b.pinnedAt) : b.pinnedAt;
+                }
 
                 const newBookId = await db.books.add(bookData);
                 bookIdMap.set(oldBookId, newBookId as number);
@@ -143,6 +146,9 @@ export const mergeBackupData = async (data: any) => {
                 const { id, ...memoData } = l;
                 memoData.createdAt = createdAt;
                 memoData.updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
+                if (l.pinnedAt) {
+                    memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                }
 
                 // Map bookId if it was changed during book merge
                 if (l.bookId && bookIdMap.has(l.bookId)) {
