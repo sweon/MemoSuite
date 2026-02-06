@@ -576,6 +576,16 @@ const ContentWrapper = styled.div`
   }
 `;
 
+const SidebarInactiveOverlay = styled.div<{ $isEditing: boolean }>`
+  position: absolute;
+  inset: 0;
+  background-color: transparent;
+  z-index: 100;
+  display: ${({ $isEditing }) => ($isEditing ? 'block' : 'none')};
+  cursor: not-allowed;
+  pointer-events: auto;
+`;
+
 const ResizeHandle = styled.div<{ $isResizing: boolean; $isVisible: boolean }>`
   width: 4px;
   cursor: col-resize;
@@ -1414,6 +1424,7 @@ export const MainLayout: React.FC = () => {
             movingMemoId={movingMemoId}
             setMovingMemoId={setMovingMemoId}
           />
+          <SidebarInactiveOverlay $isEditing={isAppEditing} />
           <ResizeHandle
             $isResizing={isResizing}
             $isVisible={isResizeHandleVisible}

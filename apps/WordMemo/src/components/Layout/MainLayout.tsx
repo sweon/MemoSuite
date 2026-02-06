@@ -50,6 +50,16 @@ const ContentWrapper = styled.div`
   background-color: ${({ theme }) => theme.colors.background};
 `;
 
+const SidebarInactiveOverlay = styled.div<{ $isEditing: boolean }>`
+  position: absolute;
+  inset: 0;
+  background-color: transparent;
+  z-index: 100;
+  display: ${({ $isEditing }) => ($isEditing ? 'block' : 'none')};
+  cursor: not-allowed;
+  pointer-events: auto;
+`;
+
 const ResizeHandle = styled.div<{ $isResizing: boolean }>`
   width: 4px;
   cursor: col-resize;
@@ -242,6 +252,7 @@ export const MainLayout: React.FC = () => {
             movingWordId={movingWordId}
             setMovingWordId={setMovingWordId}
           />
+          <SidebarInactiveOverlay $isEditing={isAppEditing || isDirty} />
           <ResizeHandle
             $isResizing={isResizing}
             onMouseDown={startResizing}
