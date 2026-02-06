@@ -9,7 +9,7 @@ import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiPrinter } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
@@ -978,6 +978,9 @@ export const LogDetail: React.FC = () => {
                             )}
                             <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
                                 <FiShare2 size={14} /> {t.log_detail.share_log}
+                            </ActionButton>
+                            <ActionButton onClick={() => window.print()} $mobileOrder={7}>
+                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                             </ActionButton>
                             {!isNew && (
                                 <ActionButton

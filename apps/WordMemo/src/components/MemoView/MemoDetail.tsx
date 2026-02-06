@@ -12,7 +12,7 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiPrinter } from 'react-icons/fi';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
@@ -1229,6 +1229,9 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 </ActionButton>
                                 <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={5}>
                                     <FiShare2 size={13} /> {t.word_detail.share_word}
+                                </ActionButton>
+                                <ActionButton onClick={() => window.print()} $mobileOrder={10}>
+                                    <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
                                 </ActionButton>
                                 {!isReadOnly && (
                                     <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={11}>
