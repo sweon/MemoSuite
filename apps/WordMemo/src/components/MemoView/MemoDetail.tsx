@@ -1231,7 +1231,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                     <FiShare2 size={13} /> {t.word_detail.share_word}
                                 </ActionButton>
                                 <ActionButton onClick={() => window.print()} $mobileOrder={10}>
-                                    <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
+                                    <FiPrinter size={13} /> {language === 'ko' ? '인쇄' : 'Print'}
                                 </ActionButton>
                                 {!isReadOnly && (
                                     <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={11}>
