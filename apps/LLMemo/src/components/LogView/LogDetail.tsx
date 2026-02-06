@@ -212,18 +212,10 @@ const ActionBar = styled.div`
 
   @media (max-width: 480px) {
     display: flex;
-    overflow-x: auto;
-    white-space: nowrap;
+    flex-wrap: wrap;
     gap: 8px;
     padding: ${({ theme }) => theme.spacing.sm};
-    min-height: 48px;
-    
-    /* Hide scrollbar */
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-    &::-webkit-scrollbar {
-      display: none;
-    }
+    height: auto;
   }
 `;
 
