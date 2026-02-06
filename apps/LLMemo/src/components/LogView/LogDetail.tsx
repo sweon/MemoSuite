@@ -993,7 +993,7 @@ export const LogDetail: React.FC = () => {
                             <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={6}>
                                 <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
                             </ActionButton>
-                            <ActionButton onClick={() => window.print()} className="hide-on-mobile" $mobileOrder={7}>
+                            <ActionButton onClick={() => window.print()} $mobileOrder={7}>
                                 <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                             </ActionButton>
                             {!isReadOnly && (

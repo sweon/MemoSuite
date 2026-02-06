@@ -1194,7 +1194,7 @@ export const MemoDetail: React.FC = () => {
                                 <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
                                     <FiShare2 size={14} /> {t.memo_detail.share_memo}
                                 </ActionButton>
-                                <ActionButton onClick={() => window.print()} className="hide-on-mobile" $mobileOrder={7}>
+                                <ActionButton onClick={() => window.print()} $mobileOrder={7}>
                                     <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                                 </ActionButton>
                                 <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={8}>

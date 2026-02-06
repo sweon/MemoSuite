@@ -1230,7 +1230,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={5}>
                                     <FiShare2 size={13} /> {t.word_detail.share_word}
                                 </ActionButton>
-                                <ActionButton onClick={() => window.print()} $mobileOrder={9} className="hide-on-mobile">
+                                <ActionButton onClick={() => window.print()} $mobileOrder={10}>
                                     <FiPrinter size={13} /> {t.word_detail.print || 'Print'}
                                 </ActionButton>
                                 {!isReadOnly && (
@@ -1242,7 +1242,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 <StarButton
                                     $active={!!word?.isStarred}
                                     onClick={handleToggleStar}
-                                    style={{ padding: '6px', marginLeft: 'auto', order: 10 }}
+                                    style={{ padding: '6px', marginLeft: 'auto', order: 9 }}
                                 >
                                     <FiStar fill={word?.isStarred ? 'currentColor' : 'none'} size={15} />
                                 </StarButton>
