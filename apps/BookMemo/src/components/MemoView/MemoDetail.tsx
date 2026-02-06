@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useConfirm, useLanguage } from '@memosuite/shared';
+import { SyncModal, useModal, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
-import { useParams, useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CommentDraft } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
@@ -369,9 +369,10 @@ export const MemoDetail: React.FC = () => {
     const { id, bookId } = useParams<{ id: string, bookId: string }>();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const location = useLocation();
     const { setSearchQuery } = useSearch();
     const { t, language } = useLanguage();
-    const { choice } = useConfirm() as any;
+    const { choice, prompt: modalPrompt } = useModal();
     const isNew = !id;
 
     // Guard Hook
@@ -453,6 +454,15 @@ export const MemoDetail: React.FC = () => {
             }
         }
     }, [tParam, searchParams, isNew]);
+
+    // Recover spreadsheet data from navigation state if available (e.g. after initial save of new memo)
+    useEffect(() => {
+        if (location.state?.spreadsheetData && location.state?.spreadsheetJson) {
+            setEditingSpreadsheetData(location.state.spreadsheetData);
+            originalSpreadsheetJsonRef.current = location.state.spreadsheetJson;
+            setIsSpreadsheetModalOpen(true);
+        }
+    }, [location.state]);
 
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -849,17 +859,17 @@ export const MemoDetail: React.FC = () => {
         return () => clearInterval(interval);
     }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft, bookId]); // Removed memo dependency to prevent interval reset on DB updates
 
-    const handleSave = async () => {
+    const handleSave = async (overrideTitle?: string, overrideContent?: string, overrideSearch?: string, overrideState?: any) => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
         const now = new Date();
         const pNum = pageNumber ? parseInt(pageNumber, 10) : undefined;
         const targetBookId = bookId ? Number(bookId) : memo?.bookId;
-
-        let finalTitle = title.trim();
+        const currentContent = overrideContent !== undefined ? overrideContent : content;
+        let finalTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
         let finalType: 'normal' | 'progress' = 'normal';
 
         const hasTitle = !!finalTitle;
-        const hasContent = !!content.trim();
+        const hasContent = !!currentContent.trim();
         const hasQuote = !!quote.trim();
         const hasPage = pNum !== undefined;
 
@@ -871,7 +881,7 @@ export const MemoDetail: React.FC = () => {
                 finalTitle = "Progress Record";
                 finalType = 'progress';
             } else {
-                const contentText = content.trim();
+                const contentText = currentContent.trim();
                 const quoteText = quote.trim();
 
                 if (contentText) {
@@ -928,7 +938,7 @@ export const MemoDetail: React.FC = () => {
         if (id) {
             await db.memos.update(Number(id), {
                 title: finalTitle,
-                content,
+                content: currentContent,
                 tags: tagArray,
                 pageNumber: pNum,
                 quote,
@@ -950,7 +960,7 @@ export const MemoDetail: React.FC = () => {
                 folderId: currentFolderId || undefined,
                 bookId: targetBookId,
                 title: finalTitle,
-                content,
+                content: currentContent,
                 tags: tagArray,
                 pageNumber: pNum,
                 quote,
@@ -962,8 +972,8 @@ export const MemoDetail: React.FC = () => {
             // Cleanup all new memo autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            const search = searchParams.toString();
-            navigate(`/book/${targetBookId}/memo/${newId}${search ? '?' + search : ''}`, { replace: true });
+            const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
+            navigate(`/book/${targetBookId}/memo/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
         }
     };
 
@@ -1226,7 +1236,7 @@ export const MemoDetail: React.FC = () => {
                         <>
                             <ActionButton
                                 $variant="primary"
-                                onClick={handleSave}
+                                onClick={() => handleSave()}
                                 disabled={!isCurrentlyDirty || (!!quote.trim() && !pageNumber)}
                                 style={{
                                     opacity: (!isCurrentlyDirty || (!!quote.trim() && !pageNumber)) ? 0.5 : 1,
@@ -1452,11 +1462,31 @@ export const MemoDetail: React.FC = () => {
 
                     setContent(newContent);
                     spreadsheetCheckpointRef.current = newContent;
-                    if (id && memo) {
-                        await db.memos.update(Number(id), {
-                            content: newContent,
-                            updatedAt: new Date()
+
+                    const isInitialSpreadsheet = searchParams.get('spreadsheet') === 'true';
+
+                    // If it's a new spreadsheet memo from sidebar, ask for title and auto-save
+                    if (isNew && isInitialSpreadsheet) {
+                        const inputTitle = await modalPrompt({
+                            message: t.memo_detail.title_prompt || (language === 'ko' ? '메모 제목을 입력하세요' : 'Enter memo title'),
+                            placeholder: t.memo_detail.untitled
                         });
+                        const finalTitle = inputTitle?.trim() || t.memo_detail.untitled;
+
+                        setTitle(finalTitle);
+
+                        // Trigger save with new content and title
+                        // Keep spreadsheet=true and pass data in state to prevent "empty sheet" bug on remount
+                        await handleSave(finalTitle, newContent, searchParams.toString(), {
+                            spreadsheetData: data,
+                            spreadsheetJson: json
+                        });
+                    } else {
+                        if (id) {
+                            // Trigger save with new content
+                            // Use handleSave to update lastSavedState and avoid race conditions with main Save button
+                            await handleSave(undefined, newContent);
+                        }
                     }
                 }}
                 onAutosave={(data) => {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useConfirm, useLanguage } from '@memosuite/shared';
+import { SyncModal, useModal, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
-import { useParams, useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CommentDraft } from '../../db';
 import { useSearch } from '../../contexts/SearchContext';
@@ -301,9 +301,10 @@ export const LogDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const location = useLocation();
     const { setSearchQuery } = useSearch();
     const { language, t } = useLanguage();
-    const { confirm, choice } = useConfirm() as any;
+    const { confirm, choice, prompt: modalPrompt } = useModal();
 
     const isNew = id === undefined;
 
@@ -387,6 +388,15 @@ export const LogDetail: React.FC = () => {
             }
         }
     }, [tParam, searchParams, isNew]);
+
+    // Recover spreadsheet data from navigation state if available (e.g. after initial save of new memo)
+    useEffect(() => {
+        if (location.state?.spreadsheetData && location.state?.spreadsheetJson) {
+            setEditingSpreadsheetData(location.state.spreadsheetData);
+            originalSpreadsheetJsonRef.current = location.state.spreadsheetJson;
+            setIsSpreadsheetModalOpen(true);
+        }
+    }, [location.state]);
 
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
@@ -699,14 +709,17 @@ export const LogDetail: React.FC = () => {
         return () => clearInterval(interval);
     }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft]); // Removed log dependency to prevent interval reset on DB updates
 
-    const handleSave = async () => {
+    const handleSave = async (overrideTitle?: string, overrideContent?: string, overrideSearch?: string, overrideState?: any) => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
         const now = new Date();
+        const currentContent = overrideContent !== undefined ? overrideContent : content;
+        const currentTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
+        const finalTitle = currentTitle || t.log_detail.untitled;
 
         if (id) {
             await db.logs.update(Number(id), {
-                title,
-                content,
+                title: finalTitle,
+                content: currentContent,
                 tags: tagArray,
                 modelId: modelId ? Number(modelId) : undefined,
                 updatedAt: now
@@ -724,8 +737,8 @@ export const LogDetail: React.FC = () => {
         } else {
             const newId = await db.logs.add({
                 folderId: currentFolderId || undefined,
-                title: title || t.log_detail.untitled,
-                content,
+                title: finalTitle,
+                content: currentContent,
                 tags: tagArray,
                 modelId: modelId ? Number(modelId) : undefined,
                 createdAt: now,
@@ -735,8 +748,8 @@ export const LogDetail: React.FC = () => {
             // Cleanup all new log autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            const search = searchParams.toString();
-            navigate(`/log/${newId}${search ? '?' + search : ''}`, { replace: true });
+            const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
+            navigate(`/log/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
         }
     };
 
@@ -986,7 +999,7 @@ export const LogDetail: React.FC = () => {
                         <>
                             <ActionButton
                                 $variant="primary"
-                                onClick={handleSave}
+                                onClick={() => handleSave()}
                                 disabled={!isCurrentlyDirty}
                                 style={{
                                     opacity: !isCurrentlyDirty ? 0.5 : 1,
@@ -1177,11 +1190,31 @@ export const LogDetail: React.FC = () => {
 
                         setContent(newContent);
                         spreadsheetCheckpointRef.current = newContent;
-                        if (id) {
-                            await db.logs.update(Number(id), {
-                                content: newContent,
-                                updatedAt: new Date()
+
+                        const isInitialSpreadsheet = searchParams.get('spreadsheet') === 'true';
+
+                        // If it's a new spreadsheet memo from sidebar, ask for title and auto-save
+                        if (isNew && isInitialSpreadsheet) {
+                            const inputTitle = await modalPrompt({
+                                message: t.log_detail.title_prompt || (language === 'ko' ? '로그 제목을 입력하세요' : 'Enter log title'),
+                                placeholder: t.log_detail.untitled
                             });
+                            const finalTitle = inputTitle?.trim() || t.log_detail.untitled;
+
+                            setTitle(finalTitle);
+
+                            // Trigger save with new content and title
+                            // Keep spreadsheet=true and pass data in state to prevent "empty sheet" bug on remount
+                            await handleSave(finalTitle, newContent, searchParams.toString(), {
+                                spreadsheetData: data,
+                                spreadsheetJson: json
+                            });
+                        } else {
+                            if (id) {
+                                // Trigger save with new content
+                                // Use handleSave to update lastSavedState and avoid race conditions with main Save button
+                                await handleSave(undefined, newContent);
+                            }
                         }
                     }}
                     onAutosave={(data) => {

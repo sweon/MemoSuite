@@ -486,6 +486,15 @@ export const MemoDetail: React.FC = () => {
         }
     }, [tParam, searchParams, isNew]);
 
+    // Recover spreadsheet data from navigation state if available (e.g. after initial save of new memo)
+    useEffect(() => {
+        if (location.state?.spreadsheetData && location.state?.spreadsheetJson) {
+            setEditingSpreadsheetData(location.state.spreadsheetData);
+            originalSpreadsheetJsonRef.current = location.state.spreadsheetJson;
+            setIsSpreadsheetModalOpen(true);
+        }
+    }, [location.state]);
+
     useEffect(() => {
         if (isEditingInternal) {
             const guardId = 'memo-edit-guard';
@@ -812,7 +821,7 @@ export const MemoDetail: React.FC = () => {
         return () => clearInterval(interval);
     }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft]); // Removed memo dependency to prevent interval reset on DB updates
 
-    const handleSave = async (overrideTitle?: string, overrideContent?: string) => {
+    const handleSave = async (overrideTitle?: string, overrideContent?: string, overrideSearch?: string, overrideState?: any) => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
         const now = new Date();
         const currentContent = overrideContent !== undefined ? overrideContent : content;
@@ -929,8 +938,8 @@ export const MemoDetail: React.FC = () => {
             // Cleanup all new memo autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            const search = searchParams.toString();
-            navigate(`/memo/${newId}${search ? '?' + search : ''}`, { replace: true });
+            const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
+            navigate(`/memo/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
         }
     };
 
@@ -1428,13 +1437,16 @@ export const MemoDetail: React.FC = () => {
                             setTitle(finalTitle);
 
                             // Trigger save with new content and title
-                            handleSave(finalTitle, newContent);
+                            // Keep spreadsheet=true and pass data in state to prevent "empty sheet" bug on remount
+                            await handleSave(finalTitle, newContent, searchParams.toString(), {
+                                spreadsheetData: data,
+                                spreadsheetJson: json
+                            });
                         } else {
-                            if (id && memo) {
-                                await db.memos.update(Number(id), {
-                                    content: newContent,
-                                    updatedAt: new Date()
-                                });
+                            if (id) {
+                                // Trigger save with new content
+                                // Use handleSave to update lastSavedState and avoid race conditions with main Save button
+                                await handleSave(undefined, newContent);
                             }
                         }
                     }}
