@@ -834,7 +834,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
         </div>
       )}
       <ScrollableArea id="sidebar-scrollable-area">
-        <BrandArea>
+        <BrandArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <BrandHeader>
             <AppTitle>WordMemo</AppTitle>
             <AppVersion>v{pkg.version}</AppVersion>
@@ -925,13 +925,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               onChange={(e) => setSortBy(e.target.value as any)}
               style={{
                 flex: 1,
-                width: '100%',
                 padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
                 fontSize: window.innerWidth <= 768 ? '13px' : '0.75rem',
                 borderRadius: '6px',
                 border: `1px solid ${theme.colors.border} `,
                 background: theme.colors.surface,
-                color: theme.colors.text
+                color: theme.colors.text,
+                opacity: isEditing ? 0.5 : 1,
+                pointerEvents: isEditing ? 'none' : 'auto'
               }}
             >
               <option value="date-desc">{language === 'ko' ? '최신순' : 'Newest'}</option>

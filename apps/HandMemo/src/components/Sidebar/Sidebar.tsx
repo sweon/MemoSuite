@@ -809,7 +809,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
         </div>
       )}
       <ScrollableArea id="sidebar-scrollable-area">
-        <BrandArea>
+        <BrandArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <BrandHeader>
             <AppTitle>HandMemo</AppTitle>
             <AppVersion>v{pkg.version}</AppVersion>
@@ -988,6 +988,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
           style={{
             flex: 1,
             padding: '0.5rem',
+            opacity: isEditing ? 0.5 : 1,
+            pointerEvents: isEditing ? 'none' : 'auto'
           }}
         />
       </ScrollableArea>

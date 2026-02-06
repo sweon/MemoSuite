@@ -809,7 +809,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
         </div>
       )}
       <ScrollableArea id="sidebar-scrollable-area">
-        <BrandArea>
+        <BrandArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <BrandHeader>
             <AppTitle>LLMemo</AppTitle>
             <AppVersion>v{pkg.version}</AppVersion>
