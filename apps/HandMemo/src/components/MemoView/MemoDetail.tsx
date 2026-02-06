@@ -627,7 +627,16 @@ export const MemoDetail: React.FC = () => {
 
         if (memo) {
             const shouldEdit = searchParams.get('edit') === 'true';
-            if (shouldEdit && !isEditing) setIsEditing(true);
+            if (shouldEdit && !isEditing) {
+                setIsEditingInternal(true);
+                const params = new URLSearchParams(searchParams);
+                params.delete('edit');
+                const search = params.toString();
+                navigate({
+                    pathname: location.pathname,
+                    search: search ? `?${search}` : '',
+                }, { replace: true, state: { editing: true, isGuard: true } });
+            }
 
             // Restoration prompt for existing memo
             const checkExistingAutosave = async () => {
@@ -959,7 +968,7 @@ export const MemoDetail: React.FC = () => {
                 threadOrder
             });
 
-            navigate(`/memo/${newLogId}?edit=true`, { replace: true });
+            navigate(`/memo/${newLogId}?edit=true`);
         } catch (error) {
             console.error("Failed to add thread:", error);
             await confirm({ message: "Failed to add thread. Please try again.", cancelText: null });
