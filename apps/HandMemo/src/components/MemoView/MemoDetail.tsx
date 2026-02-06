@@ -270,6 +270,10 @@ const ActionBar = styled.div`
   top: 0;
   z-index: 5;
 
+  @media (max-width: 768px) {
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.sm}`};
+  }
+
   @media (max-width: 480px) {
     display: flex;
     flex-wrap: wrap;
