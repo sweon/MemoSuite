@@ -77,7 +77,7 @@ export const mergeBackupData = async (data: any) => {
 
     const memos = data.memos || data.logs || []; // Support legacy migration if needed, but primarily memos
 
-    await db.transaction('rw', db.memos, db.comments, async () => {
+    await db.transaction('rw', db.memos, db.comments, db.folders, async () => {
         const memoIdMap = new Map<number, number>();
 
         // Merge Memos
