@@ -426,6 +426,7 @@ export const MemoDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
+    const originalSpreadsheetJsonRef = useRef<string | null>(null); // Store original JSON string for accurate matching
     const [isDeleting, setIsDeleting] = useState(false);
     const fabricCheckpointRef = useRef<string | null>(null);
     const spreadsheetCheckpointRef = useRef<string | null>(null);
@@ -1314,6 +1315,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                     onEditSpreadsheet={(json) => {
                                         if (isReadOnly) return;
                                         spreadsheetCheckpointRef.current = content;
+                                        originalSpreadsheetJsonRef.current = json; // Store original JSON string
                                         try {
                                             setEditingSpreadsheetData(JSON.parse(json));
                                             setIsSpreadsheetModalOpen(true);
@@ -1400,17 +1402,33 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     }}
                     onSave={async (data: any) => {
                         const json = JSON.stringify(data);
+                        let newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
                         const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
-                        let found = false;
-                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
+                        // Use the original JSON string for accurate matching (before Fortune-sheet transforms it)
+                        const targetRaw = originalSpreadsheetJsonRef.current?.trim() || '';
 
-                        const newContent = content.replace(spreadsheetRegex, (match, p1) => {
-                            if (!found && p1.trim() === targetRaw) {
-                                found = true;
-                                return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        if (targetRaw) {
+                            let found = false;
+                            newContent = content.replace(spreadsheetRegex, (match, p1) => {
+                                const p1Trimmed = p1.trim();
+                                if (!found && p1Trimmed === targetRaw) {
+                                    found = true;
+                                    return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                                }
+                                return match;
+                            });
+
+                            // Update the ref to the new JSON so subsequent saves can find it
+                            if (found) {
+                                originalSpreadsheetJsonRef.current = json;
                             }
-                            return match;
-                        });
+                        } else if (content.includes('```spreadsheet')) {
+                            newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
+                            originalSpreadsheetJsonRef.current = json;
+                        } else if (content.trim()) {
+                            newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
+                            originalSpreadsheetJsonRef.current = json;
+                        }
 
                         setContent(newContent);
                         spreadsheetCheckpointRef.current = newContent;
@@ -1423,18 +1441,44 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     }}
                     onAutosave={(data) => {
                         const json = JSON.stringify(data);
+                        let newContent = content;
                         const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
-                        let found = false;
-                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
 
-                        const newContent = content.replace(spreadsheetRegex, (match, p1) => {
-                            if (!found && p1.trim() === targetRaw) {
-                                found = true;
-                                return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        // Use original JSON string for accurate matching
+                        const targetRaw = originalSpreadsheetJsonRef.current?.trim() || '';
+                        if (targetRaw) {
+                            let found = false;
+                            newContent = content.replace(spreadsheetRegex, (match, p1) => {
+                                if (!found && p1.trim() === targetRaw) {
+                                    found = true;
+                                    return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                                }
+                                return match;
+                            });
+                            // Update ref for subsequent autosaves
+                            if (found && newContent !== content) {
+                                originalSpreadsheetJsonRef.current = json;
+                                setContent(newContent);
                             }
-                            return match;
-                        });
-                        if (newContent !== content) setContent(newContent);
+                        } else if (content.includes('```spreadsheet')) {
+                            newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
+                            if (newContent !== content) {
+                                originalSpreadsheetJsonRef.current = json;
+                                setContent(newContent);
+                            }
+                        } else if (searchParams.get('spreadsheet') === 'true' || content.trim().startsWith('```spreadsheet')) {
+                            newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                            originalSpreadsheetJsonRef.current = json;
+                            setContent(newContent);
+                        } else if (content.trim()) {
+                            newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
+                            originalSpreadsheetJsonRef.current = json;
+                            setContent(newContent);
+                        } else {
+                            newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                            originalSpreadsheetJsonRef.current = json;
+                            setContent(newContent);
+                        }
                     }}
                     initialData={editingSpreadsheetData}
                     language={language as 'en' | 'ko'}

@@ -465,6 +465,7 @@ export const MemoDetail: React.FC = () => {
     const [isDeleting, setIsDeleting] = useState(false);
     const fabricCheckpointRef = useRef<string | null>(null);
     const spreadsheetCheckpointRef = useRef<string | null>(null);
+    const originalSpreadsheetJsonRef = useRef<string | null>(null); // Store original JSON string for accurate matching
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
@@ -1303,6 +1304,7 @@ export const MemoDetail: React.FC = () => {
                                 }}
                                 onEditSpreadsheet={(json) => {
                                     spreadsheetCheckpointRef.current = content;
+                                    originalSpreadsheetJsonRef.current = json; // Store original JSON string
                                     try {
                                         setEditingSpreadsheetData(JSON.parse(json));
                                         setIsSpreadsheetModalOpen(true);
@@ -1422,12 +1424,13 @@ export const MemoDetail: React.FC = () => {
                 }}
                 onSave={async (data: any) => {
                     const json = JSON.stringify(data);
-                    let newContent = content;
+                    let newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
                     const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
 
-                    if (editingSpreadsheetData) {
+                    // Use original JSON string for accurate matching
+                    const targetRaw = originalSpreadsheetJsonRef.current?.trim() || '';
+                    if (targetRaw) {
                         let found = false;
-                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
                         newContent = content.replace(spreadsheetRegex, (match, p1) => {
                             if (!found && p1.trim() === targetRaw) {
                                 found = true;
@@ -1435,8 +1438,16 @@ export const MemoDetail: React.FC = () => {
                             }
                             return match;
                         });
-                    } else {
+                        // Update ref for subsequent saves
+                        if (found) {
+                            originalSpreadsheetJsonRef.current = json;
+                        }
+                    } else if (content.includes('```spreadsheet')) {
                         newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
+                        originalSpreadsheetJsonRef.current = json;
+                    } else if (content.trim()) {
+                        newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        originalSpreadsheetJsonRef.current = json;
                     }
 
                     setContent(newContent);
@@ -1453,9 +1464,10 @@ export const MemoDetail: React.FC = () => {
                     let newContent = content;
                     const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
 
-                    if (editingSpreadsheetData) {
+                    // Use original JSON string for accurate matching
+                    const targetRaw = originalSpreadsheetJsonRef.current?.trim() || '';
+                    if (targetRaw) {
                         let found = false;
-                        const targetRaw = JSON.stringify(editingSpreadsheetData).trim();
                         newContent = content.replace(spreadsheetRegex, (match, p1) => {
                             if (!found && p1.trim() === targetRaw) {
                                 found = true;
@@ -1463,10 +1475,30 @@ export const MemoDetail: React.FC = () => {
                             }
                             return match;
                         });
-                    } else {
+                        // Update ref for subsequent autosaves
+                        if (found && newContent !== content) {
+                            originalSpreadsheetJsonRef.current = json;
+                            setContent(newContent);
+                        }
+                    } else if (content.includes('```spreadsheet')) {
                         newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
+                        if (newContent !== content) {
+                            originalSpreadsheetJsonRef.current = json;
+                            setContent(newContent);
+                        }
+                    } else if (searchParams.get('spreadsheet') === 'true' || content.trim().startsWith('```spreadsheet')) {
+                        newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        originalSpreadsheetJsonRef.current = json;
+                        setContent(newContent);
+                    } else if (content.trim()) {
+                        newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        originalSpreadsheetJsonRef.current = json;
+                        setContent(newContent);
+                    } else {
+                        newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        originalSpreadsheetJsonRef.current = json;
+                        setContent(newContent);
                     }
-                    if (newContent !== content) setContent(newContent);
                 }}
                 initialData={editingSpreadsheetData}
                 language={language as 'en' | 'ko'}
