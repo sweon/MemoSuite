@@ -3,6 +3,9 @@ import { Workbook, type WorkbookInstance } from "@fortune-sheet/react";
 import "@fortune-sheet/react/dist/index.css";
 import styled from 'styled-components';
 import { X, Save, Keyboard } from 'lucide-react';
+const XIcon = X as any;
+const SaveIcon = Save as any;
+const KeyboardIcon = Keyboard as any;
 import { v4 as uuidv4 } from 'uuid';
 import {
   exportToolBarItem,
@@ -230,6 +233,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
 }) => {
   const [mountKey, setMountKey] = useState(() => uuidv4());
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Use a ref to track if we've pushed our history state
   const historyStatePushedRef = useRef(false);
@@ -247,13 +251,15 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
 
   const labels = useMemo(() => ({
     title: language === 'ko' ? '스프레드시트 편집기' : 'Spreadsheet Editor',
-    cancel: language === 'ko' ? '취소' : 'Cancel',
+    exit: language === 'ko' ? '종료' : 'Exit',
     save: language === 'ko' ? '저장' : 'Save',
-    exitTitle: language === 'ko' ? '편집기 종료' : 'Exit Editor',
-    exitMessage: language === 'ko' ? '저장하지 않은 변경사항이 있을 수 있습니다. 정말 나가시겠습니까?' : 'You may have unsaved changes. Are you sure you want to exit?',
-    discard: language === 'ko' ? '나가기' : 'Discard',
-    keepEditing: language === 'ko' ? '계속 편집' : 'Keep Editing',
+    saveExit: language === 'ko' ? '저장 및 종료' : 'Save and Exit',
+    exitNoSave: language === 'ko' ? '저장하지 않고 종료' : 'Exit without Saving',
+    cancel: language === 'ko' ? '취소' : 'Cancel',
+    exitTitle: language === 'ko' ? '종료하시겠습니까?' : 'Exit Spreadsheet?',
+    exitMessage: language === 'ko' ? '저장하지 않은 변경사항이 있을 수 있습니다.' : 'You may have unsaved changes.',
     keyboard: language === 'ko' ? '입력' : 'Keyboard',
+    saving: language === 'ko' ? '저장 중...' : 'Saving...',
   }), [language]);
 
   // Handle open/reset
@@ -310,7 +316,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
     };
   }, [isOpen, handleClose]);
 
-  // Synchronize data when modal opens
+  // Synchronize data only when modal opens
   useEffect(() => {
     if (isOpen) {
       let newData: any[];
@@ -349,7 +355,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
       setWorkbookData(newData);
       setMountKey(uuidv4());
     }
-  }, [isOpen, initialData]);
+  }, [isOpen]); // Only run when isOpen changes, ignore initialData while open to prevent re-mount
 
   // Autosave logic
   const onAutosaveRef = useRef(onAutosave);
@@ -372,19 +378,41 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
     return () => clearInterval(interval);
   }, [isOpen]);
 
-  const handleSave = useCallback((e?: React.MouseEvent) => {
+  const handleSave = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (isSaving) return;
 
-    // Mark as internal close so we don't block
-    isInternalCloseRef.current = true;
+    setIsSaving(true);
+    // Give time for UI feedback
+    await new Promise(resolve => setTimeout(resolve, 50));
 
-    // Clean up history if we pushed it
-    if (historyStatePushedRef.current) {
-      window.history.back();
-      historyStatePushedRef.current = false;
+    try {
+      if (onSave) {
+        let dataToSave = null;
+        if (workbookRef.current) {
+          try {
+            const allSheets = workbookRef.current.getAllSheets();
+            if (allSheets && allSheets.length > 0) {
+              dataToSave = allSheets;
+            }
+          } catch (e) { }
+        }
+        if (!dataToSave || dataToSave.length === 0) {
+          dataToSave = workbookData;
+        }
+        await onSave(dataToSave);
+      }
+    } finally {
+      setIsSaving(false);
     }
+  }, [onSave, workbookData, isSaving]);
 
-    if (onSave) {
+  const handleSaveAndExit = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (isSaving) return;
+
+    setIsSaving(true);
+    try {
       let dataToSave = null;
       if (workbookRef.current) {
         try {
@@ -397,10 +425,21 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
       if (!dataToSave || dataToSave.length === 0) {
         dataToSave = workbookData;
       }
-      onSave(dataToSave);
+      await onSave(dataToSave);
+
+      // Successfully saved, now exit
+      isInternalCloseRef.current = true;
+      setIsExitConfirmOpen(false);
+
+      if (historyStatePushedRef.current) {
+        window.history.back();
+        historyStatePushedRef.current = false;
+      }
+      onClose();
+    } finally {
+      setIsSaving(false);
     }
-    onClose();
-  }, [onSave, onClose, workbookData]);
+  }, [onSave, onClose, workbookData, isSaving]);
 
   // "Discard" (Exit) confirmed in dialog
   const handleConfirmExit = useCallback(() => {
@@ -464,18 +503,20 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
             <Title>{labels.title}</Title>
             <ButtonGroup>
               <Button onClick={handleVirtualKeyboard} $variant="secondary" title={labels.keyboard}>
-                {/* @ts-ignore */}
-                <Keyboard size={18} />
+                <KeyboardIcon size={18} />
               </Button>
-              <Button onClick={handleClose} $variant="secondary">
+              <Button onClick={handleSave} $variant="primary" disabled={isSaving}>
                 {/* @ts-ignore */}
-                <X size={18} />
-                {labels.cancel}
+                {isSaving ? (
+                  <div style={{ width: '18px', height: '18px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginRight: '6px' }} />
+                ) : (
+                  <SaveIcon size={18} />
+                )}
+                <span>{isSaving ? labels.saving : labels.save}</span>
               </Button>
-              <Button onClick={handleSave} $variant="primary">
-                {/* @ts-ignore */}
-                <Save size={18} />
-                {labels.save}
+              <Button onClick={handleClose} $variant="secondary" title={labels.exit}>
+                <XIcon size={18} />
+                {labels.exit}
               </Button>
             </ButtonGroup>
           </ModalHeader>
@@ -504,17 +545,33 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
 
       {isExitConfirmOpen && (
         <Backdrop onClick={(e) => e.stopPropagation()}>
-          <ConfirmDialog onClick={(e) => e.stopPropagation()}>
+          <ConfirmDialog onClick={(e) => e.stopPropagation()} style={{ width: '400px', display: 'flex', flexDirection: 'column' }}>
             <DialogTitle>{labels.exitTitle}</DialogTitle>
             <DialogMessage>{labels.exitMessage}</DialogMessage>
-            <DialogButtons>
-              <Button onClick={handleCancelExit} $variant="secondary">
-                {labels.keepEditing}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Button
+                $variant="primary"
+                onClick={() => handleSaveAndExit()}
+                style={{ padding: '12px 16px', borderRadius: '8px', justifyContent: 'center' }}
+              >
+                {labels.saveExit}
               </Button>
-              <Button onClick={handleConfirmExit} $variant="danger">
-                {labels.discard}
+              <Button
+                onClick={handleConfirmExit}
+                style={{ padding: '12px 16px', borderRadius: '8px', background: '#fff1f2', color: '#e11d48', border: '1px solid #fecaca', justifyContent: 'center' }}
+              >
+                {labels.exitNoSave}
               </Button>
-            </DialogButtons>
+              <Button
+                onClick={handleCancelExit}
+                style={{ padding: '12px 16px', borderRadius: '8px', color: '#4b5563', justifyContent: 'center' }}
+              >
+                {labels.cancel}
+              </Button>
+            </div>
+            <style>{`
+              @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `}</style>
           </ConfirmDialog>
         </Backdrop>
       )}

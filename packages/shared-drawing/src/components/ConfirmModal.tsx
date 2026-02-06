@@ -84,8 +84,10 @@ interface ConfirmModalProps {
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
+  onNeutral?: () => void;
   confirmText?: string;
   cancelText?: string;
+  neutralText?: string;
   isDestructive?: boolean;
 }
 
@@ -94,8 +96,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   message,
   onConfirm,
   onCancel,
+  onNeutral,
   confirmText = 'OK',
   cancelText = 'Cancel',
+  neutralText,
   isDestructive = false
 }) => {
   if (!isOpen) return null;
@@ -108,6 +112,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         </Content>
         <ButtonGroup>
           <Button onClick={onCancel}>{cancelText}</Button>
+          {neutralText && onNeutral && (
+            <Button onClick={onNeutral}>{neutralText}</Button>
+          )}
           <Button onClick={onConfirm} $primary $danger={isDestructive}>
             {confirmText}
           </Button>

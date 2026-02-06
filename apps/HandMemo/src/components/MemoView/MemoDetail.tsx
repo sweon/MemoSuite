@@ -433,6 +433,8 @@ export const MemoDetail: React.FC = () => {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
+    const fabricCheckpointRef = useRef<string | null>(null);
+    const spreadsheetCheckpointRef = useRef<string | null>(null);
 
     const startEditing = () => {
         if (containerRef.current) {
@@ -693,6 +695,7 @@ export const MemoDetail: React.FC = () => {
 
             // Auto-open drawing if requested
             if (isInitialDrawing) {
+                fabricCheckpointRef.current = '';
                 setIsFabricModalOpen(true);
             }
 
@@ -898,7 +901,7 @@ export const MemoDetail: React.FC = () => {
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
 
-            if (searchParams.get('edit')) {
+            if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
                 navigate(`/memo/${id}`, { replace: true });
             }
             // setIsEditing(false); // Do not exit edit mode on save
@@ -916,7 +919,8 @@ export const MemoDetail: React.FC = () => {
             // Cleanup all new memo autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            navigate(`/memo/${newId}`);
+            const search = searchParams.toString();
+            navigate(`/memo/${newId}${search ? '?' + search : ''}`, { replace: true });
         }
     };
 
@@ -1214,10 +1218,12 @@ export const MemoDetail: React.FC = () => {
                                 memoId={Number(id)}
                                 isReadOnly={isCurrentFolderReadOnly}
                                 onEditDrawing={(json) => {
+                                    fabricCheckpointRef.current = content;
                                     setEditingDrawingData(json);
                                     setIsFabricModalOpen(true);
                                 }}
                                 onEditSpreadsheet={(json) => {
+                                    spreadsheetCheckpointRef.current = content;
                                     try {
                                         setEditingSpreadsheetData(JSON.parse(json));
                                         setIsSpreadsheetModalOpen(true);
@@ -1314,16 +1320,19 @@ export const MemoDetail: React.FC = () => {
                             }
 
                             setContent(newContent);
+                            fabricCheckpointRef.current = newContent; // Update checkpoint on manual save
                             if (id && memo) {
                                 await db.memos.update(Number(id), {
                                     content: newContent,
                                     updatedAt: new Date()
                                 });
                             }
-                            setIsFabricModalOpen(false);
-                            setEditingDrawingData(undefined);
                         }}
                         onClose={() => {
+                            if (fabricCheckpointRef.current !== null) {
+                                setContent(fabricCheckpointRef.current);
+                                fabricCheckpointRef.current = null;
+                            }
                             setIsFabricModalOpen(false);
                             setEditingDrawingData(undefined);
                         }}
@@ -1357,6 +1366,10 @@ export const MemoDetail: React.FC = () => {
                 <SpreadsheetModal
                     isOpen={isSpreadsheetModalOpen}
                     onClose={() => {
+                        if (spreadsheetCheckpointRef.current !== null) {
+                            setContent(spreadsheetCheckpointRef.current);
+                            spreadsheetCheckpointRef.current = null;
+                        }
                         setIsSpreadsheetModalOpen(false);
                         setEditingSpreadsheetData(undefined);
                     }}
@@ -1364,10 +1377,6 @@ export const MemoDetail: React.FC = () => {
                         const json = JSON.stringify(data);
                         let newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
                         const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
-
-                        // Close modal early
-                        setIsSpreadsheetModalOpen(false);
-                        setEditingSpreadsheetData(undefined);
 
                         if (editingSpreadsheetData) {
                             let found = false;
@@ -1386,6 +1395,7 @@ export const MemoDetail: React.FC = () => {
                         }
 
                         setContent(newContent);
+                        spreadsheetCheckpointRef.current = newContent;
 
                         const isInitialSpreadsheet = searchParams.get('spreadsheet') === 'true';
 

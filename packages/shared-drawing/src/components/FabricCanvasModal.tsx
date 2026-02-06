@@ -4356,13 +4356,17 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         isClosingRef.current = true;
         onClose();
 
-        // Safety timeout: If history.back didn't result in an unmount (e.g. state was lost),
-        // force the close after a short delay.
+        // Safety timeout
         setTimeout(() => {
             if (isClosingRef.current) {
                 handleActualClose.current();
             }
         }, 300);
+    };
+
+    const handleSaveAndExit = async () => {
+        await handleSave();
+        handleConfirmExit();
     };
 
     const getCanvasJson = useCallback(() => {
@@ -4421,6 +4425,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             if (json) {
                 await onSave(json);
             }
+            setIsSaving(false);
         } catch (err) {
             console.error('Failed to save drawing', err);
             setIsSaving(false);
@@ -5457,9 +5462,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                             {isZoomLocked ? <FiLock size={18} /> : <FiUnlock size={18} />}
                         </StatusToggleButton>
                         <div style={{ width: '4px', height: '16px', borderLeft: '1px solid #dee2e6', margin: '0 4px' }} />
-                        <CompactActionButton onClick={handleCancelWrapped} title={t.drawing?.cancel || 'Cancel'}>
-                            <FiX size={12} />
-                        </CompactActionButton>
                         <CompactActionButton
                             $primary
                             onClick={handleSave}
@@ -5472,6 +5474,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                                 <FiCheck size={12} />
                             )}
                             <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+                        </CompactActionButton>
+                        <CompactActionButton onClick={handleCancelWrapped} title={t.drawing?.exit || 'Exit'}>
+                            <FiX size={12} />
                         </CompactActionButton>
                     </ToolGroup>
                 </Toolbar>
@@ -6586,16 +6591,25 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                             <p style={{ color: '#4b5563', lineHeight: '1.6', margin: '12px 0 24px 0', fontSize: '0.95rem' }}>
                                 {t.drawing?.cancel_confirm || 'Are you sure you want to exit? Unsaved changes will be lost.'}
                             </p>
-                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                                <CompactModalButton onClick={() => setIsExitConfirmOpen(false)} style={{ padding: '10px 16px', borderRadius: '8px', minWidth: '80px', flex: '1 1 auto' }}>
-                                    {t.drawing?.exit_cancel || 'Cancel'}
-                                </CompactModalButton>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <CompactModalButton
                                     $variant="primary"
-                                    onClick={handleConfirmExit}
-                                    style={{ background: '#ef4444', borderColor: '#ef4444', padding: '10px 16px', borderRadius: '8px', minWidth: '120px', flex: '1 1 auto' }}
+                                    onClick={handleSaveAndExit}
+                                    style={{ padding: '12px 16px', borderRadius: '8px', fontSize: '0.95rem' }}
                                 >
-                                    {t.drawing?.discard || 'Discard Changes'}
+                                    {t.drawing?.save_exit || 'Save and Exit'}
+                                </CompactModalButton>
+                                <CompactModalButton
+                                    onClick={handleConfirmExit}
+                                    style={{ padding: '12px 16px', borderRadius: '8px', background: '#fff1f2', color: '#e11d48', borderColor: '#fecaca', fontSize: '0.95rem' }}
+                                >
+                                    {t.drawing?.exit_no_save || 'Exit without Saving'}
+                                </CompactModalButton>
+                                <CompactModalButton
+                                    onClick={() => setIsExitConfirmOpen(false)}
+                                    style={{ padding: '12px 16px', borderRadius: '8px', color: '#4b5563', fontSize: '0.95rem' }}
+                                >
+                                    {t.drawing?.exit_cancel || 'Cancel'}
                                 </CompactModalButton>
                             </div>
                         </CompactModal>

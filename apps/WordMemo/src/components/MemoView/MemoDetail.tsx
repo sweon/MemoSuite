@@ -398,6 +398,7 @@ export const MemoDetail: React.FC = () => {
 
             // Re-trigger modal if URL state indicates it should be open
             if (searchParams.get('drawing') === 'true') {
+                fabricCheckpointRef.current = content;
                 setIsFabricModalOpen(true);
             }
             if (searchParams.get('spreadsheet') === 'true') {
@@ -426,6 +427,8 @@ export const MemoDetail: React.FC = () => {
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isDeleting, setIsDeleting] = useState(false);
+    const fabricCheckpointRef = useRef<string | null>(null);
+    const spreadsheetCheckpointRef = useRef<string | null>(null);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
     const { currentFolder, currentFolderId } = useFolder();
     const isReadOnly = currentFolder?.isReadOnly || false;
@@ -815,7 +818,7 @@ export const MemoDetail: React.FC = () => {
             });
 
             // Clear edit param if present to prevent re-entering edit mode
-            if (searchParams.get('edit')) {
+            if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
                 navigate(`/word/${id}`, { replace: true });
             }
 
@@ -839,7 +842,8 @@ export const MemoDetail: React.FC = () => {
             // Cleanup all new word autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            navigate(`/word/${newId}`, { replace: true });
+            const search = searchParams.toString();
+            navigate(`/word/${newId}${search ? '?' + search : ''}`, { replace: true });
         }
     };
 
@@ -1294,11 +1298,13 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                     isReadOnly={isReadOnly}
                                     onEditDrawing={(json) => {
                                         if (isReadOnly) return;
+                                        fabricCheckpointRef.current = content;
                                         setEditingDrawingData(json);
                                         setIsFabricModalOpen(true);
                                     }}
                                     onEditSpreadsheet={(json) => {
                                         if (isReadOnly) return;
+                                        spreadsheetCheckpointRef.current = content;
                                         try {
                                             setEditingSpreadsheetData(JSON.parse(json));
                                             setIsSpreadsheetModalOpen(true);
@@ -1341,14 +1347,13 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 });
 
                                 setContent(newContent);
+                                fabricCheckpointRef.current = newContent;
                                 if (id) {
                                     await db.words.update(Number(id), {
                                         content: newContent,
                                         updatedAt: new Date()
                                     });
                                 }
-                                setIsFabricModalOpen(false);
-                                setEditingDrawingData(undefined);
                             }}
                             onAutosave={(json) => {
                                 const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
@@ -1363,6 +1368,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 if (newContent !== content) setContent(newContent);
                             }}
                             onClose={() => {
+                                if (fabricCheckpointRef.current !== null) {
+                                    setContent(fabricCheckpointRef.current);
+                                    fabricCheckpointRef.current = null;
+                                }
                                 setIsFabricModalOpen(false);
                                 setEditingDrawingData(undefined);
                             }}
@@ -1373,6 +1382,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 <SpreadsheetModal
                     isOpen={isSpreadsheetModalOpen}
                     onClose={() => {
+                        if (spreadsheetCheckpointRef.current !== null) {
+                            setContent(spreadsheetCheckpointRef.current);
+                            spreadsheetCheckpointRef.current = null;
+                        }
                         setIsSpreadsheetModalOpen(false);
                         setEditingSpreadsheetData(undefined);
                     }}
@@ -1391,14 +1404,13 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         });
 
                         setContent(newContent);
+                        spreadsheetCheckpointRef.current = newContent;
                         if (id) {
                             await db.words.update(Number(id), {
                                 content: newContent,
                                 updatedAt: new Date()
                             });
                         }
-                        setIsSpreadsheetModalOpen(false);
-                        setEditingSpreadsheetData(undefined);
                     }}
                     onAutosave={(data) => {
                         const json = JSON.stringify(data);

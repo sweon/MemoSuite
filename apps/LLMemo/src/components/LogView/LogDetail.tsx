@@ -379,6 +379,7 @@ export const LogDetail: React.FC = () => {
 
             // Re-trigger modal if URL state indicates it should be open
             if (searchParams.get('drawing') === 'true') {
+                fabricCheckpointRef.current = content;
                 setIsFabricModalOpen(true);
             }
             if (searchParams.get('spreadsheet') === 'true') {
@@ -398,6 +399,8 @@ export const LogDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
+    const fabricCheckpointRef = useRef<string | null>(null);
+    const spreadsheetCheckpointRef = useRef<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
     const { currentFolder, currentFolderId } = useFolder();
@@ -705,7 +708,7 @@ export const LogDetail: React.FC = () => {
             restoredIdRef.current = null;
 
             // Clear edit param if present to prevent re-entering edit mode
-            if (searchParams.get('edit')) {
+            if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
                 navigate(`/log/${id}`, { replace: true });
             }
         } else {
@@ -722,7 +725,8 @@ export const LogDetail: React.FC = () => {
             // Cleanup all new log autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            navigate(`/log/${newId}`);
+            const search = searchParams.toString();
+            navigate(`/log/${newId}${search ? '?' + search : ''}`, { replace: true });
         }
     };
 
@@ -1048,11 +1052,13 @@ export const LogDetail: React.FC = () => {
                             isReadOnly={isReadOnly}
                             onEditDrawing={(json) => {
                                 if (isReadOnly) return;
+                                fabricCheckpointRef.current = content;
                                 setEditingDrawingData(json);
                                 setIsFabricModalOpen(true);
                             }}
                             onEditSpreadsheet={(json) => {
                                 if (isReadOnly) return;
+                                spreadsheetCheckpointRef.current = content;
                                 try {
                                     setEditingSpreadsheetData(JSON.parse(json));
                                     setIsSpreadsheetModalOpen(true);
@@ -1089,14 +1095,13 @@ export const LogDetail: React.FC = () => {
                             });
 
                             setContent(newContent);
+                            fabricCheckpointRef.current = newContent;
                             if (id) {
                                 await db.logs.update(Number(id), {
                                     content: newContent,
                                     updatedAt: new Date()
                                 });
                             }
-                            setIsFabricModalOpen(false);
-                            setEditingDrawingData(undefined);
                         }}
                         onAutosave={(json) => {
                             const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
@@ -1111,6 +1116,10 @@ export const LogDetail: React.FC = () => {
                             if (newContent !== content) setContent(newContent);
                         }}
                         onClose={() => {
+                            if (fabricCheckpointRef.current !== null) {
+                                setContent(fabricCheckpointRef.current);
+                                fabricCheckpointRef.current = null;
+                            }
                             setIsFabricModalOpen(false);
                             setEditingDrawingData(undefined);
                         }}
@@ -1120,6 +1129,10 @@ export const LogDetail: React.FC = () => {
                 <SpreadsheetModal
                     isOpen={isSpreadsheetModalOpen}
                     onClose={() => {
+                        if (spreadsheetCheckpointRef.current !== null) {
+                            setContent(spreadsheetCheckpointRef.current);
+                            spreadsheetCheckpointRef.current = null;
+                        }
                         setIsSpreadsheetModalOpen(false);
                         setEditingSpreadsheetData(undefined);
                     }}
@@ -1138,14 +1151,13 @@ export const LogDetail: React.FC = () => {
                         });
 
                         setContent(newContent);
+                        spreadsheetCheckpointRef.current = newContent;
                         if (id) {
                             await db.logs.update(Number(id), {
                                 content: newContent,
                                 updatedAt: new Date()
                             });
                         }
-                        setIsSpreadsheetModalOpen(false);
-                        setEditingSpreadsheetData(undefined);
                     }}
                     onAutosave={(data) => {
                         const json = JSON.stringify(data);

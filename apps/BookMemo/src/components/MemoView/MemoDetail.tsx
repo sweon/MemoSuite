@@ -445,6 +445,7 @@ export const MemoDetail: React.FC = () => {
 
             // Re-trigger modal if URL state indicates it should be open
             if (searchParams.get('drawing') === 'true') {
+                fabricCheckpointRef.current = content;
                 setIsFabricModalOpen(true);
             }
             if (searchParams.get('spreadsheet') === 'true') {
@@ -462,6 +463,8 @@ export const MemoDetail: React.FC = () => {
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isDeleting, setIsDeleting] = useState(false);
+    const fabricCheckpointRef = useRef<string | null>(null);
+    const spreadsheetCheckpointRef = useRef<string | null>(null);
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
@@ -924,7 +927,7 @@ export const MemoDetail: React.FC = () => {
                 type: finalType
             });
 
-            if (searchParams.get('edit')) {
+            if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
                 navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
             }
             // Cleanup autosaves for this memo
@@ -949,7 +952,8 @@ export const MemoDetail: React.FC = () => {
             // Cleanup all new memo autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            navigate(`/book/${targetBookId}/memo/${newId}`);
+            const search = searchParams.toString();
+            navigate(`/book/${targetBookId}/memo/${newId}${search ? '?' + search : ''}`, { replace: true });
         }
     };
 
@@ -1284,10 +1288,12 @@ export const MemoDetail: React.FC = () => {
                             <MarkdownView
                                 content={content}
                                 onEditDrawing={(json) => {
+                                    fabricCheckpointRef.current = content;
                                     setEditingDrawingData(json);
                                     setIsFabricModalOpen(true);
                                 }}
                                 onEditSpreadsheet={(json) => {
+                                    spreadsheetCheckpointRef.current = content;
                                     try {
                                         setEditingSpreadsheetData(JSON.parse(json));
                                         setIsSpreadsheetModalOpen(true);
@@ -1356,14 +1362,13 @@ export const MemoDetail: React.FC = () => {
                         }
 
                         setContent(newContent);
+                        fabricCheckpointRef.current = newContent;
                         if (id && memo) {
                             await db.memos.update(Number(id), {
                                 content: newContent,
                                 updatedAt: new Date()
                             });
                         }
-                        setIsFabricModalOpen(false);
-                        setEditingDrawingData(undefined);
                     }}
                     onAutosave={(json) => {
                         let newContent = content;
@@ -1386,6 +1391,10 @@ export const MemoDetail: React.FC = () => {
                         if (newContent !== content) setContent(newContent);
                     }}
                     onClose={() => {
+                        if (fabricCheckpointRef.current !== null) {
+                            setContent(fabricCheckpointRef.current);
+                            fabricCheckpointRef.current = null;
+                        }
                         setIsFabricModalOpen(false);
                         setEditingDrawingData(undefined);
                     }}
@@ -1395,6 +1404,10 @@ export const MemoDetail: React.FC = () => {
             <SpreadsheetModal
                 isOpen={isSpreadsheetModalOpen}
                 onClose={() => {
+                    if (spreadsheetCheckpointRef.current !== null) {
+                        setContent(spreadsheetCheckpointRef.current);
+                        spreadsheetCheckpointRef.current = null;
+                    }
                     setIsSpreadsheetModalOpen(false);
                     setEditingSpreadsheetData(undefined);
                 }}
@@ -1418,14 +1431,13 @@ export const MemoDetail: React.FC = () => {
                     }
 
                     setContent(newContent);
+                    spreadsheetCheckpointRef.current = newContent;
                     if (id && memo) {
                         await db.memos.update(Number(id), {
                             content: newContent,
                             updatedAt: new Date()
                         });
                     }
-                    setIsSpreadsheetModalOpen(false);
-                    setEditingSpreadsheetData(undefined);
                 }}
                 onAutosave={(data) => {
                     const json = JSON.stringify(data);
