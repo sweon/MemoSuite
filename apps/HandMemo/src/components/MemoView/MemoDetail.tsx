@@ -1021,7 +1021,7 @@ export const MemoDetail: React.FC = () => {
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
             if (isNew) {
-                navigate('/');
+                navigate('/?skipRedirect=true', { replace: true });
             } else if (searchParams.get('edit')) {
                 navigate(`/memo/${id}`, { replace: true });
             }
@@ -1039,7 +1039,7 @@ export const MemoDetail: React.FC = () => {
         if (result === 'confirm') {
             await handleSave();
             if (isNew) {
-                navigate('/');
+                navigate('/?skipRedirect=true', { replace: true });
             } else if (searchParams.get('edit')) {
                 navigate(`/memo/${id}`, { replace: true });
             }
@@ -1055,7 +1055,7 @@ export const MemoDetail: React.FC = () => {
             restoredIdRef.current = null;
 
             if (isNew) {
-                navigate('/');
+                navigate('/?skipRedirect=true', { replace: true });
             } else {
                 // Reset states to original memo data
                 if (memo) {

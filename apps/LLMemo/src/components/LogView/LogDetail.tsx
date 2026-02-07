@@ -883,7 +883,7 @@ export const LogDetail: React.FC = () => {
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
             if (isNew) {
-                navigate('/');
+                navigate('/?skipRedirect=true', { replace: true });
             } else if (searchParams.get('edit')) {
                 navigate(`/log/${id}`, { replace: true });
             }
@@ -903,7 +903,7 @@ export const LogDetail: React.FC = () => {
         if (result === 'confirm') {
             await handleSave();
             if (isNew) {
-                navigate('/');
+                navigate('/?skipRedirect=true', { replace: true });
             } else if (searchParams.get('edit')) {
                 navigate(`/log/${id}`, { replace: true });
             }
@@ -919,7 +919,7 @@ export const LogDetail: React.FC = () => {
             restoredIdRef.current = null;
 
             if (isNew) {
-                navigate('/');
+                navigate('/?skipRedirect=true', { replace: true });
             } else {
                 // Reset states to original log data
                 if (log) {

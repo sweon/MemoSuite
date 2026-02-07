@@ -1117,7 +1117,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
             if (isPlaceholder || isNew) {
-                navigate('/', { replace: true });
+                navigate('/?skipRedirect=true', { replace: true });
             } else if (searchParams.get('edit')) {
                 navigate(`/word/${id}`, { replace: true });
             }
@@ -1137,7 +1137,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
         if (result === 'confirm') {
             await handleSave();
             if (isPlaceholder || isNew) {
-                navigate('/', { replace: true });
+                navigate('/?skipRedirect=true', { replace: true });
             } else if (searchParams.get('edit')) {
                 navigate(`/word/${id}`, { replace: true });
             }
@@ -1153,7 +1153,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
             restoredIdRef.current = null;
 
             if (isPlaceholder || isNew) {
-                navigate('/', { replace: true });
+                navigate('/?skipRedirect=true', { replace: true });
             } else {
                 // Reset states to original word data
                 if (word) {
