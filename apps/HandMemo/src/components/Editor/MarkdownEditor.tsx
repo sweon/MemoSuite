@@ -196,22 +196,42 @@ const EditorWrapper = styled.div`
         background-color: transparent !important;
       }
 
-      /* Force selection layer to be visible */
+      /* Method 9: Native Selection Restoration & Flex Context */
+      .CodeMirror-selected,
       .CodeMirror-selectionLayer {
-        z-index: 1 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        z-index: -1 !important;
       }
 
-      /* WebKit contenteditable selection fix */
-      [contenteditable="true"],
-      [contenteditable="true"] * {
+      .CodeMirror-cursor {
+        pointer-events: none !important;
+      }
+
+      .CodeMirror-line {
+        display: flex !important;
+        flex-wrap: wrap;
         -webkit-user-select: text !important;
         user-select: text !important;
-        caret-color: ${({ theme }) => theme.colors.text};
       }
 
-      /* Highlight mark for focused selection */
-      .CodeMirror-focused .CodeMirror-selected {
-        background: ${({ theme }) => theme.colors.primary}55 !important;
+      .CodeMirror-line > span,
+      .CodeMirror-line span {
+        -webkit-user-select: text !important;
+        user-select: text !important;
+        pointer-events: auto !important;
+      }
+
+      [contenteditable="true"] {
+        -webkit-user-select: text !important;
+        user-select: text !important;
+        -webkit-user-modify: read-write !important;
+        caret-color: ${({ theme }) => theme.colors.text} !important;
+      }
+
+      .CodeMirror-scroll {
+        -webkit-overflow-scrolling: touch;
+        isolation: auto; /* Reset isolation to prevent handle clipping */
       }
 
       @media (max-width: 768px) {
