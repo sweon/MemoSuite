@@ -391,7 +391,7 @@ export const MemoDetail: React.FC = () => {
     const [isEditingInternal, setIsEditingInternal] = useState(() => {
         const isDrawing = searchParams.get('drawing') === 'true';
         const isSheet = searchParams.get('spreadsheet') === 'true';
-        return isNew && !isDrawing && !isSheet;
+        return (isNew || searchParams.get('edit') === 'true') && !isDrawing && !isSheet;
     });
     const [showGoToTop, setShowGoToTop] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -415,7 +415,7 @@ export const MemoDetail: React.FC = () => {
         currentAutosaveIdRef.current = undefined;
         restoredIdRef.current = null;
         setCommentDraft(null);
-        setIsEditingInternal(!id);
+        setIsEditingInternal(!id || searchParams.get('edit') === 'true');
     }, [id]);
 
     // Folder context for read-only mode
@@ -930,9 +930,11 @@ export const MemoDetail: React.FC = () => {
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
 
+            /* // Removed to keep edit mode on save
             if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
                 navigate(`/memo/${id}`, { replace: true });
             }
+            */
             // setIsEditing(false); // Do not exit edit mode on save
         } else {
             const newId = await db.memos.add({
@@ -949,7 +951,8 @@ export const MemoDetail: React.FC = () => {
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
             const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
-            navigate(`/memo/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+            const searchPrefix = search ? (search.includes('edit=true') ? search : search + '&edit=true') : 'edit=true';
+            navigate(`/memo/${newId}?${searchPrefix}`, { replace: true, state: overrideState });
         }
     };
 

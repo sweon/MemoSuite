@@ -382,7 +382,7 @@ export const MemoDetail: React.FC = () => {
     const isClosingRef = useRef(false);
 
 
-    const [isEditingInternal, setIsEditingInternal] = useState(isNew);
+    const [isEditingInternal, setIsEditingInternal] = useState(isNew || searchParams.get('edit') === 'true');
     const [showGoToTop, setShowGoToTop] = useState(false);
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -425,7 +425,7 @@ export const MemoDetail: React.FC = () => {
         currentAutosaveIdRef.current = undefined;
         restoredIdRef.current = null;
         setCommentDraft(null);
-        setIsEditingInternal(!id);
+        setIsEditingInternal(!id || searchParams.get('edit') === 'true');
     }, [id]);
 
     useEffect(() => {
@@ -539,7 +539,7 @@ export const MemoDetail: React.FC = () => {
         setQuote('');
         setPageNumber('');
         setCommentDraft(null);
-        setIsEditingInternal(!id);
+        setIsEditingInternal(!id || searchParams.get('edit') === 'true');
 
         if (id && bookId) {
             localStorage.setItem('bookmemo_last_memo_id', id);
@@ -959,9 +959,11 @@ export const MemoDetail: React.FC = () => {
                 type: finalType
             });
 
+            /* // Removed to keep edit mode on save
             if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
-                navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
+                navigate(`/book/${bookId}/memo/${id}`, { replace: true });
             }
+            */
             // Cleanup autosaves for this memo
             await db.autosaves.where('originalId').equals(Number(id)).delete();
             currentAutosaveIdRef.current = undefined;
@@ -985,7 +987,8 @@ export const MemoDetail: React.FC = () => {
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
             const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
-            navigate(`/book/${targetBookId}/memo/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+            const searchPrefix = search ? (search.includes('edit=true') ? search : search + '&edit=true') : 'edit=true';
+            navigate(`/book/${bookId}/memo/${newId}?${searchPrefix}`, { replace: true, state: overrideState });
         }
     };
 

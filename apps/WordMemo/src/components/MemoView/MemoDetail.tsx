@@ -356,13 +356,13 @@ export const MemoDetail: React.FC = () => {
         currentAutosaveIdRef.current = undefined;
         restoredIdRef.current = null;
         setCommentDraft(null);
-        setIsEditing(id === undefined);
+        setIsEditing(id === undefined || searchParams.get('edit') === 'true');
         if (id) {
             localStorage.setItem('wordmemo_last_word_id', id);
         }
     }, [id]);
 
-    const [isEditing, setIsEditing] = useState(isNew);
+    const [isEditing, setIsEditing] = useState(isNew || searchParams.get('edit') === 'true');
     const [showGoToTop, setShowGoToTop] = useState(false);
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -469,7 +469,7 @@ export const MemoDetail: React.FC = () => {
         setTags('');
         setSourceId(undefined);
         setCommentDraft(null);
-        setIsEditing(id === undefined);
+        setIsEditing(id === undefined || searchParams.get('edit') === 'true');
     }
 
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
@@ -860,10 +860,11 @@ export const MemoDetail: React.FC = () => {
                 updatedAt: now
             });
 
-            // Clear edit param if present to prevent re-entering edit mode
+            /* // Removed to keep edit mode on save
             if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
                 navigate(`/word/${id}`, { replace: true });
             }
+            */
 
             // Cleanup autosaves for this word
             await db.autosaves.where('originalId').equals(Number(id)).delete();
@@ -886,7 +887,8 @@ export const MemoDetail: React.FC = () => {
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
             const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
-            navigate(`/word/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+            const searchPrefix = search ? (search.includes('edit=true') ? search : search + '&edit=true') : 'edit=true';
+            navigate(`/word/${newId}?${searchPrefix}`, { replace: true, state: overrideState });
         }
     };
 

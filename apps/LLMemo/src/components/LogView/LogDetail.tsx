@@ -308,7 +308,7 @@ export const LogDetail: React.FC = () => {
 
     const isNew = id === undefined;
 
-    const [isEditing, setIsEditing] = useState(isNew);
+    const [isEditing, setIsEditing] = useState(isNew || searchParams.get('edit') === 'true');
     const [showGoToTop, setShowGoToTop] = useState(false);
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -345,7 +345,7 @@ export const LogDetail: React.FC = () => {
         currentAutosaveIdRef.current = undefined;
         restoredIdRef.current = null;
         setCommentDraft(null);
-        setIsEditing(id === undefined);
+        setIsEditing(id === undefined || searchParams.get('edit') === 'true');
         if (id) {
             localStorage.setItem('llmemo_last_log_id', id);
         }
@@ -430,7 +430,7 @@ export const LogDetail: React.FC = () => {
         setContent('');
         setTags('');
         setCommentDraft(null);
-        setIsEditing(id === undefined);
+        setIsEditing(id === undefined || searchParams.get('edit') === 'true');
     }
 
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
@@ -742,10 +742,11 @@ export const LogDetail: React.FC = () => {
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
 
-            // Clear edit param if present to prevent re-entering edit mode
+            /* // Removed to keep edit mode on save
             if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
                 navigate(`/log/${id}`, { replace: true });
             }
+            */
         } else {
             const newId = await db.logs.add({
                 folderId: currentFolderId || undefined,
@@ -761,7 +762,8 @@ export const LogDetail: React.FC = () => {
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
             const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
-            navigate(`/log/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+            const searchPrefix = search ? (search.includes('edit=true') ? search : search + '&edit=true') : 'edit=true';
+            navigate(`/log/${newId}?${searchPrefix}`, { replace: true, state: overrideState });
         }
     };
 
