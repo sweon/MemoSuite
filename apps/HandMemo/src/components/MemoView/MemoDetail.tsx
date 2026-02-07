@@ -1008,10 +1008,12 @@ export const MemoDetail: React.FC = () => {
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
             if (isNew) {
-                navigate('/');
+                navigate('/', { replace: true });
             } else if (searchParams.get('edit')) {
                 navigate(`/memo/${id}`, { replace: true });
             }
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
             setIsEditing(false);
             return;
         }
