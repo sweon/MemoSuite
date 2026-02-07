@@ -15,10 +15,13 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
 
-const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
+const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-content' }) <{ $tableHeaderBg?: string }>`
   line-height: 1.6;
   color: ${({ theme }) => theme.colors.text};
   overscroll-behavior: none;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 
   h1, h2, h3, h4, h5, h6 {
     margin-top: 1.5em;

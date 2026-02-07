@@ -1383,9 +1383,21 @@ export const MainLayout: React.FC = () => {
 
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Allow context menu only on inputs or textareas if absolutely needed,
-      // otherwise block to prevent "Download/Share/Print" popup on long-press.
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('.CodeMirror') || target.closest('.fortune-container')) {
+
+      // Always allow context menu if there is a text selection
+      const selection = window.getSelection();
+      if (selection && selection.toString().length > 0) {
+        return;
+      }
+
+      // Allow context menu only on inputs, textareas, or markdown preview areas
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.closest('.CodeMirror') ||
+        target.closest('.fortune-container') ||
+        target.closest('.markdown-content')
+      ) {
         return;
       }
       e.preventDefault();

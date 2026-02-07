@@ -150,10 +150,14 @@ const JumpBackButton = styled.button`
   }
 `;
 
-const MarkdownContainer = styled.div<{ $tableHeaderBg?: string }>`
+const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-content' }) <{ $tableHeaderBg?: string }>`
   line-height: 1.6;
   color: ${({ theme }) => theme.colors.text};
   overscroll-behavior: none;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+
 
   h1, h2, h3, h4, h5, h6 {
     margin-top: 1.5em;
