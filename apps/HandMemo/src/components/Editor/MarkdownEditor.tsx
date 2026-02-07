@@ -185,6 +185,35 @@ const EditorWrapper = styled.div`
         color: inherit !important;
       }
 
+      /* Make text layer backgrounds transparent so selection shows through */
+      .CodeMirror-code,
+      .CodeMirror-lines,
+      .CodeMirror-line,
+      pre.CodeMirror-line,
+      .CodeMirror-line > span,
+      .CodeMirror-line span {
+        background: transparent !important;
+        background-color: transparent !important;
+      }
+
+      /* Force selection layer to be visible */
+      .CodeMirror-selectionLayer {
+        z-index: 1 !important;
+      }
+
+      /* WebKit contenteditable selection fix */
+      [contenteditable="true"],
+      [contenteditable="true"] * {
+        -webkit-user-select: text !important;
+        user-select: text !important;
+        caret-color: ${({ theme }) => theme.colors.text};
+      }
+
+      /* Highlight mark for focused selection */
+      .CodeMirror-focused .CodeMirror-selected {
+        background: ${({ theme }) => theme.colors.primary}55 !important;
+      }
+
       @media (max-width: 768px) {
         .CodeMirror-lines {
           padding: 4px 0;
