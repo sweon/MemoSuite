@@ -951,7 +951,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
         </BrandArea>
 
         <StickyHeaderArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
-          <div style={{ padding: '0 1rem 0.5rem' }}>
+          <div style={{ padding: '6px 1rem 0.5rem' }}>
             <StudyModeGroup>
               <StudyModeOption
                 $active={studyMode === 'hide-meanings'}
