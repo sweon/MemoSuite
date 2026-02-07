@@ -288,7 +288,11 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams<{ id: string }>();
+  const { id: paramsId } = useParams<{ id: string }>();
+  // In v6, useParams in a parent layout might not see child params. 
+  // We fall back to parsing the path.
+  const id = paramsId || (location.pathname.includes('/memo/') ? location.pathname.split('/memo/')[1].split('?')[0] : undefined);
+
 
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
@@ -918,6 +922,10 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
               $color="#0072B2"
               onClick={() => {
                 handleSafeNavigation(() => {
+                  // Save current memo ID for Exit navigation
+                  if (id && id !== 'new' && id !== 'settings') {
+                    localStorage.setItem('handmemo_prev_memo_id', id);
+                  }
                   navigate(`/memo/new?t=${Date.now()}`, { replace: true, state: { isGuard: true } });
                   onCloseMobile(true);
                 });
@@ -929,6 +937,10 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
               $color="#D55E00"
               onClick={() => {
                 handleSafeNavigation(() => {
+                  // Save current memo ID for Exit navigation
+                  if (id && id !== 'new' && id !== 'settings') {
+                    localStorage.setItem('handmemo_prev_memo_id', id);
+                  }
                   navigate(`/memo/new?drawing=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
                   onCloseMobile(true);
                 });
@@ -940,6 +952,10 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
               $color="#009E73"
               onClick={() => {
                 handleSafeNavigation(() => {
+                  // Save current memo ID for Exit navigation
+                  if (id && id !== 'new' && id !== 'settings') {
+                    localStorage.setItem('handmemo_prev_memo_id', id);
+                  }
                   navigate(`/memo/new?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
                   onCloseMobile(true);
                 });

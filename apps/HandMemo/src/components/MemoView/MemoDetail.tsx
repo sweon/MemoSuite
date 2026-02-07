@@ -1008,13 +1008,20 @@ export const MemoDetail: React.FC = () => {
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
             if (isNew) {
-                navigate('/', { replace: true });
+                // Navigate back to the previously selected memo (before clicking new)
+                const prevId = localStorage.getItem('handmemo_prev_memo_id');
+                localStorage.removeItem('handmemo_prev_memo_id'); // Clean up
+                if (prevId) {
+                    navigate(`/memo/${prevId}`, { replace: true });
+                } else {
+                    navigate('/', { replace: true });
+                }
             } else if (searchParams.get('edit')) {
                 navigate(`/memo/${id}`, { replace: true });
             }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
-            setIsEditing(false);
+            setIsEditingInternal(false);
             return;
         }
 
@@ -1032,7 +1039,7 @@ export const MemoDetail: React.FC = () => {
             } else if (searchParams.get('edit')) {
                 navigate(`/memo/${id}`, { replace: true });
             }
-            setIsEditing(false);
+            setIsEditingInternal(false);
         } else if (result === 'neutral') {
             // Cleanup autosaves on exit without saving
             if (id) {
@@ -1044,7 +1051,14 @@ export const MemoDetail: React.FC = () => {
             restoredIdRef.current = null;
 
             if (isNew) {
-                navigate('/');
+                // Navigate back to the previously selected memo (before clicking new)
+                const prevId = localStorage.getItem('handmemo_prev_memo_id');
+                localStorage.removeItem('handmemo_prev_memo_id'); // Clean up
+                if (prevId) {
+                    navigate(`/memo/${prevId}`, { replace: true });
+                } else {
+                    navigate('/', { replace: true });
+                }
             } else {
                 // Reset states to original memo data
                 if (memo) {
@@ -1059,7 +1073,7 @@ export const MemoDetail: React.FC = () => {
                     navigate(`/memo/${id}`, { replace: true });
                 }
             }
-            setIsEditing(false);
+            setIsEditingInternal(false);
         }
     };
 
