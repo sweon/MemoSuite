@@ -495,12 +495,12 @@ export const MemoDetail: React.FC = () => {
 
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
-        ? (title || content || tags || hasDraftChanges)
+        ? (title.trim() || content.trim() || tags.trim() || hasDraftChanges)
         : (!!word && (
-            title !== word.title ||
-            content !== word.content ||
-            tags !== word.tags.join(', ') ||
-            sourceId !== word.sourceId ||
+            (title || '').trim() !== (word.title || '').trim() ||
+            (content || '') !== (word.content || '') ||
+            (tags || '').trim() !== (word.tags.join(', ') || '').trim() ||
+            (sourceId || null) !== (word.sourceId || null) ||
             hasDraftChanges
         )));
 

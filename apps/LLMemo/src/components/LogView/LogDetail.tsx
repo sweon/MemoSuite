@@ -455,12 +455,12 @@ export const LogDetail: React.FC = () => {
 
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
-        ? (title || content || tags || hasDraftChanges)
+        ? (title.trim() || content.trim() || tags.trim() || hasDraftChanges)
         : (!!log && (
-            title !== log.title ||
-            content !== log.content ||
-            tags !== log.tags.join(', ') ||
-            modelId !== log.modelId ||
+            (title || '').trim() !== (log.title || '').trim() ||
+            (content || '') !== (log.content || '') ||
+            (tags || '').trim() !== (log.tags.join(', ') || '').trim() ||
+            (modelId || null) !== (log.modelId || null) ||
             hasDraftChanges
         )));
 

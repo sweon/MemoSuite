@@ -586,13 +586,13 @@ export const MemoDetail: React.FC = () => {
 
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
-        ? (title || content || tags || quote || pageNumber || hasDraftChanges)
+        ? (title.trim() || content.trim() || tags.trim() || quote.trim() || pageNumber.trim() || hasDraftChanges)
         : (!!memo && (
-            title !== memo.title ||
-            content !== memo.content ||
-            tags !== memo.tags.join(', ') ||
-            quote !== (memo.quote || '') ||
-            pageNumber !== (memo.pageNumber?.toString() || '') ||
+            (title || '').trim() !== (memo.title || '').trim() ||
+            (content || '') !== (memo.content || '') ||
+            (tags || '').trim() !== (memo.tags.join(', ') || '').trim() ||
+            (quote || '').trim() !== (memo.quote || '').trim() ||
+            (pageNumber || '').trim() !== (memo.pageNumber?.toString() || '').trim() ||
             hasDraftChanges
         )));
 

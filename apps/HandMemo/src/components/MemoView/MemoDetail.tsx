@@ -582,11 +582,11 @@ export const MemoDetail: React.FC = () => {
 
     const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(isNew
-        ? (title || content || tags || hasDraftChanges)
+        ? (title.trim() || content.trim() || tags.trim() || hasDraftChanges)
         : (!!memo && (
-            title !== memo.title ||
-            content !== memo.content ||
-            tags !== memo.tags.join(', ') ||
+            (title || '').trim() !== (memo.title || '').trim() ||
+            (content || '') !== (memo.content || '') ||
+            (tags || '').trim() !== (memo.tags.join(', ') || '').trim() ||
             hasDraftChanges
         )));
 
@@ -1021,7 +1021,7 @@ export const MemoDetail: React.FC = () => {
             }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
-            setIsEditingInternal(false);
+            setIsEditing(false);
             return;
         }
 
