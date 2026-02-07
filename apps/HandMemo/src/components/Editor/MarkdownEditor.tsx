@@ -946,6 +946,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             wrapper.addEventListener('drop', handleDrop, true);
             wrapper.addEventListener('dragover', handleDragOver, true);
             wrapper.addEventListener('paste', handlePaste, true);
+
+            // Disable context menu (Select All) on long press for Android tablets
+            wrapper.addEventListener('contextmenu', (e: MouseEvent) => {
+              e.preventDefault();
+            });
           }}
         />
       </EditorWrapper>

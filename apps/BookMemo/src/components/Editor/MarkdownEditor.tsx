@@ -799,6 +799,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               }
             }
             if (updateWidgetsRef.current) setTimeout(() => updateWidgetsRef.current(cm), 100);
+
+            // Disable context menu (Select All) on long press for Android tablets
+            const wrapper = cm.getWrapperElement();
+            wrapper.addEventListener('contextmenu', (e: MouseEvent) => {
+              e.preventDefault();
+            });
           }}
         />
       </EditorWrapper>
