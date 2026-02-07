@@ -590,7 +590,8 @@ export const MemoDetail: React.FC = () => {
     const loadedIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (word && loadedIdRef.current !== id) {
+        // Ensure word.id matches current URL id to prevent showing stale data
+        if (word && word.id === Number(id) && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = word.tags.join(', ');
 
