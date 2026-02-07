@@ -1034,11 +1034,7 @@ export const MemoDetail: React.FC = () => {
 
         if (result === 'confirm') {
             await handleSave();
-            if (isNew) {
-                navigate('/');
-            } else if (searchParams.get('edit')) {
-                navigate(`/memo/${id}`, { replace: true });
-            }
+            localStorage.removeItem('handmemo_prev_memo_id');
             setIsEditingInternal(false);
         } else if (result === 'neutral') {
             // Cleanup autosaves on exit without saving
