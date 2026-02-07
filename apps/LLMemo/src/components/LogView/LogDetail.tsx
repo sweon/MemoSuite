@@ -490,7 +490,9 @@ export const LogDetail: React.FC = () => {
     const loadedIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (log && loadedIdRef.current !== id) {
+        let active = true;
+
+        if (log && String(log.id) === id && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = log.tags.join(', ');
 
@@ -500,6 +502,8 @@ export const LogDetail: React.FC = () => {
                     .equals(Number(id))
                     .reverse()
                     .sortBy('createdAt');
+
+                if (!active) return;
 
                 let initialTitle = log.title;
                 let initialContent = log.content;
@@ -565,6 +569,8 @@ export const LogDetail: React.FC = () => {
                     .reverse()
                     .sortBy('createdAt');
 
+                if (!active) return;
+
                 if (existing.length > 0) {
                     const draft = existing[0];
                     const hasLogChanges = draft.content !== log.content || draft.title !== log.title;
@@ -611,6 +617,8 @@ export const LogDetail: React.FC = () => {
                     .reverse()
                     .sortBy('createdAt');
 
+                if (!active) return;
+
                 if (latest.length > 0) {
                     const draft = latest[0];
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
@@ -640,6 +648,10 @@ export const LogDetail: React.FC = () => {
         if (searchParams.get('drawing') === 'true') {
             setIsFabricModalOpen(true);
         }
+
+        return () => {
+            active = false;
+        };
     }, [log, isNew, id, searchParams, isEditing]);
 
     // Set default model if new and models loaded

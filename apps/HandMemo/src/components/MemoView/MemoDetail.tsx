@@ -611,7 +611,9 @@ export const MemoDetail: React.FC = () => {
     const loadedIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (memo && loadedIdRef.current !== id) {
+        let active = true;
+
+        if (memo && String(memo.id) === id && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = memo.tags.join(', ');
 
@@ -670,6 +672,8 @@ export const MemoDetail: React.FC = () => {
                     .equals(Number(id))
                     .reverse()
                     .sortBy('createdAt');
+
+                if (!active) return;
 
                 if (existing.length > 0) {
                     const draft = existing[0];
@@ -738,6 +742,8 @@ export const MemoDetail: React.FC = () => {
                     .reverse()
                     .sortBy('createdAt');
 
+                if (!active) return;
+
                 if (latest.length > 0) {
                     const draft = latest[0];
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
@@ -761,6 +767,10 @@ export const MemoDetail: React.FC = () => {
             };
             checkNewAutosave();
         }
+
+        return () => {
+            active = false;
+        };
     }, [memo, isNew, searchParams, id, language, t.log_detail?.autosave_restore_confirm, isEditing]);
 
     const lastSavedState = useRef({ title, content, tags, commentDraft });

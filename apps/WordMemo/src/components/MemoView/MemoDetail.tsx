@@ -590,7 +590,9 @@ export const MemoDetail: React.FC = () => {
     const loadedIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (word && loadedIdRef.current !== id) {
+        let active = true;
+
+        if (word && String(word.id) === id && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = word.tags.join(', ');
 
@@ -600,6 +602,8 @@ export const MemoDetail: React.FC = () => {
                     .equals(Number(id))
                     .reverse()
                     .sortBy('createdAt');
+
+                if (!active) return;
 
                 let initialTitle = word.title;
                 let initialContent = word.content;
@@ -665,6 +669,8 @@ export const MemoDetail: React.FC = () => {
                     .reverse()
                     .sortBy('createdAt');
 
+                if (!active) return;
+
                 if (existing.length > 0) {
                     const draft = existing[0];
                     const hasLogChanges = draft.content !== word.content || draft.title !== word.title;
@@ -715,6 +721,8 @@ export const MemoDetail: React.FC = () => {
                     .reverse()
                     .sortBy('createdAt');
 
+                if (!active) return;
+
                 if (latest.length > 0) {
                     const draft = latest[0];
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
@@ -740,6 +748,10 @@ export const MemoDetail: React.FC = () => {
             };
             checkNewAutosave();
         }
+
+        return () => {
+            active = false;
+        };
     }, [word, isNew, id, searchParams, isEditing]);
 
     useEffect(() => {
