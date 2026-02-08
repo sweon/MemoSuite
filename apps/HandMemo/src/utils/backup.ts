@@ -93,10 +93,24 @@ export const mergeBackupData = async (data: any) => {
                 const oldId = f.id;
                 const existingId = localFolderByName.get(f.name);
 
+                // Hydrate dates for folders
+                const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
+                const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
+
                 if (existingId) {
                     folderIdMap.set(oldId, existingId);
+                    // Sync folder properties (color/pin/dates)
+                    const folderUpdates: any = {
+                        color: f.color,
+                        updatedAt: updatedAt
+                    };
+                    if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+
+                    await db.folders.update(existingId, folderUpdates);
                 } else {
                     const { id: _, ...folderData } = f;
+                    folderData.createdAt = createdAt;
+                    folderData.updatedAt = updatedAt;
                     const newId = await db.folders.add(folderData);
                     folderIdMap.set(oldId, newId as number);
                     localFolderByName.set(f.name, newId as number);
@@ -112,6 +126,7 @@ export const mergeBackupData = async (data: any) => {
         for (const l of memos) {
             const oldId = l.id;
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
+            const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
 
             // Try to find exact match
             const potentialMatches = await db.memos.where('title').equals(l.title).toArray();
@@ -126,19 +141,29 @@ export const mergeBackupData = async (data: any) => {
             if (existingMemo) {
                 memoIdMap.set(oldId, existingMemo.id!);
 
-                // Update folder and metadata even if it exists, to sync moves/changes
-                const updates: any = {
-                    folderId: targetFolderId,
-                    updatedAt: typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt,
-                    tags: l.tags
-                };
-                if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                // Update folder and metadata even if it exists, to sync moves/changes/content
+                // Only overwrite if incoming is newer OR content differs and incoming is newer
+                const incomingTime = updatedAt.getTime();
+                const localTime = existingMemo.updatedAt.getTime();
 
-                await db.memos.update(existingMemo.id!, updates);
+                if (incomingTime > localTime || l.content !== existingMemo.content) {
+                    const updates: any = {
+                        folderId: targetFolderId,
+                        content: l.content, // Crucial: sync content changes!
+                        updatedAt: updatedAt,
+                        tags: l.tags,
+                        type: l.type || 'normal'
+                    };
+                    if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                    if (l.threadId) updates.threadId = l.threadId;
+                    if (l.threadOrder !== undefined) updates.threadOrder = l.threadOrder;
+
+                    await db.memos.update(existingMemo.id!, updates);
+                }
             } else {
                 const { id, ...memoData } = l;
                 memoData.createdAt = createdAt;
-                memoData.updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
+                memoData.updatedAt = updatedAt;
                 if (l.pinnedAt) {
                     memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                 }

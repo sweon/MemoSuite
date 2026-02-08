@@ -1,5 +1,5 @@
 
-export type SyncStatus = 'disconnected' | 'connecting' | 'connected' | 'syncing' | 'completed' | 'error' | 'ready';
+export type SyncStatus = 'idle' | 'disconnected' | 'connecting' | 'connected' | 'syncing' | 'merging' | 'completed' | 'error' | 'ready';
 
 export interface SyncInfo {
     type: 'full' | 'single' | 'thread';

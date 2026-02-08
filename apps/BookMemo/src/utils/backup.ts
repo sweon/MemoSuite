@@ -87,25 +87,36 @@ export const mergeBackupData = async (data: any) => {
     const memos = data.memos || data.logs || []; // Support legacy migration if needed, but primarily memos
 
     await db.transaction('rw', db.books, db.memos, db.comments, db.folders, async () => {
+        // Optimize folder mapping by pre-fetching
+        const allLocalFolders = await db.folders.toArray();
+        const localFolderByName = new Map(allLocalFolders.map(f => [f.name, f.id!]));
         const folderIdMap = new Map<number, number>();
 
-        // 0. Merge Folders first
         if (data.folders) {
             for (const f of data.folders) {
                 const oldId = f.id;
-                const existing = await db.folders.where('name').equals(f.name).first();
+                const existingId = localFolderByName.get(f.name);
 
-                if (existing) {
-                    folderIdMap.set(oldId, existing.id!);
+                // Hydrate dates for folders
+                const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
+                const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
+
+                if (existingId) {
+                    folderIdMap.set(oldId, existingId);
+                    // Sync folder properties (color/pin/dates)
+                    const folderUpdates: any = {
+                        color: f.color,
+                        updatedAt: updatedAt
+                    };
+                    if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+                    await db.folders.update(existingId, folderUpdates);
                 } else {
-                    const { id, ...folderData } = f;
-                    folderData.createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
-                    folderData.updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
-                    if (f.pinnedAt) {
-                        folderData.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
-                    }
+                    const { id: _, ...folderData } = f;
+                    folderData.createdAt = createdAt;
+                    folderData.updatedAt = updatedAt;
                     const newId = await db.folders.add(folderData);
                     folderIdMap.set(oldId, newId as number);
+                    localFolderByName.set(f.name, newId as number);
                 }
             }
         }
@@ -113,22 +124,20 @@ export const mergeBackupData = async (data: any) => {
         const bookIdMap = new Map<number, number>();
         const memoIdMap = new Map<number, number>();
 
-        // Get default folder explicitly by name
-        let defaultFolder = await db.folders.where('name').equals('기본 폴더').first();
-        if (!defaultFolder) {
-            defaultFolder = await db.folders.toCollection().first();
-        }
-        const defaultFolderId = defaultFolder?.id;
+        // Resolve default folder ID safely from our pre-fetched map
+        const defaultFolderId = localFolderByName.get('기본 폴더') || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
 
-        // 1. Merge Books first
+        // 1. Merge Books
         for (const b of books) {
             const oldBookId = b.id;
+            const createdAt = typeof b.createdAt === 'string' ? new Date(b.createdAt) : b.createdAt;
+            const updatedAt = typeof b.updatedAt === 'string' ? new Date(b.updatedAt) : b.updatedAt;
 
-            // Find match by title and author
-            const existingBook = await db.books
-                .where('title').equals(b.title)
-                .filter(eb => eb.author === b.author)
-                .first();
+            // Try to find exact match
+            const potentialMatches = await db.books.where('title').equals(b.title).toArray();
+            let existingBook = potentialMatches.find(pb =>
+                pb.author === b.author && Math.abs(pb.createdAt.getTime() - createdAt.getTime()) < 5000
+            );
 
             // Resolve target folderId
             let targetFolderId = defaultFolderId;
@@ -140,19 +149,25 @@ export const mergeBackupData = async (data: any) => {
                 bookIdMap.set(oldBookId, existingBook.id!);
 
                 // Update progress, status, AND folder
-                const updates: any = {
-                    folderId: targetFolderId,
-                    updatedAt: typeof b.updatedAt === 'string' ? new Date(b.updatedAt) : b.updatedAt
-                };
-                if ((b.currentPage || 0) > (existingBook.currentPage || 0)) {
-                    updates.currentPage = b.currentPage;
-                }
-                if (b.status === 'completed' && existingBook.status !== 'completed') {
-                    updates.status = 'completed';
-                    updates.completedDate = typeof b.completedDate === 'string' ? new Date(b.completedDate) : b.completedDate;
-                }
+                const incomingTime = updatedAt.getTime();
+                const localTime = existingBook.updatedAt.getTime();
 
-                await db.books.update(existingBook.id!, updates);
+                if (incomingTime > localTime) {
+                    const updates: any = {
+                        folderId: targetFolderId,
+                        updatedAt: updatedAt
+                    };
+                    if ((b.currentPage || 0) > (existingBook.currentPage || 0)) {
+                        updates.currentPage = b.currentPage;
+                    }
+                    if (b.status === 'completed' && existingBook.status !== 'completed') {
+                        updates.status = 'completed';
+                        updates.completedDate = typeof b.completedDate === 'string' ? new Date(b.completedDate) : b.completedDate;
+                    }
+                    if (b.pinnedAt) updates.pinnedAt = typeof b.pinnedAt === 'string' ? new Date(b.pinnedAt) : b.pinnedAt;
+
+                    await db.books.update(existingBook.id!, updates);
+                }
             } else {
                 const { id, ...bookData } = b;
                 bookData.startDate = typeof b.startDate === 'string' ? new Date(b.startDate) : b.startDate;
@@ -177,6 +192,7 @@ export const mergeBackupData = async (data: any) => {
         for (const l of memos) {
             const oldId = l.id;
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
+            const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
 
             // Try to find exact match
             const potentialMatches = await db.memos.where('title').equals(l.title).toArray();
@@ -191,24 +207,30 @@ export const mergeBackupData = async (data: any) => {
             if (existingMemo) {
                 memoIdMap.set(oldId, existingMemo.id!);
 
-                // Update folder and metadata
-                const updates: any = {
-                    folderId: targetFolderId,
-                    updatedAt: typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt,
-                    tags: l.tags
-                };
-                if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                // Update folder and metadata even if it exists, to sync moves/changes/content
+                const incomingTime = updatedAt.getTime();
+                const localTime = existingMemo.updatedAt.getTime();
 
-                // Map bookId if it was changed during book merge
-                if (l.bookId && bookIdMap.has(l.bookId)) {
-                    updates.bookId = bookIdMap.get(l.bookId);
+                if (incomingTime > localTime || l.content !== existingMemo.content) {
+                    const updates: any = {
+                        folderId: targetFolderId,
+                        content: l.content, // Crucial: sync content changes!
+                        updatedAt: updatedAt,
+                        tags: l.tags
+                    };
+                    if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+
+                    // Map bookId if it was changed during book merge
+                    if (l.bookId && bookIdMap.has(l.bookId)) {
+                        updates.bookId = bookIdMap.get(l.bookId);
+                    }
+
+                    await db.memos.update(existingMemo.id!, updates);
                 }
-
-                await db.memos.update(existingMemo.id!, updates);
             } else {
                 const { id, ...memoData } = l;
                 memoData.createdAt = createdAt;
-                memoData.updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
+                memoData.updatedAt = updatedAt;
                 if (l.pinnedAt) {
                     memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                 }
