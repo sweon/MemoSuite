@@ -55,6 +55,11 @@ export class SyncService {
 
         // Notify host that we are ready
         await this.sendRelayMessage({ type: 'join' });
+
+        // Immediately start sending our local data for bidirectional sync
+        // This ensures the host doesn't wait forever if receiving fails later
+        this.syncData();
+
         this.options.onStatusChange('connected', 'Waiting for host data...');
     }
 
@@ -140,22 +145,30 @@ export class SyncService {
         switch (payload.type) {
             case 'join':
                 if (this.isHost) {
-                    console.log('Client joined, preparing to send data...');
-                    this.options.onStatusChange('connected', 'Peer connected! Sharing data...');
+                    console.log('Client joined, preparing to send host data...');
+                    this.options.onStatusChange('connected', 'Peer connected! Sharing host data...');
                     // Longer delay to ensure client is ready and stable
                     setTimeout(() => this.syncData(), 1500);
                 }
                 break;
             case 'sync_data':
                 if (payload.data) {
-                    this.options.onStatusChange('syncing', 'Receiving direct message data...');
+                    this.options.onStatusChange('syncing', 'Receiving items from peer...');
                     await this.processReceivedEncodedData(payload.data);
+                }
+                break;
+            case 'sync_complete_ack':
+                if (this.isHost) {
+                    this.options.onStatusChange('completed', 'Sync completed! Exchange verified.');
+                    this.options.onDataReceived();
                 }
                 break;
             case 'ping':
                 break;
         }
     }
+
+    private hasSentInitialSync = false;
 
     public async syncData() {
         if (!this.roomId || this.isSyncing) {
@@ -178,7 +191,7 @@ export class SyncService {
             const finalData = (targetLogIds ? "PARTIAL:" : "FULL:") + encrypted;
 
             if (finalData.length > 2000) {
-                this.options.onStatusChange('syncing', 'Uploading large package (attachments)...');
+                this.options.onStatusChange('syncing', 'Uploading large package...');
                 await this.sendRelayAttachment(finalData);
             } else {
                 this.options.onStatusChange('syncing', 'Sending sync message...');
@@ -188,12 +201,15 @@ export class SyncService {
                 });
             }
 
+            this.hasSentInitialSync = true;
             console.log('Sync data sent');
+
             if (this.options.initialDataLogId) {
                 this.options.onStatusChange('completed', 'Shared successfully!');
+            } else if (this.isHost) {
+                this.options.onStatusChange('connected', 'Source data sent! Waiting for peer data...');
             } else {
-                // For host, show "Sent" and wait for reply. For client, show "Sent" then complete.
-                this.options.onStatusChange('connected', 'Data package sent! Waiting for peer...');
+                this.options.onStatusChange('connected', 'Data package sent to peer!');
             }
         } catch (err: any) {
             console.error('Sync failed:', err);
@@ -317,7 +333,7 @@ export class SyncService {
                 return;
             }
 
-            this.options.onStatusChange('syncing', 'Merging remote items into local database...');
+            this.options.onStatusChange('syncing', 'Merging remote items...');
             await this.options.adapter.mergeBackupData(data);
 
             if (this.isHost) {
@@ -327,21 +343,21 @@ export class SyncService {
             } else {
                 // Client received data (Intermediate step)
                 if (!isPartial) {
-                    this.options.onStatusChange('syncing', 'Sending local updates back to peer...');
-                    // Small delay to ensure DB locks are released before sending
-                    setTimeout(async () => {
+                    if (!this.hasSentInitialSync) {
+                        this.options.onStatusChange('syncing', 'Sending local updates back to peer...');
                         await this.syncData();
-                        this.options.onStatusChange('completed', 'Sync completed! Exchange finished.');
-                        this.options.onDataReceived();
-                    }, 500);
-                } else {
-                    this.options.onStatusChange('completed', 'Sync completed!');
-                    this.options.onDataReceived();
+                    } else {
+                        // We already sent our data, so just notify host we are finished
+                        await this.sendRelayMessage({ type: 'sync_complete_ack' });
+                    }
                 }
+
+                this.options.onStatusChange('completed', 'Sync completed! Data updated.');
+                this.options.onDataReceived();
             }
         } catch (e: any) {
             console.error('Merge error:', e);
-            this.options.onStatusChange('error', `Local storage merge failed: ${e.message}`);
+            this.options.onStatusChange('error', `Merge failed: ${e.message}`);
         }
     }
 
