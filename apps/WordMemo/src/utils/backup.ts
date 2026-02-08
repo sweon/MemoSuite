@@ -130,8 +130,11 @@ export const mergeBackupData = async (data: any) => {
 
         const wordIdMap = new Map<number, number>();
 
-        // Get default folder if we still need a fallback
-        const defaultFolder = await db.folders.toCollection().first();
+        // Get default folder explicitly by name
+        let defaultFolder = await db.folders.where('name').equals('기본 폴더').first();
+        if (!defaultFolder) {
+            defaultFolder = await db.folders.toCollection().first();
+        }
         const defaultFolderId = defaultFolder?.id;
 
         for (const l of data.logs) {
@@ -144,12 +147,33 @@ export const mergeBackupData = async (data: any) => {
                 Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 1000
             );
 
+            // Resolve target folderId
+            let targetFolderId = defaultFolderId;
+            if (l.folderId) {
+                targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
+            }
+
             if (existingLog) {
                 wordIdMap.set(oldId, existingLog.id!);
-                // Optionally update fields like isStarred if they differ
-                if (l.isStarred !== undefined && l.isStarred !== existingLog.isStarred) {
-                    await db.words.update(existingLog.id!, { isStarred: l.isStarred });
+
+                // Update folder and metadata to sync moves/changes
+                const updates: any = {
+                    folderId: targetFolderId,
+                    updatedAt: typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt,
+                    tags: l.tags
+                };
+                if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+
+                const sId = l.sourceId !== undefined ? l.sourceId : l.modelId;
+                if (sId !== undefined && sourceIdMap.has(sId)) {
+                    updates.sourceId = sourceIdMap.get(sId);
                 }
+
+                if (l.isStarred !== undefined) {
+                    updates.isStarred = l.isStarred;
+                }
+
+                await db.words.update(existingLog.id!, updates);
             } else {
                 const { id, ...logData } = l;
                 logData.createdAt = createdAt;
@@ -158,12 +182,8 @@ export const mergeBackupData = async (data: any) => {
                     logData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                 }
 
-                // Handle folderId mapping
-                if (logData.folderId) {
-                    logData.folderId = folderIdMap.get(logData.folderId) ?? defaultFolderId;
-                } else {
-                    logData.folderId = defaultFolderId;
-                }
+                // Apply mapped folderId
+                logData.folderId = targetFolderId;
 
                 const sId = l.sourceId !== undefined ? l.sourceId : l.modelId;
                 if (sId !== undefined && sourceIdMap.has(sId)) {

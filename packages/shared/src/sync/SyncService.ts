@@ -3,7 +3,7 @@ import { encryptData, decryptData } from '../utils/crypto';
 import type { SyncServiceOptions } from './types';
 
 export const cleanRoomId = (roomId: string): string => {
-    return roomId.trim().replace(/[^a-zA-Z0-9_-]/g, '-');
+    return roomId.trim().replace(/[^a-zA-Z0-9_-]/g, '-').toUpperCase();
 };
 
 const RELAY_BASE = 'https://ntfy.sh';
@@ -53,9 +53,9 @@ export class SyncService {
         this.options.onStatusChange('connecting', 'Connecting to relay...');
         await this.connectRelay();
 
-        this.options.onStatusChange('syncing', 'Requesting data...');
         // Notify host that we are ready
         await this.sendRelayMessage({ type: 'join' });
+        this.options.onStatusChange('connected', 'Waiting for host data...');
     }
 
     private async connectRelay() {
@@ -118,7 +118,7 @@ export class SyncService {
                 return;
             }
             console.log('Received attachment:', msg.attachment.url);
-            this.options.onStatusChange('syncing', 'Downloading data...');
+            this.options.onStatusChange('syncing', 'Found data package on server...');
             await this.downloadAndProcessAttachment(msg.attachment.url);
             return;
         }
@@ -140,15 +140,15 @@ export class SyncService {
         switch (payload.type) {
             case 'join':
                 if (this.isHost) {
-                    console.log('Client joined, sending data...');
-                    this.options.onStatusChange('connected', 'Client joined!');
-                    // Small delay to ensure client is ready to receive
-                    setTimeout(() => this.syncData(), 1000);
+                    console.log('Client joined, preparing to send data...');
+                    this.options.onStatusChange('connected', 'Peer connected! Sharing data...');
+                    // Longer delay to ensure client is ready and stable
+                    setTimeout(() => this.syncData(), 1500);
                 }
                 break;
             case 'sync_data':
                 if (payload.data) {
-                    this.options.onStatusChange('syncing', 'Decrypting data...');
+                    this.options.onStatusChange('syncing', 'Receiving direct message data...');
                     await this.processReceivedEncodedData(payload.data);
                 }
                 break;
@@ -158,37 +158,42 @@ export class SyncService {
     }
 
     public async syncData() {
-        if (!this.roomId || this.isSyncing) return;
+        if (!this.roomId || this.isSyncing) {
+            console.log('Already syncing or no room, skipping syncData');
+            return;
+        }
 
         try {
             this.isSyncing = true;
-            this.options.onStatusChange('syncing', 'Preparing data...');
+            this.options.onStatusChange('syncing', 'Scanning items for sync...');
 
             const targetLogIds = await this.options.adapter.getSyncTargetIds(this.options.initialDataLogId);
 
-            // Allow syncing only specific log if requested
+            this.options.onStatusChange('syncing', 'Packaging data for encryption...');
             const data = await this.options.adapter.getBackupData(targetLogIds);
             const jsonStr = JSON.stringify(data);
 
-            this.options.onStatusChange('syncing', 'Encrypting...');
+            this.options.onStatusChange('syncing', 'Encrypting contents...');
             const encrypted = await encryptData(jsonStr, this.roomId);
             const finalData = (targetLogIds ? "PARTIAL:" : "FULL:") + encrypted;
 
             if (finalData.length > 2000) {
-                this.options.onStatusChange('syncing', 'Uploading attachment...');
+                this.options.onStatusChange('syncing', 'Uploading large package (attachments)...');
                 await this.sendRelayAttachment(finalData);
             } else {
-                this.options.onStatusChange('syncing', 'Sending message...');
+                this.options.onStatusChange('syncing', 'Sending sync message...');
                 await this.sendRelayMessage({
                     type: 'sync_data',
                     data: finalData
                 });
             }
-            console.log('Data sent to relay');
+
+            console.log('Sync data sent');
             if (this.options.initialDataLogId) {
-                this.options.onStatusChange('completed', 'Data sent successfully!');
+                this.options.onStatusChange('completed', 'Shared successfully!');
             } else {
-                this.options.onStatusChange('connected', 'Data sent!');
+                // For host, show "Sent" and wait for reply. For client, show "Sent" then complete.
+                this.options.onStatusChange('connected', 'Data package sent! Waiting for peer...');
             }
         } catch (err: any) {
             console.error('Sync failed:', err);
@@ -237,13 +242,13 @@ export class SyncService {
 
     private async downloadAndProcessAttachment(url: string) {
         try {
-            console.log('Downloading attachment from:', url);
+            console.log('Downloading attachment...');
             const response = await fetch(url);
             if (!response.ok) {
-                throw new Error(`Failed to download attachment: ${response.status} ${response.statusText}`);
+                throw new Error(`Failed to download attachment: ${response.status}`);
             }
             const encodedData = await response.text();
-            console.log('Attachment downloaded, size:', encodedData.length);
+            console.log('Download complete, processing...');
             await this.processReceivedEncodedData(encodedData);
         } catch (e: any) {
             console.error('Download error:', e);
@@ -270,92 +275,73 @@ export class SyncService {
 
         let decrypted = '';
         try {
-            this.options.onStatusChange('syncing', 'Decrypting data...');
+            this.options.onStatusChange('syncing', 'Decrypting data package...');
             decrypted = await decryptData(realEncodedData, this.roomId!);
         } catch (e: any) {
             console.error('Decryption error:', e);
-            this.options.onStatusChange('error', `Decryption failed: ${e.message || 'Unknown error'}`);
+            this.options.onStatusChange('error', `Decryption failed. Check room ID (Case-sensitive).`);
             return;
         }
 
         let data: any;
         try {
             data = JSON.parse(decrypted);
-
-            // Analyze received data for visual indicator on receiver side
-            // Note: We can't really re-use adapter.analyze here easily unless we inspect 'data' structure
-            // But 'data' structure is known (it's the backup payload)
-            // We can rely on 'logs' property or 'memos' property if we want to be generic
-            // Or we can just show "Received items"
-
             if (this.options.onSyncInfo) {
                 let count = 0;
-                let label = 'Unknown Data';
+                let label = 'Remote items';
 
-                // Generic detection of count/label
                 if (data.logs && Array.isArray(data.logs)) {
                     count = data.logs.length;
-                    label = data.logs[0]?.title || 'Log';
+                    label = data.logs[0]?.title || 'Combined Logs';
                 } else if (data.memos && Array.isArray(data.memos)) {
                     count = data.memos.length;
-                    label = data.memos[0]?.title || 'Memo';
+                    label = data.memos[0]?.title || 'Combined Memos';
                 }
 
                 if (!isPartial) {
-                    this.options.onSyncInfo({
-                        type: 'full',
-                        count: count,
-                        label: 'Full Backup'
-                    });
-                } else if (count > 1) {
-                    this.options.onSyncInfo({
-                        type: 'thread',
-                        count: count,
-                        label: label || 'Combined Items'
-                    });
+                    this.options.onSyncInfo({ type: 'full', count: count, label: 'Full Sync Payload' });
                 } else {
-                    this.options.onSyncInfo({
-                        type: 'single',
-                        count: 1,
-                        label: label || 'Item'
-                    });
+                    this.options.onSyncInfo({ type: count > 1 ? 'thread' : 'single', count: count, label: label });
                 }
             }
-
         } catch (e: any) {
-            console.error('JSON Parse error:', e);
-            this.options.onStatusChange('error', `JSON Parse failed: ${e.message}`);
+            this.options.onStatusChange('error', `Data parsing failed: ${e.message}`);
             return;
         }
 
         try {
-            // If we are in single-log sharing mode (Sender), we usually don't want to merge the Receiver's full backup.
+            // Check if we should skip merge (e.g. Host just sharing one specific item)
             if (this.options.initialDataLogId && this.isHost) {
-                console.log("In single log share mode, skipping merge of incoming data.");
-                this.options.onStatusChange('completed', 'Item shared successfully!');
+                console.log("Single item share successful.");
+                this.options.onStatusChange('completed', 'Item Shared Successfully!');
                 return;
             }
 
-            this.options.onStatusChange('syncing', 'Merging data...');
+            this.options.onStatusChange('syncing', 'Merging remote items into local database...');
             await this.options.adapter.mergeBackupData(data);
 
             if (this.isHost) {
-                // Host received data (bidirectional sync return)
-                this.options.onStatusChange('completed', 'Sync Completed!');
+                // Host received data (Final step of bidirectional sync)
+                this.options.onStatusChange('completed', 'Sync completed! All data merged.');
                 this.options.onDataReceived();
             } else {
-                // Client received data
+                // Client received data (Intermediate step)
                 if (!isPartial) {
-                    this.options.onStatusChange('syncing', 'Synchronizing back...');
-                    await this.syncData();
+                    this.options.onStatusChange('syncing', 'Sending local updates back to peer...');
+                    // Small delay to ensure DB locks are released before sending
+                    setTimeout(async () => {
+                        await this.syncData();
+                        this.options.onStatusChange('completed', 'Sync completed! Exchange finished.');
+                        this.options.onDataReceived();
+                    }, 500);
+                } else {
+                    this.options.onStatusChange('completed', 'Sync completed!');
+                    this.options.onDataReceived();
                 }
-
-                this.options.onStatusChange('completed', 'Sync Completed!');
-                this.options.onDataReceived();
             }
         } catch (e: any) {
             console.error('Merge error:', e);
-            this.options.onStatusChange('error', `Merge failed: ${e.message || e}`);
+            this.options.onStatusChange('error', `Local storage merge failed: ${e.message}`);
         }
     }
 

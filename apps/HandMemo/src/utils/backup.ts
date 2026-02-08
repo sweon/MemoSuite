@@ -83,32 +83,31 @@ export const mergeBackupData = async (data: any) => {
     await db.transaction('rw', db.memos, db.comments, db.folders, async () => {
         const folderIdMap = new Map<number, number>();
 
+        // Pre-fetch folders for performance
+        const allLocalFolders = await db.folders.toArray();
+        const localFolderByName = new Map(allLocalFolders.map(f => [f.name, f.id]));
+
         // Merge Folders first
         if (data.folders) {
             for (const f of data.folders) {
                 const oldId = f.id;
-                const existing = await db.folders.where('name').equals(f.name).first();
+                const existingId = localFolderByName.get(f.name);
 
-                if (existing) {
-                    folderIdMap.set(oldId, existing.id!);
+                if (existingId) {
+                    folderIdMap.set(oldId, existingId);
                 } else {
-                    const { id, ...folderData } = f;
-                    folderData.createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
-                    folderData.updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
-                    if (f.pinnedAt) {
-                        folderData.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
-                    }
+                    const { id: _, ...folderData } = f;
                     const newId = await db.folders.add(folderData);
                     folderIdMap.set(oldId, newId as number);
+                    localFolderByName.set(f.name, newId as number);
                 }
             }
         }
 
         const memoIdMap = new Map<number, number>();
 
-        // Get default folder if we still need a fallback
-        const defaultFolder = await db.folders.toCollection().first();
-        const defaultFolderId = defaultFolder?.id;
+        // Resolve default folder ID safely from our pre-fetched map
+        const defaultFolderId = localFolderByName.get('기본 폴더') || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
 
         for (const l of memos) {
             const oldId = l.id;
@@ -118,8 +117,24 @@ export const mergeBackupData = async (data: any) => {
             const potentialMatches = await db.memos.where('title').equals(l.title).toArray();
             let existingMemo = potentialMatches.find(pl => Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000); // 5s tolerance
 
+            // Resolve target folderId
+            let targetFolderId = defaultFolderId;
+            if (l.folderId) {
+                targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
+            }
+
             if (existingMemo) {
                 memoIdMap.set(oldId, existingMemo.id!);
+
+                // Update folder and metadata even if it exists, to sync moves/changes
+                const updates: any = {
+                    folderId: targetFolderId,
+                    updatedAt: typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt,
+                    tags: l.tags
+                };
+                if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+
+                await db.memos.update(existingMemo.id!, updates);
             } else {
                 const { id, ...memoData } = l;
                 memoData.createdAt = createdAt;
@@ -128,12 +143,8 @@ export const mergeBackupData = async (data: any) => {
                     memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                 }
 
-                // Handle folderId mapping
-                if (memoData.folderId) {
-                    memoData.folderId = folderIdMap.get(memoData.folderId) ?? defaultFolderId;
-                } else {
-                    memoData.folderId = defaultFolderId;
-                }
+                // Apply mapped folderId
+                memoData.folderId = targetFolderId;
 
                 // Remove bookId if present as we are detaching from books
                 delete memoData.bookId;

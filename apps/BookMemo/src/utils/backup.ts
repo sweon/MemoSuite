@@ -113,8 +113,11 @@ export const mergeBackupData = async (data: any) => {
         const bookIdMap = new Map<number, number>();
         const memoIdMap = new Map<number, number>();
 
-        // Get default folder if we still need a fallback
-        const defaultFolder = await db.folders.toCollection().first();
+        // Get default folder explicitly by name
+        let defaultFolder = await db.folders.where('name').equals('기본 폴더').first();
+        if (!defaultFolder) {
+            defaultFolder = await db.folders.toCollection().first();
+        }
         const defaultFolderId = defaultFolder?.id;
 
         // 1. Merge Books first
@@ -127,11 +130,20 @@ export const mergeBackupData = async (data: any) => {
                 .filter(eb => eb.author === b.author)
                 .first();
 
+            // Resolve target folderId
+            let targetFolderId = defaultFolderId;
+            if (b.folderId) {
+                targetFolderId = folderIdMap.get(b.folderId) ?? defaultFolderId;
+            }
+
             if (existingBook) {
                 bookIdMap.set(oldBookId, existingBook.id!);
 
-                // Update progress if incoming is further?
-                const updates: any = {};
+                // Update progress, status, AND folder
+                const updates: any = {
+                    folderId: targetFolderId,
+                    updatedAt: typeof b.updatedAt === 'string' ? new Date(b.updatedAt) : b.updatedAt
+                };
                 if ((b.currentPage || 0) > (existingBook.currentPage || 0)) {
                     updates.currentPage = b.currentPage;
                 }
@@ -140,9 +152,7 @@ export const mergeBackupData = async (data: any) => {
                     updates.completedDate = typeof b.completedDate === 'string' ? new Date(b.completedDate) : b.completedDate;
                 }
 
-                if (Object.keys(updates).length > 0) {
-                    await db.books.update(existingBook.id!, updates);
-                }
+                await db.books.update(existingBook.id!, updates);
             } else {
                 const { id, ...bookData } = b;
                 bookData.startDate = typeof b.startDate === 'string' ? new Date(b.startDate) : b.startDate;
@@ -155,12 +165,8 @@ export const mergeBackupData = async (data: any) => {
                     bookData.pinnedAt = typeof b.pinnedAt === 'string' ? new Date(b.pinnedAt) : b.pinnedAt;
                 }
 
-                // Handle folderId mapping
-                if (bookData.folderId) {
-                    bookData.folderId = folderIdMap.get(bookData.folderId) ?? defaultFolderId;
-                } else {
-                    bookData.folderId = defaultFolderId;
-                }
+                // Apply mapped folderId
+                bookData.folderId = targetFolderId;
 
                 const newBookId = await db.books.add(bookData);
                 bookIdMap.set(oldBookId, newBookId as number);
@@ -176,8 +182,29 @@ export const mergeBackupData = async (data: any) => {
             const potentialMatches = await db.memos.where('title').equals(l.title).toArray();
             let existingMemo = potentialMatches.find(pl => Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000); // 5s tolerance
 
+            // Resolve target folderId
+            let targetFolderId = defaultFolderId;
+            if (l.folderId) {
+                targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
+            }
+
             if (existingMemo) {
                 memoIdMap.set(oldId, existingMemo.id!);
+
+                // Update folder and metadata
+                const updates: any = {
+                    folderId: targetFolderId,
+                    updatedAt: typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt,
+                    tags: l.tags
+                };
+                if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+
+                // Map bookId if it was changed during book merge
+                if (l.bookId && bookIdMap.has(l.bookId)) {
+                    updates.bookId = bookIdMap.get(l.bookId);
+                }
+
+                await db.memos.update(existingMemo.id!, updates);
             } else {
                 const { id, ...memoData } = l;
                 memoData.createdAt = createdAt;
@@ -191,12 +218,8 @@ export const mergeBackupData = async (data: any) => {
                     memoData.bookId = bookIdMap.get(l.bookId);
                 }
 
-                // Handle folderId mapping
-                if (memoData.folderId) {
-                    memoData.folderId = folderIdMap.get(memoData.folderId) ?? defaultFolderId;
-                } else {
-                    memoData.folderId = defaultFolderId;
-                }
+                // Apply mapped folderId
+                memoData.folderId = targetFolderId;
 
                 const newId = await db.memos.add(memoData);
                 memoIdMap.set(oldId, newId as number);
