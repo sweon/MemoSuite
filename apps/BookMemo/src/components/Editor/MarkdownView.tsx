@@ -131,6 +131,41 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
       font-weight: 600;
     }
   }
+
+  @media screen {
+    .page-break {
+      border-top: 2px dashed ${({ theme }) => theme.colors.border};
+      margin: 2rem 0;
+      position: relative;
+      height: 0;
+      overflow: visible;
+    }
+    .page-break::after {
+      content: "Page Break";
+      position: absolute;
+      top: -10px;
+      right: 1rem;
+      background: ${({ theme }) => theme.colors.background};
+      padding: 0 8px;
+      font-size: 10px;
+      color: ${({ theme }) => theme.colors.textSecondary};
+      font-weight: 600;
+      border-radius: 4px;
+      border: 1px solid ${({ theme }) => theme.colors.border};
+    }
+  }
+
+  @media print {
+    .page-break {
+      display: block;
+      height: 0;
+      page-break-before: always;
+      break-before: page;
+      border: none;
+      margin: 0;
+      padding: 0;
+    }
+  }
 `;
 
 const PREVIEW_CACHE = new Map<string, string>();
@@ -463,6 +498,10 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
   const theme = useTheme() as any;
   const isDark = theme.mode === 'dark';
 
+  const processedContent = React.useMemo(() => {
+    return content.replace(/^\\newpage\s*$/gm, '<div class="page-break"></div>');
+  }, [content]);
+
   return (
     <MarkdownContainer $tableHeaderBg={tableHeaderBg}>
       <ReactMarkdown
@@ -512,7 +551,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
           }
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </MarkdownContainer>
   );
