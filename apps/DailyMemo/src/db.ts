@@ -125,8 +125,9 @@ export class DailyMemoDatabase extends Dexie {
         // Seed default data if not exists (Fresh install)
         this.on('populate', () => {
             const now = new Date();
+            const year = now.getFullYear().toString();
             this.folders.add({
-                name: '기본 폴더',
+                name: year,
                 isReadOnly: false,
                 excludeFromGlobalSearch: false,
                 createdAt: now,

@@ -509,10 +509,6 @@ export const FolderList: React.FC<FolderListProps> = ({
         const items = [...folders];
 
         items.sort((a, b) => {
-            const isADefault = a.name === '기본 폴더' || a.name === 'Default Folder';
-            const isBDefault = b.name === '기본 폴더' || b.name === 'Default Folder';
-            if (isADefault) return -1;
-            if (isBDefault) return 1;
 
             const aPinnedAt = a.pinnedAt || (a.id ? justUnpinnedIds.get(a.id) : undefined);
             const bPinnedAt = b.pinnedAt || (b.id ? justUnpinnedIds.get(b.id) : undefined);
@@ -544,6 +540,7 @@ export const FolderList: React.FC<FolderListProps> = ({
             }
         });
 
+        // Ensure current year folder is treated as default if needed, or just rely on name
         return items;
     }, [folders, sortBy, folderStats, justUnpinnedIds]);
 
@@ -613,7 +610,17 @@ export const FolderList: React.FC<FolderListProps> = ({
 
     const handleAddFolder = async () => {
         const now = new Date();
-        const newName = language === 'ko' ? '새 폴더' : 'New Folder';
+
+        // Find next available year
+        const currentYear = now.getFullYear();
+        let nextYear = currentYear;
+        const existingNames = new Set(folders?.map(f => f.name));
+
+        while (existingNames.has(nextYear.toString())) {
+            nextYear++;
+        }
+
+        const newName = nextYear.toString();
 
         const newId = await db.folders.add({
             name: newName,
@@ -638,10 +645,28 @@ export const FolderList: React.FC<FolderListProps> = ({
     };
 
     const handleRenameFolder = async (folderId: number) => {
-        if (!editingName.trim()) return;
+        const name = editingName.trim();
+        if (!name) return;
+
+        // Validate Year Format (YYYY)
+        if (!/^\d{4}$/.test(name)) {
+            alert(language === 'ko'
+                ? '폴더 이름은 4자리 연도(예: 2026)여야 합니다.'
+                : 'Folder name must be a 4-digit year (e.g. 2026).');
+            return;
+        }
+
+        // Check for duplicates
+        const exists = folders?.some(f => f.name === name && f.id !== folderId);
+        if (exists) {
+            alert(language === 'ko'
+                ? '이미 존재하는 연도입니다.'
+                : 'This year folder already exists.');
+            return;
+        }
 
         await db.folders.update(folderId, {
-            name: editingName.trim(),
+            name: name,
             updatedAt: new Date()
         });
 

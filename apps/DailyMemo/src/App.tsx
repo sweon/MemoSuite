@@ -65,6 +65,28 @@ function AppContent() {
     recoverAutosaves();
   }, [isLocked, isLoading]);
 
+  // Ensure current year folder exists
+  useEffect(() => {
+    const checkYearFolder = async () => {
+      if (isLocked || isLoading) return;
+
+      const now = new Date();
+      const currentYear = now.getFullYear().toString();
+
+      const existing = await db.folders.where('name').equals(currentYear).first();
+      if (!existing) {
+        await db.folders.add({
+          name: currentYear,
+          isReadOnly: false,
+          excludeFromGlobalSearch: false,
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+    };
+    checkYearFolder();
+  }, [isLocked, isLoading]);
+
   // No longer reset hash to home on startup, as it breaks deep links and share targets.
   // The app should honor the current URL.
   useLayoutEffect(() => {
