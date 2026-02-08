@@ -148,9 +148,9 @@ export const mergeBackupData = async (data: any) => {
                 }
 
                 // Handle folderId mapping
-                if (logData.folderId && folderIdMap.has(logData.folderId)) {
-                    logData.folderId = folderIdMap.get(logData.folderId);
-                } else if (!logData.folderId) {
+                if (logData.folderId) {
+                    logData.folderId = folderIdMap.get(logData.folderId) ?? defaultFolderId;
+                } else {
                     logData.folderId = defaultFolderId;
                 }
 

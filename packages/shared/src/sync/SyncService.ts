@@ -130,6 +130,11 @@ export class SyncService {
             return; // Not a message for us
         }
 
+        // Check if this is a message we sent ourselves
+        if (payload.instanceId === this.instanceId) {
+            return;
+        }
+
         console.log('Received relay message:', payload.type);
 
         switch (payload.type) {
@@ -142,7 +147,7 @@ export class SyncService {
                 }
                 break;
             case 'sync_data':
-                if (!this.isHost && payload.data) {
+                if (payload.data) {
                     this.options.onStatusChange('syncing', 'Decrypting data...');
                     await this.processReceivedEncodedData(payload.data);
                 }

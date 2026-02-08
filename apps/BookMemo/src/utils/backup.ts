@@ -156,9 +156,9 @@ export const mergeBackupData = async (data: any) => {
                 }
 
                 // Handle folderId mapping
-                if (bookData.folderId && folderIdMap.has(bookData.folderId)) {
-                    bookData.folderId = folderIdMap.get(bookData.folderId);
-                } else if (!bookData.folderId) {
+                if (bookData.folderId) {
+                    bookData.folderId = folderIdMap.get(bookData.folderId) ?? defaultFolderId;
+                } else {
                     bookData.folderId = defaultFolderId;
                 }
 
@@ -192,9 +192,9 @@ export const mergeBackupData = async (data: any) => {
                 }
 
                 // Handle folderId mapping
-                if (memoData.folderId && folderIdMap.has(memoData.folderId)) {
-                    memoData.folderId = folderIdMap.get(memoData.folderId);
-                } else if (!memoData.folderId) {
+                if (memoData.folderId) {
+                    memoData.folderId = folderIdMap.get(memoData.folderId) ?? defaultFolderId;
+                } else {
                     memoData.folderId = defaultFolderId;
                 }
 
