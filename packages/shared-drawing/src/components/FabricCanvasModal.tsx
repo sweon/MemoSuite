@@ -2032,6 +2032,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     };
     const historyRef = useRef<HistoryAction[]>([]);
     const historyIndexRef = useRef(-1);
+    const lastSavedIndexRef = useRef(0);
     const isUndoRedoRef = useRef(false); // Prevent saving during undo/redo
     const objectIdMapRef = useRef<WeakMap<fabric.Object, string>>(new WeakMap()); // Track object IDs
     const nextObjectIdRef = useRef(1); // Counter for unique IDs
@@ -2157,6 +2158,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const json = JSON.stringify(canvas.toJSON());
         historyRef.current = [{ type: 'snapshot', snapshot: json }];
         historyIndexRef.current = 0;
+        lastSavedIndexRef.current = 0;
         setCanUndo(false);
         setCanRedo(false);
     }, []);
@@ -4348,8 +4350,20 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     }, []);
 
     const handleCancelWrapped = React.useCallback(() => {
-        setIsExitConfirmOpen(true);
-    }, []);
+        if (historyIndexRef.current === lastSavedIndexRef.current) {
+            // Clean state, exit immediately
+            isClosingRef.current = true;
+            onClose();
+            // Safety timeout
+            setTimeout(() => {
+                if (isClosingRef.current) {
+                    handleActualClose.current();
+                }
+            }, 300);
+        } else {
+            setIsExitConfirmOpen(true);
+        }
+    }, [onClose]);
 
     const handleConfirmExit = () => {
         setIsExitConfirmOpen(false);
@@ -4425,6 +4439,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             const json = getCanvasJson();
             if (json) {
                 await onSave(json);
+                lastSavedIndexRef.current = historyIndexRef.current;
                 setSavedToastVisible(true);
                 setTimeout(() => setSavedToastVisible(false), 2000);
             }
