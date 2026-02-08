@@ -566,6 +566,22 @@ export const lightThemes: ColorTheme[] = [
             success: '#059669',
         }
     },
+    {
+        id: 'dailymemo_light',
+        name: 'DailyMemo Default',
+        mode: 'light',
+        colors: {
+            background: '#fafafa',
+            surface: '#ffffff',
+            border: '#eeeeee',
+            text: '#1a1a1a',
+            textSecondary: '#666666',
+            primary: '#cc79a7', // Pink/Purple
+            primaryHover: '#d58bb3',
+            danger: '#dc2626',
+            success: '#059669',
+        }
+    },
 ];
 
 export const darkThemes: ColorTheme[] = [
@@ -1130,6 +1146,22 @@ export const darkThemes: ColorTheme[] = [
             textSecondary: '#a1a1a1',
             primary: '#6C3483',
             primaryHover: '#8e54a3',
+            danger: '#f87171',
+            success: '#34d399',
+        }
+    },
+    {
+        id: 'dailymemo_dark',
+        name: 'DailyMemo Default',
+        mode: 'dark',
+        colors: {
+            background: '#0a0a0a',
+            surface: '#171717',
+            border: '#262626',
+            text: '#ededed',
+            textSecondary: '#a1a1a1',
+            primary: '#cc79a7',
+            primaryHover: '#d58bb3',
             danger: '#f87171',
             success: '#34d399',
         }

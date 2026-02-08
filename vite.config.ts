@@ -29,6 +29,11 @@ export default defineConfig({
                 changeOrigin: true,
                 secure: false,
             },
+            '/MemoSuite/DailyMemo': {
+                target: 'http://localhost:3005',
+                changeOrigin: true,
+                secure: false,
+            },
         },
     },
 });

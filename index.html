@@ -108,9 +108,11 @@
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: clamp(0.5rem, 2vw, 1.5rem);
             width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
         }
 
         .card {
@@ -498,6 +500,15 @@
                     <p>LLM과의 대화 기록</p>
                 </div>
             </a>
+            <a href="./DailyMemo/" class="card" style="--brand: #cc79a7;" target="_blank">
+                <div class="icon">
+                    <img src="./DailyMemo/pwa-192x192.png" alt="DailyMemo Icon">
+                </div>
+                <div class="text-content">
+                    <h2>DailyMemo</h2>
+                    <p>일기 및 일상 기록</p>
+                </div>
+            </a>
         </div>
 
         <div class="features">
@@ -592,6 +603,7 @@
                 bookMemo: "독서 기록 및 책 메모장",
                 wordMemo: "AI를 활용한 단어 공부",
                 llMemo: "LLM과의 대화 기록",
+                dailyMemo: "일기 및 일상 기록",
                 features: [
                     "모든 데이터가 자신의 기기에만 저장됩니다.",
                     "다른 기기와의 데이터 동기화를 할 때 암호화되어 전송됩니다.",
@@ -610,11 +622,12 @@
             },
             en: {
                 title: "MemoSuite",
-                subtitle: "Four specialized memo apps explicitly designed for local-only storage",
+                subtitle: "Five specialized memo apps explicitly designed for local-only storage",
                 handMemo: "General-purpose Note App",
                 bookMemo: "Reading Logs & Personal Book Journal",
                 wordMemo: "AI-Powered Vocabulary Study",
                 llMemo: "LLM Chat Log",
+                dailyMemo: "Daily Journal & Record",
                 features: [
                     "All data is stored locally on your device.",
                     "Data synchronization between devices is fully encrypted.",
@@ -658,6 +671,7 @@
                 cards[1].textContent = t.bookMemo;
                 cards[2].textContent = t.wordMemo;
                 cards[3].textContent = t.llMemo;
+                cards[4].textContent = t.dailyMemo;
 
                 featureItems.forEach((item, index) => {
                     item.textContent = t.features[index];
