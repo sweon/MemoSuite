@@ -211,7 +211,7 @@ export const mergeBackupData = async (data: any) => {
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingMemo.updatedAt.getTime();
 
-                if (incomingTime > localTime || l.content !== existingMemo.content) {
+                if (incomingTime > localTime || l.content !== existingMemo.content || targetFolderId !== existingMemo.folderId) {
                     const updates: any = {
                         folderId: targetFolderId,
                         content: l.content, // Crucial: sync content changes!

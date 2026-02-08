@@ -165,7 +165,7 @@ export const mergeBackupData = async (data: any) => {
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingWord.updatedAt.getTime();
 
-                if (incomingTime > localTime || l.content !== existingWord.content) {
+                if (incomingTime > localTime || l.content !== existingWord.content || targetFolderId !== existingWord.folderId) {
                     const updates: any = {
                         folderId: targetFolderId,
                         content: l.content, // Crucial: sync content changes!
