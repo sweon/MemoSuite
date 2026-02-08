@@ -5,11 +5,12 @@ export const getBackupData = async (logIds?: number[]) => {
     let logs = await db.logs.toArray();
     const models = await db.models.toArray();
     let comments = await db.comments.toArray();
+    const folders = await db.folders.toArray();
 
     if (logIds && logIds.length > 0) {
         logs = logs.filter(l => l.id !== undefined && logIds.includes(l.id));
         comments = comments.filter(c => logIds.includes(c.logId));
-        // Keep all models to ensure references work, they are small anyway
+        // Keep all models and folders to ensure references work
     }
 
     return {
@@ -17,7 +18,8 @@ export const getBackupData = async (logIds?: number[]) => {
         timestamp: new Date().toISOString(),
         logs,
         models,
-        comments
+        comments,
+        folders
     };
 };
 
@@ -78,7 +80,30 @@ export const mergeBackupData = async (data: any) => {
         throw new Error('Invalid backup file format');
     }
 
-    await db.transaction('rw', db.logs, db.models, db.comments, async () => {
+    await db.transaction('rw', db.logs, db.models, db.comments, db.folders, async () => {
+        const folderIdMap = new Map<number, number>();
+
+        // Merge Folders first
+        if (data.folders) {
+            for (const f of data.folders) {
+                const oldId = f.id;
+                const existing = await db.folders.where('name').equals(f.name).first();
+
+                if (existing) {
+                    folderIdMap.set(oldId, existing.id!);
+                } else {
+                    const { id, ...folderData } = f;
+                    folderData.createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
+                    folderData.updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
+                    if (f.pinnedAt) {
+                        folderData.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+                    }
+                    const newId = await db.folders.add(folderData);
+                    folderIdMap.set(oldId, newId as number);
+                }
+            }
+        }
+
         const modelIdMap = new Map<number, number>();
 
         for (const m of data.models) {
@@ -98,24 +123,19 @@ export const mergeBackupData = async (data: any) => {
 
         const logIdMap = new Map<number, number>();
 
+        // Get default folder if we still need a fallback
+        const defaultFolder = await db.folders.toCollection().first();
+        const defaultFolderId = defaultFolder?.id;
+
         for (const l of data.logs) {
             const oldId = l.id; // Store old ID for mapping comments
 
-            // Check if log already exists (by some criteria? or just always add?)
-            // Requirement says "Merge".
-            // Let's check if a log with same Title and CreatedAt exists? 
-            // This prevents duplicate imports of the same backup.
-            let existingLog = null;
-            /* 
-               Dexie doesn't support multi-key unique constraint easily on object store creation unless specified.
-               We will check manually.
-           */
             // Hydrate dates first for comparison
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
 
             // Try to find exact match
             const potentialMatches = await db.logs.where('title').equals(l.title).toArray();
-            existingLog = potentialMatches.find(pl => Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 1000); // 1s tolerance
+            const existingLog = potentialMatches.find(pl => Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 1000); // 1s tolerance
 
             if (existingLog) {
                 logIdMap.set(oldId, existingLog.id!);
@@ -125,6 +145,13 @@ export const mergeBackupData = async (data: any) => {
                 logData.updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
                 if (l.pinnedAt) {
                     logData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                }
+
+                // Handle folderId mapping
+                if (logData.folderId && folderIdMap.has(logData.folderId)) {
+                    logData.folderId = folderIdMap.get(logData.folderId);
+                } else if (!logData.folderId) {
+                    logData.folderId = defaultFolderId;
                 }
 
                 if (logData.modelId !== undefined) {

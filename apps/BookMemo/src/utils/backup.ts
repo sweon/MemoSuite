@@ -5,6 +5,7 @@ export const getBackupData = async (memoIds?: number[]) => {
     let memos = await db.memos.toArray();
     let comments = await db.comments.toArray();
     let books = await db.books.toArray();
+    const folders = await db.folders.toArray();
 
     if (memoIds && memoIds.length > 0) {
         memos = memos.filter(l => l.id !== undefined && memoIds.includes(l.id));
@@ -12,7 +13,7 @@ export const getBackupData = async (memoIds?: number[]) => {
 
         // For partial sync, we still might want associated books
         const bookIds = new Set(memos.map(m => m.bookId).filter(Boolean));
-        books = books.filter(b => bookIds.has(b.id));
+        books = books.filter(b => bookIds.has(b.id!));
     }
 
     return {
@@ -20,7 +21,8 @@ export const getBackupData = async (memoIds?: number[]) => {
         timestamp: new Date().toISOString(),
         books,
         memos,
-        comments
+        comments,
+        folders
     };
 };
 
@@ -84,9 +86,36 @@ export const mergeBackupData = async (data: any) => {
     const books = data.books || [];
     const memos = data.memos || data.logs || []; // Support legacy migration if needed, but primarily memos
 
-    await db.transaction('rw', db.books, db.memos, db.comments, async () => {
+    await db.transaction('rw', db.books, db.memos, db.comments, db.folders, async () => {
+        const folderIdMap = new Map<number, number>();
+
+        // 0. Merge Folders first
+        if (data.folders) {
+            for (const f of data.folders) {
+                const oldId = f.id;
+                const existing = await db.folders.where('name').equals(f.name).first();
+
+                if (existing) {
+                    folderIdMap.set(oldId, existing.id!);
+                } else {
+                    const { id, ...folderData } = f;
+                    folderData.createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
+                    folderData.updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
+                    if (f.pinnedAt) {
+                        folderData.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+                    }
+                    const newId = await db.folders.add(folderData);
+                    folderIdMap.set(oldId, newId as number);
+                }
+            }
+        }
+
         const bookIdMap = new Map<number, number>();
         const memoIdMap = new Map<number, number>();
+
+        // Get default folder if we still need a fallback
+        const defaultFolder = await db.folders.toCollection().first();
+        const defaultFolderId = defaultFolder?.id;
 
         // 1. Merge Books first
         for (const b of books) {
@@ -126,6 +155,13 @@ export const mergeBackupData = async (data: any) => {
                     bookData.pinnedAt = typeof b.pinnedAt === 'string' ? new Date(b.pinnedAt) : b.pinnedAt;
                 }
 
+                // Handle folderId mapping
+                if (bookData.folderId && folderIdMap.has(bookData.folderId)) {
+                    bookData.folderId = folderIdMap.get(bookData.folderId);
+                } else if (!bookData.folderId) {
+                    bookData.folderId = defaultFolderId;
+                }
+
                 const newBookId = await db.books.add(bookData);
                 bookIdMap.set(oldBookId, newBookId as number);
             }
@@ -153,6 +189,13 @@ export const mergeBackupData = async (data: any) => {
                 // Map bookId if it was changed during book merge
                 if (l.bookId && bookIdMap.has(l.bookId)) {
                     memoData.bookId = bookIdMap.get(l.bookId);
+                }
+
+                // Handle folderId mapping
+                if (memoData.folderId && folderIdMap.has(memoData.folderId)) {
+                    memoData.folderId = folderIdMap.get(memoData.folderId);
+                } else if (!memoData.folderId) {
+                    memoData.folderId = defaultFolderId;
                 }
 
                 const newId = await db.memos.add(memoData);

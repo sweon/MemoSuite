@@ -15,13 +15,15 @@ export const getBackupData = async (wordIds?: number[]) => {
     }
 
     const sources = await db.sources.toArray();
+    const folders = await db.folders.toArray();
 
     return {
         version: 1,
         timestamp: new Date().toISOString(),
         logs,
         sources,
-        comments
+        comments,
+        folders
     };
 };
 
@@ -82,7 +84,30 @@ export const mergeBackupData = async (data: any) => {
         throw new Error('Invalid backup file format');
     }
 
-    await db.transaction('rw', db.words, db.sources, db.comments, async () => {
+    await db.transaction('rw', db.words, db.sources, db.comments, db.folders, async () => {
+        const folderIdMap = new Map<number, number>();
+
+        // Merge Folders first
+        if (data.folders) {
+            for (const f of data.folders) {
+                const oldId = f.id;
+                const existing = await db.folders.where('name').equals(f.name).first();
+
+                if (existing) {
+                    folderIdMap.set(oldId, existing.id!);
+                } else {
+                    const { id, ...folderData } = f;
+                    folderData.createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
+                    folderData.updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
+                    if (f.pinnedAt) {
+                        folderData.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+                    }
+                    const newId = await db.folders.add(folderData);
+                    folderIdMap.set(oldId, newId as number);
+                }
+            }
+        }
+
         const sourceIdMap = new Map<number, number>();
         const sourcesToProcess = data.sources || data.models || [];
 
@@ -104,6 +129,10 @@ export const mergeBackupData = async (data: any) => {
         }
 
         const wordIdMap = new Map<number, number>();
+
+        // Get default folder if we still need a fallback
+        const defaultFolder = await db.folders.toCollection().first();
+        const defaultFolderId = defaultFolder?.id;
 
         for (const l of data.logs) {
             const oldId = l.id;
@@ -127,6 +156,13 @@ export const mergeBackupData = async (data: any) => {
                 logData.updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
                 if (l.pinnedAt) {
                     logData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                }
+
+                // Handle folderId mapping
+                if (logData.folderId && folderIdMap.has(logData.folderId)) {
+                    logData.folderId = folderIdMap.get(logData.folderId);
+                } else if (!logData.folderId) {
+                    logData.folderId = defaultFolderId;
                 }
 
                 const sId = l.sourceId !== undefined ? l.sourceId : l.modelId;

@@ -4,17 +4,20 @@ import { decryptData, encryptData, saveFile } from '@memosuite/shared';
 export const getBackupData = async (memoIds?: number[]) => {
     let memos = await db.memos.toArray();
     let comments = await db.comments.toArray();
+    const folders = await db.folders.toArray();
 
     if (memoIds && memoIds.length > 0) {
         memos = memos.filter(l => l.id !== undefined && memoIds.includes(l.id));
         comments = comments.filter(c => memoIds.includes(c.memoId));
+        // Keep all folders to ensure references work, and empty folders are synced in full backup
     }
 
     return {
         version: 1,
         timestamp: new Date().toISOString(),
         memos,
-        comments
+        comments,
+        folders
     };
 };
 
@@ -78,9 +81,32 @@ export const mergeBackupData = async (data: any) => {
     const memos = data.memos || data.logs || []; // Support legacy migration if needed, but primarily memos
 
     await db.transaction('rw', db.memos, db.comments, db.folders, async () => {
+        const folderIdMap = new Map<number, number>();
+
+        // Merge Folders first
+        if (data.folders) {
+            for (const f of data.folders) {
+                const oldId = f.id;
+                const existing = await db.folders.where('name').equals(f.name).first();
+
+                if (existing) {
+                    folderIdMap.set(oldId, existing.id!);
+                } else {
+                    const { id, ...folderData } = f;
+                    folderData.createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
+                    folderData.updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
+                    if (f.pinnedAt) {
+                        folderData.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+                    }
+                    const newId = await db.folders.add(folderData);
+                    folderIdMap.set(oldId, newId as number);
+                }
+            }
+        }
+
         const memoIdMap = new Map<number, number>();
 
-        // Merge Memos
+        // Get default folder if we still need a fallback
         const defaultFolder = await db.folders.toCollection().first();
         const defaultFolderId = defaultFolder?.id;
 
@@ -102,8 +128,10 @@ export const mergeBackupData = async (data: any) => {
                     memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                 }
 
-                // Ensure data has a folderId
-                if (!memoData.folderId) {
+                // Handle folderId mapping
+                if (memoData.folderId && folderIdMap.has(memoData.folderId)) {
+                    memoData.folderId = folderIdMap.get(memoData.folderId);
+                } else if (!memoData.folderId) {
                     memoData.folderId = defaultFolderId;
                 }
 
