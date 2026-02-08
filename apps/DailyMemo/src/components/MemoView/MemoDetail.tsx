@@ -1185,7 +1185,7 @@ export const MemoDetail: React.FC = () => {
                                 </>
                             ) : (
                                 <>
-                                    <span>{memo && format(memo.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
+                                    <span>{memo && format(memo.createdAt, language === 'ko' ? 'yyyy년 M월 d일 HH:mm' : 'MMM d, yyyy HH:mm')}</span>
                                     {memo?.tags.map(t => (
                                         <span
                                             key={t}

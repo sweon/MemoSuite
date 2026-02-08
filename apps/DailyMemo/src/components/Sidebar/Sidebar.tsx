@@ -985,7 +985,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                   onCloseMobile(skipHistory);
                 }
               }}
-              formatDate={(date) => format(date, language === 'ko' ? 'yyyy.MM.dd' : 'MMM d, yyyy')}
+              formatDate={(date) => format(date, language === 'ko' ? 'yyyy.MM.dd HH:mm' : 'MMM d, yyyy HH:mm')}
               untitledText={t.sidebar.untitled}
               inThread={item.isThreadChild}
               isThreadHead={item.isThreadHead}
