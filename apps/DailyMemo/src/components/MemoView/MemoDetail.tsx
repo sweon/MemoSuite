@@ -697,69 +697,67 @@ export const MemoDetail: React.FC = () => {
                 if (isEditing) restoredIdRef.current = id || null;
             };
             checkExistingAutosave();
-        } else if (isNew && loadedIdRef.current !== 'new') {
-            setTitle('');
-            setContent('');
-            setTags('');
-            setCommentDraft(null);
-            setEditingDrawingData(undefined);
-            setEditingSpreadsheetData(undefined);
-            loadedIdRef.current = 'new';
+            if (isNew) {
+                const now = new Date();
+                const defaultTitle = format(now, 'yyyy-MM-dd HH:mm');
+                setTitle(defaultTitle);
+                loadedIdRef.current = 'new';
 
-            const isInitialDrawing = searchParams.get('drawing') === 'true';
-            const isInitialSheet = searchParams.get('spreadsheet') === 'true';
+                const isInitialDrawing = searchParams.get('drawing') === 'true';
+                const isInitialSheet = searchParams.get('spreadsheet') === 'true';
 
-            setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
-            setIsEditing(!(isInitialDrawing || isInitialSheet));
+                setDate(language === 'ko' ? format(new Date(), 'yyyy. MM. dd.') : formatDateForInput(new Date()));
+                setIsEditing(!(isInitialDrawing || isInitialSheet));
 
-            // Auto-open drawing if requested
-            if (isInitialDrawing) {
-                fabricCheckpointRef.current = '';
-                setIsFabricModalOpen(true);
-            }
-
-            // Auto-open spreadsheet if requested
-            if (isInitialSheet) {
-                setIsSpreadsheetModalOpen(true);
-            }
-
-            // Handle dropped image from MainLayout
-            const initialImageUrl = location.state?.imageUrl;
-            if (initialImageUrl) {
-                setTitle('이미지');
-                setContent(`![](${initialImageUrl})\n\n`);
-                metadataCache.fetchImageMetadata(initialImageUrl);
-            }
-
-            // Restoration for new memo: Automatically restore without asking
-            const checkNewAutosave = async () => {
-                const latest = await db.autosaves
-                    .filter(a => a.originalId === undefined)
-                    .reverse()
-                    .sortBy('createdAt');
-
-                if (latest.length > 0) {
-                    const draft = latest[0];
-                    if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
-                        setTitle(draft.title);
-                        setContent(draft.content);
-                        const tagsStr = draft.tags.join(', ');
-                        setTags(tagsStr);
-                        if (draft.commentDraft) {
-                            setCommentDraft(draft.commentDraft); setCommentRestorationVersion(v => v + 1);
-                        }
-
-                        // Also update lastSavedState to match the restored draft
-                        lastSavedState.current = {
-                            title: draft.title,
-                            content: draft.content,
-                            tags: tagsStr,
-                            commentDraft: draft.commentDraft || null
-                        };
-                    }
+                // Auto-open drawing if requested
+                if (isInitialDrawing) {
+                    fabricCheckpointRef.current = '';
+                    setIsFabricModalOpen(true);
                 }
-            };
-            checkNewAutosave();
+
+                // Auto-open spreadsheet if requested
+                if (isInitialSheet) {
+                    setIsSpreadsheetModalOpen(true);
+                }
+
+                // Handle dropped image from MainLayout
+                const initialImageUrl = location.state?.imageUrl;
+                if (initialImageUrl) {
+                    setTitle('이미지');
+                    setContent(`![](${initialImageUrl})\n\n`);
+                    metadataCache.fetchImageMetadata(initialImageUrl);
+                }
+
+                // Restoration for new memo: Automatically restore without asking
+                const checkNewAutosave = async () => {
+                    const latest = await db.autosaves
+                        .filter(a => a.originalId === undefined)
+                        .reverse()
+                        .sortBy('createdAt');
+
+                    if (latest.length > 0) {
+                        const draft = latest[0];
+                        if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
+                            setTitle(draft.title);
+                            setContent(draft.content);
+                            const tagsStr = draft.tags.join(', ');
+                            setTags(tagsStr);
+                            if (draft.commentDraft) {
+                                setCommentDraft(draft.commentDraft); setCommentRestorationVersion(v => v + 1);
+                            }
+
+                            // Also update lastSavedState to match the restored draft
+                            lastSavedState.current = {
+                                title: draft.title,
+                                content: draft.content,
+                                tags: tagsStr,
+                                commentDraft: draft.commentDraft || null
+                            };
+                        }
+                    }
+                };
+                checkNewAutosave();
+            }
         }
     }, [memo, isNew, searchParams, id, language, t.log_detail?.autosave_restore_confirm, isEditing]);
 
@@ -923,16 +921,63 @@ export const MemoDetail: React.FC = () => {
             if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
                 navigate(`/memo/${id}`, { replace: true });
             }
-            // setIsEditing(false); // Do not exit edit mode on save
         } else {
+            // New Memo Logic for Threading
+            let folderIdToUse = currentFolderId || undefined;
+            let threadIdToUse: string | undefined = undefined;
+            let threadOrderToUse: number | undefined = undefined;
+
+            // Check for existing memos on the same day
+            const startOfDay = new Date(memoCreatedAt);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(memoCreatedAt);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            const sameDayMemos = await db.memos
+                .where('createdAt')
+                .between(startOfDay, endOfDay, true, true)
+                .toArray();
+
+            if (sameDayMemos.length > 0) {
+                // Find the "header" memo (earliest one, or one with existing threadId)
+                // Sort by createdAt asc
+                sameDayMemos.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+                const firstMemo = sameDayMemos[0];
+
+                if (firstMemo.threadId) {
+                    // Use existing thread
+                    threadIdToUse = firstMemo.threadId;
+                    // Find max order
+                    const threadMemos = await db.memos.where('threadId').equals(threadIdToUse).toArray();
+                    const maxOrder = Math.max(...threadMemos.map(m => m.threadOrder || 0));
+                    threadOrderToUse = maxOrder + 1;
+                } else {
+                    // Create new thread starting with firstMemo
+                    const newThreadId = crypto.randomUUID();
+                    await db.memos.update(firstMemo.id!, {
+                        threadId: newThreadId,
+                        threadOrder: 0
+                    });
+                    threadIdToUse = newThreadId;
+                    threadOrderToUse = 1;
+                }
+
+                // Inherit folder from the thread/first memo if not explicitly set (though daily memo usually relies on date)
+                if (!folderIdToUse && firstMemo.folderId) {
+                    folderIdToUse = firstMemo.folderId;
+                }
+            }
+
             const newId = await db.memos.add({
-                folderId: currentFolderId || undefined,
+                folderId: folderIdToUse,
                 title: finalTitle,
                 content: currentContent,
                 tags: tagArray,
                 createdAt: memoCreatedAt,
                 updatedAt: now,
-                type: finalType
+                type: finalType,
+                threadId: threadIdToUse,
+                threadOrder: threadOrderToUse
             });
 
             // Cleanup all new memo autosaves
