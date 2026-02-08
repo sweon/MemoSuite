@@ -18,14 +18,14 @@ export class SyncService {
     private isSyncing: boolean = false;
     private instanceId: string = Math.random().toString(36).substring(2, 10);
     private hasSentInitialSync: boolean = false;
-    private currentStatus: SyncStatus = 'idle';
+
 
     constructor(options: SyncServiceOptions) {
         this.options = options;
     }
 
     private setStatus(status: SyncStatus, message: string) {
-        this.currentStatus = status;
+
         this.options.onStatusChange(status, message);
     }
 
