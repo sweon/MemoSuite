@@ -16,16 +16,16 @@ export class SyncService {
     private isHost: boolean = false;
     private lastMessageId: string | null = null;
     private isSyncing: boolean = false;
+    private isProcessing: boolean = false;
+    private messageQueue: any[] = [];
     private instanceId: string = Math.random().toString(36).substring(2, 10);
     private hasSentInitialSync: boolean = false;
-
 
     constructor(options: SyncServiceOptions) {
         this.options = options;
     }
 
     private setStatus(status: SyncStatus, message: string) {
-
         this.options.onStatusChange(status, message);
     }
 
@@ -93,14 +93,13 @@ export class SyncService {
                 try {
                     const msg = JSON.parse(event.data);
                     if (msg.event === 'message') {
-                        // Dedup by msg ID if needed
                         if (msg.id === this.lastMessageId) return;
                         this.lastMessageId = msg.id;
 
-                        await this.handleRelayMessage(msg);
+                        this.messageQueue.push(msg);
+                        this.processQueue();
                     }
                 } catch (e) {
-                    console.error('Failed to parse message', e);
                 }
             };
 
@@ -115,19 +114,31 @@ export class SyncService {
         });
     }
 
+    private async processQueue() {
+        if (this.isProcessing || this.messageQueue.length === 0) return;
+
+        this.isProcessing = true;
+        const msg = this.messageQueue.shift();
+
+        try {
+            await this.handleRelayMessage(msg);
+        } catch (e) {
+            console.error('Message processing failed', e);
+        } finally {
+            this.isProcessing = false;
+            this.processQueue();
+        }
+    }
+
     private async handleRelayMessage(msg: any) {
-        // Attachment handling (Large Payload)
         if (msg.attachment) {
-            // Self-message check
             if (msg.tags && msg.tags.includes(`inst_${this.instanceId}`)) {
                 return;
             }
-            console.log('Received attachment data');
             await this.downloadAndProcessAttachment(msg.attachment.url);
             return;
         }
 
-        // JSON message handling (Small Payload or Commands)
         let payload: any;
         try {
             payload = JSON.parse(msg.message);
@@ -135,7 +146,6 @@ export class SyncService {
             return;
         }
 
-        // Self-message check
         if (payload.instanceId === this.instanceId) {
             return;
         }
@@ -143,7 +153,6 @@ export class SyncService {
         switch (payload.type) {
             case 'join':
                 if (this.isHost) {
-                    console.log('Peer joined, starting Host -> Client transfer');
                     this.setStatus('syncing', 'Peer joined! Packaging local data...');
                     // Host sends data first
                     setTimeout(() => this.syncData(), 500);
@@ -151,16 +160,20 @@ export class SyncService {
                 break;
             case 'sync_data':
                 if (payload.data) {
-                    console.log('Received sync_data JSON payload');
                     await this.processReceivedEncodedData(payload.data);
                 }
                 break;
             case 'sync_complete_ack':
                 if (!this.isHost) {
-                    this.setStatus('completed', 'Sync completed! Exchange verified.');
+                    // Client received ACK from Host
+                    console.log('Received ACK from Host, finalizing sync');
+                    this.setStatus('completed', 'Sync completed! All data mirrored.');
                     this.options.onDataReceived();
                 } else {
-                    this.setStatus('completed', 'Sync completed! Peer verified.');
+                    // Host received ACK from Client (unlikely in current flow but for safety)
+                    console.log('Received ACK from Client');
+                    this.setStatus('completed', 'Sync verified by peer.');
+                    this.options.onDataReceived();
                 }
                 break;
         }
@@ -168,7 +181,6 @@ export class SyncService {
 
     public async syncData() {
         if (!this.roomId || this.isSyncing) {
-            console.log('Skip syncData: Room not set or already syncing');
             return;
         }
 
@@ -179,39 +191,35 @@ export class SyncService {
             this.setStatus('syncing', 'Scanning items to share...');
             const targetLogIds = await this.options.adapter.getSyncTargetIds(this.options.initialDataLogId);
 
-            this.setStatus('syncing', 'Encrypting contents...');
+            this.setStatus('syncing', 'Syncing encrypted content...');
             const data = await this.options.adapter.getBackupData(targetLogIds);
             const jsonStr = JSON.stringify(data);
             const encrypted = await encryptData(jsonStr, this.roomId);
             const finalData = (targetLogIds ? "PARTIAL:" : "FULL:") + encrypted;
 
             if (finalData.length > 2000) {
-                this.setStatus('syncing', 'Uploading large package (E2EE)...');
                 await this.sendRelayAttachment(finalData);
             } else {
-                this.setStatus('syncing', 'Sharing encrypted data...');
                 await this.sendRelayMessage({
                     type: 'sync_data',
                     data: finalData
                 });
             }
 
-            console.log('Data transfer initiated');
-
             if (this.options.initialDataLogId) {
-                // If this was a targeted share (not full sync), we can end here
+                // One-way share
                 this.setStatus('completed', 'Item shared successfully!');
                 this.options.onDataReceived();
             } else {
-                // For full bidirectional sync
+                // Bi-directional wait
                 if (this.isHost) {
                     this.setStatus('syncing', 'Data sent! Waiting for peer updates...');
                 } else {
-                    this.setStatus('syncing', 'Local data sent! Finalizing connection...');
+                    this.setStatus('syncing', 'Local changes sent! Waiting for verification...');
                 }
             }
         } catch (err: any) {
-            console.error('Sync execution failed:', err);
+            console.error('Sync failed:', err);
             this.setStatus('error', `Sync error: ${err.message}`);
         } finally {
             this.isSyncing = false;
@@ -222,7 +230,7 @@ export class SyncService {
         if (!this.roomId) return;
         const tags = [this.isHost ? 'host' : 'client', `inst_${this.instanceId}`];
 
-        const response = await fetch(`${RELAY_BASE}/${this.roomId}`, {
+        await fetch(`${RELAY_BASE}/${this.roomId}`, {
             method: 'PUT',
             body: encryptedData,
             headers: {
@@ -230,10 +238,6 @@ export class SyncService {
                 'Tags': tags.join(',')
             }
         });
-
-        if (!response.ok) {
-            throw new Error(`Failed to upload attachment: ${response.statusText}`);
-        }
     }
 
     private async sendRelayMessage(payload: any) {
@@ -241,26 +245,20 @@ export class SyncService {
         payload.instanceId = this.instanceId;
         const message = JSON.stringify(payload);
 
-        const response = await fetch(`${RELAY_BASE}/${this.roomId}`, {
+        await fetch(`${RELAY_BASE}/${this.roomId}`, {
             method: 'POST',
             body: message
         });
-
-        if (!response.ok) {
-            throw new Error(`Failed to send message: ${response.statusText}`);
-        }
     }
 
     private async downloadAndProcessAttachment(url: string) {
         try {
-            this.setStatus('syncing', 'Downloading data package (E2EE)...');
             const response = await fetch(url);
             if (!response.ok) throw new Error('Download failed');
             const encodedData = await response.text();
             await this.processReceivedEncodedData(encodedData);
         } catch (err: any) {
-            console.error('Attachment processing failed:', err);
-            this.setStatus('error', `Data download error: ${err.message}`);
+            this.setStatus('error', `Download error: ${err.message}`);
         }
     }
 
@@ -278,10 +276,9 @@ export class SyncService {
 
         let decrypted = '';
         try {
-            this.setStatus('syncing', 'Decrypting data package...');
+            this.setStatus('syncing', 'Decrypting package...');
             decrypted = await decryptData(realEncodedData, this.roomId!);
         } catch (e: any) {
-            console.error('Decryption error:', e);
             this.setStatus('error', 'Decryption failed. Check room ID.');
             return;
         }
@@ -291,38 +288,39 @@ export class SyncService {
             data = JSON.parse(decrypted);
             this.updateSyncInfoMeta(data, isPartial);
         } catch (e: any) {
-            this.setStatus('error', 'Failed to parse decrypted data.');
+            this.setStatus('error', 'Data parsing failed.');
             return;
         }
 
         try {
-            this.setStatus('merging', 'Merging items into database...');
+            this.setStatus('merging', 'Merging database changes...');
             await this.options.adapter.mergeBackupData(data);
 
             if (this.isHost) {
-                // Host received data (Final step)
+                // Host received data from Client (Final step of sequence)
+                console.log('Host merged client data. Sending ACK and finalizing.');
                 await this.sendRelayMessage({ type: 'sync_complete_ack' });
                 this.setStatus('completed', 'Sync completed! Exchange verified.');
                 this.options.onDataReceived();
             } else {
-                // Client received data (Step 2 of Host -> Client -> Host)
+                // Client received data from Host
                 if (!isPartial) {
                     if (!this.hasSentInitialSync) {
-                        this.setStatus('syncing', 'Updating peer with local changes...');
-                        await this.syncData(); // Phone sends its data BACK to Mac
+                        console.log('Client merged host data. Sending local updates back.');
+                        // Send data back to Host
+                        await this.syncData();
                     } else {
-                        // Already sharing, notify host we are done
-                        await this.sendRelayMessage({ type: 'sync_complete_ack' });
-                        this.setStatus('completed', 'Sync completed! Data mirrored.');
-                        this.options.onDataReceived();
+                        // We already sent our data, now we just wait for the Host's ACK
+                        // Do NOT reload yet.
+                        console.log('Client already sent data. Waiting for host verification.');
                     }
                 } else {
+                    // One-way share received
                     this.setStatus('completed', 'Item received successfully!');
                     this.options.onDataReceived();
                 }
             }
         } catch (err: any) {
-            console.error('Merge execution failed:', err);
             this.setStatus('error', `Merge error: ${err.message}`);
         }
     }
