@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
@@ -306,6 +306,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
 
   // Expansion state (now collapsed by default)
+  const isNavigatingRef = useRef(false);
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
   const [combineTargetId, setCombineTargetId] = useState<string | null>(null);
   const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
@@ -323,14 +324,20 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
   // Handle folder switching: if current word doesn't belong to folder, go back to root
   useEffect(() => {
+    if (isNavigatingRef.current) {
+      isNavigatingRef.current = false;
+      return;
+    }
+    let active = true;
     if (id && currentFolderId !== null) {
       db.words.get(Number(id)).then(word => {
-        if (word && word.folderId !== currentFolderId) {
+        if (active && word && word.folderId !== currentFolderId) {
           navigate('/', { replace: true });
         }
       });
     }
-  }, [currentFolderId, id, navigate]);
+    return () => { active = false; };
+  }, [id, currentFolderId, navigate]);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
@@ -883,12 +890,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               <BreadcrumbNav
                 items={breadcrumbs}
                 onNavigate={(folderId) => {
+                  isNavigatingRef.current = true;
                   navigateToFolder(folderId);
                   setShowFolderList(true);
                   navigate('/folders', { replace: true, state: { isGuard: true } });
                   onCloseMobile();
                 }}
                 onNavigateHome={() => {
+                  isNavigatingRef.current = true;
                   navigateToHome();
                   setShowFolderList(true);
                   navigate('/folders', { replace: true, state: { isGuard: true } });

@@ -296,6 +296,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   };
 
   const needRefreshRef = useRef(false);
+  const isNavigatingRef = useRef(false);
 
   const handleSafeNavigation = (action: () => void) => {
     // With memo-first approach, we rarely need confirmation to switch unless we are in complex state.
@@ -397,14 +398,20 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
 
   // Handle folder switching: if current memo doesn't belong to folder, go back to root
   useEffect(() => {
+    if (isNavigatingRef.current) {
+      isNavigatingRef.current = false;
+      return;
+    }
+    let active = true;
     if (id && currentFolderId !== null) {
       db.memos.get(Number(id)).then(memo => {
-        if (memo && memo.folderId !== currentFolderId) {
+        if (active && memo && memo.folderId !== currentFolderId) {
           navigate('/', { replace: true });
         }
       });
     }
-  }, [currentFolderId, id, navigate]);
+    return () => { active = false; };
+  }, [id, currentFolderId, navigate]);
 
   const lastCommentMap = React.useMemo(() => {
     const map: Record<number, number> = {};
@@ -859,12 +866,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
               <BreadcrumbNav
                 items={breadcrumbs}
                 onNavigate={(folderId) => {
+                  isNavigatingRef.current = true;
                   navigateToFolder(folderId);
                   setShowFolderList(true);
                   navigate('/folders', { replace: true, state: { isGuard: true } });
                   onCloseMobile(true);
                 }}
                 onNavigateHome={() => {
+                  isNavigatingRef.current = true;
                   navigateToHome();
                   setShowFolderList(true);
                   navigate('/folders', { replace: true, state: { isGuard: true } });
