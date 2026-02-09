@@ -15,7 +15,6 @@ import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
 import { useFolder } from '../../contexts/FolderContext';
 import { format } from 'date-fns';
-import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 import { CommentsSection } from './CommentsSection';
 import { Toast } from '../UI/Toast';
 
@@ -417,10 +416,7 @@ export const LogDetail: React.FC = () => {
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
     const {
         currentFolderId,
-        currentFolder,
-        breadcrumbs,
-        navigateToHome,
-        navigateToFolder
+        currentFolder
     } = useFolder();
     const isReadOnly = currentFolder?.isReadOnly || false;
     const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
@@ -989,17 +985,6 @@ export const LogDetail: React.FC = () => {
 
                 </Header>
 
-                {/* Breadcrumb navigation */}
-                {breadcrumbs.length > 0 && !isEditing && (
-                    <div style={{ padding: '8px 24px', background: 'transparent' }}>
-                        <BreadcrumbNav
-                            items={breadcrumbs}
-                            onNavigate={navigateToFolder}
-                            onNavigateHome={navigateToHome}
-                            compact
-                        />
-                    </div>
-                )}
                 <ActionBar ref={actionBarRef}>
                     {isEditing ? (
                         <>

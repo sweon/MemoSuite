@@ -11,7 +11,6 @@ import { useStudyMode } from '../../contexts/StudyModeContext';
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 import { BlurredText } from '../UI/BlurredText';
-import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
 import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiPrinter } from 'react-icons/fi';
@@ -454,7 +453,7 @@ export const MemoDetail: React.FC = () => {
     const fabricCheckpointRef = useRef<string | null>(null);
     const spreadsheetCheckpointRef = useRef<string | null>(null);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
-    const { currentFolder, currentFolderId, breadcrumbs, navigateToHome, navigateToFolder } = useFolder();
+    const { currentFolder, currentFolderId } = useFolder();
     const isReadOnly = currentFolder?.isReadOnly || false;
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
@@ -1219,17 +1218,6 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
                 </Header>
 
-                {/* Breadcrumb navigation */}
-                {breadcrumbs.length > 0 && !isEditing && (
-                    <div style={{ padding: '8px 24px', background: 'transparent' }}>
-                        <BreadcrumbNav
-                            items={breadcrumbs}
-                            onNavigate={navigateToFolder}
-                            onNavigateHome={navigateToHome}
-                            compact
-                        />
-                    </div>
-                )}
 
                 <ActionBar ref={actionBarRef}>
 

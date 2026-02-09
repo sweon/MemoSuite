@@ -12,7 +12,6 @@ import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiCalendar, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiPrinter } from 'react-icons/fi';
 import { format } from 'date-fns';
-import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 import { CommentsSection } from './CommentsSection';
 
 import { dailyMemoSyncAdapter } from '../../utils/backupAdapter';
@@ -422,10 +421,7 @@ export const MemoDetail: React.FC = () => {
     // Folder context for read-only mode
     const {
         currentFolderId,
-        currentFolder,
-        breadcrumbs,
-        navigateToHome,
-        navigateToFolder
+        currentFolder
     } = useFolder();
     const isCurrentFolderReadOnly = currentFolder?.isReadOnly ?? false;
 
@@ -1210,17 +1206,6 @@ export const MemoDetail: React.FC = () => {
 
                 </Header>
 
-                {/* Breadcrumb navigation */}
-                {breadcrumbs.length > 0 && !isEditing && (
-                    <div style={{ padding: '8px 24px', background: 'transparent' }}>
-                        <BreadcrumbNav
-                            items={breadcrumbs}
-                            onNavigate={navigateToFolder}
-                            onNavigateHome={navigateToHome}
-                            compact
-                        />
-                    </div>
-                )}
                 <ActionBar ref={actionBarRef}>
                     {isEditing ? (
                         <>

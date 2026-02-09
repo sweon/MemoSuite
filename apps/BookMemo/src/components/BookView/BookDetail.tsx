@@ -9,7 +9,6 @@ import { FiEdit2, FiEdit3, FiTrash2, FiRotateCcw, FiMaximize, FiChevronLeft, FiC
 import { format } from 'date-fns';
 import { BookMoveModal } from '../FolderView/BookMoveModal';
 import { useFolder } from '../../contexts/FolderContext';
-import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 import {
   Line,
   XAxis,
@@ -306,10 +305,7 @@ export const BookDetail: React.FC = () => {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const { theme } = useColorTheme();
   const {
-    currentFolder,
-    breadcrumbs,
-    navigateToHome,
-    navigateToFolder
+    currentFolder
   } = useFolder();
   const isReadOnly = currentFolder?.isReadOnly || false;
   const [isBookMoveModalOpen, setIsBookMoveModalOpen] = useState(false);
@@ -665,14 +661,6 @@ export const BookDetail: React.FC = () => {
     <Container shadow-root="false">
       <LeftPane $isMemoOpen={isMemoOpen}>
         <div style={{ padding: '0.5rem 2rem 0', background: theme.colors.surface }}>
-          {breadcrumbs.length > 0 && (
-            <BreadcrumbNav
-              items={breadcrumbs}
-              onNavigate={navigateToFolder}
-              onNavigateHome={navigateToHome}
-              compact
-            />
-          )}
         </div>
         <Header>
           <BookTitle>{book.title}</BookTitle>
