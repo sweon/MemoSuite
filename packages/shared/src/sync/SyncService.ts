@@ -20,6 +20,7 @@ export class SyncService {
     private messageQueue: any[] = [];
     private instanceId: string = Math.random().toString(36).substring(2, 10);
     private hasSentInitialSync: boolean = false;
+    private mergedExcludeIds: number[] = [];
 
     constructor(options: SyncServiceOptions) {
         this.options = options;
@@ -192,7 +193,7 @@ export class SyncService {
             const targetLogIds = await this.options.adapter.getSyncTargetIds(this.options.initialDataLogId);
 
             this.setStatus('syncing', 'Syncing encrypted content...');
-            const data = await this.options.adapter.getBackupData(targetLogIds);
+            const data = await this.options.adapter.getBackupData(targetLogIds, this.mergedExcludeIds);
             const jsonStr = JSON.stringify(data);
             const encrypted = await encryptData(jsonStr, this.roomId);
             const finalData = (targetLogIds ? "PARTIAL:" : "FULL:") + encrypted;
@@ -294,7 +295,10 @@ export class SyncService {
 
         try {
             this.setStatus('merging', 'Merging database changes...');
-            await this.options.adapter.mergeBackupData(data, this.options.onConflict);
+            const excludeIds = await this.options.adapter.mergeBackupData(data, this.options.onConflict);
+            if (Array.isArray(excludeIds)) {
+                this.mergedExcludeIds = excludeIds;
+            }
 
             if (this.isHost) {
                 // Host received data from Client (Final step of sequence)

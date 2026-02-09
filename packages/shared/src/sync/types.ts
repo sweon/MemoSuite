@@ -25,15 +25,17 @@ export interface SyncAdapter {
     /**
      * Get data for backup/export.
      * @param ids - Optional list of IDs to export. If undefined, export all.
+     * @param excludeIds - Optional list of IDs to exclude from export.
      */
-    getBackupData: (ids?: number[]) => Promise<any>;
+    getBackupData: (ids?: number[], excludeIds?: number[]) => Promise<any>;
 
     /**
      * Merge incoming backup data into the database.
      * @param data - The data object received from sync.
      * @param resolver - Optional callback to resolve conflicts.
+     * @returns List of local IDs that were created or updated as direct mirrors of remote data and should not be re-sent.
      */
-    mergeBackupData: (data: any, resolver?: SyncConflictResolver) => Promise<void>;
+    mergeBackupData: (data: any, resolver?: SyncConflictResolver) => Promise<number[] | void>;
 
     /**
      * Analyze what will be synced based on an optional initial item ID.

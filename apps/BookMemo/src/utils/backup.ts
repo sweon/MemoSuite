@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { decryptData, encryptData, saveFile, type SyncConflict, type SyncConflictResolver, type SyncResolution } from '@memosuite/shared';
 
-export const getBackupData = async (memoIds?: number[]) => {
+export const getBackupData = async (memoIds?: number[], excludeIds?: number[]) => {
     let memos = await db.memos.toArray();
     let comments = await db.comments.toArray();
     let books = await db.books.toArray();
@@ -12,6 +12,13 @@ export const getBackupData = async (memoIds?: number[]) => {
         comments = comments.filter(c => memoIds.includes(c.memoId));
         const bookIds = new Set(memos.map(m => m.bookId).filter(Boolean));
         books = books.filter(b => bookIds.has(b.id!));
+    }
+
+    if (excludeIds && excludeIds.length > 0) {
+        memos = memos.filter(l => l.id !== undefined && !excludeIds.includes(l.id));
+        comments = comments.filter(c => c.memoId !== undefined && !excludeIds.includes(c.memoId));
+        // Note: books are usually small and shared if their memos are shared. 
+        // We can exclude books too if they were just synced, but filtering by memos is primary.
     }
 
     return {
@@ -89,6 +96,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
 
     const conflicts: SyncConflict[] = [];
     const memoConflictMap = new Map<number, number>();
+    const mirrorIds: number[] = [];
 
     if (resolver) {
         memos.forEach((l: any, index: number) => {
@@ -221,6 +229,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     if (l.bookId && bookIdMap.has(l.bookId)) memoData.bookId = bookIdMap.get(l.bookId);
                     const newId = await db.memos.add(memoData);
                     memoIdMap.set(oldId, newId as number);
+                    mirrorIds.push(newId as number);
                     continue;
                 }
 
@@ -239,6 +248,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                     if (l.bookId && bookIdMap.has(l.bookId)) updates.bookId = bookIdMap.get(l.bookId);
                     await db.memos.update(existingMemo.id!, updates);
+                    mirrorIds.push(existingMemo.id!);
                 }
             } else {
                 const { id, ...memoData } = l;
@@ -249,6 +259,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                 memoData.folderId = targetFolderId;
                 const newId = await db.memos.add(memoData);
                 memoIdMap.set(oldId, newId as number);
+                mirrorIds.push(newId as number);
             }
         }
 
@@ -271,4 +282,6 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
             }
         }
     });
+
+    return mirrorIds;
 };

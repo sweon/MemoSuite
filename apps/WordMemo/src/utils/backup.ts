@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { decryptData, encryptData, saveFile, type SyncConflict, type SyncConflictResolver, type SyncResolution } from '@memosuite/shared';
 
-export const getBackupData = async (wordIds?: number[]) => {
+export const getBackupData = async (wordIds?: number[], excludeIds?: number[]) => {
     let logs;
     let comments;
 
@@ -11,6 +11,11 @@ export const getBackupData = async (wordIds?: number[]) => {
     } else {
         logs = await db.words.toArray();
         comments = await db.comments.toArray();
+    }
+
+    if (excludeIds && excludeIds.length > 0) {
+        logs = logs.filter(l => l.id !== undefined && !excludeIds.includes(l.id));
+        comments = comments.filter(c => c.wordId !== undefined && !excludeIds.includes(c.wordId));
     }
 
     const sources = await db.sources.toArray();
@@ -89,6 +94,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
 
     const conflicts: SyncConflict[] = [];
     const wordConflictMap = new Map<number, number>();
+    const mirrorIds: number[] = [];
 
     if (resolver) {
         words.forEach((l: any, index: number) => {
@@ -197,6 +203,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     if (sId !== undefined && sourceIdMap.has(sId)) logData.sourceId = sourceIdMap.get(sId);
                     const newId = await db.words.add(logData);
                     wordIdMap.set(oldId, newId as number);
+                    mirrorIds.push(newId as number);
                     continue;
                 }
 
@@ -217,6 +224,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     if (sId !== undefined && sourceIdMap.has(sId)) updates.sourceId = sourceIdMap.get(sId);
                     if (l.isStarred !== undefined) updates.isStarred = l.isStarred;
                     await db.words.update(existingWord.id!, updates);
+                    mirrorIds.push(existingWord.id!);
                 }
             } else {
                 const { id, ...logData } = l;
@@ -228,6 +236,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                 if (sId !== undefined && sourceIdMap.has(sId)) logData.sourceId = sourceIdMap.get(sId);
                 const newId = await db.words.add(logData);
                 wordIdMap.set(oldId, newId as number);
+                mirrorIds.push(newId as number);
             }
         }
 
@@ -248,4 +257,6 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
             }
         }
     });
+
+    return mirrorIds;
 };

@@ -26,11 +26,11 @@ export const wordMemoAdapter: DataAdapter = {
 };
 
 export const wordMemoSyncAdapter: SyncAdapter = {
-    getBackupData: async (ids?: number[]) => {
-        return await getBackupData(ids);
+    getBackupData: async (ids?: number[], excludeIds?: number[]) => {
+        return await getBackupData(ids, excludeIds);
     },
     mergeBackupData: async (data: any, resolver?: any) => {
-        await mergeBackupData(data, resolver);
+        return await mergeBackupData(data, resolver);
     },
     analyzeSyncData: async (initialId?: number): Promise<SyncInfo> => {
         if (initialId) {

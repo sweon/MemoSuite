@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { decryptData, encryptData, saveFile, type SyncConflict, type SyncConflictResolver, type SyncResolution } from '@memosuite/shared';
 
-export const getBackupData = async (memoIds?: number[]) => {
+export const getBackupData = async (memoIds?: number[], excludeIds?: number[]) => {
     let memos = await db.memos.toArray();
     let comments = await db.comments.toArray();
     const folders = await db.folders.toArray();
@@ -9,6 +9,11 @@ export const getBackupData = async (memoIds?: number[]) => {
     if (memoIds && memoIds.length > 0) {
         memos = memos.filter(l => l.id !== undefined && memoIds.includes(l.id));
         comments = comments.filter(c => memoIds.includes(c.memoId));
+    }
+
+    if (excludeIds && excludeIds.length > 0) {
+        memos = memos.filter(l => l.id !== undefined && !excludeIds.includes(l.id));
+        comments = comments.filter(c => !excludeIds.includes(c.memoId));
     }
 
     return {
@@ -82,9 +87,9 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
     const allLocalMemos = await db.memos.toArray();
 
     const conflicts: SyncConflict[] = [];
-    const memoConflictMap = new Map<number, number>(); // incoming index -> conflict index
+    const memoConflictMap = new Map<number, number>();
+    const mirrorIds: number[] = [];
 
-    // Detect conflicts for Memos
     if (resolver) {
         memos.forEach((l: any, index: number) => {
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
@@ -95,8 +100,6 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
             );
 
             if (existingMemo && l.content !== existingMemo.content) {
-                // Potential conflict. 
-                // We ask user if the versions are different.
                 conflicts.push({
                     id: l.id,
                     type: 'memo',
@@ -120,7 +123,6 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
         const folderIdMap = new Map<number, number>();
         const localFolderByName = new Map(allLocalFolders.map(f => [f.name, f.id]));
 
-        // Merge Folders
         if (data.folders) {
             for (const f of data.folders) {
                 const oldId = f.id;
@@ -175,7 +177,6 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                 }
 
                 if (resolution === 'both') {
-                    // Create a copy for the remote version
                     const { id, ...memoData } = l;
                     memoData.title = `${l.title} (Synced)`;
                     memoData.createdAt = createdAt;
@@ -184,10 +185,10 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     delete memoData.bookId;
                     const newId = await db.memos.add(memoData);
                     memoIdMap.set(oldId, newId as number);
+                    mirrorIds.push(newId as number);
                     continue;
                 }
 
-                // Default behavior (No resolution or resolution === 'remote')
                 memoIdMap.set(oldId, existingMemo.id!);
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingMemo.updatedAt.getTime();
@@ -205,6 +206,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     if (l.threadId) updates.threadId = l.threadId;
                     if (l.threadOrder !== undefined) updates.threadOrder = l.threadOrder;
                     await db.memos.update(existingMemo.id!, updates);
+                    mirrorIds.push(existingMemo.id!);
                 }
             } else {
                 const { id, ...memoData } = l;
@@ -215,10 +217,10 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                 delete memoData.bookId;
                 const newId = await db.memos.add(memoData);
                 memoIdMap.set(oldId, newId as number);
+                mirrorIds.push(newId as number);
             }
         }
 
-        // Merge Comments
         if (data.comments) {
             for (const c of data.comments) {
                 const { id, ...commentData } = c;
@@ -241,4 +243,6 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
             }
         }
     });
+
+    return mirrorIds;
 };
