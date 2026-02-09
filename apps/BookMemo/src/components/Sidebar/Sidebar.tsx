@@ -395,12 +395,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   }, [needRefresh]);
 
   useEffect(() => {
-    if (needRefresh) {
-      setToastMessage(t.sidebar.update_found);
-    }
-  }, [needRefresh, t.sidebar.update_found]);
-
-  useEffect(() => {
     // Check for updates automatically on app startup if enabled
     const autoUpdate = localStorage.getItem('auto_update_enabled') === 'true';
     if (autoUpdate) {
