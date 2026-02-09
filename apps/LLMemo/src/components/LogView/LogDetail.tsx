@@ -709,7 +709,7 @@ export const LogDetail: React.FC = () => {
         return () => clearInterval(interval);
     }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft]); // Removed log dependency to prevent interval reset on DB updates
 
-    const handleSave = async (overrideTitle?: string, overrideContent?: string, overrideSearch?: string, overrideState?: any) => {
+    const handleSave = async (overrideTitle?: string, overrideContent?: string, _overrideSearch?: string, overrideState?: any) => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
         const now = new Date();
         const currentContent = overrideContent !== undefined ? overrideContent : content;
