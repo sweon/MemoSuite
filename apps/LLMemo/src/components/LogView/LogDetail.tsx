@@ -493,7 +493,8 @@ export const LogDetail: React.FC = () => {
     const loadedIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (log && loadedIdRef.current !== id) {
+        if (id && log && log.id !== Number(id)) return;
+        if (log && log.id === Number(id) && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = log.tags.join(', ');
 

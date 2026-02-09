@@ -614,7 +614,8 @@ export const MemoDetail: React.FC = () => {
     const loadedIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (memo && loadedIdRef.current !== id) {
+        if (id && memo && memo.id !== Number(id)) return;
+        if (memo && memo.id === Number(id) && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = memo.tags.join(', ');
 
