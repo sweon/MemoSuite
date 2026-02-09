@@ -7,6 +7,20 @@ export interface SyncInfo {
     label?: string;
 }
 
+export interface SyncConflict {
+    id: string | number;
+    type: 'memo' | 'folder' | 'log' | 'word' | 'book';
+    title: string;
+    localDate: Date;
+    remoteDate: Date;
+    localContent?: string;
+    remoteContent?: string;
+}
+
+export type SyncResolution = 'local' | 'remote' | 'both';
+
+export type SyncConflictResolver = (conflicts: SyncConflict[]) => Promise<SyncResolution[]>;
+
 export interface SyncAdapter {
     /**
      * Get data for backup/export.
@@ -17,8 +31,9 @@ export interface SyncAdapter {
     /**
      * Merge incoming backup data into the database.
      * @param data - The data object received from sync.
+     * @param resolver - Optional callback to resolve conflicts.
      */
-    mergeBackupData: (data: any) => Promise<void>;
+    mergeBackupData: (data: any, resolver?: SyncConflictResolver) => Promise<void>;
 
     /**
      * Analyze what will be synced based on an optional initial item ID.
@@ -34,16 +49,12 @@ export interface SyncAdapter {
      * @returns Array of IDs to sync, or undefined for full sync.
      */
     getSyncTargetIds: (initialId?: number) => Promise<number[] | undefined>;
-
-    /**
-     * Process received data before merging?
-     * Not needed if mergeBackupData handles it.
-     */
 }
 
 export interface SyncServiceOptions {
     adapter: SyncAdapter;
     onStatusChange: (status: SyncStatus, message?: string) => void;
+    onConflict?: SyncConflictResolver;
     onDataReceived: () => void;
     onSyncInfo?: (info: SyncInfo) => void;
     initialDataLogId?: number; // Context specific ID

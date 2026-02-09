@@ -294,7 +294,7 @@ export class SyncService {
 
         try {
             this.setStatus('merging', 'Merging database changes...');
-            await this.options.adapter.mergeBackupData(data);
+            await this.options.adapter.mergeBackupData(data, this.options.onConflict);
 
             if (this.isHost) {
                 // Host received data from Client (Final step of sequence)

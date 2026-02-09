@@ -1,11 +1,10 @@
 import { db } from '../db';
-import { decryptData, encryptData, saveFile } from '@memosuite/shared';
+import { decryptData, encryptData, saveFile, type SyncConflict, type SyncConflictResolver, type SyncResolution } from '@memosuite/shared';
 
 export const getBackupData = async (wordIds?: number[]) => {
     let logs;
     let comments;
 
-    // Use fast index-based retrieval if IDs are provided
     if (wordIds && wordIds.length > 0) {
         logs = await db.words.where('id').anyOf(wordIds).toArray();
         comments = await db.comments.where('wordId').anyOf(wordIds).toArray();
@@ -79,14 +78,46 @@ export const importData = async (file: File, password?: string) => {
     await mergeBackupData(data);
 };
 
-export const mergeBackupData = async (data: any) => {
+export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver) => {
     if (!data.logs || (!data.sources && !data.models)) {
         throw new Error('Invalid backup file format');
     }
 
+    const words = data.logs || [];
+    const allLocalFolders = await db.folders.toArray();
+    const allLocalWords = await db.words.toArray();
+
+    const conflicts: SyncConflict[] = [];
+    const wordConflictMap = new Map<number, number>();
+
+    if (resolver) {
+        words.forEach((l: any, index: number) => {
+            const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
+            const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
+
+            const existingWord = allLocalWords.find(pl =>
+                pl.title === l.title && Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
+            );
+
+            if (existingWord && l.content !== existingWord.content) {
+                conflicts.push({
+                    id: l.id,
+                    type: 'word',
+                    title: l.title,
+                    localDate: existingWord.updatedAt,
+                    remoteDate: updatedAt,
+                    localContent: existingWord.content,
+                    remoteContent: l.content
+                });
+                wordConflictMap.set(index, conflicts.length - 1);
+            }
+        });
+    }
+
+    let resolutions: SyncResolution[] = [];
+    if (conflicts.length > 0 && resolver) resolutions = await resolver(conflicts);
+
     await db.transaction('rw', db.words, db.sources, db.comments, db.folders, async () => {
-        // Optimize folder mapping by pre-fetching
-        const allLocalFolders = await db.folders.toArray();
         const localFolderByName = new Map(allLocalFolders.map(f => [f.name, f.id!]));
         const folderIdMap = new Map<number, number>();
         const sourceIdMap = new Map<number, number>();
@@ -95,20 +126,18 @@ export const mergeBackupData = async (data: any) => {
             for (const f of data.folders) {
                 const oldId = f.id;
                 const existingId = localFolderByName.get(f.name);
-
-                // Hydrate dates for folders
                 const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
                 const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
 
                 if (existingId) {
                     folderIdMap.set(oldId, existingId);
-                    // Sync folder properties (color/pin/dates)
-                    const folderUpdates: any = {
-                        color: f.color,
-                        updatedAt: updatedAt
-                    };
-                    if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
-                    await db.folders.update(existingId, folderUpdates);
+                    const existingFolder = allLocalFolders.find(lf => lf.id === existingId);
+                    const localTime = existingFolder?.updatedAt.getTime() || 0;
+                    if (updatedAt.getTime() > localTime) {
+                        const folderUpdates: any = { color: f.color, updatedAt };
+                        if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+                        await db.folders.update(existingId, folderUpdates);
+                    }
                 } else {
                     const { id: _, ...folderData } = f;
                     folderData.createdAt = createdAt;
@@ -124,9 +153,8 @@ export const mergeBackupData = async (data: any) => {
             for (const s of data.sources) {
                 const oldId = s.id;
                 const existing = await db.sources.where('url').equals(s.url).first();
-                if (existing) {
-                    sourceIdMap.set(oldId, existing.id!);
-                } else {
+                if (existing) sourceIdMap.set(oldId, existing.id!);
+                else {
                     const { id, ...sourceData } = s;
                     sourceData.createdAt = typeof s.createdAt === 'string' ? new Date(s.createdAt) : s.createdAt;
                     sourceData.updatedAt = typeof s.updatedAt === 'string' ? new Date(s.updatedAt) : s.updatedAt;
@@ -137,72 +165,67 @@ export const mergeBackupData = async (data: any) => {
         }
 
         const wordIdMap = new Map<number, number>();
-
-        // Resolve default folder ID safely from our pre-fetched map
         const defaultFolderId = localFolderByName.get('기본 폴더') || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
 
-        for (const l of data.logs) {
+        for (let i = 0; i < words.length; i++) {
+            const l = words[i];
             const oldId = l.id;
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
             const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
 
-            // Duplicate detection: Title + approximate CreatedAt
-            const potentialMatches = await db.words.where('title').equals(l.title).toArray();
-            const existingWord = potentialMatches.find(pl =>
-                Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
+            const existingWord = allLocalWords.find(pl =>
+                pl.title === l.title && Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
             );
 
-            // Resolve target folderId
             let targetFolderId = defaultFolderId;
-            if (l.folderId) {
-                targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
-            }
+            if (l.folderId) targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
+
+            const resolution = wordConflictMap.has(i) ? resolutions[wordConflictMap.get(i)!] : null;
 
             if (existingWord) {
-                wordIdMap.set(oldId, existingWord.id!);
+                if (resolution === 'local') {
+                    wordIdMap.set(oldId, existingWord.id!);
+                    continue;
+                }
+                if (resolution === 'both') {
+                    const { id, ...logData } = l;
+                    logData.title = `${l.title} (Synced)`;
+                    logData.createdAt = createdAt;
+                    logData.updatedAt = updatedAt;
+                    logData.folderId = targetFolderId;
+                    const sId = l.sourceId !== undefined ? l.sourceId : l.modelId;
+                    if (sId !== undefined && sourceIdMap.has(sId)) logData.sourceId = sourceIdMap.get(sId);
+                    const newId = await db.words.add(logData);
+                    wordIdMap.set(oldId, newId as number);
+                    continue;
+                }
 
-                // Update content and metadata if incoming is newer
+                wordIdMap.set(oldId, existingWord.id!);
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingWord.updatedAt.getTime();
 
-                if (incomingTime > localTime || l.content !== existingWord.content || targetFolderId !== existingWord.folderId) {
+                if (resolution === 'remote' || incomingTime > localTime) {
                     const updates: any = {
                         folderId: targetFolderId,
-                        content: l.content, // Crucial: sync content changes!
+                        content: l.content,
                         updatedAt: updatedAt,
                         tags: l.tags,
-                        title: l.title // Even title can be synced if changed with same createdAt
+                        title: l.title
                     };
                     if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
-
                     const sId = l.sourceId !== undefined ? l.sourceId : l.modelId;
-                    if (sId !== undefined && sourceIdMap.has(sId)) {
-                        updates.sourceId = sourceIdMap.get(sId);
-                    }
-
-                    if (l.isStarred !== undefined) {
-                        updates.isStarred = l.isStarred;
-                    }
-
+                    if (sId !== undefined && sourceIdMap.has(sId)) updates.sourceId = sourceIdMap.get(sId);
+                    if (l.isStarred !== undefined) updates.isStarred = l.isStarred;
                     await db.words.update(existingWord.id!, updates);
                 }
             } else {
                 const { id, ...logData } = l;
                 logData.createdAt = createdAt;
-                logData.updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
-                if (l.pinnedAt) {
-                    logData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
-                }
-
-                // Apply mapped folderId
+                logData.updatedAt = updatedAt;
+                if (l.pinnedAt) logData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                 logData.folderId = targetFolderId;
-
                 const sId = l.sourceId !== undefined ? l.sourceId : l.modelId;
-                if (sId !== undefined && sourceIdMap.has(sId)) {
-                    logData.sourceId = sourceIdMap.get(sId);
-                }
-
-                // Dexie.add will use the auto-incrementing ID unless specified
+                if (sId !== undefined && sourceIdMap.has(sId)) logData.sourceId = sourceIdMap.get(sId);
                 const newId = await db.words.add(logData);
                 wordIdMap.set(oldId, newId as number);
             }
@@ -215,17 +238,12 @@ export const mergeBackupData = async (data: any) => {
                     commentData.wordId = wordIdMap.get(commentData.wordId);
                     commentData.createdAt = typeof c.createdAt === 'string' ? new Date(c.createdAt) : c.createdAt;
                     commentData.updatedAt = typeof c.updatedAt === 'string' ? new Date(c.updatedAt) : c.updatedAt;
-
-                    // Deduplicate comments
                     const duplicates = await db.comments.where('wordId').equals(commentData.wordId).toArray();
                     const exists = duplicates.some(d =>
                         d.content === commentData.content &&
                         Math.abs(d.createdAt.getTime() - commentData.createdAt.getTime()) < 1000
                     );
-
-                    if (!exists) {
-                        await db.comments.add(commentData);
-                    }
+                    if (!exists) await db.comments.add(commentData);
                 }
             }
         }

@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { decryptData, encryptData, saveFile } from '@memosuite/shared';
+import { decryptData, encryptData, saveFile, type SyncConflict, type SyncConflictResolver, type SyncResolution } from '@memosuite/shared';
 
 export const getBackupData = async (logIds?: number[]) => {
     let logs = await db.logs.toArray();
@@ -10,7 +10,6 @@ export const getBackupData = async (logIds?: number[]) => {
     if (logIds && logIds.length > 0) {
         logs = logs.filter(l => l.id !== undefined && logIds.includes(l.id));
         comments = comments.filter(c => logIds.includes(c.logId));
-        // Keep all models and folders to ensure references work
     }
 
     return {
@@ -75,14 +74,46 @@ export const importData = async (file: File, password?: string) => {
     await mergeBackupData(data);
 };
 
-export const mergeBackupData = async (data: any) => {
+export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver) => {
     if (!data.logs || !data.models) {
         throw new Error('Invalid backup file format');
     }
 
+    const logs = data.logs || [];
+    const allLocalFolders = await db.folders.toArray();
+    const allLocalLogs = await db.logs.toArray();
+
+    const conflicts: SyncConflict[] = [];
+    const logConflictMap = new Map<number, number>();
+
+    if (resolver) {
+        logs.forEach((l: any, index: number) => {
+            const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
+            const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
+
+            const existingLog = allLocalLogs.find(pl =>
+                pl.title === l.title && Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
+            );
+
+            if (existingLog && l.content !== existingLog.content) {
+                conflicts.push({
+                    id: l.id,
+                    type: 'log',
+                    title: l.title,
+                    localDate: existingLog.updatedAt,
+                    remoteDate: updatedAt,
+                    localContent: existingLog.content,
+                    remoteContent: l.content
+                });
+                logConflictMap.set(index, conflicts.length - 1);
+            }
+        });
+    }
+
+    let resolutions: SyncResolution[] = [];
+    if (conflicts.length > 0 && resolver) resolutions = await resolver(conflicts);
+
     await db.transaction('rw', db.logs, db.models, db.comments, db.folders, async () => {
-        // Optimize folder mapping by pre-fetching
-        const allLocalFolders = await db.folders.toArray();
         const localFolderByName = new Map(allLocalFolders.map(f => [f.name, f.id!]));
         const folderIdMap = new Map<number, number>();
 
@@ -90,20 +121,18 @@ export const mergeBackupData = async (data: any) => {
             for (const f of data.folders) {
                 const oldId = f.id;
                 const existingId = localFolderByName.get(f.name);
-
-                // Hydrate dates for folders
                 const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
                 const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
 
                 if (existingId) {
                     folderIdMap.set(oldId, existingId);
-                    // Sync folder properties (color/pin/dates)
-                    const folderUpdates: any = {
-                        color: f.color,
-                        updatedAt: updatedAt
-                    };
-                    if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
-                    await db.folders.update(existingId, folderUpdates);
+                    const existingFolder = allLocalFolders.find(lf => lf.id === existingId);
+                    const localTime = existingFolder?.updatedAt.getTime() || 0;
+                    if (updatedAt.getTime() > localTime) {
+                        const folderUpdates: any = { color: f.color, updatedAt };
+                        if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+                        await db.folders.update(existingId, folderUpdates);
+                    }
                 } else {
                     const { id: _, ...folderData } = f;
                     folderData.createdAt = createdAt;
@@ -116,16 +145,12 @@ export const mergeBackupData = async (data: any) => {
         }
 
         const modelIdMap = new Map<number, number>();
-
         for (const m of data.models) {
             const oldId = m.id;
             const existing = await db.models.where('name').equals(m.name).first();
-
             if (existing) {
                 modelIdMap.set(oldId, existing.id!);
             } else {
-                // Ensure we don't try to add with an ID if it's auto-increment, though we should strip it
-                // Actually, let's just strip ID to be safe and let Dexie assign
                 const { id, ...modelData } = m;
                 const newId = await db.models.add(modelData);
                 modelIdMap.set(oldId, newId as number);
@@ -133,67 +158,69 @@ export const mergeBackupData = async (data: any) => {
         }
 
         const logIdMap = new Map<number, number>();
-
-        // Resolve default folder ID safely from our pre-fetched map
         const defaultFolderId = localFolderByName.get('기본 폴더') || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
 
-        for (const l of data.logs) { // Changed from `logs` to `data.logs`
+        for (let i = 0; i < logs.length; i++) {
+            const l = logs[i];
             const oldId = l.id;
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
             const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
 
-            // Try to find exact match
-            const potentialMatches = await db.logs.where('title').equals(l.title).toArray();
-            let existingLog = potentialMatches.find(pl => Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000); // 5s tolerance
+            const existingLog = allLocalLogs.find(pl =>
+                pl.title === l.title && Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
+            );
 
-            // Resolve target folderId
             let targetFolderId = defaultFolderId;
-            if (l.folderId) {
-                targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
-            }
+            if (l.folderId) targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
+
+            const resolution = logConflictMap.has(i) ? resolutions[logConflictMap.get(i)!] : null;
 
             if (existingLog) {
-                logIdMap.set(oldId, existingLog.id!);
+                if (resolution === 'local') {
+                    logIdMap.set(oldId, existingLog.id!);
+                    continue;
+                }
+                if (resolution === 'both') {
+                    const { id, ...logData } = l;
+                    logData.title = `${l.title} (Synced)`;
+                    logData.createdAt = createdAt;
+                    logData.updatedAt = updatedAt;
+                    logData.folderId = targetFolderId;
+                    const mId = l.modelId;
+                    if (mId !== undefined && modelIdMap.has(mId)) logData.modelId = modelIdMap.get(mId);
+                    else logData.modelId = undefined;
+                    const newId = await db.logs.add(logData);
+                    logIdMap.set(oldId, newId as number);
+                    continue;
+                }
 
-                // Update content and metadata if incoming is newer or content differs
+                logIdMap.set(oldId, existingLog.id!);
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingLog.updatedAt.getTime();
 
-                if (incomingTime > localTime || l.content !== existingLog.content || targetFolderId !== existingLog.folderId) {
+                if (resolution === 'remote' || incomingTime > localTime) {
                     const updates: any = {
                         folderId: targetFolderId,
-                        content: l.content, // Crucial: sync content changes!
+                        content: l.content,
                         updatedAt: updatedAt,
-                        tags: l.tags
+                        tags: l.tags,
+                        title: l.title
                     };
                     if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                     if (l.threadId) updates.threadId = l.threadId;
-
                     const mId = l.modelId;
-                    if (mId !== undefined && modelIdMap.has(mId)) {
-                        updates.modelId = modelIdMap.get(mId);
-                    }
-
+                    if (mId !== undefined && modelIdMap.has(mId)) updates.modelId = modelIdMap.get(mId);
                     await db.logs.update(existingLog.id!, updates);
                 }
             } else {
                 const { id, ...logData } = l;
                 logData.createdAt = createdAt;
                 logData.updatedAt = updatedAt;
-                if (l.pinnedAt) {
-                    logData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
-                }
-
-                // Apply mapped folderId
+                if (l.pinnedAt) logData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                 logData.folderId = targetFolderId;
-
                 const mId = l.modelId;
-                if (mId !== undefined && modelIdMap.has(mId)) {
-                    logData.modelId = modelIdMap.get(mId);
-                } else {
-                    logData.modelId = undefined; // If model not found or mapped, set to undefined
-                }
-
+                if (mId !== undefined && modelIdMap.has(mId)) logData.modelId = modelIdMap.get(mId);
+                else logData.modelId = undefined;
                 const newId = await db.logs.add(logData);
                 logIdMap.set(oldId, newId as number);
             }
@@ -204,20 +231,14 @@ export const mergeBackupData = async (data: any) => {
                 const { id, ...commentData } = c;
                 commentData.createdAt = typeof c.createdAt === 'string' ? new Date(c.createdAt) : c.createdAt;
                 commentData.updatedAt = typeof c.updatedAt === 'string' ? new Date(c.updatedAt) : c.updatedAt;
-
                 if (commentData.logId && logIdMap.has(commentData.logId)) {
                     commentData.logId = logIdMap.get(commentData.logId);
-
-                    // Check for duplicates? Content + Date + LogId
                     const duplicates = await db.comments.where('logId').equals(commentData.logId).toArray();
                     const exists = duplicates.some(d =>
                         d.content === commentData.content &&
                         Math.abs(d.createdAt.getTime() - commentData.createdAt.getTime()) < 1000
                     );
-
-                    if (!exists) {
-                        await db.comments.add(commentData);
-                    }
+                    if (!exists) await db.comments.add(commentData);
                 }
             }
         }

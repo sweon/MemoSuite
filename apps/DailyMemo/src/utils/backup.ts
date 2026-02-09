@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { decryptData, encryptData, saveFile } from '@memosuite/shared';
+import { decryptData, encryptData, saveFile, type SyncConflict, type SyncConflictResolver, type SyncResolution } from '@memosuite/shared';
 
 export const getBackupData = async (memoIds?: number[]) => {
     let memos = await db.memos.toArray();
@@ -9,7 +9,6 @@ export const getBackupData = async (memoIds?: number[]) => {
     if (memoIds && memoIds.length > 0) {
         memos = memos.filter(l => l.id !== undefined && memoIds.includes(l.id));
         comments = comments.filter(c => memoIds.includes(c.memoId));
-        // Keep all folders to ensure references work, and empty folders are synced in full backup
     }
 
     return {
@@ -73,40 +72,71 @@ export const importData = async (file: File, password?: string) => {
     await mergeBackupData(data);
 };
 
-export const mergeBackupData = async (data: any) => {
+export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver) => {
     if (!data.memos && !data.logs && !data.books) {
         throw new Error('Invalid backup file format');
     }
 
-    const memos = data.memos || data.logs || []; // Support legacy migration if needed, but primarily memos
+    const memos = data.memos || data.logs || [];
+    const allLocalFolders = await db.folders.toArray();
+    const allLocalMemos = await db.memos.toArray();
+
+    const conflicts: SyncConflict[] = [];
+    const memoConflictMap = new Map<number, number>(); // incoming index -> conflict index
+
+    // Detect conflicts for Memos
+    if (resolver) {
+        memos.forEach((l: any, index: number) => {
+            const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
+            const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
+
+            const existingMemo = allLocalMemos.find(pl =>
+                pl.title === l.title && Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
+            );
+
+            if (existingMemo && l.content !== existingMemo.content) {
+                // Potential conflict. 
+                // We ask user if the versions are different.
+                conflicts.push({
+                    id: l.id,
+                    type: 'memo',
+                    title: l.title,
+                    localDate: existingMemo.updatedAt,
+                    remoteDate: updatedAt,
+                    localContent: existingMemo.content,
+                    remoteContent: l.content
+                });
+                memoConflictMap.set(index, conflicts.length - 1);
+            }
+        });
+    }
+
+    let resolutions: SyncResolution[] = [];
+    if (conflicts.length > 0 && resolver) {
+        resolutions = await resolver(conflicts);
+    }
 
     await db.transaction('rw', db.memos, db.comments, db.folders, async () => {
         const folderIdMap = new Map<number, number>();
-
-        // Pre-fetch folders for performance
-        const allLocalFolders = await db.folders.toArray();
         const localFolderByName = new Map(allLocalFolders.map(f => [f.name, f.id]));
 
-        // Merge Folders first
+        // Merge Folders
         if (data.folders) {
             for (const f of data.folders) {
                 const oldId = f.id;
                 const existingId = localFolderByName.get(f.name);
-
-                // Hydrate dates for folders
                 const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
                 const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
 
                 if (existingId) {
                     folderIdMap.set(oldId, existingId);
-                    // Sync folder properties (color/pin/dates)
-                    const folderUpdates: any = {
-                        color: f.color,
-                        updatedAt: updatedAt
-                    };
-                    if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
-
-                    await db.folders.update(existingId, folderUpdates);
+                    const existingFolder = allLocalFolders.find(lf => lf.id === existingId);
+                    const localTime = existingFolder?.updatedAt.getTime() || 0;
+                    if (updatedAt.getTime() > localTime) {
+                        const folderUpdates: any = { color: f.color, updatedAt };
+                        if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+                        await db.folders.update(existingId, folderUpdates);
+                    }
                 } else {
                     const { id: _, ...folderData } = f;
                     folderData.createdAt = createdAt;
@@ -119,61 +149,70 @@ export const mergeBackupData = async (data: any) => {
         }
 
         const memoIdMap = new Map<number, number>();
-
-        // Resolve default folder ID safely from our pre-fetched map
         const defaultFolderId = localFolderByName.get('기본 폴더') || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
 
-        for (const l of memos) {
+        for (let i = 0; i < memos.length; i++) {
+            const l = memos[i];
             const oldId = l.id;
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
             const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
 
-            // Try to find exact match
-            const potentialMatches = await db.memos.where('title').equals(l.title).toArray();
-            let existingMemo = potentialMatches.find(pl => Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000); // 5s tolerance
+            const existingMemo = allLocalMemos.find(pl =>
+                pl.title === l.title && Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
+            );
 
-            // Resolve target folderId
             let targetFolderId = defaultFolderId;
             if (l.folderId) {
                 targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
             }
 
-            if (existingMemo) {
-                memoIdMap.set(oldId, existingMemo.id!);
+            const resolution = memoConflictMap.has(i) ? resolutions[memoConflictMap.get(i)!] : null;
 
-                // Update folder and metadata even if it exists, to sync moves/changes/content
-                // Only overwrite if incoming is newer OR content differs and incoming is newer
+            if (existingMemo) {
+                if (resolution === 'local') {
+                    memoIdMap.set(oldId, existingMemo.id!);
+                    continue;
+                }
+
+                if (resolution === 'both') {
+                    // Create a copy for the remote version
+                    const { id, ...memoData } = l;
+                    memoData.title = `${l.title} (Synced)`;
+                    memoData.createdAt = createdAt;
+                    memoData.updatedAt = updatedAt;
+                    memoData.folderId = targetFolderId;
+                    delete memoData.bookId;
+                    const newId = await db.memos.add(memoData);
+                    memoIdMap.set(oldId, newId as number);
+                    continue;
+                }
+
+                // Default behavior (No resolution or resolution === 'remote')
+                memoIdMap.set(oldId, existingMemo.id!);
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingMemo.updatedAt.getTime();
 
-                if (incomingTime > localTime || l.content !== existingMemo.content || targetFolderId !== existingMemo.folderId) {
+                if (resolution === 'remote' || incomingTime > localTime) {
                     const updates: any = {
                         folderId: targetFolderId,
-                        content: l.content, // Crucial: sync content changes!
+                        content: l.content,
                         updatedAt: updatedAt,
                         tags: l.tags,
+                        title: l.title,
                         type: l.type || 'normal'
                     };
                     if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                     if (l.threadId) updates.threadId = l.threadId;
                     if (l.threadOrder !== undefined) updates.threadOrder = l.threadOrder;
-
                     await db.memos.update(existingMemo.id!, updates);
                 }
             } else {
                 const { id, ...memoData } = l;
                 memoData.createdAt = createdAt;
                 memoData.updatedAt = updatedAt;
-                if (l.pinnedAt) {
-                    memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
-                }
-
-                // Apply mapped folderId
+                if (l.pinnedAt) memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                 memoData.folderId = targetFolderId;
-
-                // Remove bookId if present as we are detaching from books
                 delete memoData.bookId;
-
                 const newId = await db.memos.add(memoData);
                 memoIdMap.set(oldId, newId as number);
             }
@@ -185,19 +224,16 @@ export const mergeBackupData = async (data: any) => {
                 const { id, ...commentData } = c;
                 commentData.createdAt = typeof c.createdAt === 'string' ? new Date(c.createdAt) : c.createdAt;
                 commentData.updatedAt = typeof c.updatedAt === 'string' ? new Date(c.updatedAt) : c.updatedAt;
-
                 const oldOwnerId = c.memoId !== undefined ? c.memoId : c.logId;
 
                 if (oldOwnerId && memoIdMap.has(oldOwnerId)) {
                     commentData.memoId = memoIdMap.get(oldOwnerId);
                     delete commentData.logId;
-
                     const duplicates = await db.comments.where('memoId').equals(commentData.memoId).toArray();
                     const exists = duplicates.some(d =>
                         d.content === commentData.content &&
                         Math.abs(d.createdAt.getTime() - commentData.createdAt.getTime()) < 5000
                     );
-
                     if (!exists) {
                         await db.comments.add(commentData);
                     }

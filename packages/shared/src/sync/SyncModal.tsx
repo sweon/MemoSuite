@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import styled, { useTheme as useStyledTheme } from 'styled-components';
 import { SyncService, cleanRoomId } from './SyncService';
-import type { SyncStatus, SyncInfo, SyncAdapter } from './types';
+import type { SyncStatus, SyncInfo, SyncAdapter, SyncConflict, SyncResolution } from './types';
 import { FaTimes, FaSync, FaRegCopy, FaRedo, FaCamera, FaStop, FaCheck, FaLink, FaLock, FaShieldAlt, FaLayerGroup, FaFileAlt, FaDatabase } from 'react-icons/fa';
 import { QRCodeSVG } from 'qrcode.react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
@@ -431,9 +431,13 @@ export const SyncModal: React.FC<SyncModalProps> = ({
     const [status, setStatus] = useState<SyncStatus>('disconnected');
     const [statusMessage, setStatusMessage] = useState('');
     const [isScanning, setIsScanning] = useState(false);
-    const [copied, setCopied] = useState(false);
+    const [animatedCopied, setAnimatedCopied] = useState(false);
     const [syncInfo, setSyncInfo] = useState<SyncInfo | null>(null);
     const [progress, setProgress] = useState(0);
+    const [conflicts, setConflicts] = useState<SyncConflict[]>([]);
+    const [currentConflictIndex, setCurrentConflictIndex] = useState(0);
+    const [resolutions, setResolutions] = useState<SyncResolution[]>([]);
+    const conflictResolveRef = useRef<((val: SyncResolution[]) => void) | null>(null);
     const scannerRef = useRef<Html5QrcodeScanner | null>(null);
     const syncService = useRef<SyncService | null>(null);
     const theme = useStyledTheme();
@@ -522,7 +526,15 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                         window.location.reload();
                     }, 3000);
                 },
-                onSyncInfo: (info) => setSyncInfo(info)
+                onSyncInfo: (info) => setSyncInfo(info),
+                onConflict: async (items) => {
+                    setConflicts(items);
+                    setResolutions([]);
+                    setCurrentConflictIndex(0);
+                    return new Promise<SyncResolution[]>((resolve) => {
+                        conflictResolveRef.current = resolve;
+                    });
+                }
             });
         }
         return syncService.current;
@@ -563,8 +575,24 @@ export const SyncModal: React.FC<SyncModalProps> = ({
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(roomId);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setAnimatedCopied(true);
+        setTimeout(() => setAnimatedCopied(false), 2000);
+    };
+
+    const resolveCurrentConflict = (res: SyncResolution) => {
+        const nextResolutions = [...resolutions, res];
+        setResolutions(nextResolutions);
+
+        if (currentConflictIndex < conflicts.length - 1) {
+            setCurrentConflictIndex(currentConflictIndex + 1);
+        } else {
+            // All resolved
+            if (conflictResolveRef.current) {
+                conflictResolveRef.current(nextResolutions);
+                conflictResolveRef.current = null;
+            }
+            setConflicts([]);
+        }
     };
 
     const regenerateId = () => {
@@ -664,8 +692,8 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                                         disabled={status === 'connected' || status === 'connecting' || status === 'syncing'}
                                         placeholder={txt.enter_custom_id}
                                     />
-                                    <IconButton onClick={copyToClipboard} title={copied ? txt.copied : txt.copy_id}>
-                                        {copied ? <FaCheck style={{ color: theme.colors.success }} /> : <FaRegCopy />}
+                                    <IconButton onClick={copyToClipboard} title={animatedCopied ? txt.copied : txt.copy_id}>
+                                        {animatedCopied ? <FaCheck style={{ color: theme.colors.success }} /> : <FaRegCopy />}
                                     </IconButton>
                                     <IconButton onClick={regenerateId} disabled={status === 'syncing' || status === 'connected'} title={txt.regenerate_id}>
                                         <FaRedo />
@@ -798,11 +826,99 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                             <FaShieldAlt style={{ fontSize: '1rem', color: theme.colors.primary, flexShrink: 0 }} />
                             <span>
                                 {language === 'ko'
-                                    ? "데이터는 로컬에서 암호화(AES-256)되어 전송됩니다."
-                                    : "Secured with local AES-256 encryption."}
+                                    ? '모든 데이터는 엔드투엔드 암호화(E2EE)되어 안전하게 전송됩니다.'
+                                    : 'All data is end-to-end encrypted (E2EE) for secure transit.'}
                             </span>
                         </div>
                     </FormWrapper>
+
+                    {conflicts.length > 0 && (
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: theme.colors.background,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            zIndex: 10,
+                            padding: '20px'
+                        }}>
+                            <h3 style={{ margin: '0 0 16px', color: theme.colors.primary, fontSize: '1rem', fontWeight: 700 }}>
+                                {language === 'ko' ? `데이터 충돌 해결 (${currentConflictIndex + 1}/${conflicts.length})` : `Resolve Conflict (${currentConflictIndex + 1}/${conflicts.length})`}
+                            </h3>
+                            <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: theme.colors.textSecondary }}>
+                                {language === 'ko' ? '두 장치의 데이터가 다릅니다. 어떤 버전을 유지할까요?' : 'Data on both devices differ. Which version should be kept?'}
+                            </p>
+
+                            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+                                <div style={{
+                                    padding: '12px',
+                                    borderRadius: '12px',
+                                    border: `1px solid ${theme.colors.border}`,
+                                    background: theme.colors.surface
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                        <span style={{ fontWeight: 700, fontSize: '0.8rem', color: theme.colors.primary }}>Local (This Device)</span>
+                                        <span style={{ fontSize: '0.75rem', color: theme.colors.textSecondary }}>{conflicts[currentConflictIndex].localDate.toLocaleString()}</span>
+                                    </div>
+                                    <h4 style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>{conflicts[currentConflictIndex].title}</h4>
+                                    <div style={{
+                                        fontSize: '0.8rem',
+                                        color: theme.colors.textSecondary,
+                                        maxHeight: '100px',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'pre-wrap',
+                                        background: theme.colors.background,
+                                        padding: '8px',
+                                        borderRadius: '8px'
+                                    }}>
+                                        {conflicts[currentConflictIndex].localContent || '(No content)'}
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    padding: '12px',
+                                    borderRadius: '12px',
+                                    border: `1px solid ${theme.colors.border}`,
+                                    background: theme.colors.surface
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                        <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#f59e0b' }}>Remote (Other Device)</span>
+                                        <span style={{ fontSize: '0.75rem', color: theme.colors.textSecondary }}>{conflicts[currentConflictIndex].remoteDate.toLocaleString()}</span>
+                                    </div>
+                                    <h4 style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>{conflicts[currentConflictIndex].title}</h4>
+                                    <div style={{
+                                        fontSize: '0.8rem',
+                                        color: theme.colors.textSecondary,
+                                        maxHeight: '100px',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'pre-wrap',
+                                        background: theme.colors.background,
+                                        padding: '8px',
+                                        borderRadius: '8px'
+                                    }}>
+                                        {conflicts[currentConflictIndex].remoteContent || '(No content)'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                                <ActionButton onClick={() => resolveCurrentConflict('local')} $variant="secondary">
+                                    {language === 'ko' ? '기존 버전 유지' : 'Keep Local'}
+                                </ActionButton>
+                                <ActionButton onClick={() => resolveCurrentConflict('remote')} $variant="secondary">
+                                    {language === 'ko' ? '받은 버전 유지' : 'Keep Remote'}
+                                </ActionButton>
+                            </div>
+                            <ActionButton onClick={() => resolveCurrentConflict('both')} style={{ width: '100%' }}>
+                                {language === 'ko' ? '둘 다 유지 (사본 생성)' : 'Keep Both (Create Copy)'}
+                            </ActionButton>
+                        </div>
+                    )}
                 </Content>
             </ModalContainer>
         </Overlay>

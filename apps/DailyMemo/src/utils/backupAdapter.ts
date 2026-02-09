@@ -29,8 +29,8 @@ export const dailyMemoSyncAdapter: SyncAdapter = {
     getBackupData: async (ids?: number[]) => {
         return await getBackupData(ids);
     },
-    mergeBackupData: async (data: any) => {
-        await mergeBackupData(data);
+    mergeBackupData: async (data: any, resolver?: any) => {
+        await mergeBackupData(data, resolver);
     },
     analyzeSyncData: async (initialId?: number): Promise<SyncInfo> => {
         if (initialId) {

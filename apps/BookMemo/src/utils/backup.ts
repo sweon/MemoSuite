@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { decryptData, encryptData, saveFile } from '@memosuite/shared';
+import { decryptData, encryptData, saveFile, type SyncConflict, type SyncConflictResolver, type SyncResolution } from '@memosuite/shared';
 
 export const getBackupData = async (memoIds?: number[]) => {
     let memos = await db.memos.toArray();
@@ -10,8 +10,6 @@ export const getBackupData = async (memoIds?: number[]) => {
     if (memoIds && memoIds.length > 0) {
         memos = memos.filter(l => l.id !== undefined && memoIds.includes(l.id));
         comments = comments.filter(c => memoIds.includes(c.memoId));
-
-        // For partial sync, we still might want associated books
         const bookIds = new Set(memos.map(m => m.bookId).filter(Boolean));
         books = books.filter(b => bookIds.has(b.id!));
     }
@@ -78,17 +76,48 @@ export const importData = async (file: File, password?: string) => {
     await mergeBackupData(data);
 };
 
-export const mergeBackupData = async (data: any) => {
+export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver) => {
     if (!data.memos && !data.logs && !data.books) {
         throw new Error('Invalid backup file format');
     }
 
     const books = data.books || [];
-    const memos = data.memos || data.logs || []; // Support legacy migration if needed, but primarily memos
+    const memos = data.memos || data.logs || [];
+    const allLocalFolders = await db.folders.toArray();
+    const allLocalMemos = await db.memos.toArray();
+    const allLocalBooks = await db.books.toArray();
+
+    const conflicts: SyncConflict[] = [];
+    const memoConflictMap = new Map<number, number>();
+
+    if (resolver) {
+        memos.forEach((l: any, index: number) => {
+            const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
+            const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
+
+            const existingMemo = allLocalMemos.find(pl =>
+                pl.title === l.title && Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
+            );
+
+            if (existingMemo && l.content !== existingMemo.content) {
+                conflicts.push({
+                    id: l.id,
+                    type: 'memo',
+                    title: l.title,
+                    localDate: existingMemo.updatedAt,
+                    remoteDate: updatedAt,
+                    localContent: existingMemo.content,
+                    remoteContent: l.content
+                });
+                memoConflictMap.set(index, conflicts.length - 1);
+            }
+        });
+    }
+
+    let resolutions: SyncResolution[] = [];
+    if (conflicts.length > 0 && resolver) resolutions = await resolver(conflicts);
 
     await db.transaction('rw', db.books, db.memos, db.comments, db.folders, async () => {
-        // Optimize folder mapping by pre-fetching
-        const allLocalFolders = await db.folders.toArray();
         const localFolderByName = new Map(allLocalFolders.map(f => [f.name, f.id!]));
         const folderIdMap = new Map<number, number>();
 
@@ -96,20 +125,18 @@ export const mergeBackupData = async (data: any) => {
             for (const f of data.folders) {
                 const oldId = f.id;
                 const existingId = localFolderByName.get(f.name);
-
-                // Hydrate dates for folders
                 const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
                 const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
 
                 if (existingId) {
                     folderIdMap.set(oldId, existingId);
-                    // Sync folder properties (color/pin/dates)
-                    const folderUpdates: any = {
-                        color: f.color,
-                        updatedAt: updatedAt
-                    };
-                    if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
-                    await db.folders.update(existingId, folderUpdates);
+                    const existingFolder = allLocalFolders.find(lf => lf.id === existingId);
+                    const localTime = existingFolder?.updatedAt.getTime() || 0;
+                    if (updatedAt.getTime() > localTime) {
+                        const folderUpdates: any = { color: f.color, updatedAt };
+                        if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+                        await db.folders.update(existingId, folderUpdates);
+                    }
                 } else {
                     const { id: _, ...folderData } = f;
                     folderData.createdAt = createdAt;
@@ -123,153 +150,123 @@ export const mergeBackupData = async (data: any) => {
 
         const bookIdMap = new Map<number, number>();
         const memoIdMap = new Map<number, number>();
-
-        // Resolve default folder ID safely from our pre-fetched map
         const defaultFolderId = localFolderByName.get('기본 폴더') || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
 
-        // 1. Merge Books
         for (const b of books) {
             const oldBookId = b.id;
             const createdAt = typeof b.createdAt === 'string' ? new Date(b.createdAt) : b.createdAt;
             const updatedAt = typeof b.updatedAt === 'string' ? new Date(b.updatedAt) : b.updatedAt;
 
-            // Try to find exact match
-            const potentialMatches = await db.books.where('title').equals(b.title).toArray();
-            let existingBook = potentialMatches.find(pb =>
-                pb.author === b.author && Math.abs(pb.createdAt.getTime() - createdAt.getTime()) < 5000
+            const existingBook = allLocalBooks.find(pb =>
+                pb.title === b.title && pb.author === b.author && Math.abs(pb.createdAt.getTime() - createdAt.getTime()) < 5000
             );
 
-            // Resolve target folderId
             let targetFolderId = defaultFolderId;
-            if (b.folderId) {
-                targetFolderId = folderIdMap.get(b.folderId) ?? defaultFolderId;
-            }
+            if (b.folderId) targetFolderId = folderIdMap.get(b.folderId) ?? defaultFolderId;
 
             if (existingBook) {
                 bookIdMap.set(oldBookId, existingBook.id!);
-
-                // Update progress, status, AND folder
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingBook.updatedAt.getTime();
 
                 if (incomingTime > localTime) {
-                    const updates: any = {
-                        folderId: targetFolderId,
-                        updatedAt: updatedAt
-                    };
-                    if ((b.currentPage || 0) > (existingBook.currentPage || 0)) {
-                        updates.currentPage = b.currentPage;
-                    }
+                    const updates: any = { folderId: targetFolderId, updatedAt };
+                    if ((b.currentPage || 0) > (existingBook.currentPage || 0)) updates.currentPage = b.currentPage;
                     if (b.status === 'completed' && existingBook.status !== 'completed') {
                         updates.status = 'completed';
                         updates.completedDate = typeof b.completedDate === 'string' ? new Date(b.completedDate) : b.completedDate;
                     }
                     if (b.pinnedAt) updates.pinnedAt = typeof b.pinnedAt === 'string' ? new Date(b.pinnedAt) : b.pinnedAt;
-
                     await db.books.update(existingBook.id!, updates);
                 }
             } else {
                 const { id, ...bookData } = b;
                 bookData.startDate = typeof b.startDate === 'string' ? new Date(b.startDate) : b.startDate;
-                bookData.createdAt = typeof b.createdAt === 'string' ? new Date(b.createdAt) : b.createdAt;
-                bookData.updatedAt = typeof b.updatedAt === 'string' ? new Date(b.updatedAt) : b.updatedAt;
-                if (b.completedDate) {
-                    bookData.completedDate = typeof b.completedDate === 'string' ? new Date(b.completedDate) : b.completedDate;
-                }
-                if (b.pinnedAt) {
-                    bookData.pinnedAt = typeof b.pinnedAt === 'string' ? new Date(b.pinnedAt) : b.pinnedAt;
-                }
-
-                // Apply mapped folderId
+                bookData.createdAt = createdAt;
+                bookData.updatedAt = updatedAt;
+                if (b.completedDate) bookData.completedDate = typeof b.completedDate === 'string' ? new Date(b.completedDate) : b.completedDate;
+                if (b.pinnedAt) bookData.pinnedAt = typeof b.pinnedAt === 'string' ? new Date(b.pinnedAt) : b.pinnedAt;
                 bookData.folderId = targetFolderId;
-
                 const newBookId = await db.books.add(bookData);
                 bookIdMap.set(oldBookId, newBookId as number);
             }
         }
 
-        // 2. Merge Memos
-        for (const l of memos) {
+        for (let i = 0; i < memos.length; i++) {
+            const l = memos[i];
             const oldId = l.id;
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
             const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
 
-            // Try to find exact match
-            const potentialMatches = await db.memos.where('title').equals(l.title).toArray();
-            let existingMemo = potentialMatches.find(pl => Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000); // 5s tolerance
+            const existingMemo = allLocalMemos.find(pl =>
+                pl.title === l.title && Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
+            );
 
-            // Resolve target folderId
             let targetFolderId = defaultFolderId;
-            if (l.folderId) {
-                targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
-            }
+            if (l.folderId) targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
+
+            const resolution = memoConflictMap.has(i) ? resolutions[memoConflictMap.get(i)!] : null;
 
             if (existingMemo) {
-                memoIdMap.set(oldId, existingMemo.id!);
+                if (resolution === 'local') {
+                    memoIdMap.set(oldId, existingMemo.id!);
+                    continue;
+                }
+                if (resolution === 'both') {
+                    const { id, ...memoData } = l;
+                    memoData.title = `${l.title} (Synced)`;
+                    memoData.createdAt = createdAt;
+                    memoData.updatedAt = updatedAt;
+                    memoData.folderId = targetFolderId;
+                    if (l.bookId && bookIdMap.has(l.bookId)) memoData.bookId = bookIdMap.get(l.bookId);
+                    const newId = await db.memos.add(memoData);
+                    memoIdMap.set(oldId, newId as number);
+                    continue;
+                }
 
-                // Update folder and metadata even if it exists, to sync moves/changes/content
+                memoIdMap.set(oldId, existingMemo.id!);
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingMemo.updatedAt.getTime();
 
-                if (incomingTime > localTime || l.content !== existingMemo.content || targetFolderId !== existingMemo.folderId) {
+                if (resolution === 'remote' || incomingTime > localTime) {
                     const updates: any = {
                         folderId: targetFolderId,
-                        content: l.content, // Crucial: sync content changes!
+                        content: l.content,
                         updatedAt: updatedAt,
-                        tags: l.tags
+                        tags: l.tags,
+                        title: l.title
                     };
                     if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
-
-                    // Map bookId if it was changed during book merge
-                    if (l.bookId && bookIdMap.has(l.bookId)) {
-                        updates.bookId = bookIdMap.get(l.bookId);
-                    }
-
+                    if (l.bookId && bookIdMap.has(l.bookId)) updates.bookId = bookIdMap.get(l.bookId);
                     await db.memos.update(existingMemo.id!, updates);
                 }
             } else {
                 const { id, ...memoData } = l;
                 memoData.createdAt = createdAt;
                 memoData.updatedAt = updatedAt;
-                if (l.pinnedAt) {
-                    memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
-                }
-
-                // Map bookId if it was changed during book merge
-                if (l.bookId && bookIdMap.has(l.bookId)) {
-                    memoData.bookId = bookIdMap.get(l.bookId);
-                }
-
-                // Apply mapped folderId
+                if (l.pinnedAt) memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                if (l.bookId && bookIdMap.has(l.bookId)) memoData.bookId = bookIdMap.get(l.bookId);
                 memoData.folderId = targetFolderId;
-
                 const newId = await db.memos.add(memoData);
                 memoIdMap.set(oldId, newId as number);
             }
         }
 
-        // 3. Merge Comments
         if (data.comments) {
             for (const c of data.comments) {
                 const { id, ...commentData } = c;
                 commentData.createdAt = typeof c.createdAt === 'string' ? new Date(c.createdAt) : c.createdAt;
                 commentData.updatedAt = typeof c.updatedAt === 'string' ? new Date(c.updatedAt) : c.updatedAt;
-
                 const oldOwnerId = c.memoId !== undefined ? c.memoId : c.logId;
-
                 if (oldOwnerId && memoIdMap.has(oldOwnerId)) {
                     commentData.memoId = memoIdMap.get(oldOwnerId);
                     delete commentData.logId;
-
                     const duplicates = await db.comments.where('memoId').equals(commentData.memoId).toArray();
                     const exists = duplicates.some(d =>
                         d.content === commentData.content &&
                         Math.abs(d.createdAt.getTime() - commentData.createdAt.getTime()) < 5000
                     );
-
-                    if (!exists) {
-                        await db.comments.add(commentData);
-                    }
+                    if (!exists) await db.comments.add(commentData);
                 }
             }
         }
