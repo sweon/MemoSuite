@@ -256,14 +256,25 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
   // Handle folder switching: if current log doesn't belong to folder, go back to root
   useEffect(() => {
-    if (id && currentFolderId !== null) {
-      db.logs.get(Number(id)).then(log => {
-        if (log && log.folderId !== currentFolderId) {
-          navigate('/', { replace: true });
-        }
-      });
+    if (id && id !== 'new' && id !== 'settings' && currentFolderId !== null) {
+      const numericId = Number(id);
+      if (!isNaN(numericId)) {
+        db.logs.get(numericId).then(log => {
+          if (log) {
+            const isHome = homeFolder && currentFolderId === homeFolder.id;
+            // Root logs (no folderId) are allowed in Home folder
+            const isInCurrentFolder = isHome
+              ? (log.folderId === currentFolderId || !log.folderId)
+              : log.folderId === currentFolderId;
+
+            if (!isInCurrentFolder) {
+              navigate('/', { replace: true });
+            }
+          }
+        });
+      }
     }
-  }, [currentFolderId, id, navigate]);
+  }, [currentFolderId, id, navigate, homeFolder]);
 
   // Decide whether to replace history or push.
   // We only replace if we are already in a sub-page (log detail or settings).

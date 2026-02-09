@@ -425,10 +425,12 @@ export const LogDetail: React.FC = () => {
     const commentDraftRef = useRef<CommentDraft | null>(null);
     useEffect(() => { commentDraftRef.current = commentDraft; }, [commentDraft]);
     const restoredIdRef = useRef<string | null>(null);
+    const loadedIdRef = useRef<string | null>(null);
 
     const [prevId, setPrevId] = useState(id);
     if (id !== prevId) {
         setPrevId(id);
+        loadedIdRef.current = null; // Clear loaded ref so useEffect re-loads for the new ID
         setTitle('');
         setContent('');
         setTags('');
@@ -443,7 +445,12 @@ export const LogDetail: React.FC = () => {
     }, [content]);
 
     const log = useLiveQuery(
-        () => (id ? db.logs.get(Number(id)) : undefined),
+        () => {
+            if (!id || id === 'new') return undefined;
+            const numericId = Number(id);
+            if (isNaN(numericId)) return undefined;
+            return db.logs.get(numericId);
+        },
         [id]
     );
 
@@ -490,10 +497,12 @@ export const LogDetail: React.FC = () => {
     }, [log]);
 
     const models = useLiveQuery(() => db.models.orderBy('order').toArray());
-    const loadedIdRef = useRef<string | null>(null);
 
     useEffect(() => {
+        let isCurrent = true;
+
         if (id && log && log.id !== Number(id)) return;
+
         if (log && log.id === Number(id) && loadedIdRef.current !== id) {
             const loadData = async () => {
                 const tagsStr = log.tags.join(', ');
@@ -504,6 +513,8 @@ export const LogDetail: React.FC = () => {
                     .equals(Number(id))
                     .reverse()
                     .sortBy('createdAt');
+
+                if (!isCurrent) return;
 
                 let initialTitle = log.title;
                 let initialContent = log.content;
@@ -569,6 +580,8 @@ export const LogDetail: React.FC = () => {
                     .reverse()
                     .sortBy('createdAt');
 
+                if (!isCurrent) return;
+
                 if (existing.length > 0) {
                     const draft = existing[0];
                     const hasLogChanges = draft.content !== log.content || draft.title !== log.title;
@@ -615,6 +628,8 @@ export const LogDetail: React.FC = () => {
                     .reverse()
                     .sortBy('createdAt');
 
+                if (!isCurrent) return;
+
                 if (latest.length > 0) {
                     const draft = latest[0];
                     if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
@@ -644,6 +659,8 @@ export const LogDetail: React.FC = () => {
         if (searchParams.get('drawing') === 'true') {
             setIsFabricModalOpen(true);
         }
+
+        return () => { isCurrent = false; };
     }, [log, isNew, id, searchParams, isEditing]);
 
     // Set default model if new and models loaded
@@ -934,7 +951,7 @@ export const LogDetail: React.FC = () => {
                             autoFocus
                         />
                     ) : (
-                        <TitleDisplay>{log?.title}</TitleDisplay>
+                        <TitleDisplay>{title || t.log_detail.untitled}</TitleDisplay>
                     )}
 
                     <HeaderRow>
