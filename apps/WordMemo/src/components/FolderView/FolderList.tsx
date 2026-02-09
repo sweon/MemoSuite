@@ -555,11 +555,6 @@ export const FolderList: React.FC<FolderListProps> = ({
         });
 
         items.sort((a, b) => {
-            const isDefaultA = a.name === '기본 폴더' || a.name === 'Default Folder';
-            const isDefaultB = b.name === '기본 폴더' || b.name === 'Default Folder';
-            if (isDefaultA) return -1;
-            if (isDefaultB) return 1;
-
             const aPinnedAt = a.pinnedAt || (a.id ? justUnpinnedIds.get(a.id) : undefined);
             const bPinnedAt = b.pinnedAt || (b.id ? justUnpinnedIds.get(b.id) : undefined);
 
@@ -753,7 +748,6 @@ export const FolderList: React.FC<FolderListProps> = ({
         wordCount: language === 'ko' ? '개 항목' : ' items',
         readOnly: language === 'ko' ? '읽기 전용' : 'Read-only',
         excludeSearch: language === 'ko' ? '검색 제외' : 'Exclude from search',
-        defaultFolder: language === 'ko' ? '기본 폴더' : 'Default Folder',
         sort: {
             lastEdited: language === 'ko' ? '최근 편집순' : 'Last Edited',
             lastCommented: language === 'ko' ? '최근 댓글순' : 'Last Commented',
@@ -778,9 +772,6 @@ export const FolderList: React.FC<FolderListProps> = ({
             searchOff: language === 'ko' ? '전체 검색 제외' : 'Exclude from search',
             delete: language === 'ko' ? '폴더 삭제' : 'Delete folder',
             cannotDelete: language === 'ko' ? '비어있지 않은 폴더는 삭제 불가' : 'Cannot delete non-empty folder',
-            cannotPinDefault: language === 'ko' ? '기본 폴더는 고정할 수 없습니다' : 'Cannot pin the default folder',
-            cannotRenameDefault: language === 'ko' ? '기본 폴더의 이름은 변경할 수 없습니다.' : 'Cannot rename the default folder.',
-            cannotReadOnlyDefault: language === 'ko' ? '기본 폴더는 읽기 전용으로 설정할 수 없습니다.' : 'Cannot set the default folder as read-only.',
         }
     };
 
@@ -868,7 +859,6 @@ export const FolderList: React.FC<FolderListProps> = ({
                     {sortedFolders.map(folder => {
                         const stats = wordStats[folder.id!] || { count: 0, subfolderCount: 0 };
                         const isEditing = editingFolderId === folder.id;
-                        const isDefault = folder.name === '기본 폴더' || folder.name === 'Default Folder';
                         const previewWord = folderPreviews[folder.id!];
 
                         return (
@@ -911,7 +901,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                                                         autoFocus
                                                     />
                                                 ) : (
-                                                    <FolderName>{isDefault ? t.defaultFolder : folder.name}</FolderName>
+                                                    <FolderName>{folder.name}</FolderName>
                                                 )}
 
                                                 {isEditing && (
@@ -965,11 +955,9 @@ export const FolderList: React.FC<FolderListProps> = ({
                                             <FolderActions onClick={(e) => e.stopPropagation()} $viewMode={viewMode}>
                                                 <ActionButton
                                                     onClick={() => handleTogglePin(folder)}
-                                                    disabled={isDefault}
-                                                    title={isDefault ? t.tooltips.cannotPinDefault : (folder.pinnedAt ? t.tooltips.unpin : t.tooltips.pin)}
+                                                    title={folder.pinnedAt ? t.tooltips.unpin : t.tooltips.pin}
                                                     style={{
                                                         color: folder.pinnedAt ? theme.colors.primary : undefined,
-                                                        opacity: isDefault ? 0.3 : 1
                                                     }}
                                                 >
                                                     {folder.pinnedAt ? <BsPinAngleFill size={16} /> : <BsPinAngle size={16} />}
@@ -977,14 +965,9 @@ export const FolderList: React.FC<FolderListProps> = ({
 
                                                 <ActionButton
                                                     onClick={() => {
-                                                        if (isDefault) {
-                                                            alert(t.tooltips.cannotRenameDefault);
-                                                            return;
-                                                        }
                                                         setEditingFolderId(folder.id!);
                                                         setEditingName(folder.name);
                                                     }}
-                                                    disabled={isDefault}
                                                     title={t.tooltips.rename}
                                                 >
                                                     <FiEdit2 size={16} />
@@ -992,13 +975,8 @@ export const FolderList: React.FC<FolderListProps> = ({
 
                                                 <ActionButton
                                                     onClick={() => {
-                                                        if (isDefault) {
-                                                            alert(t.tooltips.cannotReadOnlyDefault);
-                                                            return;
-                                                        }
                                                         handleToggleReadOnly(folder);
                                                     }}
-                                                    disabled={isDefault}
                                                     title={folder.isReadOnly ? t.tooltips.readOnlyOff : t.tooltips.readOnlyOn}
                                                 >
                                                     {folder.isReadOnly ? <FiUnlock size={16} /> : <FiLock size={16} />}
