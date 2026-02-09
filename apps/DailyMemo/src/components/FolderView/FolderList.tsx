@@ -445,6 +445,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         if (saved === 'double-column') return 'grid';
         return (saved as ViewMode) || 'grid';
     });
+    const currentYear = useMemo(() => new Date().getFullYear().toString(), []);
     const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState('');
     const [newFolderId, setNewFolderId] = useState<number | null>(null);
@@ -752,6 +753,7 @@ export const FolderList: React.FC<FolderListProps> = ({
             cannotDelete: language === 'ko' ? '비어있지 않은 폴더는 삭제 불가' : 'Cannot delete non-empty folder',
             cannotPinDefault: language === 'ko' ? '기본 폴더는 고정할 수 없습니다' : 'Cannot pin the default folder',
             cannotRenameDefault: language === 'ko' ? '기본 폴더의 이름은 변경할 수 없습니다.' : 'Cannot rename the default folder.',
+            cannotRenameCurrentYear: language === 'ko' ? '현재 연도 폴더의 이름은 변경할 수 없습니다.' : 'Cannot rename the current year folder.',
             cannotReadOnlyDefault: language === 'ko' ? '기본 폴더는 읽기 전용으로 설정할 수 없습니다.' : 'Cannot set the default folder as read-only.',
         }
     };
@@ -825,6 +827,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                     {sortedFolders.map(folder => {
                         const stats = folderStats[folder.id!] || { count: 0 };
                         const isEditing = editingFolderId === folder.id;
+                        const isCurrentYear = folder.name === currentYear;
                         const isDefault = folder.name === '기본 폴더' || folder.name === 'Default Folder';
                         const previewMemo = folderPreviews[folder.id!];
 
@@ -937,11 +940,15 @@ export const FolderList: React.FC<FolderListProps> = ({
                                                             alert(t.tooltips.cannotRenameDefault);
                                                             return;
                                                         }
+                                                        if (isCurrentYear) {
+                                                            alert(t.tooltips.cannotRenameCurrentYear);
+                                                            return;
+                                                        }
                                                         setEditingFolderId(folder.id!);
                                                         setEditingName(folder.name);
                                                     }}
-                                                    disabled={isDefault}
-                                                    title={t.tooltips.rename}
+                                                    disabled={isDefault || isCurrentYear}
+                                                    title={isCurrentYear ? t.tooltips.cannotRenameCurrentYear : t.tooltips.rename}
                                                 >
                                                     <FiEdit2 size={16} />
                                                 </ActionButton>
