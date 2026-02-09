@@ -696,12 +696,13 @@ export const MemoDetail: React.FC = () => {
             };
             checkExistingAutosave();
         } else if (isNew && loadedIdRef.current !== 'new') {
+            const threadContext = extractThreadContext(searchParams);
             setTitle('');
             setContent('');
-            setTags('');
+            setTags(threadContext?.inheritedTags?.join(', ') || '');
             setEditingDrawingData(undefined);
             setEditingSpreadsheetData(undefined);
-            setSourceId(undefined);
+            setSourceId(threadContext?.inheritedSourceId || undefined);
             setCommentDraft(null);
             setIsEditing(true);
             loadedIdRef.current = 'new';
@@ -834,7 +835,18 @@ export const MemoDetail: React.FC = () => {
         const now = new Date();
         const currentContent = overrideContent !== undefined ? overrideContent : content;
         const currentTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
-        const derivedTitle = currentTitle || currentContent.split('\n')[0].replace(/[#*`\s]/g, ' ').trim().substring(0, 50) || t.word_detail.untitled;
+        const untitled = t.word_detail.untitled;
+
+        // Treat as untitled if empty OR matches the placeholder
+        const isCurrentlyUntitled = !currentTitle || currentTitle === untitled;
+
+        let finalTitle = currentTitle;
+        if (isCurrentlyUntitled) {
+            const contentFallback = currentContent.split('\n')[0].replace(/[#*`\s]/g, ' ').trim().substring(0, 50);
+            finalTitle = contentFallback || untitled;
+        }
+
+        const derivedTitle = finalTitle;
 
         // Remember the last used source
         if (sourceId) {

@@ -14,6 +14,7 @@ export interface ThreadableItem {
     tags?: string[];
     createdAt?: Date;
     updatedAt?: Date;
+    title?: string;
 }
 
 /**
@@ -142,7 +143,6 @@ export function extractThreadContext(searchParams: URLSearchParams): ThreadConte
     const inheritSourceIdStr = searchParams.get('inheritSourceId');
     const inheritBookIdStr = searchParams.get('inheritBookId');
     const inheritPageNumberStr = searchParams.get('inheritPageNumber');
-
     return {
         threadId,
         threadOrder,

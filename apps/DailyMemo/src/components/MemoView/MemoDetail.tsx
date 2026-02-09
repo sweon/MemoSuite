@@ -701,10 +701,10 @@ export const MemoDetail: React.FC = () => {
                 if (isEditing) restoredIdRef.current = id || null;
             };
             checkExistingAutosave();
-            if (isNew) {
-                const now = new Date();
-                const defaultTitle = format(now, 'yyyy-MM-dd HH:mm');
-                setTitle(defaultTitle);
+            if (isNew && loadedIdRef.current !== 'new') {
+                const threadContext = extractThreadContext(searchParams);
+                setTitle('');
+                setTags(threadContext?.inheritedTags?.join(', ') || '');
                 loadedIdRef.current = 'new';
 
                 const isInitialDrawing = searchParams.get('drawing') === 'true';
@@ -827,71 +827,50 @@ export const MemoDetail: React.FC = () => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
         const now = new Date();
         const currentContent = overrideContent !== undefined ? overrideContent : content;
-        let finalTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
-        let finalType: 'normal' | 'progress' = 'normal';
+        const currentTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
+        const untitled = t.memo_detail.untitled;
 
-        const hasTitle = !!finalTitle;
-        const hasContent = !!currentContent.trim();
+        // Treat as untitled if empty OR matches the placeholder
+        const isCurrentlyUntitled = !currentTitle || currentTitle === untitled;
 
-        if (!hasTitle && !hasContent) return;
-
-        if (!hasTitle) {
+        let finalTitle = currentTitle;
+        if (isCurrentlyUntitled) {
             const contentText = currentContent.trim();
+            let contentFallback = '';
 
             if (contentText) {
                 // Filter out markdown code blocks for title generation
-                let filteredText = contentText
+                const filteredText = contentText
                     .replace(/```[\s\S]*?```/g, '') // Remove code blocks
                     .trim();
 
                 if (filteredText) {
-                    // Check if it starts with an image markdown: ![] (URL)
                     const imgMatch = filteredText.match(/^!\[(.*?)\]\((.*?)\)/);
                     if (imgMatch) {
                         const alt = imgMatch[1].trim();
-                        const url = imgMatch[2].trim();
-
                         if (alt && alt !== '이미지' && alt !== 'Image') {
-                            finalTitle = alt;
+                            contentFallback = alt;
                         } else {
-                            try {
-                                const urlObj = new URL(url);
-                                const pathParts = urlObj.pathname.split('/').filter(Boolean);
-                                if (pathParts.length > 0) {
-                                    const lastPart = pathParts[pathParts.length - 1];
-                                    let filename = decodeURIComponent(lastPart)
-                                        .replace(/\.[^/.]+$/, '')
-                                        .replace(/[-_]/g, ' ')
-                                        .trim();
-                                    if (filename.length > 1) {
-                                        finalTitle = filename.charAt(0).toUpperCase() + filename.slice(1);
-                                    }
-                                }
-                            } catch (e) { }
-                        }
-
-                        if (!finalTitle) {
-                            finalTitle = language === 'ko' ? '이미지' : 'Image';
+                            contentFallback = language === 'ko' ? '이미지' : 'Image';
                         }
                     } else {
-                        // Check if it starts with a markdown link: [text] (URL)
                         const linkMatch = filteredText.match(/^\[(.*?)\]\((.*?)\)/);
                         if (linkMatch && linkMatch[1].trim()) {
-                            finalTitle = linkMatch[1].trim();
+                            contentFallback = linkMatch[1].trim();
                         } else {
-                            finalTitle = filteredText.slice(0, 30) + (filteredText.length > 30 ? '...' : '');
+                            contentFallback = filteredText.slice(0, 30) + (filteredText.length > 30 ? '...' : '');
                         }
                     }
-                } else {
-                    finalTitle = t.memo_detail.untitled;
                 }
-            } else {
-                finalTitle = t.memo_detail.untitled;
             }
-            finalType = 'normal';
-        } else {
-            finalType = 'normal';
+            finalTitle = contentFallback || untitled;
         }
+
+        let finalType: 'normal' | 'progress' = 'normal';
+        const hasTitle = !!finalTitle;
+        const hasContent = !!currentContent.trim();
+
+        if (!hasTitle && !hasContent) return;
 
         let memoCreatedAt: Date;
         if (language === 'ko' && /^\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.?$/.test(date)) {

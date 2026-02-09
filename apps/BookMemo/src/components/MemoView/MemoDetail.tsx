@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useModal, useLanguage } from '@memosuite/shared';
+import { SyncModal, useModal, useLanguage, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
@@ -734,10 +734,11 @@ export const MemoDetail: React.FC = () => {
             checkExistingAutosave();
 
         } else if (isNew && loadedIdRef.current !== 'new') {
+            const threadContext = extractThreadContext(searchParams);
             setTitle('');
             setContent('');
-            setTags('');
-            const p = searchParams.get('page');
+            setTags(threadContext?.inheritedTags?.join(', ') || '');
+            const p = threadContext?.inheritedPageNumber?.toString() || searchParams.get('page');
             setPageNumber(p || '');
             setQuote('');
             setEditingDrawingData(undefined);
@@ -867,43 +868,40 @@ export const MemoDetail: React.FC = () => {
         const targetBookId = bookId ? Number(bookId) : memo?.bookId;
         const currentContent = overrideContent !== undefined ? overrideContent : content;
         let finalTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
-        let finalType: 'normal' | 'progress' = 'normal';
+        const untitled = t.memo_detail.untitled;
 
-        const hasTitle = !!finalTitle;
+        // Treat as untitled if empty OR matches the placeholder
+        const isCurrentlyUntitled = !finalTitle || finalTitle === untitled;
+
         const hasContent = !!currentContent.trim();
         const hasQuote = !!quote.trim();
         const hasPage = pNum !== undefined;
 
-        if (!hasTitle && !hasContent && !hasQuote && !hasPage) return;
-        if (hasQuote && !hasPage) return;
+        if (isCurrentlyUntitled) {
+            const contentText = currentContent.trim();
+            const quoteText = quote.trim();
+            let contentFallback = '';
 
-        if (!hasTitle) {
-            if (hasPage && !hasContent) {
-                finalTitle = "Progress Record";
-                finalType = 'progress';
-            } else {
-                const contentText = currentContent.trim();
-                const quoteText = quote.trim();
-
-                if (contentText) {
-                    const filteredText = contentText.replace(/```[\s\S]*?```/g, '').trim();
-                    if (filteredText) {
-                        finalTitle = filteredText.slice(0, 30) + (filteredText.length > 30 ? '...' : '');
-                    } else if (contentText.startsWith('```fabric')) {
-                        finalTitle = language === 'ko' ? '그림' : 'Drawing';
-                    } else {
-                        finalTitle = t.memo_detail.untitled;
-                    }
-                } else if (quoteText) {
-                    finalTitle = quoteText.slice(0, 30) + (quoteText.length > 30 ? '...' : '');
-                } else {
-                    finalTitle = t.memo_detail.untitled;
+            if (contentText) {
+                const filteredText = contentText.replace(/```[\s\S]*?```/g, '').trim();
+                if (filteredText) {
+                    contentFallback = filteredText.slice(0, 30) + (filteredText.length > 30 ? '...' : '');
+                } else if (contentText.startsWith('```fabric')) {
+                    contentFallback = language === 'ko' ? '그림' : 'Drawing';
                 }
-                finalType = 'normal';
+            } else if (quoteText) {
+                contentFallback = quoteText.slice(0, 30) + (quoteText.length > 30 ? '...' : '');
+            } else if (hasPage && !hasContent) {
+                contentFallback = "Progress Record";
             }
-        } else {
-            finalType = 'normal';
+
+            finalTitle = contentFallback || untitled;
         }
+
+        let finalType: 'normal' | 'progress' = (finalTitle === "Progress Record") ? 'progress' : 'normal';
+
+        if (!finalTitle && !hasContent && !hasQuote && !hasPage) return;
+        if (hasQuote && !hasPage) return;
 
         if (targetBookId && pNum) {
             const b = await db.books.get(targetBookId);
@@ -957,17 +955,21 @@ export const MemoDetail: React.FC = () => {
             restoredIdRef.current = null;
             // setIsEditing(false); // Do not exit edit mode on save
         } else {
+            const threadContext = extractThreadContext(searchParams);
+
             const newId = await db.memos.add({
-                folderId: currentFolderId || undefined,
-                bookId: targetBookId,
+                folderId: threadContext?.inheritedFolderId ?? currentFolderId ?? undefined,
+                bookId: threadContext?.inheritedBookId ?? targetBookId,
                 title: finalTitle,
                 content: currentContent,
-                tags: tagArray,
-                pageNumber: pNum,
+                tags: threadContext?.inheritedTags ?? tagArray,
+                pageNumber: threadContext?.inheritedPageNumber ?? pNum,
                 quote,
                 createdAt: memoCreatedAt,
                 updatedAt: now,
-                type: finalType
+                type: finalType,
+                threadId: threadContext?.threadId,
+                threadOrder: threadContext?.threadOrder
             });
 
             // Cleanup all new memo autosaves
@@ -979,44 +981,23 @@ export const MemoDetail: React.FC = () => {
     };
 
     const handleAddThread = async () => {
-        if (!memo || !id) return;
-
-        const now = new Date();
-        let threadId = memo.threadId;
-        let threadOrder = 0;
+        if (!memo || !id || !bookId) return;
 
         try {
-            if (!threadId) {
-                // Create new thread for current memo
-                threadId = crypto.randomUUID();
-                await db.memos.update(Number(id), {
-                    threadId,
-                    threadOrder: 0
-                });
-                threadOrder = 1;
-            } else {
-                // Find max order in this thread
-                const threadMemos = await db.memos.where('threadId').equals(threadId).toArray();
-                const maxOrder = Math.max(...threadMemos.map(l => l.threadOrder || 0));
-                threadOrder = maxOrder + 1;
-            }
-
-            // Create new memo in thread
-            const newMemoId = await db.memos.add({
-                folderId: memo.folderId, // Inherit folder
-                bookId: memo.bookId, // Inherit book
-                title: '', // Empty title implies continuation
-                content: '',
-                tags: memo.tags, // Inherit tags
-                pageNumber: memo.pageNumber, // Inherit page number
-                createdAt: now,
-                updatedAt: now,
-                threadId,
-                threadOrder,
-                type: 'normal'
+            const context = await prepareThreadForNewItem({
+                currentItem: memo,
+                currentId: Number(id),
+                table: db.memos
             });
 
-            navigate(`/book/${memo.bookId}/memo/${newMemoId}?edit=true`);
+            const enrichedContext = {
+                ...context,
+                inheritedBookId: Number(bookId),
+                inheritedPageNumber: memo.pageNumber
+            };
+
+            const url = buildThreadNavigationUrl(`/book/${bookId}/new`, enrichedContext, { edit: 'true' });
+            navigate(url, { replace: true, state: { isGuard: true } });
         } catch (error) {
             console.error("Failed to add thread:", error);
         }

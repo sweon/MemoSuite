@@ -306,7 +306,7 @@ export const LogDetail: React.FC = () => {
     const { language, t } = useLanguage();
     const { confirm, choice, prompt: modalPrompt } = useModal();
 
-    const isNew = id === undefined;
+    const isNew = id === undefined || id === 'new';
 
     const [isEditing, setIsEditing] = useState(isNew);
     const [showGoToTop, setShowGoToTop] = useState(false);
@@ -345,8 +345,8 @@ export const LogDetail: React.FC = () => {
         currentAutosaveIdRef.current = undefined;
         restoredIdRef.current = null;
         setCommentDraft(null);
-        setIsEditing(id === undefined);
-        if (id) {
+        setIsEditing(id === undefined || id === 'new');
+        if (id && id !== 'new') {
             localStorage.setItem('llmemo_last_log_id', id);
         }
     }, [id]);
@@ -435,7 +435,7 @@ export const LogDetail: React.FC = () => {
         setContent('');
         setTags('');
         setCommentDraft(null);
-        setIsEditing(id === undefined);
+        setIsEditing(id === undefined || id === 'new');
     }
 
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
@@ -611,12 +611,13 @@ export const LogDetail: React.FC = () => {
             };
             checkExistingAutosave();
         } else if (isNew && loadedIdRef.current !== 'new') {
+            const threadContext = extractThreadContext(searchParams);
             setTitle('');
             setContent('');
-            setTags('');
+            setTags(threadContext?.inheritedTags?.join(', ') || '');
             setEditingDrawingData(undefined);
             setEditingSpreadsheetData(undefined);
-            setModelId(undefined);
+            setModelId(threadContext?.inheritedModelId || undefined);
             setCommentDraft(null);
             setIsEditing(true);
             loadedIdRef.current = 'new';
@@ -735,7 +736,16 @@ export const LogDetail: React.FC = () => {
         const now = new Date();
         const currentContent = overrideContent !== undefined ? overrideContent : content;
         const currentTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
-        const finalTitle = currentTitle || t.log_detail.untitled;
+        const untitled = t.log_detail.untitled;
+
+        // Treat as untitled if empty OR matches the placeholder
+        const isCurrentlyUntitled = !currentTitle || currentTitle === untitled;
+
+        let finalTitle = currentTitle;
+        if (isCurrentlyUntitled) {
+            const contentFallback = currentContent.split('\n')[0].replace(/[#*`\s]/g, ' ').trim().substring(0, 50);
+            finalTitle = contentFallback || untitled;
+        }
 
         if (id) {
             await db.logs.update(Number(id), {
@@ -863,7 +873,7 @@ export const LogDetail: React.FC = () => {
             };
 
             // Navigate to new log page with thread context (same pattern as sidebar)
-            const url = buildThreadNavigationUrl('/log/new', enrichedContext, { edit: 'true' });
+            const url = buildThreadNavigationUrl('/new', enrichedContext, { edit: 'true' });
             navigate(url, { replace: true, state: { isGuard: true } });
         } catch (error) {
             console.error("Failed to add thread:", error);
