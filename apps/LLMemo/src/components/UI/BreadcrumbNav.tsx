@@ -2,6 +2,8 @@ import React from 'react';
 import styled from 'styled-components';
 import { FiHome, FiChevronRight, FiFolder } from 'react-icons/fi';
 
+const APP_COLOR = '#56B4E9';
+
 interface BreadcrumbItem {
     id: number;
     name: string;
@@ -38,8 +40,8 @@ const BreadcrumbItemStyled = styled.button<{ $isActive?: boolean; $isHome?: bool
   gap: 4px;
   padding: 4px 8px;
   border: none;
-  background: ${({ theme, $isActive }) => $isActive ? `${theme.colors.primary}22` : 'transparent'};
-  color: ${({ theme, $isActive }) => $isActive ? theme.colors.primary : theme.colors.textSecondary};
+  background: ${({ $isActive }) => $isActive ? `${APP_COLOR}22` : 'transparent'};
+  color: ${({ $isActive, theme }) => $isActive ? APP_COLOR : theme.colors.textSecondary};
   font-size: 0.8rem;
   font-weight: ${({ $isActive }) => $isActive ? 600 : 500};
   border-radius: 6px;
@@ -51,8 +53,8 @@ const BreadcrumbItemStyled = styled.button<{ $isActive?: boolean; $isHome?: bool
   min-height: 28px;
   
   &:hover {
-    background: ${({ theme }) => theme.colors.primary}22;
-    color: ${({ theme }) => theme.colors.primary};
+    background: ${APP_COLOR}22;
+    color: ${APP_COLOR};
   }
   
   svg {
