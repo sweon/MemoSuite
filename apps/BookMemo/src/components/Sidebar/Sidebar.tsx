@@ -408,7 +408,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       setTimeout(() => {
         updateServiceWorker(true);
         setTimeout(() => window.location.reload(), 3000);
-      }, 500);
+      }, 1000);
     };
 
     if (needRefresh) {

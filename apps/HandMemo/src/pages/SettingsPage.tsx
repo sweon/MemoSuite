@@ -373,7 +373,7 @@ export const SettingsPage: React.FC = () => {
       setTimeout(() => {
         updateServiceWorker(true);
         setTimeout(() => window.location.reload(), 3000);
-      }, 500);
+      }, 1000);
     };
 
     if (needRefresh) {
