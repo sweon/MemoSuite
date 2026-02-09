@@ -58,6 +58,10 @@ jobs:
           cp -r apps/WordMemo/dist/* deploy_dist/WordMemo/
           mkdir -p deploy_dist/LLMemo
           cp -r apps/LLMemo/dist/* deploy_dist/LLMemo/
+          mkdir -p deploy_dist/DailyMemo
+          cp -r apps/DailyMemo/dist/* deploy_dist/DailyMemo/
+          cp manifest.json deploy_dist/
+          cp sw.js deploy_dist/
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
