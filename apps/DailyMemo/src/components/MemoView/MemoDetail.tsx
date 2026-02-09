@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useLanguage, useModal, metadataCache } from '@memosuite/shared';
+import { SyncModal, useLanguage, useModal, metadataCache, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
@@ -922,49 +922,63 @@ export const MemoDetail: React.FC = () => {
                 navigate(`/memo/${id}`, { replace: true });
             }
         } else {
-            // New Memo Logic for Threading
-            let folderIdToUse = currentFolderId || undefined;
-            let threadIdToUse: string | undefined = undefined;
-            let threadOrderToUse: number | undefined = undefined;
+            // Extract thread context from URL params if present (from Append button)
+            const threadContext = extractThreadContext(searchParams);
 
-            // Check for existing memos on the same day
-            const startOfDay = new Date(memoCreatedAt);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(memoCreatedAt);
-            endOfDay.setHours(23, 59, 59, 999);
+            let folderIdToUse: number | undefined;
+            let threadIdToUse: string | undefined;
+            let threadOrderToUse: number | undefined;
+            let tagsToUse = tagArray;
 
-            const sameDayMemos = await db.memos
-                .where('createdAt')
-                .between(startOfDay, endOfDay, true, true)
-                .toArray();
+            if (threadContext) {
+                // Use thread context from URL (from "이어서" button)
+                threadIdToUse = threadContext.threadId;
+                threadOrderToUse = threadContext.threadOrder;
+                folderIdToUse = threadContext.inheritedFolderId ?? currentFolderId ?? undefined;
+                tagsToUse = threadContext.inheritedTags ?? tagArray;
+            } else {
+                // New Memo Logic for Threading based on same day
+                folderIdToUse = currentFolderId || undefined;
 
-            if (sameDayMemos.length > 0) {
-                // Find the "header" memo (earliest one, or one with existing threadId)
-                // Sort by createdAt asc
-                sameDayMemos.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-                const firstMemo = sameDayMemos[0];
+                // Check for existing memos on the same day
+                const startOfDay = new Date(memoCreatedAt);
+                startOfDay.setHours(0, 0, 0, 0);
+                const endOfDay = new Date(memoCreatedAt);
+                endOfDay.setHours(23, 59, 59, 999);
 
-                if (firstMemo.threadId) {
-                    // Use existing thread
-                    threadIdToUse = firstMemo.threadId;
-                    // Find max order
-                    const threadMemos = await db.memos.where('threadId').equals(threadIdToUse).toArray();
-                    const maxOrder = Math.max(...threadMemos.map(m => m.threadOrder || 0));
-                    threadOrderToUse = maxOrder + 1;
-                } else {
-                    // Create new thread starting with firstMemo
-                    const newThreadId = crypto.randomUUID();
-                    await db.memos.update(firstMemo.id!, {
-                        threadId: newThreadId,
-                        threadOrder: 0
-                    });
-                    threadIdToUse = newThreadId;
-                    threadOrderToUse = 1;
-                }
+                const sameDayMemos = await db.memos
+                    .where('createdAt')
+                    .between(startOfDay, endOfDay, true, true)
+                    .toArray();
 
-                // Inherit folder from the thread/first memo if not explicitly set (though daily memo usually relies on date)
-                if (!folderIdToUse && firstMemo.folderId) {
-                    folderIdToUse = firstMemo.folderId;
+                if (sameDayMemos.length > 0) {
+                    // Find the "header" memo (earliest one, or one with existing threadId)
+                    // Sort by createdAt asc
+                    sameDayMemos.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+                    const firstMemo = sameDayMemos[0];
+
+                    if (firstMemo.threadId) {
+                        // Use existing thread
+                        threadIdToUse = firstMemo.threadId;
+                        // Find max order
+                        const threadMemos = await db.memos.where('threadId').equals(threadIdToUse).toArray();
+                        const maxOrder = Math.max(...threadMemos.map(m => m.threadOrder || 0));
+                        threadOrderToUse = maxOrder + 1;
+                    } else {
+                        // Create new thread starting with firstMemo
+                        const newThreadId = crypto.randomUUID();
+                        await db.memos.update(firstMemo.id!, {
+                            threadId: newThreadId,
+                            threadOrder: 0
+                        });
+                        threadIdToUse = newThreadId;
+                        threadOrderToUse = 1;
+                    }
+
+                    // Inherit folder from the thread/first memo if not explicitly set (though daily memo usually relies on date)
+                    if (!folderIdToUse && firstMemo.folderId) {
+                        folderIdToUse = firstMemo.folderId;
+                    }
                 }
             }
 
@@ -972,7 +986,7 @@ export const MemoDetail: React.FC = () => {
                 folderId: folderIdToUse,
                 title: finalTitle,
                 content: currentContent,
-                tags: tagArray,
+                tags: tagsToUse,
                 createdAt: memoCreatedAt,
                 updatedAt: now,
                 type: finalType,
@@ -983,47 +997,24 @@ export const MemoDetail: React.FC = () => {
             // Cleanup all new memo autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
-            navigate(`/memo/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+            // Navigate without thread params to avoid re-applying on subsequent saves
+            navigate(`/memo/${newId}`, { replace: true, state: overrideState });
         }
     };
 
     const handleAddThread = async () => {
         if (!memo || !id) return;
 
-        const now = new Date();
-        let threadId = memo.threadId;
-        let threadOrder = 0;
-
         try {
-            if (!threadId) {
-                // Create new thread for current log
-                threadId = crypto.randomUUID();
-                await db.memos.update(Number(id), {
-                    threadId,
-                    threadOrder: 0
-                });
-                threadOrder = 1;
-            } else {
-                // Find max order in this thread
-                const threadMemos = await db.memos.where('threadId').equals(threadId).toArray();
-                const maxOrder = Math.max(...threadMemos.map(l => l.threadOrder || 0));
-                threadOrder = maxOrder + 1;
-            }
-
-            // Create new log in thread
-            const newLogId = await db.memos.add({
-                folderId: memo.folderId, // Inherit folder
-                title: '', // Empty title implies continuation
-                content: '',
-                tags: memo.tags, // Inherit tags
-                createdAt: now,
-                updatedAt: now,
-                threadId,
-                threadOrder
+            const context = await prepareThreadForNewItem({
+                currentItem: memo,
+                currentId: Number(id),
+                table: db.memos
             });
 
-            navigate(`/memo/${newLogId}?edit=true`);
+            // Navigate to new memo page with thread context (same pattern as sidebar)
+            const url = buildThreadNavigationUrl('/memo/new', context, { edit: 'true' });
+            navigate(url, { replace: true, state: { isGuard: true } });
         } catch (error) {
             console.error("Failed to add thread:", error);
             await confirm({ message: "Failed to add thread. Please try again.", cancelText: null });
