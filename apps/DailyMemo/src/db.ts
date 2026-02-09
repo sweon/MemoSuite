@@ -118,6 +118,9 @@ export class DailyMemoDatabase extends Dexie {
                 createdAt: now,
                 updatedAt: now
             });
+
+            // Update all existing memos to belong to the default folder
+            await memosTable.toCollection().modify({ folderId: defaultFolderId });
         });
 
         // Seed default data if not exists (Fresh install)
