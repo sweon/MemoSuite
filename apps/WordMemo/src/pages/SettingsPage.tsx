@@ -6,7 +6,7 @@ import styled, { keyframes } from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { exportData, importData } from '../utils/backup';
-import { FiTrash2, FiPlus, FiDownload, FiUpload, FiChevronRight, FiArrowLeft, FiDatabase, FiCpu, FiGlobe, FiInfo, FiShare2, FiAlertTriangle, FiEdit3, FiLock, FiLayers, FiTrendingUp, FiArrowUpCircle } from 'react-icons/fi';
+import { FiTrash2, FiPlus, FiChevronRight, FiArrowLeft, FiDatabase, FiCpu, FiGlobe, FiInfo, FiShare2, FiLock, FiEdit3, FiArrowUpCircle, FiLayers, FiTrendingUp, FiDownload, FiUpload, FiAlertTriangle } from 'react-icons/fi';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Toast } from '../components/UI/Toast';
 import { MdDragIndicator } from 'react-icons/md';
@@ -1200,6 +1200,14 @@ export const SettingsPage: React.FC = () => {
             <li>{t.settings.help_offline}</li>
             <li>{t.settings.help_serverless}</li>
           </HelpList>
+
+          <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--surface-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)' }}>{t.settings.memosuite_apps}</h4>
+            <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t.settings.memosuite_apps_desc}</p>
+            <ActionButton onClick={() => window.open('https://sweon.github.io/MemoSuite/', '_blank')} style={{ width: '100%' }}>
+              <FiShare2 /> {t.settings.memosuite_apps}
+            </ActionButton>
+          </div>
 
           <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--surface-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
             <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)' }}>{t.settings.share_app}</h4>

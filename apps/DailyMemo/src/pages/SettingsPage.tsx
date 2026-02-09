@@ -812,6 +812,14 @@ export const SettingsPage: React.FC = () => {
           </HelpList>
 
           <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--surface-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)' }}>{t.settings.memosuite_apps}</h4>
+            <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t.settings.memosuite_apps_desc}</p>
+            <ActionButton onClick={() => window.open('https://sweon.github.io/MemoSuite/', '_blank')} style={{ width: '100%' }}>
+              <FiShare2 /> {t.settings.memosuite_apps}
+            </ActionButton>
+          </div>
+
+          <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--surface-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
             <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)' }}>{t.settings.share_app}</h4>
             <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t.settings.share_desc}</p>
             <ActionButton onClick={handleShare} style={{ width: '100%' }}>
