@@ -24,6 +24,11 @@ export interface ThreadContext {
     threadOrder: number;
     inheritedFolderId?: number;
     inheritedTags?: string[];
+    // App-specific fields
+    inheritedModelId?: number;   // LLMemo
+    inheritedSourceId?: number;  // WordMemo
+    inheritedBookId?: number;    // BookMemo
+    inheritedPageNumber?: number; // BookMemo
 }
 
 export interface PrepareThreadOptions<T extends ThreadableItem> {
@@ -88,6 +93,19 @@ export function buildThreadNavigationUrl(basePath: string, context: ThreadContex
     if (context.inheritedTags && context.inheritedTags.length > 0) {
         params.set('inheritTags', context.inheritedTags.join(','));
     }
+    // App-specific fields
+    if (context.inheritedModelId !== undefined) {
+        params.set('inheritModelId', String(context.inheritedModelId));
+    }
+    if (context.inheritedSourceId !== undefined) {
+        params.set('inheritSourceId', String(context.inheritedSourceId));
+    }
+    if (context.inheritedBookId !== undefined) {
+        params.set('inheritBookId', String(context.inheritedBookId));
+    }
+    if (context.inheritedPageNumber !== undefined) {
+        params.set('inheritPageNumber', String(context.inheritedPageNumber));
+    }
     // Add timestamp to force remount
     params.set('t', String(Date.now()));
 
@@ -120,11 +138,19 @@ export function extractThreadContext(searchParams: URLSearchParams): ThreadConte
 
     const inheritFolderIdStr = searchParams.get('inheritFolderId');
     const inheritTagsStr = searchParams.get('inheritTags');
+    const inheritModelIdStr = searchParams.get('inheritModelId');
+    const inheritSourceIdStr = searchParams.get('inheritSourceId');
+    const inheritBookIdStr = searchParams.get('inheritBookId');
+    const inheritPageNumberStr = searchParams.get('inheritPageNumber');
 
     return {
         threadId,
         threadOrder,
         inheritedFolderId: inheritFolderIdStr ? parseInt(inheritFolderIdStr, 10) : undefined,
-        inheritedTags: inheritTagsStr ? inheritTagsStr.split(',').filter(Boolean) : undefined
+        inheritedTags: inheritTagsStr ? inheritTagsStr.split(',').filter(Boolean) : undefined,
+        inheritedModelId: inheritModelIdStr ? parseInt(inheritModelIdStr, 10) : undefined,
+        inheritedSourceId: inheritSourceIdStr ? parseInt(inheritSourceIdStr, 10) : undefined,
+        inheritedBookId: inheritBookIdStr ? parseInt(inheritBookIdStr, 10) : undefined,
+        inheritedPageNumber: inheritPageNumberStr ? parseInt(inheritPageNumberStr, 10) : undefined
     };
 }

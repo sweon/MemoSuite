@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useModal, useLanguage } from '@memosuite/shared';
+import { SyncModal, useModal, useLanguage, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
@@ -860,22 +860,27 @@ export const MemoDetail: React.FC = () => {
             restoredIdRef.current = null;
             // setIsEditing(false); // Do not exit edit mode on save
         } else {
+            // Extract thread context from URL params if present (from Append button)
+            const threadContext = extractThreadContext(searchParams);
+
             const newId = await db.words.add({
-                folderId: currentFolderId || undefined,
+                folderId: threadContext?.inheritedFolderId ?? currentFolderId ?? undefined,
                 title: derivedTitle,
                 content: currentContent,
-                tags: tagArray,
-                sourceId: sourceId ? Number(sourceId) : undefined,
+                tags: threadContext?.inheritedTags ?? tagArray,
+                sourceId: threadContext?.inheritedSourceId ?? (sourceId ? Number(sourceId) : undefined),
                 createdAt: now,
                 updatedAt: now,
-                isStarred: 1
+                isStarred: 1,
+                threadId: threadContext?.threadId,
+                threadOrder: threadContext?.threadOrder
             });
 
             // Cleanup all new word autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
-            navigate(`/word/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+            // Navigate without thread params to avoid re-applying on subsequent saves
+            navigate(`/word/${newId}`, { replace: true, state: overrideState });
         }
     };
 
@@ -949,41 +954,22 @@ export const MemoDetail: React.FC = () => {
     const handleAddThread = async () => {
         if (!word || !id) return;
 
-        const now = new Date();
-        let threadId = word.threadId;
-        let threadOrder = 0;
-
         try {
-            if (!threadId) {
-                // Create new thread for current word
-                threadId = crypto.randomUUID();
-                await db.words.update(Number(id), {
-                    threadId,
-                    threadOrder: 0
-                });
-                threadOrder = 1;
-            } else {
-                // Find max order in this thread
-                const threadLogs = await db.words.where('threadId').equals(threadId).toArray();
-                const maxOrder = Math.max(...threadLogs.map(l => l.threadOrder || 0));
-                threadOrder = maxOrder + 1;
-            }
-
-            // Create new word in thread
-            const newLogId = await db.words.add({
-                folderId: word.folderId, // Inherit folder
-                title: '', // Empty title implies continuation
-                content: '',
-                tags: word.tags, // Inherit tags
-                sourceId: word.sourceId, // Inherit source
-                createdAt: now,
-                updatedAt: now,
-                threadId,
-                threadOrder,
-                isStarred: 1
+            const context = await prepareThreadForNewItem({
+                currentItem: word,
+                currentId: Number(id),
+                table: db.words
             });
 
-            navigate(`/word/${newLogId}?edit=true`);
+            // Add sourceId to context for WordMemo-specific inheritance
+            const enrichedContext = {
+                ...context,
+                inheritedSourceId: word.sourceId
+            };
+
+            // Navigate to new word page with thread context (same pattern as sidebar)
+            const url = buildThreadNavigationUrl('/word/new', enrichedContext, { edit: 'true' });
+            navigate(url, { replace: true, state: { isGuard: true } });
         } catch (error) {
             console.error("Failed to add thread:", error);
             await confirm({ message: "Failed to add thread. Please try again.", cancelText: null });

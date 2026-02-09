@@ -30,6 +30,7 @@ export * from './utils/crypto';
 export * from './utils/file';
 export * from './utils/metadata';
 export * from './utils/storage';
+export * from './utils/threadUtils';
 
 // Auth
 export * from './auth';

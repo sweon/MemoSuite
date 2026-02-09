@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useModal, useLanguage } from '@memosuite/shared';
+import { SyncModal, useModal, useLanguage, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
@@ -735,21 +735,26 @@ export const LogDetail: React.FC = () => {
                 navigate(`/log/${id}`, { replace: true });
             }
         } else {
+            // Extract thread context from URL params if present (from Append button)
+            const threadContext = extractThreadContext(searchParams);
+
             const newId = await db.logs.add({
-                folderId: currentFolderId || undefined,
+                folderId: threadContext?.inheritedFolderId ?? currentFolderId ?? undefined,
                 title: finalTitle,
                 content: currentContent,
-                tags: tagArray,
-                modelId: modelId ? Number(modelId) : undefined,
+                tags: threadContext?.inheritedTags ?? tagArray,
+                modelId: threadContext?.inheritedModelId ?? (modelId ? Number(modelId) : undefined),
                 createdAt: now,
-                updatedAt: now
+                updatedAt: now,
+                threadId: threadContext?.threadId,
+                threadOrder: threadContext?.threadOrder
             });
 
             // Cleanup all new log autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
-            navigate(`/log/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+            // Navigate without thread params to avoid re-applying on subsequent saves
+            navigate(`/log/${newId}`, { replace: true, state: overrideState });
         }
     };
 
@@ -823,40 +828,22 @@ export const LogDetail: React.FC = () => {
     const handleAddThread = async () => {
         if (!log || !id) return;
 
-        const now = new Date();
-        let threadId = log.threadId;
-        let threadOrder = 0;
-
         try {
-            if (!threadId) {
-                // Create new thread for current log
-                threadId = crypto.randomUUID();
-                await db.logs.update(Number(id), {
-                    threadId,
-                    threadOrder: 0
-                });
-                threadOrder = 1;
-            } else {
-                // Find max order in this thread
-                const threadLogs = await db.logs.where('threadId').equals(threadId).toArray();
-                const maxOrder = Math.max(...threadLogs.map(l => l.threadOrder || 0));
-                threadOrder = maxOrder + 1;
-            }
-
-            // Create new log in thread
-            const newLogId = await db.logs.add({
-                folderId: log.folderId, // Inherit folder
-                title: '', // Empty title implies continuation
-                content: '',
-                tags: log.tags, // Inherit tags
-                modelId: log.modelId, // Inherit model
-                createdAt: now,
-                updatedAt: now,
-                threadId,
-                threadOrder
+            const context = await prepareThreadForNewItem({
+                currentItem: log,
+                currentId: Number(id),
+                table: db.logs
             });
 
-            navigate(`/log/${newLogId}?edit=true`);
+            // Add modelId to context for LLMemo-specific inheritance
+            const enrichedContext = {
+                ...context,
+                inheritedModelId: log.modelId
+            };
+
+            // Navigate to new log page with thread context (same pattern as sidebar)
+            const url = buildThreadNavigationUrl('/log/new', enrichedContext, { edit: 'true' });
+            navigate(url, { replace: true, state: { isGuard: true } });
         } catch (error) {
             console.error("Failed to add thread:", error);
             await confirm({ message: "Failed to add thread. Please try again.", cancelText: null });

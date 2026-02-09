@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useLanguage, useModal, metadataCache } from '@memosuite/shared';
+import { SyncModal, useLanguage, useModal, metadataCache, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
@@ -925,60 +925,42 @@ export const MemoDetail: React.FC = () => {
             }
             // setIsEditing(false); // Do not exit edit mode on save
         } else {
+            // Extract thread context from URL params if present (from Append button)
+            const threadContext = extractThreadContext(searchParams);
+
             const newId = await db.memos.add({
-                folderId: currentFolderId || undefined,
+                folderId: threadContext?.inheritedFolderId ?? currentFolderId ?? undefined,
                 title: finalTitle,
                 content: currentContent,
-                tags: tagArray,
+                tags: threadContext?.inheritedTags ?? tagArray,
                 createdAt: memoCreatedAt,
                 updatedAt: now,
-                type: finalType
+                type: finalType,
+                threadId: threadContext?.threadId,
+                threadOrder: threadContext?.threadOrder
             });
 
             // Cleanup all new memo autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
-            const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
-            navigate(`/memo/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+            // Navigate without thread params to avoid re-applying on subsequent saves
+            navigate(`/memo/${newId}`, { replace: true, state: overrideState });
         }
     };
 
     const handleAddThread = async () => {
         if (!memo || !id) return;
 
-        const now = new Date();
-        let threadId = memo.threadId;
-        let threadOrder = 0;
-
         try {
-            if (!threadId) {
-                // Create new thread for current log
-                threadId = crypto.randomUUID();
-                await db.memos.update(Number(id), {
-                    threadId,
-                    threadOrder: 0
-                });
-                threadOrder = 1;
-            } else {
-                // Find max order in this thread
-                const threadMemos = await db.memos.where('threadId').equals(threadId).toArray();
-                const maxOrder = Math.max(...threadMemos.map(l => l.threadOrder || 0));
-                threadOrder = maxOrder + 1;
-            }
-
-            // Create new log in thread
-            const newLogId = await db.memos.add({
-                folderId: memo.folderId, // Inherit folder
-                title: '', // Empty title implies continuation
-                content: '',
-                tags: memo.tags, // Inherit tags
-                createdAt: now,
-                updatedAt: now,
-                threadId,
-                threadOrder
+            const context = await prepareThreadForNewItem({
+                currentItem: memo,
+                currentId: Number(id),
+                table: db.memos
             });
 
-            navigate(`/memo/${newLogId}?edit=true`);
+            // Navigate to new memo page with thread context (same pattern as sidebar)
+            const url = buildThreadNavigationUrl('/memo/new', context, { edit: 'true' });
+            navigate(url, { replace: true, state: { isGuard: true } });
         } catch (error) {
             console.error("Failed to add thread:", error);
             await confirm({ message: "Failed to add thread. Please try again.", cancelText: null });
