@@ -2,13 +2,16 @@ import Dexie, { type Table } from 'dexie';
 
 export interface Folder {
     id?: number;
+    parentId?: number | null;
     name: string;
+    isHome?: boolean;
     isReadOnly: boolean;
     excludeFromGlobalSearch: boolean;
     createdAt: Date;
     updatedAt: Date;
     pinnedAt?: Date;
 }
+
 
 export interface Log {
     id?: number;
@@ -141,8 +144,39 @@ export class LLMLogDatabase extends Dexie {
             folders: '++id, name, createdAt, updatedAt, pinnedAt',
             logs: '++id, folderId, title, *tags, modelId, createdAt, updatedAt, threadId, pinnedAt'
         });
+
+        // Version 10: Add hierarchical folder support
+        this.version(10).stores({
+            folders: '++id, parentId, name, isHome, createdAt, updatedAt, pinnedAt',
+            logs: '++id, folderId, title, *tags, modelId, createdAt, updatedAt, threadId, pinnedAt'
+        }).upgrade(async tx => {
+            const foldersTable = tx.table('folders');
+            const folders = await foldersTable.toArray();
+            const now = new Date();
+
+            // Create home folder
+            const homeId = await foldersTable.add({
+                name: '홈',
+                parentId: null,
+                isHome: true,
+                isReadOnly: true,
+                excludeFromGlobalSearch: false,
+                createdAt: now,
+                updatedAt: now
+            }) as number;
+
+            // Move all existing folders under home
+            for (const folder of folders) {
+                if (!folder.parentId) {
+                    await foldersTable.update(folder.id, {
+                        parentId: homeId
+                    });
+                }
+            }
+        });
     }
 }
+
 
 export const db = new LLMLogDatabase();
 

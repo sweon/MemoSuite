@@ -2,13 +2,16 @@ import Dexie, { type Table } from 'dexie';
 
 export interface Folder {
     id?: number;
+    parentId?: number | null;
     name: string;
+    isHome?: boolean;
     isReadOnly: boolean;
     excludeFromGlobalSearch: boolean;
     createdAt: Date;
     updatedAt: Date;
     pinnedAt?: Date;
 }
+
 
 export type BookStatus = 'reading' | 'completed' | 'on_hold';
 
@@ -216,8 +219,40 @@ export class BookMemoDatabase extends Dexie {
             books: '++id, folderId, title, status, createdAt, pinnedAt',
             memos: '++id, bookId, folderId, pageNumber, title, *tags, createdAt, updatedAt, threadId, type, order, parentId, pinnedAt'
         });
+
+        // Version 14: Add hierarchical folder support
+        this.version(14).stores({
+            folders: '++id, parentId, name, isHome, createdAt, updatedAt, pinnedAt',
+            books: '++id, folderId, title, status, createdAt, pinnedAt',
+            memos: '++id, bookId, folderId, pageNumber, title, *tags, createdAt, updatedAt, threadId, type, order, parentId, pinnedAt'
+        }).upgrade(async tx => {
+            const foldersTable = tx.table('folders');
+            const folders = await foldersTable.toArray();
+            const now = new Date();
+
+            // Create home folder
+            const homeId = await foldersTable.add({
+                name: '홈',
+                parentId: null,
+                isHome: true,
+                isReadOnly: true,
+                excludeFromGlobalSearch: false,
+                createdAt: now,
+                updatedAt: now
+            }) as number;
+
+            // Move all existing folders under home
+            for (const folder of folders) {
+                if (!folder.parentId) {
+                    await foldersTable.update(folder.id, {
+                        parentId: homeId
+                    });
+                }
+            }
+        });
     }
 }
+
 
 export const db = new BookMemoDatabase();
 

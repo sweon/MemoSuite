@@ -6,8 +6,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Word } from '../../db';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiMinus, FiFolder } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiMinus } from 'react-icons/fi';
 import { Tooltip } from '../UI/Tooltip';
+import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 import { useFolder } from '../../contexts/FolderContext';
 import { Droppable, type DropResult, type DragUpdate } from '@hello-pangea/dnd';
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -276,36 +277,6 @@ const StudyModeOption = styled.label<{ $active: boolean }>`
     flex-shrink: 0;
   }
 `;
-
-const FolderChip = styled.div<{ $isReadOnly?: boolean }>`
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: ${({ theme, $isReadOnly }) => $isReadOnly ? '#f59e0b' : theme.colors.text};
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 6px 12px;
-  background: ${({ theme }) => theme.colors.background};
-  border-radius: 12px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  transition: all 0.2s ease;
-  width: 100%;
-  margin-top: 4px;
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-    background: ${({ theme, $isReadOnly }) => $isReadOnly ? '#fff7ed' : `${theme.colors.primary}11`};
-    color: ${({ theme, $isReadOnly }) => $isReadOnly ? '#d97706' : theme.colors.primary};
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  }
-
-  span {
-    line-height: 1.2;
-    padding: 2px 0;
-  }
-`;
 interface SidebarProps {
   onCloseMobile: () => void;
   isEditing?: boolean;
@@ -324,7 +295,15 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'source-desc' | 'source-asc' | 'comment-desc' | 'alpha' | 'starred'>('date-desc');
   const [starredOnly, setStarredOnly] = useState(false);
   const { studyMode, setStudyMode } = useStudyMode();
-  const { currentFolderId, currentFolder, setShowFolderList } = useFolder();
+  const {
+    currentFolderId,
+    homeFolder,
+    breadcrumbs,
+    setShowFolderList,
+    navigateToHome,
+    navigateToFolder
+  } = useFolder();
+
 
   // Expansion state (now collapsed by default)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
@@ -516,7 +495,11 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     const singles: Word[] = [];
     allWords.forEach(l => {
       // Filter by current folder
-      if (currentFolderId !== null && l.folderId !== currentFolderId) return;
+      if (currentFolderId !== null) {
+        const isHome = homeFolder && currentFolderId === homeFolder.id;
+        const matchesFolder = isHome ? (l.folderId === currentFolderId || !l.folderId) : l.folderId === currentFolderId;
+        if (!matchesFolder) return;
+      }
 
       if (l.threadId) {
         if (!threadMap.has(l.threadId)) threadMap.set(l.threadId, []);
@@ -598,7 +581,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       }
       return b.log.createdAt.getTime() - a.log.createdAt.getTime();
     });
-  }, [allWords, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap, justUnpinnedIds]);
+  }, [allWords, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap, justUnpinnedIds, currentFolderId, homeFolder]);
 
   const handleTogglePinLog = async (logId: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -895,25 +878,26 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             </Tooltip>
           </div>
 
-          {currentFolder && (
-            <FolderChip
-              $isReadOnly={currentFolder.isReadOnly}
-              onClick={() => {
-                setShowFolderList(true);
-                navigate('/folders', { replace: true, state: { isGuard: true } });
-                onCloseMobile();
-              }}
-              title={language === 'ko' ? '폴더 변경' : 'Change Folder'}
-            >
-              <FiFolder size={13} style={{ flexShrink: 0 }} />
-              <span>{(currentFolder.name === '기본 폴더' || currentFolder.name === 'Default Folder') ? (language === 'ko' ? '기본 폴더' : 'Default Folder') : currentFolder.name}</span>
-              {currentFolder.isReadOnly && (
-                <span style={{ fontSize: '0.65rem', opacity: 0.8, marginLeft: '2px' }}>
-                  ({language === 'ko' ? '읽기 전용' : 'Read-only'})
-                </span>
-              )}
-            </FolderChip>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', minHeight: '40px', flexWrap: 'wrap', width: '100%' }}>
+            {breadcrumbs.length > 0 && (
+              <BreadcrumbNav
+                items={breadcrumbs}
+                onNavigate={(folderId) => {
+                  navigateToFolder(folderId);
+                  setShowFolderList(true);
+                  navigate('/folders', { replace: true, state: { isGuard: true } });
+                  onCloseMobile();
+                }}
+                onNavigateHome={() => {
+                  navigateToHome();
+                  setShowFolderList(true);
+                  navigate('/folders', { replace: true, state: { isGuard: true } });
+                  onCloseMobile();
+                }}
+              />
+            )}
+          </div>
+
 
           <SearchInputWrapper>
             <SearchIcon size={16} />
@@ -997,7 +981,9 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           </Header>
         </StickyHeaderArea>
 
+
         <WordList id="sidebar-log-list" style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+
           <Droppable droppableId="sidebar-droppable" isCombineEnabled>
             {(provided) => (
               <div {...provided.droppableProps} ref={provided.innerRef} key={listKey}>

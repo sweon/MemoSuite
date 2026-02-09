@@ -15,6 +15,7 @@ import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
 import { useFolder } from '../../contexts/FolderContext';
 import { format } from 'date-fns';
+import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 import { CommentsSection } from './CommentsSection';
 import { Toast } from '../UI/Toast';
 
@@ -414,7 +415,13 @@ export const LogDetail: React.FC = () => {
     const originalSpreadsheetJsonRef = useRef<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
-    const { currentFolder, currentFolderId } = useFolder();
+    const {
+        currentFolderId,
+        currentFolder,
+        breadcrumbs,
+        navigateToHome,
+        navigateToFolder
+    } = useFolder();
     const isReadOnly = currentFolder?.isReadOnly || false;
     const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
 
@@ -981,6 +988,18 @@ export const LogDetail: React.FC = () => {
                     </HeaderRow>
 
                 </Header>
+
+                {/* Breadcrumb navigation */}
+                {breadcrumbs.length > 0 && !isEditing && (
+                    <div style={{ padding: '8px 24px', background: 'transparent' }}>
+                        <BreadcrumbNav
+                            items={breadcrumbs}
+                            onNavigate={navigateToFolder}
+                            onNavigateHome={navigateToHome}
+                            compact
+                        />
+                    </div>
+                )}
                 <ActionBar ref={actionBarRef}>
                     {isEditing ? (
                         <>

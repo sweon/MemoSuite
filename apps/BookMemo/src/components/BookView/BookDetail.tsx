@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ThreadableList, useLanguage } from '@memosuite/shared';
+import { ThreadableList, useLanguage, useColorTheme } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -9,6 +9,7 @@ import { FiEdit2, FiEdit3, FiTrash2, FiRotateCcw, FiMaximize, FiChevronLeft, FiC
 import { format } from 'date-fns';
 import { BookMoveModal } from '../FolderView/BookMoveModal';
 import { useFolder } from '../../contexts/FolderContext';
+import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 import {
   Line,
   XAxis,
@@ -303,7 +304,13 @@ export const BookDetail: React.FC = () => {
   // Hover state for global memos tooltip
   const [hoveredGlobalMemo, setHoveredGlobalMemo] = useState<{ data: any, top: number, left: number } | null>(null);
   const graphContainerRef = useRef<HTMLDivElement>(null);
-  const { currentFolder } = useFolder();
+  const { theme } = useColorTheme();
+  const {
+    currentFolder,
+    breadcrumbs,
+    navigateToHome,
+    navigateToFolder
+  } = useFolder();
   const isReadOnly = currentFolder?.isReadOnly || false;
   const [isBookMoveModalOpen, setIsBookMoveModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -657,6 +664,16 @@ export const BookDetail: React.FC = () => {
   return (
     <Container shadow-root="false">
       <LeftPane $isMemoOpen={isMemoOpen}>
+        <div style={{ padding: '0.5rem 2rem 0', background: theme.colors.surface }}>
+          {breadcrumbs.length > 0 && (
+            <BreadcrumbNav
+              items={breadcrumbs}
+              onNavigate={navigateToFolder}
+              onNavigateHome={navigateToHome}
+              compact
+            />
+          )}
+        </div>
         <Header>
           <BookTitle>{book.title}</BookTitle>
           {book.author && book.author.trim() !== '' && (

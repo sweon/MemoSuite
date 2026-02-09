@@ -7,6 +7,8 @@ import { FiFolder, FiPlus, FiEdit2, FiTrash2, FiSearch, FiLock, FiUnlock, FiEyeO
 import { BsPinAngle, BsPinAngleFill } from 'react-icons/bs';
 import { Droppable } from '@hello-pangea/dnd';
 import { MarkdownView } from '../Editor/MarkdownView';
+import { BreadcrumbNav } from '../UI/BreadcrumbNav';
+import { useFolder } from '../../contexts/FolderContext';
 
 // Warning color constant (amber)
 const WARNING_COLOR = '#f59e0b';
@@ -53,10 +55,36 @@ const Title = styled.h1`
 const HeaderLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
 
   @media (max-width: 480px) {
-    gap: 8px;
+    gap: 4px;
+  }
+`;
+
+const GoUpButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: ${({ theme }) => theme.colors.primary};
+  font-size: 1.5rem;
+  font-weight: 800;
+  cursor: pointer;
+  border-radius: ${({ theme }) => theme.radius.small};
+  transition: all 0.2s;
+  line-height: 1;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.primary + '15'};
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 480px) {
+    padding: 2px 4px;
+    font-size: 1.25rem;
   }
 `;
 
@@ -435,6 +463,7 @@ export const FolderList: React.FC<FolderListProps> = ({
 }) => {
     const theme = useTheme();
     const { language } = useLanguage();
+    const { breadcrumbs, navigateToHome, navigateToFolder, navigateUp, currentFolder } = useFolder();
     const [globalSearchQuery, setGlobalSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<SortOption>(() =>
         (localStorage.getItem('folder_sortBy') as SortOption) || 'last-edited'
@@ -456,7 +485,21 @@ export const FolderList: React.FC<FolderListProps> = ({
 
     // Calculate memo counts and last edited times per folder
     const folderStats = useMemo(() => {
-        const stats: Record<number, { count: number; lastEdited: number; lastCommented: number }> = {};
+        const stats: Record<number, { count: number; subfolderCount: number; lastEdited: number; lastCommented: number }> = {};
+
+        if (!folders) return stats;
+
+        // Initialize stats with folders
+        folders.forEach(f => {
+            stats[f.id!] = { count: 0, subfolderCount: 0, lastEdited: f.updatedAt.getTime(), lastCommented: 0 };
+        });
+
+        // Count subfolders
+        folders.forEach(f => {
+            if (f.parentId !== null && f.parentId !== undefined && stats[f.parentId]) {
+                stats[f.parentId].subfolderCount++;
+            }
+        });
 
         if (!allMemos || !allComments) return stats;
 
@@ -472,7 +515,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         allMemos.forEach(memo => {
             const fid = memo.folderId || 0;
             if (!stats[fid]) {
-                stats[fid] = { count: 0, lastEdited: 0, lastCommented: 0 };
+                stats[fid] = { count: 0, subfolderCount: 0, lastEdited: 0, lastCommented: 0 };
             }
             stats[fid].count++;
             const editedTime = memo.updatedAt.getTime();
@@ -486,7 +529,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         });
 
         return stats;
-    }, [allMemos, allComments]);
+    }, [folders, allMemos, allComments]);
 
     // Find the latest memo for each folder for preview mode
     const folderPreviews = useMemo(() => {
@@ -506,7 +549,7 @@ export const FolderList: React.FC<FolderListProps> = ({
     const sortedFolders = useMemo(() => {
         if (!folders) return [];
 
-        const items = [...folders];
+        const items = folders.filter(f => f.parentId === currentFolderId);
 
         items.sort((a, b) => {
             const isADefault = a.name === '기본 폴더' || a.name === 'Default Folder';
@@ -545,7 +588,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         });
 
         return items;
-    }, [folders, sortBy, folderStats, justUnpinnedIds]);
+    }, [folders, sortBy, folderStats, justUnpinnedIds, currentFolderId]);
 
     const handleTogglePin = async (folder: Folder) => {
         if (folder.pinnedAt) {
@@ -617,6 +660,7 @@ export const FolderList: React.FC<FolderListProps> = ({
 
         const newId = await db.folders.add({
             name: newName,
+            parentId: currentFolderId,
             isReadOnly: false,
             excludeFromGlobalSearch: false,
             createdAt: now,
@@ -697,6 +741,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         title: language === 'ko' ? '폴더' : 'Folders',
         searchPlaceholder: language === 'ko' ? '전체 검색... (태그검색 tag:)' : 'Search all... (tags tag:)',
         addFolder: language === 'ko' ? '폴더 추가' : 'Add Folder',
+        subfolderCount: language === 'ko' ? '개 폴더' : ' folders',
         memoCount: language === 'ko' ? '개 항목' : ' items',
         readOnly: language === 'ko' ? '읽기 전용' : 'Read-only',
         excludeSearch: language === 'ko' ? '검색 제외' : 'Exclude from search',
@@ -735,6 +780,11 @@ export const FolderList: React.FC<FolderListProps> = ({
         <Container>
             <Header>
                 <HeaderLeft>
+                    {!currentFolder?.isHome && (
+                        <GoUpButton onClick={navigateUp} title="Go to parent folder">
+                            ..
+                        </GoUpButton>
+                    )}
                     <Title>{t.title}</Title>
                     <ViewModeRow>
                         <ViewModeButton
@@ -765,6 +815,16 @@ export const FolderList: React.FC<FolderListProps> = ({
                     <span>{t.addFolder}</span>
                 </AddButton>
             </Header>
+
+            {breadcrumbs.length > 0 && (
+                <div style={{ marginBottom: '1.5rem', background: theme.colors.surface, padding: '12px', borderRadius: theme.radius.medium, border: `1px solid ${theme.colors.border}` }}>
+                    <BreadcrumbNav
+                        items={breadcrumbs}
+                        onNavigate={navigateToFolder}
+                        onNavigateHome={navigateToHome}
+                    />
+                </div>
+            )}
 
             <SearchWrapper>
                 <SearchIcon size={18} />
@@ -798,7 +858,7 @@ export const FolderList: React.FC<FolderListProps> = ({
             ) : (
                 <FolderGrid $viewMode={viewMode}>
                     {sortedFolders.map(folder => {
-                        const stats = folderStats[folder.id!] || { count: 0 };
+                        const stats = folderStats[folder.id!] || { count: 0, subfolderCount: 0 };
                         const isEditing = editingFolderId === folder.id;
                         const isDefault = folder.name === '기본 폴더' || folder.name === 'Default Folder';
                         const previewMemo = folderPreviews[folder.id!];
@@ -866,6 +926,9 @@ export const FolderList: React.FC<FolderListProps> = ({
                                             </FolderHeader>
 
                                             <FolderMeta $viewMode={viewMode}>
+                                                {stats.subfolderCount > 0 && (
+                                                    <span>{stats.subfolderCount}{t.subfolderCount}</span>
+                                                )}
                                                 <span>{stats.count}{t.memoCount}</span>
                                             </FolderMeta>
 

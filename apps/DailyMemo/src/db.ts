@@ -2,13 +2,16 @@ import Dexie, { type Table } from 'dexie';
 
 export interface Folder {
     id?: number;
+    parentId?: number | null; // null means root level (under home) or home itself
     name: string;
+    isHome?: boolean; // true for the home folder
     isReadOnly: boolean;
     excludeFromGlobalSearch: boolean;
     createdAt: Date;
     updatedAt: Date;
     pinnedAt?: Date;
 }
+
 
 export interface Memo {
     id?: number;
@@ -115,24 +118,48 @@ export class DailyMemoDatabase extends Dexie {
                 createdAt: now,
                 updatedAt: now
             });
-
-            // Update all existing memos to belong to the default folder
-            if (memosTable) {
-                await memosTable.toCollection().modify({ folderId: defaultFolderId });
-            }
         });
 
         // Seed default data if not exists (Fresh install)
-        this.on('populate', () => {
+        this.on('populate', async () => {
             const now = new Date();
             const year = now.getFullYear().toString();
-            this.folders.add({
+
+            // Create home folder first
+            const homeId = await this.folders.add({
+                name: '홈',
+                parentId: null,
+                isHome: true,
+                isReadOnly: true,
+                excludeFromGlobalSearch: false,
+                createdAt: now,
+                updatedAt: now
+            });
+
+            // Create current year folder under home
+            const yearId = await this.folders.add({
                 name: year,
+                parentId: homeId as number,
+                isHome: false,
                 isReadOnly: false,
                 excludeFromGlobalSearch: false,
                 createdAt: now,
                 updatedAt: now
             });
+
+            // Create 12 month folders under year folder
+            const months = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+            for (const month of months) {
+                await this.folders.add({
+                    name: month,
+                    parentId: yearId as number,
+                    isHome: false,
+                    isReadOnly: false,
+                    excludeFromGlobalSearch: false,
+                    createdAt: now,
+                    updatedAt: now
+                });
+            }
         });
 
         // Version 11: Ensure all existing memos have a folderId
@@ -165,6 +192,56 @@ export class DailyMemoDatabase extends Dexie {
         this.version(12).stores({
             folders: '++id, name, createdAt, updatedAt, pinnedAt',
             memos: '++id, bookId, folderId, title, *tags, createdAt, updatedAt, threadId, type, pinnedAt'
+        });
+
+        // Version 13: Add hierarchical folder support with parentId and isHome
+        this.version(13).stores({
+            folders: '++id, parentId, name, isHome, createdAt, updatedAt, pinnedAt',
+            memos: '++id, bookId, folderId, title, *tags, createdAt, updatedAt, threadId, type, pinnedAt'
+        }).upgrade(async tx => {
+            const foldersTable = tx.table('folders');
+            const folders = await foldersTable.toArray();
+            const now = new Date();
+
+            // Create home folder
+            const homeId = await foldersTable.add({
+                name: '홈',
+                parentId: null,
+                isHome: true,
+                isReadOnly: true,
+                excludeFromGlobalSearch: false,
+                createdAt: now,
+                updatedAt: now
+            }) as number;
+
+            // Move all existing folders under home
+            for (const folder of folders) {
+                if (!folder.parentId) {
+                    await foldersTable.update(folder.id, {
+                        parentId: homeId
+                    });
+
+                    // If folder name is a 4-digit year, create month folders
+                    if (/^\d{4}$/.test(folder.name)) {
+                        const months = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+                        for (const month of months) {
+                            // Check if month folder already exists
+                            const existing = folders.find(f => f.parentId === folder.id && f.name === month);
+                            if (!existing) {
+                                await foldersTable.add({
+                                    name: month,
+                                    parentId: folder.id,
+                                    isHome: false,
+                                    isReadOnly: false,
+                                    excludeFromGlobalSearch: false,
+                                    createdAt: now,
+                                    updatedAt: now
+                                });
+                            }
+                        }
+                    }
+                }
+            }
         });
     }
 }

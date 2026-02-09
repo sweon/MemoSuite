@@ -6,7 +6,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Log } from '../../db';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiFolder } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus } from 'react-icons/fi';
+import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
@@ -214,38 +215,8 @@ const IconButton = styled.button`
   }
 `;
 
-const FolderChip = styled.div<{ $isReadOnly?: boolean }>`
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: ${({ theme, $isReadOnly }) => $isReadOnly ? '#f59e0b' : theme.colors.text};
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  margin-top: 4px;
-  padding: 6px 12px;
-  background: ${({ theme }) => theme.colors.background};
-  border-radius: 12px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  transition: all 0.2s ease;
-  width: 100%;
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-    background: ${({ theme, $isReadOnly }) => $isReadOnly ? '#fff7ed' : `${theme.colors.primary}11`};
-    color: ${({ theme, $isReadOnly }) => $isReadOnly ? '#d97706' : theme.colors.primary};
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  }
-
-  span {
-    line-height: 1.2;
-    padding: 2px 0;
-  }
-`;
-
 interface SidebarProps {
-  onCloseMobile: () => void;
+  onCloseMobile: (skipHistory?: boolean) => void;
   isEditing?: boolean;
   movingLogId?: number | null;
   setMovingLogId?: (id: number | null) => void;
@@ -259,6 +230,14 @@ export interface SidebarRef {
 export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false, movingLogId, setMovingLogId }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
+  const {
+    currentFolderId,
+    homeFolder,
+    breadcrumbs,
+    setShowFolderList,
+    navigateToHome,
+    navigateToFolder
+  } = useFolder();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'model-desc' | 'model-asc' | 'comment-desc'>('date-desc');
 
   // Expansion state (now collapsed by default)
@@ -272,7 +251,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     setExpandedThreads(newSet);
   };
   const { theme, mode, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
-  const { currentFolderId, currentFolder, setShowFolderList } = useFolder();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
@@ -408,7 +386,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
     // Filter by current folder
     if (currentFolderId !== null) {
-      filtered = filtered.filter(l => l.folderId === currentFolderId);
+      const isHome = homeFolder && currentFolderId === homeFolder.id;
+      filtered = filtered.filter(l => isHome ? (l.folderId === currentFolderId || !l.folderId) : l.folderId === currentFolderId);
     }
 
     // Filter by search query
@@ -515,7 +494,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     });
 
     return flat;
-  }, [allLogs, allModels, allComments, searchQuery, sortBy, expandedThreads, justUnpinnedIds]);
+  }, [allLogs, allModels, allComments, searchQuery, sortBy, expandedThreads, justUnpinnedIds, currentFolderId, homeFolder]);
 
   const handleTogglePinLog = async (logId: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -862,25 +841,25 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             </Tooltip>
           </div>
 
-          {currentFolder && (
-            <FolderChip
-              $isReadOnly={currentFolder.isReadOnly}
-              onClick={() => {
-                setShowFolderList(true);
-                navigate('/folders', { replace: true, state: { isGuard: true } });
-                onCloseMobile();
-              }}
-              title={language === 'ko' ? '폴더 변경' : 'Change Folder'}
-            >
-              <FiFolder size={13} style={{ flexShrink: 0 }} />
-              <span>{(currentFolder.name === '기본 폴더' || currentFolder.name === 'Default Folder') ? (language === 'ko' ? '기본 폴더' : 'Default Folder') : currentFolder.name}</span>
-              {currentFolder.isReadOnly && (
-                <span style={{ fontSize: '0.65rem', opacity: 0.8, marginLeft: '2px' }}>
-                  ({language === 'ko' ? '읽기 전용' : 'Read-only'})
-                </span>
-              )}
-            </FolderChip>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', minHeight: '40px', flexWrap: 'wrap', width: '100%' }}>
+            {breadcrumbs.length > 0 && (
+              <BreadcrumbNav
+                items={breadcrumbs}
+                onNavigate={(folderId) => {
+                  navigateToFolder(folderId);
+                  setShowFolderList(true);
+                  navigate('/folders', { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                }}
+                onNavigateHome={() => {
+                  navigateToHome();
+                  setShowFolderList(true);
+                  navigate('/folders', { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                }}
+              />
+            )}
+          </div>
 
           <SearchInputWrapper>
             <SearchIcon size={16} />
@@ -932,6 +911,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             </Button>
           </TopActions>
         </Header>
+
 
         <ThreadableList
           useExternalContext={true}

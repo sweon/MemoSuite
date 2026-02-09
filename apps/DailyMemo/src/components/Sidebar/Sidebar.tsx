@@ -5,11 +5,12 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Memo } from '../../db';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiPenTool, FiFolder } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiPenTool } from 'react-icons/fi';
 import { BsKeyboard } from 'react-icons/bs';
 import { RiTable2 } from 'react-icons/ri';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
+import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 
 import { Toast } from '../UI/Toast';
 
@@ -189,36 +190,6 @@ const IconButton = styled.button`
   }
 `;
 
-const FolderChip = styled.div<{ $isReadOnly?: boolean }>`
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: ${({ theme, $isReadOnly }) => $isReadOnly ? '#f59e0b' : theme.colors.text};
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  margin-top: 4px;
-  padding: 6px 12px;
-  background: ${({ theme }) => theme.colors.background};
-  border-radius: 12px;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  transition: all 0.2s ease;
-  width: 100%;
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-    background: ${({ theme, $isReadOnly }) => $isReadOnly ? '#fff7ed' : `${theme.colors.primary}11`};
-    color: ${({ theme, $isReadOnly }) => $isReadOnly ? '#d97706' : theme.colors.primary};
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  }
-
-  span {
-    line-height: 1.2;
-    padding: 2px 0;
-  }
-`;
-
 const BrandArea = styled.div`
   display: flex;
   flex-direction: column;
@@ -250,15 +221,16 @@ const AppVersion = styled.span`
   border: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
-export interface SidebarRef {
-  handleDragEnd: (result: DropResult) => Promise<void>;
-}
-
 interface SidebarProps {
   onCloseMobile: (skipHistory?: boolean) => void;
   isEditing?: boolean;
   movingMemoId?: number | null;
   setMovingMemoId?: (id: number | null) => void;
+}
+
+
+export interface SidebarRef {
+  handleDragEnd: (result: DropResult) => Promise<void>;
 }
 
 export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
@@ -415,7 +387,15 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   const allMemos = useLiveQuery(() => db.memos.toArray());
   const allComments = useLiveQuery(() => db.comments.toArray());
 
-  const { currentFolderId, currentFolder, setShowFolderList } = useFolder();
+  const {
+    currentFolderId,
+    homeFolder,
+    breadcrumbs,
+    setShowFolderList,
+    navigateToHome,
+    navigateToFolder
+  } = useFolder();
+
 
   // Handle folder switching: if current memo doesn't belong to folder, go back to root
   useEffect(() => {
@@ -444,9 +424,11 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     if (!allMemos) return [];
 
     // Filter by current folder
-    let memos = currentFolderId
-      ? allMemos.filter(m => m.folderId === currentFolderId)
-      : [...allMemos];
+    let memos = [...allMemos];
+    if (currentFolderId !== null) {
+      const isHome = homeFolder && currentFolderId === homeFolder.id;
+      memos = memos.filter(m => isHome ? (m.folderId === currentFolderId || !m.folderId) : m.folderId === currentFolderId);
+    }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -487,7 +469,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       }
       return b.updatedAt.getTime() - a.updatedAt.getTime();
     });
-  }, [allMemos, searchQuery, sortBy, currentFolderId, lastCommentMap, justUnpinnedIds]);
+  }, [allMemos, searchQuery, sortBy, currentFolderId, homeFolder, lastCommentMap, justUnpinnedIds]);
 
   const handleTogglePin = async (memoId: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -874,25 +856,26 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
 
           </div>
 
-          {currentFolder && (
-            <FolderChip
-              $isReadOnly={currentFolder.isReadOnly}
-              onClick={() => {
-                setShowFolderList(true);
-                navigate('/folders', { replace: true, state: { isGuard: true } });
-                onCloseMobile(true);
-              }}
-              title={language === 'ko' ? '폴더 변경' : 'Change Folder'}
-            >
-              <FiFolder size={13} style={{ flexShrink: 0 }} />
-              <span>{(currentFolder.name === '기본 폴더' || currentFolder.name === 'Default Folder') ? (language === 'ko' ? '기본 폴더' : 'Default Folder') : currentFolder.name}</span>
-              {currentFolder.isReadOnly && (
-                <span style={{ fontSize: '0.65rem', opacity: 0.8, marginLeft: '2px' }}>
-                  ({language === 'ko' ? '읽기 전용' : 'Read-only'})
-                </span>
-              )}
-            </FolderChip>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', minHeight: '40px', flexWrap: 'wrap', width: '100%' }}>
+            {breadcrumbs.length > 0 && (
+              <BreadcrumbNav
+                items={breadcrumbs}
+                onNavigate={(folderId) => {
+                  navigateToFolder(folderId);
+                  setShowFolderList(true);
+                  navigate('/folders', { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                }}
+                onNavigateHome={() => {
+                  navigateToHome();
+                  setShowFolderList(true);
+                  navigate('/folders', { replace: true, state: { isGuard: true } });
+                  onCloseMobile(true);
+                }}
+              />
+            )}
+          </div>
+
 
           <SearchInputWrapper>
             <SearchIcon size={16} />
@@ -979,6 +962,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
             </Button>
           </TopActions>
         </Header>
+
+
 
         <ThreadableList
           items={groupedItems}

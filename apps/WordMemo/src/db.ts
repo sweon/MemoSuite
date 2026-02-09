@@ -2,7 +2,9 @@ import Dexie, { type Table } from 'dexie';
 
 export interface Folder {
     id?: number;
+    parentId?: number | null; // null means root level (under home) or home itself
     name: string;
+    isHome?: boolean; // true for the home folder
     isReadOnly: boolean;
     excludeFromGlobalSearch: boolean;
     createdAt: Date;
@@ -189,6 +191,34 @@ export class WordMemoDatabase extends Dexie {
             folders: '++id, name, createdAt, updatedAt, pinnedAt',
             words: '++id, folderId, title, *tags, sourceId, createdAt, updatedAt, threadId, isStarred, pinnedAt'
         });
+
+        // Version 13: Add hierarchical folder support with parentId and isHome
+        this.version(13).stores({
+            folders: '++id, parentId, name, isHome, createdAt, updatedAt, pinnedAt',
+            words: '++id, folderId, title, *tags, sourceId, createdAt, updatedAt, threadId, isStarred, pinnedAt'
+        }).upgrade(async tx => {
+            const foldersTable = tx.table('folders');
+            const folders = await foldersTable.toArray();
+
+            // Find the default folder and convert it to home
+            const defaultFolder = folders.find(f => f.name === '기본 폴더' || f.name === 'Default Folder');
+            if (defaultFolder) {
+                await foldersTable.update(defaultFolder.id, {
+                    name: '홈',
+                    isHome: true,
+                    parentId: null
+                });
+            }
+
+            // Set parentId to home folder id for all other root folders
+            for (const folder of folders) {
+                if (folder.id !== defaultFolder?.id && !folder.parentId) {
+                    await foldersTable.update(folder.id, {
+                        parentId: defaultFolder?.id || null
+                    });
+                }
+            }
+        });
     }
 }
 
@@ -198,8 +228,10 @@ export const db = new WordMemoDatabase();
 db.on('populate', () => {
     const now = new Date();
     db.folders.add({
-        name: '기본 폴더',
-        isReadOnly: false,
+        name: '홈',
+        parentId: null,
+        isHome: true,
+        isReadOnly: true, // Home folder cannot be deleted or renamed
         excludeFromGlobalSearch: false,
         createdAt: now,
         updatedAt: now
