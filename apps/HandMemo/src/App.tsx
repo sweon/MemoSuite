@@ -1,5 +1,5 @@
 import { useLayoutEffect, useEffect } from 'react';
-import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageProvider, LockScreen, ModalProvider, useAuth, useLanguage } from '@memosuite/shared';
+import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageProvider, LockScreen, ModalProvider, useAuth, useLanguage, requestPersistence } from '@memosuite/shared';
 
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -27,6 +27,11 @@ const MemoDetailWrapper = () => {
 function AppContent() {
   const { t } = useLanguage();
   const { isLocked, isLoading } = useAuth();
+
+  // Request storage persistence on startup
+  useEffect(() => {
+    requestPersistence();
+  }, []);
 
   // Automatic recovery of orphaned autosaves on startup
   useEffect(() => {

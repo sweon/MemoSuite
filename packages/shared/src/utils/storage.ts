@@ -63,6 +63,38 @@ export const safeLocalStorage = {
 };
 
 /**
+ * Requests that the browser keeps the storage for the origin persistent.
+ * This helps prevent data eviction when disk space is low.
+ */
+export const requestPersistence = async (): Promise<boolean> => {
+    try {
+        if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+            const isPersisted = await navigator.storage.persist();
+            console.log(`Storage persistence ${isPersisted ? 'granted' : 'denied'}`);
+            return isPersisted;
+        }
+        return false;
+    } catch (e) {
+        console.warn('Failed to request storage persistence', e);
+        return false;
+    }
+};
+
+/**
+ * Checks if the storage for the origin is persistent.
+ */
+export const isStoragePersisted = async (): Promise<boolean> => {
+    try {
+        if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persisted) {
+            return await navigator.storage.persisted();
+        }
+        return false;
+    } catch (e) {
+        return false;
+    }
+};
+
+/**
  * Safe wrapper for sessionStorage.
  */
 export const safeSessionStorage = {

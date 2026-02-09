@@ -158,6 +158,32 @@ export class WordMemoDatabase extends Dexie {
             }
         });
 
+        // Version 11: Ensure all existing words have a folderId
+        this.version(11).stores({}).upgrade(async tx => {
+            const foldersTable = tx.table('folders');
+            const wordsTable = tx.table('words');
+
+            let defaultFolder = await foldersTable.toCollection().first();
+            if (!defaultFolder) {
+                const now = new Date();
+                const id = await foldersTable.add({
+                    name: '기본 폴더',
+                    isReadOnly: false,
+                    excludeFromGlobalSearch: false,
+                    createdAt: now,
+                    updatedAt: now
+                }) as number;
+                defaultFolder = { id };
+            }
+
+            // Update words that don't have a folderId
+            await wordsTable.toCollection().modify(word => {
+                if (!word.folderId) {
+                    word.folderId = defaultFolder.id;
+                }
+            });
+        });
+
         // Version 12: Add pinnedAt to folders and words
         this.version(12).stores({
             folders: '++id, name, createdAt, updatedAt, pinnedAt',
@@ -191,29 +217,4 @@ db.on('populate', () => {
     db.llmProviders.add({ name: 'Grok', url: 'https://grok.com/', order: 4 });
 });
 
-// Version 11: Ensure all existing words have a folderId
-db.version(11).stores({}).upgrade(async tx => {
-    const foldersTable = tx.table('folders');
-    const wordsTable = tx.table('words');
-
-    let defaultFolder = await foldersTable.toCollection().first();
-    if (!defaultFolder) {
-        const now = new Date();
-        const id = await foldersTable.add({
-            name: '기본 폴더',
-            isReadOnly: false,
-            excludeFromGlobalSearch: false,
-            createdAt: now,
-            updatedAt: now
-        }) as number;
-        defaultFolder = { id };
-    }
-
-    // Update words that don't have a folderId
-    await wordsTable.toCollection().modify(word => {
-        if (!word.folderId) {
-            word.folderId = defaultFolder.id;
-        }
-    });
-});
 

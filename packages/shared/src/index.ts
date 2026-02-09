@@ -29,6 +29,7 @@ export * from './components/PremiumCard';
 export * from './utils/crypto';
 export * from './utils/file';
 export * from './utils/metadata';
+export * from './utils/storage';
 
 // Auth
 export * from './auth';
