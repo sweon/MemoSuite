@@ -463,7 +463,7 @@ export const FolderList: React.FC<FolderListProps> = ({
 }) => {
     const theme = useTheme();
     const { language } = useLanguage();
-    const { breadcrumbs, navigateToHome, navigateToFolder, navigateUp, currentFolder } = useFolder();
+    const { breadcrumbs, navigateToHome, navigateToFolder, navigateUp, currentFolder, homeFolder } = useFolder();
     const [globalSearchQuery, setGlobalSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<SortOption>(() =>
         (localStorage.getItem('folder_sortBy') as SortOption) || 'last-edited'
@@ -550,7 +550,14 @@ export const FolderList: React.FC<FolderListProps> = ({
     const sortedFolders = useMemo(() => {
         if (!folders) return [];
 
-        const items = folders.filter(f => f.parentId === currentFolderId);
+        const isHome = currentFolder?.isHome || (homeFolder && currentFolderId === homeFolder.id);
+        const items = folders.filter(f => {
+            if (f.id === currentFolderId) return false;
+            if (isHome) {
+                return (f.parentId === currentFolderId || f.parentId === null) && !f.isHome;
+            }
+            return f.parentId === currentFolderId;
+        });
 
         items.sort((a, b) => {
 
