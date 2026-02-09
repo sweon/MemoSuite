@@ -382,32 +382,48 @@ export const SettingsPage: React.FC = () => {
     }
 
     if (isCheckingUpdate) return;
-
     setIsCheckingUpdate(true);
 
-    if ('serviceWorker' in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration) {
-          await registration.update();
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          const updatedRegistration = await navigator.serviceWorker.getRegistration();
-          if (updatedRegistration?.waiting || needRefresh) {
-            installUpdate();
-          } else {
-            setToastMessage(t.sidebar.up_to_date);
-          }
-        } else {
-          setToastMessage(t.sidebar.check_failed);
-        }
-      } catch (error) {
-        console.error('Error checking for updates:', error);
-        setToastMessage(t.sidebar.check_failed);
-      }
-    } else {
+    if (!('serviceWorker' in navigator)) {
       setToastMessage(t.sidebar.pwa_not_supported);
+      setIsCheckingUpdate(false);
+      return;
     }
-    setIsCheckingUpdate(false);
+
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
+        setToastMessage(t.sidebar.check_failed);
+        setIsCheckingUpdate(false);
+        return;
+      }
+
+      await registration.update();
+
+      // Give it a tiny bit of time for state changes to propagate
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      if (registration.waiting || needRefresh) {
+        installUpdate();
+      } else if (registration.installing) {
+        setToastMessage(t.language === 'ko' ? "새 버전을 다운로드하고 있습니다..." : "Downloading new version...");
+        const worker = registration.installing;
+        if (worker) {
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed') {
+              installUpdate();
+            }
+          });
+        }
+      } else {
+        setToastMessage(t.sidebar.up_to_date);
+      }
+    } catch (error) {
+      console.error('Error checking for updates:', error);
+      setToastMessage(t.sidebar.check_failed);
+    } finally {
+      setIsCheckingUpdate(false);
+    }
   };
 
 

@@ -378,6 +378,12 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   }, [needRefresh]);
 
   useEffect(() => {
+    if (needRefresh) {
+      setToastMessage(t.sidebar.update_found);
+    }
+  }, [needRefresh, t.sidebar.update_found]);
+
+  useEffect(() => {
     // Check for updates automatically on app startup if enabled
     const autoUpdate = localStorage.getItem('auto_update_enabled') === 'true';
     if (autoUpdate) {
@@ -400,37 +406,53 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     }
 
     if (isCheckingUpdate) return;
+    if (!isSilent) setIsCheckingUpdate(true);
 
-    if (!isSilent) {
-      setIsCheckingUpdate(true);
+    if (!('serviceWorker' in navigator)) {
+      if (!isSilent) setToastMessage(t.sidebar.pwa_not_supported);
+      if (!isSilent) setIsCheckingUpdate(false);
+      return;
     }
 
-    if ('serviceWorker' in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration) {
-          await registration.update();
-
-          // Small delay to let the hook catch up
-          await new Promise(resolve => setTimeout(resolve, 1500));
-
-          if (registration.waiting || needRefreshRef.current) {
-            installUpdate();
-          } else if (!isSilent) {
-            setToastMessage(t.sidebar.up_to_date);
-          }
-        } else if (!isSilent) {
-          setToastMessage(t.sidebar.check_failed);
-        }
-      } catch (error) {
-        console.error('Error checking for updates:', error);
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) {
         if (!isSilent) setToastMessage(t.sidebar.check_failed);
+        if (!isSilent) setIsCheckingUpdate(false);
+        return;
       }
-    } else if (!isSilent) {
-      setToastMessage(t.sidebar.pwa_not_supported);
-    }
 
-    if (!isSilent) setIsCheckingUpdate(false);
+      // Start update check
+      await registration.update();
+
+      // Give it a tiny bit of time for state changes to propagate
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      if (registration.waiting || needRefreshRef.current) {
+        installUpdate();
+      } else if (registration.installing) {
+        // Update found and is downloading
+        if (!isSilent) {
+          setToastMessage(language === 'ko' ? "새 버전을 다운로드하고 있습니다..." : "Downloading new version...");
+        }
+
+        const worker = registration.installing;
+        if (worker) {
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed') {
+              installUpdate();
+            }
+          });
+        }
+      } else if (!isSilent) {
+        setToastMessage(t.sidebar.up_to_date);
+      }
+    } catch (error) {
+      console.error('Error checking for updates:', error);
+      if (!isSilent) setToastMessage(t.sidebar.check_failed);
+    } finally {
+      if (!isSilent) setIsCheckingUpdate(false);
+    }
   };
 
   const allWords = useLiveQuery(() => db.words.toArray());
