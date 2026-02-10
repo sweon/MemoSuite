@@ -4441,7 +4441,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 await onSave(json);
                 lastSavedIndexRef.current = historyIndexRef.current;
                 setSavedToastVisible(true);
-                setTimeout(() => setSavedToastVisible(false), 2000);
+                setTimeout(() => setSavedToastVisible(false), 500);
             }
             setIsSaving(false);
         } catch (err) {
