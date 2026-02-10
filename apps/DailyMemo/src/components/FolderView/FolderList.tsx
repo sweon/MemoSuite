@@ -448,7 +448,7 @@ const EmptyState = styled.div`
   text-align: center;
 `;
 
-type SortOption = 'last-edited' | 'name-asc' | 'name-desc' | 'created-asc' | 'created-desc' | 'last-commented';
+type SortOption = 'calendar' | 'last-edited' | 'name-asc' | 'name-desc' | 'created-asc' | 'created-desc' | 'last-commented';
 type ViewMode = 'single-line' | 'grid' | 'preview';
 
 interface FolderListProps {
@@ -466,7 +466,7 @@ export const FolderList: React.FC<FolderListProps> = ({
     const { breadcrumbs, navigateToHome, navigateToFolder, navigateUp, currentFolder, homeFolder } = useFolder();
     const [globalSearchQuery, setGlobalSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<SortOption>(() =>
-        (localStorage.getItem('folder_sortBy') as SortOption) || 'last-edited'
+        (localStorage.getItem('folder_sortBy') as SortOption) || 'calendar'
     );
     const [viewMode, setViewMode] = useState<ViewMode>(() => {
         const saved = localStorage.getItem('folder_viewMode');
@@ -475,6 +475,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         return (saved as ViewMode) || 'grid';
     });
     const currentYear = useMemo(() => new Date().getFullYear().toString(), []);
+    const currentMonth = useMemo(() => (new Date().getMonth() + 1).toString(), []);
     const [editingFolderId, setEditingFolderId] = useState<number | null>(null);
     const [editingName, setEditingName] = useState('');
     const [newFolderId, setNewFolderId] = useState<number | null>(null);
@@ -570,6 +571,27 @@ export const FolderList: React.FC<FolderListProps> = ({
             if (bPinnedAt) return 1;
 
             switch (sortBy) {
+                case 'calendar':
+                    if (isHome) {
+                        const aIsCurr = a.name === currentYear;
+                        const bIsCurr = b.name === currentYear;
+                        if (aIsCurr && !bIsCurr) return -1;
+                        if (!aIsCurr && bIsCurr) return 1;
+                        return b.name.localeCompare(a.name, undefined, { numeric: true });
+                    } else {
+                        const isCurrentYearFolder = currentFolder?.name === currentYear && /^\d{4}$/.test(currentFolder?.name || '');
+                        if (isCurrentYearFolder) {
+                            const isCurrMonth = (name: string) => {
+                                const num = parseInt(name);
+                                return !isNaN(num) && num.toString() === currentMonth;
+                            };
+                            const aIsCurr = isCurrMonth(a.name);
+                            const bIsCurr = isCurrMonth(b.name);
+                            if (aIsCurr && !bIsCurr) return -1;
+                            if (!aIsCurr && bIsCurr) return 1;
+                        }
+                        return a.name.localeCompare(b.name, undefined, { numeric: true });
+                    }
                 case 'last-edited':
                     const aTimeE = folderStats[a.id!]?.lastEdited || 0;
                     const bTimeE = folderStats[b.id!]?.lastEdited || 0;
@@ -682,6 +704,21 @@ export const FolderList: React.FC<FolderListProps> = ({
             updatedAt: now
         });
 
+        // Auto-create month folders 1-12 if creating at root level (year folder)
+        if (currentFolderId === null || (homeFolder && currentFolderId === homeFolder.id)) {
+            for (let m = 1; m <= 12; m++) {
+                const monthName = language === 'ko' ? `${m}월` : m.toString();
+                await db.folders.add({
+                    name: monthName,
+                    parentId: newId,
+                    isReadOnly: false,
+                    excludeFromGlobalSearch: false,
+                    createdAt: now,
+                    updatedAt: now
+                });
+            }
+        }
+
         setEditingFolderId(newId);
         setEditingName(newName);
         setNewFolderId(newId);
@@ -779,6 +816,7 @@ export const FolderList: React.FC<FolderListProps> = ({
         readOnly: language === 'ko' ? '읽기 전용' : 'Read-only',
         excludeSearch: language === 'ko' ? '검색 제외' : 'Exclude from search',
         sort: {
+            calendar: language === 'ko' ? '달력순' : 'Calendar Order',
             lastEdited: language === 'ko' ? '최근 편집순' : 'Last Edited',
             lastCommented: language === 'ko' ? '최근 댓글순' : 'Last Commented',
             nameAsc: language === 'ko' ? '이름순 (오름차순)' : 'Name (A-Z)',
@@ -871,6 +909,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as SortOption)}
                 >
+                    <option value="calendar">{t.sort.calendar}</option>
                     <option value="last-edited">{t.sort.lastEdited}</option>
                     <option value="last-commented">{t.sort.lastCommented}</option>
                     <option value="name-asc">{t.sort.nameAsc}</option>
