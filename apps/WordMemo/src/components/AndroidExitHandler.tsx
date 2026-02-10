@@ -44,36 +44,37 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
 
             if (window.history.state?.fabricOpen) return;
 
-            // Block back button if editing in the right pane
+            // 1. If currently editing, block back and re-trap
             if (isEditing) {
                 window.history.pushState({ memosuite_trap: true }, '');
                 return;
             }
 
+            // 2. Check Guards
             const guardResult = checkGuards();
             if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
                 window.history.pushState({ memosuite_trap: true }, '');
                 return;
             }
 
-            // If we just popped our trap (current state lacks memosuite_trap)
+            // 3. CORE FIX: If sidebar is closed, OPEN IT on ANY back press and re-trap
+            if (!isSidebarOpen) {
+                onOpenSidebar?.();
+                window.history.pushState({ memosuite_trap: true }, '');
+                return;
+            }
+
+            // 4. Sidebar is open -> Handle Exit Warning
+            // We only show exit warning if this was our trap being popped
             if (!event.state?.memosuite_trap) {
-                if (!isSidebarOpen) {
-                    // One click to open sidebar
-                    onOpenSidebar?.();
-                    // Re-trap immediately to keep the user on the current page
-                    window.history.pushState({ memosuite_trap: true }, '');
+                const now = Date.now();
+                if (now - lastPressTime.current < 2000) {
+                    // Double press within 2s -> Allow Exit
                 } else {
-                    // Sidebar is already open. Handle exit logic.
-                    const now = Date.now();
-                    if (now - lastPressTime.current < 2000) {
-                        // Second click within 2000ms -> Allow exit
-                    } else {
-                        // First click -> Show Warning and re-trap
-                        lastPressTime.current = now;
-                        setShowExitToast(true);
-                        window.history.pushState({ memosuite_trap: true }, '');
-                    }
+                    // First press -> Show Warning and re-trap
+                    lastPressTime.current = now;
+                    setShowExitToast(true);
+                    window.history.pushState({ memosuite_trap: true }, '');
                 }
             }
         };
