@@ -310,7 +310,7 @@ const StudyModeOption = styled.label<{ $active: boolean }>`
   }
 `;
 interface SidebarProps {
-  onCloseMobile: () => void;
+  onCloseMobile: (skipHistory?: boolean) => void;
   isEditing?: boolean;
   movingWordId?: number | null;
   setMovingWordId?: (id: number | null) => void;
@@ -947,14 +947,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                   navigateToFolder(folderId);
                   setShowFolderList(true);
                   navigate('/folders', { replace: true, state: { isGuard: true } });
-                  onCloseMobile();
+                  onCloseMobile(true);
                 }}
                 onNavigateHome={() => {
                   isNavigatingRef.current = true;
                   navigateToHome();
                   setShowFolderList(true);
                   navigate('/folders', { replace: true, state: { isGuard: true } });
-                  onCloseMobile();
+                  onCloseMobile(true);
                 }}
               />
             )}
@@ -1034,7 +1034,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             <TopActions>
               <Button onClick={() => {
                 navigate('/new', { replace: true, state: { isGuard: true } });
-                onCloseMobile();
+                onCloseMobile(true);
               }}>
                 <FiPlus size={16} />
                 {language === 'ko' ? '새 단어' : 'New Word'}
@@ -1063,7 +1063,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                         sourceMap={sourceNameMap}
                         formatDate={formatDate}
                         untitledText={t.sidebar.untitled}
-                        onWordClick={onCloseMobile}
+                        onWordClick={() => onCloseMobile(true)}
                         isCombineTarget={combineTargetId === `log-${item.log.id}`}
                         t={t}
                         studyMode={studyMode}
@@ -1079,7 +1079,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                       log={item.log}
                       index={index}
                       isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === item.log.id}
-                      onClick={onCloseMobile}
+                      onClick={() => onCloseMobile(true)}
                       formatDate={formatDate}
                       untitledText={t.sidebar.untitled}
                       inThread={item.type === 'thread-child'}

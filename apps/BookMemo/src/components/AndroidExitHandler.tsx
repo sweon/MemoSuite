@@ -6,22 +6,34 @@ import { Toast } from './UI/Toast';
 import { FiAlertTriangle } from 'react-icons/fi';
 import { useExitGuard, ExitGuardResult } from '@memosuite/shared-drawing';
 
-export const AndroidExitHandler: React.FC = () => {
+interface AndroidExitHandlerProps {
+    isSidebarOpen?: boolean;
+    onOpenSidebar?: () => void;
+}
+
+export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSidebarOpen, onOpenSidebar }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const { t } = useLanguage();
     const [showExitToast, setShowExitToast] = useState(false);
     const lastPressTime = useRef<number>(0);
 
-    const isAtRoot = location.pathname === '/' || location.pathname === '';
+    const isAtRoot = location.pathname === '/' || location.pathname === '' || location.pathname === '/index.html' || location.pathname === '/bookmemo/' || location.pathname === '/BookMemo/';
 
     const { checkGuards } = useExitGuard();
+
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         // Function to ensure we have an interceptor state
         const ensureGuardState = () => {
             if (!window.history.state || !window.history.state.isGuard) {
-                window.history.pushState({ isGuard: true }, '');
+                window.history.pushState({ isGuard: true, sidebarOpen: isSidebarOpen }, '');
             }
         };
 
@@ -37,7 +49,7 @@ export const AndroidExitHandler: React.FC = () => {
             const guardResult = checkGuards();
             if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
                 // Restore state (undo pop)
-                window.history.pushState({ isGuard: true }, '');
+                window.history.pushState({ isGuard: true, sidebarOpen: isSidebarOpen }, '');
                 return;
             }
             if (guardResult === ExitGuardResult.ALLOW_NAVIGATION || (guardResult as string) === 'ALLOW') {
@@ -51,10 +63,15 @@ export const AndroidExitHandler: React.FC = () => {
                 if (!isAtRoot) {
                     // Smart navigation: go to root instead of exiting
                     navigate('/', { replace: true });
+                    onOpenSidebar?.();
                     // Re-push guard for the new root state
-                    window.history.pushState({ isGuard: true }, '');
+                    window.history.pushState({ isGuard: true, sidebarOpen: true }, '');
+                } else if (isMobile && isSidebarOpen === false && onOpenSidebar) {
+                    // At root but sidebar closed: open sidebar
+                    onOpenSidebar();
+                    window.history.pushState({ isGuard: true, sidebarOpen: true }, '');
                 } else {
-                    // Already at root: exit warning logic
+                    // Already at root (or sidebar open): exit warning logic
                     const now = Date.now();
                     const timeDiff = now - lastPressTime.current;
 
@@ -65,7 +82,7 @@ export const AndroidExitHandler: React.FC = () => {
                         // First press: warn, show toast, and re-push the guard
                         lastPressTime.current = now;
                         setShowExitToast(true);
-                        window.history.pushState({ isGuard: true }, '');
+                        window.history.pushState({ isGuard: true, sidebarOpen: isSidebarOpen }, '');
                     }
                 }
             }
@@ -76,7 +93,7 @@ export const AndroidExitHandler: React.FC = () => {
         return () => {
             window.removeEventListener('popstate', handlePopState);
         };
-    }, [isAtRoot, navigate, checkGuards]);
+    }, [isAtRoot, navigate, checkGuards, isMobile, isSidebarOpen, onOpenSidebar]);
 
     if (!showExitToast) return null;
 

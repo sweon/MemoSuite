@@ -4,6 +4,7 @@ import { Sidebar, type SidebarRef } from '../Sidebar/Sidebar';
 import { Outlet, useLocation } from 'react-router-dom';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { FiMenu } from 'react-icons/fi';
+import { AndroidExitHandler } from '../AndroidExitHandler';
 
 const Container = styled.div<{ $isResizing: boolean }>`
   display: flex;
@@ -275,6 +276,10 @@ export const MainLayout: React.FC = () => {
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
       <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
+        <AndroidExitHandler
+          isSidebarOpen={isSidebarOpen}
+          onOpenSidebar={() => toggleSidebar(true)}
+        />
         <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
           <Sidebar

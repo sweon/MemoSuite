@@ -15,7 +15,6 @@ import { MemoDetail } from './components/MemoView/MemoDetail';
 import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
 import { FolderPage } from './pages/FolderPage';
-import { AndroidExitHandler } from './components/AndroidExitHandler';
 
 import { db } from './db';
 
@@ -83,7 +82,6 @@ function AppContent() {
           <FolderProvider>
             <SearchProvider>
               <HashRouter>
-                <AndroidExitHandler />
                 <InstallPrompt appName="BookMemo" t={t} iconPath="./pwa-192x192.png" />
                 <Routes>
                   <Route path="/" element={<MainLayout />}>

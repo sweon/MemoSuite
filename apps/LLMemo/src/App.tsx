@@ -12,7 +12,6 @@ import { EmptyState } from './components/LogView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
 import { FolderPage } from './pages/FolderPage';
 import { ExitGuardProvider } from '@memosuite/shared-drawing';
-import { AndroidExitHandler } from './components/AndroidExitHandler';
 import { db } from './db';
 
 function AppContent() {
@@ -76,7 +75,6 @@ function AppContent() {
           <FolderProvider>
             <SearchProvider>
               <HashRouter>
-                <AndroidExitHandler />
                 <InstallPrompt appName="LLMemo" t={t} iconPath="./pwa-192x192.png" />
                 <Routes>
                   <Route path="/" element={<MainLayout />}>

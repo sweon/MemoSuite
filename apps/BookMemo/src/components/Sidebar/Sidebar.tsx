@@ -820,7 +820,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                       <SidebarBookItem
                         book={book}
                         memos={allMemos?.filter(m => m.bookId === book.id) || []}
-                        onClick={onCloseMobile}
+                        onClick={() => onCloseMobile(true)}
                         onSafeNavigate={handleSafeNavigation}
                         onTogglePin={handleTogglePinBook}
                         onMove={(id, type) => handleMove(id, type)}

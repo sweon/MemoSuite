@@ -7,6 +7,7 @@ import { FiMenu, FiSave } from 'react-icons/fi';
 import { metadataCache, useColorTheme, useLanguage, useModal } from '@memosuite/shared';
 import { useFolder } from '../../contexts/FolderContext';
 import { db } from '../../db';
+import { AndroidExitHandler } from '../AndroidExitHandler';
 
 const cleanImageUrl = (url: string): string => {
   if (!url) return '';
@@ -1437,6 +1438,10 @@ export const MainLayout: React.FC = () => {
         onTouchEnd={handleGlobalTouchEnd}
         onTouchCancel={handleGlobalTouchEnd}
       >
+        <AndroidExitHandler
+          isSidebarOpen={isSidebarOpen}
+          onOpenSidebar={() => toggleSidebar(true)}
+        />
         <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
           <Sidebar

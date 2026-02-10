@@ -898,7 +898,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             <Tooltip content={t.sidebar.settings}>
               <IconButton onClick={() => {
                 navigate('/settings', { replace: true, state: { isGuard: true } });
-                onCloseMobile();
+                onCloseMobile(true);
               }}>
                 <FiSettings size={18} />
               </IconButton>
@@ -966,7 +966,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             <Button
               onClick={() => {
                 navigate('/new');
-                onCloseMobile();
+                onCloseMobile(true);
               }}
               $color="#56B4E9"
             >
@@ -998,7 +998,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                   key={logId}
                   log={item.log}
                   isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === logId}
-                  onClick={onCloseMobile}
+                  onClick={() => onCloseMobile(true)}
                   modelName={modelNameMap.get(item.log.modelId!)}
                   formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
                   untitledText={t.sidebar.untitled}
@@ -1020,7 +1020,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                   modelMap={modelNameMap}
                   formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
                   untitledText={t.sidebar.untitled}
-                  onLogClick={onCloseMobile}
+                  onLogClick={() => onCloseMobile(true)}
                   isCombineTarget={isCombineTarget}
                   t={t}
                   onTogglePin={handleTogglePinLog}
@@ -1033,7 +1033,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                   key={item.log.id!}
                   log={item.log}
                   isActive={id !== undefined && id !== 'new' && id !== 'settings' && Number(id) === item.log.id!}
-                  onClick={onCloseMobile}
+                  onClick={() => onCloseMobile(true)}
                   modelName={modelNameMap.get(item.log.modelId!)}
                   formatDate={(d: Date) => format(d, 'yy.MM.dd HH:mm')}
                   untitledText={t.sidebar.untitled}

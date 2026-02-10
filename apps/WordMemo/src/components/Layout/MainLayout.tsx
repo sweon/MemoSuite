@@ -4,6 +4,8 @@ import { Sidebar, type SidebarRef } from '../Sidebar/Sidebar';
 import { Outlet, useLocation } from 'react-router-dom';
 import { DragDropContext, type DropResult, type DragUpdate } from '@hello-pangea/dnd';
 import { FiMenu } from 'react-icons/fi';
+import { AndroidExitHandler } from '../AndroidExitHandler';
+import { useLanguage } from '@memosuite/shared';
 
 const Container = styled.div<{ $isResizing: boolean }>`
   display: flex;
@@ -143,6 +145,40 @@ const MAX_WIDTH = 600;
 
 export const MainLayout: React.FC = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  useLanguage();
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Handle sidebar toggle with history on mobile
+  const toggleSidebar = useCallback((open: boolean, skipHistory = false) => {
+    setSidebarOpen(open);
+    if (isMobile) {
+      if (open) {
+        if (!window.history.state?.sidebarOpen) {
+          window.history.pushState({ sidebarOpen: true, isGuard: true }, '');
+        }
+      } else if (!skipHistory) {
+        if (window.history.state?.sidebarOpen) {
+          window.history.back();
+        }
+      }
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (isMobile) {
+        setSidebarOpen(!!e.state?.sidebarOpen);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isMobile]);
 
   useEffect(() => {
     localStorage.setItem('wm_sidebar_open', String(isSidebarOpen));
@@ -226,11 +262,10 @@ export const MainLayout: React.FC = () => {
 
   const location = useLocation();
   useEffect(() => {
-    const isMobile = window.innerWidth <= 768;
     if (isMobile && (location.pathname === '/' || location.pathname === '/index.html')) {
       setSidebarOpen(true);
     }
-  }, [location.pathname]);
+  }, [location.pathname, isMobile]);
 
   const handleDragEnd = async (result: DropResult) => {
     if (sidebarRef.current) {
@@ -247,11 +282,15 @@ export const MainLayout: React.FC = () => {
   return (
     <DragDropContext onDragEnd={handleDragEnd} onDragUpdate={handleDragUpdate}>
       <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
-        <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
+        <AndroidExitHandler
+          isSidebarOpen={isSidebarOpen}
+          onOpenSidebar={() => toggleSidebar(true)}
+        />
+        <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
           <Sidebar
             ref={sidebarRef}
-            onCloseMobile={() => setSidebarOpen(false)}
+            onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)}
             isEditing={isAppEditing || isDirty}
             movingWordId={movingWordId}
             setMovingWordId={setMovingWordId}
@@ -269,7 +308,7 @@ export const MainLayout: React.FC = () => {
           <MobileHeader>
             <FiMenu
               size={24}
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => toggleSidebar(true)}
               style={{ flexShrink: 0, cursor: 'pointer' }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>

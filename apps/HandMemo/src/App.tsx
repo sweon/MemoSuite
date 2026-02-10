@@ -13,7 +13,6 @@ import { MemoDetail } from './components/MemoView/MemoDetail';
 import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
 import { FolderPage } from './pages/FolderPage';
-import { AndroidExitHandler } from './components/AndroidExitHandler';
 import { Toast } from './components/UI/Toast';
 import pkg from '../package.json';
 import { db } from './db';
@@ -91,7 +90,6 @@ function AppContent() {
           <FolderProvider>
             <SearchProvider>
               <HashRouter>
-                <AndroidExitHandler />
                 <InstallPrompt appName="HandMemo" t={t} iconPath="./pwa-192x192.png" />
                 {isUpdated && (
                   <Toast
