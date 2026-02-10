@@ -1317,6 +1317,7 @@ export const MemoDetail: React.FC = () => {
                 )}
                 {isFabricModalOpen && (
                     <FabricCanvasModal
+                        language={language}
                         initialData={editingDrawingData}
                         onSave={async (json) => {
                             let newContent = content;

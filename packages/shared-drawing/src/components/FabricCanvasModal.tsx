@@ -1300,7 +1300,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const persistentBackgroundPatternRef = useRef<fabric.Pattern | null>(null);
     const viewportHeightRef = useRef<number>(0);
     const canvasViewportRef = useRef<HTMLDivElement>(null);
-    const t = (translations[language as keyof typeof translations] || translations.en) as TranslationKeys;
+    const t = React.useMemo(() => {
+        const normalizedLang = (language || 'en').toLowerCase().split('-')[0];
+        const selected = (translations as any)[normalizedLang];
+        // Fallback to English if translation not found
+        return (selected || translations.en) as TranslationKeys;
+    }, [language]);
 
     // Guard State
     const { registerGuard, unregisterGuard } = useExitGuard();
