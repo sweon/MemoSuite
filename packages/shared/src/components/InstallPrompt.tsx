@@ -149,8 +149,18 @@ export const InstallPrompt: React.FC<InstallPromptProps> = ({ appName, iconPath 
         };
     }, []);
 
-    const handleInstallClick = () => {
+    const handleInstallClick = async () => {
         if (!deferredPrompt) return;
+
+        // Double check installation status before prompting
+        if ('getInstalledRelatedApps' in navigator) {
+            const relatedApps = await (navigator as any).getInstalledRelatedApps();
+            if (relatedApps.length > 0) {
+                alert("이미 설치된 앱입니다. / This app is already installed.");
+                setIsVisible(false);
+                return;
+            }
+        }
 
         // Hide the app provided install promotion
         setIsVisible(false);
