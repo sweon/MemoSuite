@@ -250,10 +250,20 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
         });
 
         const rootNodes: FolderNode[] = [];
+        const seenHome = new Set<string>();
+
         folders.forEach(f => {
+            // Skip "Default Folder" as requested
+            if (f.name === '기본 폴더' || f.name === 'Default Folder') return;
+
             if (f.parentId && nodes[f.parentId]) {
                 nodes[f.parentId].children.push(nodes[f.id!]);
             } else {
+                // Unique check for root Home to avoid duplicates if DB state is messy
+                if (f.isHome || f.name === '홈' || f.name === 'Home') {
+                    if (seenHome.has('home')) return;
+                    seenHome.add('home');
+                }
                 rootNodes.push(nodes[f.id!]);
             }
         });
@@ -372,31 +382,35 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
             const isSelected = node.id === selectedFolderId;
             const memoCount = folderMemoCounts[node.id] || 0;
 
+            const content = (
+                <FolderItem
+                    $isSelected={isSelected}
+                    $isCurrent={isCurrent}
+                    $level={level}
+                    disabled={isCurrent && mode === 'move'}
+                    onClick={() => {
+                        if (!(isCurrent && mode === 'move')) {
+                            setSelectedFolderId(node.id);
+                        }
+                    }}
+                >
+                    <FolderItemIcon $isReadOnly={node.isReadOnly}>
+                        <FiFolder size={16} />
+                    </FolderItemIcon>
+                    <FolderItemInfo>
+                        <FolderItemName>
+                            {node.name}
+                            {isCurrent && ` (${t.currentFolder})`}
+                        </FolderItemName>
+                        <FolderItemMeta>{t.memoCount(memoCount)}</FolderItemMeta>
+                    </FolderItemInfo>
+                </FolderItem>
+            );
+
             return (
                 <React.Fragment key={node.id}>
-                    <FolderItem
-                        $isSelected={isSelected}
-                        $isCurrent={isCurrent}
-                        $level={level}
-                        disabled={isCurrent && mode === 'move'}
-                        onClick={() => {
-                            if (!(isCurrent && mode === 'move')) {
-                                setSelectedFolderId(node.id);
-                            }
-                        }}
-                    >
-                        <FolderItemIcon $isReadOnly={node.isReadOnly}>
-                            <FiFolder size={16} />
-                        </FolderItemIcon>
-                        <FolderItemInfo>
-                            <FolderItemName>
-                                {node.name}
-                                {isCurrent && ` (${t.currentFolder})`}
-                            </FolderItemName>
-                            <FolderItemMeta>{t.memoCount(memoCount)}</FolderItemMeta>
-                        </FolderItemInfo>
-                    </FolderItem>
-                    {node.children.length > 0 && renderFolderNodes(node.children, level + 1)}
+                    {!isCurrent && content}
+                    {node.children.length > 0 && renderFolderNodes(node.children, level + (isCurrent ? 0 : 1))}
                 </React.Fragment>
             );
         });
