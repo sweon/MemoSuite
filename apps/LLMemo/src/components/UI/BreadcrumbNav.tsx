@@ -19,7 +19,7 @@ interface BreadcrumbNavProps {
 
 const BreadcrumbContainer = styled.div<{ $compact?: boolean }>`
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 4px;
   padding: ${({ $compact }) => $compact ? '4px 0' : '6px 12px'};
   background: ${({ theme, $compact }) => $compact ? 'transparent' : theme.colors.background};
