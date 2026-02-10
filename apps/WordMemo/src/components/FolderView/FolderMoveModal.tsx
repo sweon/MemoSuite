@@ -99,19 +99,20 @@ const ModeButton = styled.button<{ $isActive: boolean }>`
 const FolderListWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.sm};
+  gap: 2px;
 `;
 
-const FolderItem = styled.button<{ $isSelected: boolean; $isCurrent: boolean }>`
+const FolderItem = styled.button<{ $isSelected: boolean; $isCurrent: boolean; $level: number }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.md};
-  padding: ${({ theme }) => theme.spacing.md};
-  background: ${({ theme, $isSelected }) => $isSelected ? theme.colors.primary + '15' : theme.colors.background};
-  border: 2px solid ${({ theme, $isSelected, $isCurrent }) =>
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  padding-left: ${({ $level, theme }) => `calc(${theme.spacing.md} + ${$level * 24}px)`};
+  background: ${({ theme, $isSelected }) => $isSelected ? theme.colors.primary + '15' : 'transparent'};
+  border: 1px solid ${({ theme, $isSelected, $isCurrent }) =>
         $isSelected ? theme.colors.primary :
             $isCurrent ? WARNING_COLOR :
-                theme.colors.border};
+                'transparent'};
   border-radius: ${({ theme }) => theme.radius.medium};
   cursor: ${({ $isCurrent }) => $isCurrent ? 'not-allowed' : 'pointer'};
   opacity: ${({ $isCurrent }) => $isCurrent ? 0.6 : 1};
@@ -120,7 +121,8 @@ const FolderItem = styled.button<{ $isSelected: boolean; $isCurrent: boolean }>`
   transition: all 0.2s;
 
   &:hover:not(:disabled) {
-    border-color: ${({ theme, $isCurrent }) => $isCurrent ? WARNING_COLOR : theme.colors.primary};
+    background: ${({ theme, $isSelected }) => $isSelected ? theme.colors.primary + '20' : theme.colors.background};
+    border-color: ${({ theme, $isCurrent, $isSelected }) => ($isCurrent ? WARNING_COLOR : ($isSelected ? theme.colors.primary : theme.colors.border))};
   }
 
   &:disabled {
@@ -133,8 +135,8 @@ const FolderItemIcon = styled.div<{ $isReadOnly?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   border-radius: ${({ theme }) => theme.radius.small};
   background: ${({ theme, $isReadOnly }) => $isReadOnly ? WARNING_COLOR + '20' : theme.colors.primary + '20'};
   color: ${({ $isReadOnly, theme }) => $isReadOnly ? WARNING_COLOR : theme.colors.primary};
@@ -142,17 +144,33 @@ const FolderItemIcon = styled.div<{ $isReadOnly?: boolean }>`
 
 const FolderItemInfo = styled.div`
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 `;
 
 const FolderItemName = styled.div`
-  font-weight: 600;
+  font-weight: 500;
   color: ${({ theme }) => theme.colors.text};
+  font-size: 0.95rem;
 `;
 
 const FolderItemMeta = styled.div`
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: ${({ theme }) => theme.colors.textSecondary};
+  background: ${({ theme }) => theme.colors.background};
+  padding: 2px 6px;
+  border-radius: 10px;
 `;
+
+interface FolderNode {
+    id: number;
+    name: string;
+    parentId?: number | null;
+    isReadOnly?: boolean;
+    isHome?: boolean;
+    children: FolderNode[];
+}
 
 const Footer = styled.div`
   display: flex;
@@ -202,7 +220,7 @@ const InfoText = styled.p`
 
 interface FolderMoveModalProps {
     memoId: number;
-    currentFolderId: number | null;
+    currentFolderId: number | null | undefined;
     onClose: () => void;
     onSuccess: (message: string) => void;
 }
@@ -219,87 +237,113 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
     const [isProcessing, setIsProcessing] = useState(false);
 
     const folders = useLiveQuery(() => db.folders.toArray());
-    const memo = useLiveQuery(() => db.words.get(memoId), [memoId]);
+    const word = useLiveQuery(() => db.words.get(memoId), [memoId]);
     const allWords = useLiveQuery(() => db.words.toArray());
 
-    // Calculate memo counts per folder
-    const folderMemoCounts = React.useMemo(() => {
+    // Build folder tree
+    const folderTree = React.useMemo(() => {
+        if (!folders) return [];
+
+        const nodes: Record<number, FolderNode> = {};
+        folders.forEach(f => {
+            nodes[f.id!] = { ...f, id: f.id!, children: [] };
+        });
+
+        const rootNodes: FolderNode[] = [];
+        folders.forEach(f => {
+            if (f.parentId && nodes[f.parentId]) {
+                nodes[f.parentId].children.push(nodes[f.id!]);
+            } else {
+                rootNodes.push(nodes[f.id!]);
+            }
+        });
+
+        // Ensure Home folder comes first if it exists
+        return rootNodes.sort((a, b) => {
+            if (a.isHome) return -1;
+            if (b.isHome) return 1;
+            return a.name.localeCompare(b.name);
+        });
+    }, [folders]);
+
+    // Calculate word counts per folder
+    const folderWordCounts = React.useMemo(() => {
         const counts: Record<number, number> = {};
-        (allWords || []).forEach(m => {
-            const fid = m.folderId || 0;
+        (allWords || []).forEach(w => {
+            const fid = w.folderId || 0;
             counts[fid] = (counts[fid] || 0) + 1;
         });
         return counts;
     }, [allWords]);
 
     const handleMoveOrCopy = async () => {
-        if (!selectedFolderId || !memo) return;
+        if (!selectedFolderId || !word) return;
 
         setIsProcessing(true);
 
         try {
             if (mode === 'move') {
-                // If this memo is part of a thread and is the header, move the entire thread
-                if (memo.threadId) {
-                    const threadMemos = await db.words.where('threadId').equals(memo.threadId).toArray();
-                    const isHeader = threadMemos.length > 1 &&
-                        threadMemos.sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0))[0].id === memoId;
+                // If this word is part of a thread and is the header, move the entire thread
+                if (word.threadId) {
+                    const threadWords = await db.words.where('threadId').equals(word.threadId).toArray();
+                    const isHeader = threadWords.length > 1 &&
+                        threadWords.sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0))[0].id === memoId;
 
                     if (isHeader) {
                         // Move entire thread
-                        await db.words.where('threadId').equals(memo.threadId).modify({
+                        await db.words.where('threadId').equals(word.threadId).modify({
                             folderId: selectedFolderId
                         });
                         onSuccess(language === 'ko'
-                            ? `스레드 전체가 이동되었습니다 (${threadMemos.length}개 항목)`
-                            : `Thread moved (${threadMemos.length} items)`);
+                            ? `스레드 전체가 이동되었습니다 (${threadWords.length}개 단어)`
+                            : `Thread moved (${threadWords.length} words)`);
                     } else {
-                        // Move single memo
+                        // Move single word
                         await db.words.update(memoId, { folderId: selectedFolderId });
-                        onSuccess(language === 'ko' ? '항목이 이동되었습니다' : 'Item moved');
+                        onSuccess(language === 'ko' ? '단어가 이동되었습니다' : 'Word moved');
                     }
                 } else {
                     await db.words.update(memoId, { folderId: selectedFolderId });
-                    onSuccess(language === 'ko' ? '항목이 이동되었습니다' : 'Item moved');
+                    onSuccess(language === 'ko' ? '단어가 이동되었습니다' : 'Word moved');
                 }
             } else {
                 // Copy mode
                 const now = new Date();
 
-                // Copy the memo
+                // Copy the word
                 const comments = await db.comments.where('wordId').equals(memoId).toArray();
 
-                // Create new memo without id
-                const newMemo: Omit<Word, 'id'> = {
+                // Create new word without id
+                const newWord: Omit<Word, 'id'> = {
                     folderId: selectedFolderId,
-                    title: memo.title,
-                    content: memo.content,
-                    tags: [...memo.tags],
+                    title: word.title,
+                    content: word.content,
+                    tags: [...word.tags],
                     createdAt: now,
                     updatedAt: now,
-                    // Don't copy threadId - copied memo starts fresh
-                    isStarred: memo.isStarred,
-                    sourceId: memo.sourceId
+                    // Don't copy threadId - copied word starts fresh
+                    isStarred: word.isStarred,
+                    sourceId: word.sourceId
                 };
 
-                const newMemoId = await db.words.add(newMemo as Word);
+                const newWordId = await db.words.add(newWord as Word);
 
                 // Copy comments
                 for (const comment of comments) {
                     await db.comments.add({
-                        wordId: newMemoId,
+                        wordId: newWordId,
                         content: comment.content,
                         createdAt: now,
                         updatedAt: now
                     });
                 }
 
-                onSuccess(language === 'ko' ? '항목이 복사되었습니다' : 'Item copied');
+                onSuccess(language === 'ko' ? '단어가 복사되었습니다' : 'Word copied');
             }
 
             onClose();
         } catch (error) {
-            console.error('Failed to move/copy memo:', error);
+            console.error('Failed to move/copy word:', error);
         } finally {
             setIsProcessing(false);
         }
@@ -316,12 +360,48 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
         threadMoveNote: language === 'ko'
             ? '스레드의 첫 번째 메모를 이동하면 스레드 전체가 이동됩니다.'
             : 'Moving the first memo of a thread will move the entire thread.',
-        memoCount: (count: number) => language === 'ko' ? `${count}개 항목` : `${count} items`,
+        memoCount: (count: number) => language === 'ko' ? `${count}개` : `${count}`,
     };
 
-    const isThreadHeader = memo?.threadId && allWords?.some(m =>
-        m.threadId === memo.threadId && m.id !== memoId && (m.threadOrder || 0) > (memo.threadOrder || 0)
+    const isThreadHeader = word?.threadId && allWords?.some(w =>
+        w.threadId === word.threadId && w.id !== memoId && (w.threadOrder || 0) > (word.threadOrder || 0)
     );
+
+    const renderFolderNodes = (nodes: FolderNode[], level: number = 0) => {
+        return nodes.map(node => {
+            const isCurrent = node.id === currentFolderId;
+            const isSelected = node.id === selectedFolderId;
+            const wordCount = folderWordCounts[node.id] || 0;
+
+            return (
+                <React.Fragment key={node.id}>
+                    <FolderItem
+                        $isSelected={isSelected}
+                        $isCurrent={isCurrent}
+                        $level={level}
+                        disabled={isCurrent && mode === 'move'}
+                        onClick={() => {
+                            if (!(isCurrent && mode === 'move')) {
+                                setSelectedFolderId(node.id);
+                            }
+                        }}
+                    >
+                        <FolderItemIcon $isReadOnly={node.isReadOnly}>
+                            <FiFolder size={16} />
+                        </FolderItemIcon>
+                        <FolderItemInfo>
+                            <FolderItemName>
+                                {node.name}
+                                {isCurrent && ` (${t.currentFolder})`}
+                            </FolderItemName>
+                            <FolderItemMeta>{t.memoCount(wordCount)}</FolderItemMeta>
+                        </FolderItemInfo>
+                    </FolderItem>
+                    {node.children.length > 0 && renderFolderNodes(node.children, level + 1)}
+                </React.Fragment>
+            );
+        });
+    };
 
     return (
         <Overlay onClick={onClose}>
@@ -351,41 +431,12 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
                         </InfoText>
                     )}
 
-                    <p style={{ fontSize: '0.9rem', color: 'inherit', marginBottom: '12px' }}>
+                    <p style={{ fontSize: '0.9rem', color: 'inherit', marginBottom: '12px', paddingLeft: '4px' }}>
                         {t.selectFolder}
                     </p>
 
                     <FolderListWrapper>
-                        {(folders || []).map(folder => {
-                            const isCurrent = folder.id === currentFolderId;
-                            const isSelected = folder.id === selectedFolderId;
-                            const memoCount = folderMemoCounts[folder.id!] || 0;
-
-                            return (
-                                <FolderItem
-                                    key={folder.id}
-                                    $isSelected={isSelected}
-                                    $isCurrent={isCurrent}
-                                    disabled={isCurrent && mode === 'move'}
-                                    onClick={() => {
-                                        if (!(isCurrent && mode === 'move')) {
-                                            setSelectedFolderId(folder.id!);
-                                        }
-                                    }}
-                                >
-                                    <FolderItemIcon $isReadOnly={folder.isReadOnly}>
-                                        <FiFolder size={18} />
-                                    </FolderItemIcon>
-                                    <FolderItemInfo>
-                                        <FolderItemName>
-                                            {folder.name}
-                                            {isCurrent && ` (${t.currentFolder})`}
-                                        </FolderItemName>
-                                        <FolderItemMeta>{t.memoCount(memoCount)}</FolderItemMeta>
-                                    </FolderItemInfo>
-                                </FolderItem>
-                            );
-                        })}
+                        {renderFolderNodes(folderTree)}
                     </FolderListWrapper>
                 </Body>
 

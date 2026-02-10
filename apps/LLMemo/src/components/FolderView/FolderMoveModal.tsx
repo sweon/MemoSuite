@@ -99,19 +99,20 @@ const ModeButton = styled.button<{ $isActive: boolean }>`
 const FolderListWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.sm};
+  gap: 2px;
 `;
 
-const FolderItem = styled.button<{ $isSelected: boolean; $isCurrent: boolean }>`
+const FolderItem = styled.button<{ $isSelected: boolean; $isCurrent: boolean; $level: number }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.md};
-  padding: ${({ theme }) => theme.spacing.md};
-  background: ${({ theme, $isSelected }) => $isSelected ? theme.colors.primary + '15' : theme.colors.background};
-  border: 2px solid ${({ theme, $isSelected, $isCurrent }) =>
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  padding-left: ${({ $level, theme }) => `calc(${theme.spacing.md} + ${$level * 24}px)`};
+  background: ${({ theme, $isSelected }) => $isSelected ? theme.colors.primary + '15' : 'transparent'};
+  border: 1px solid ${({ theme, $isSelected, $isCurrent }) =>
         $isSelected ? theme.colors.primary :
             $isCurrent ? WARNING_COLOR :
-                theme.colors.border};
+                'transparent'};
   border-radius: ${({ theme }) => theme.radius.medium};
   cursor: ${({ $isCurrent }) => $isCurrent ? 'not-allowed' : 'pointer'};
   opacity: ${({ $isCurrent }) => $isCurrent ? 0.6 : 1};
@@ -120,7 +121,8 @@ const FolderItem = styled.button<{ $isSelected: boolean; $isCurrent: boolean }>`
   transition: all 0.2s;
 
   &:hover:not(:disabled) {
-    border-color: ${({ theme, $isCurrent }) => $isCurrent ? WARNING_COLOR : theme.colors.primary};
+    background: ${({ theme, $isSelected }) => $isSelected ? theme.colors.primary + '20' : theme.colors.background};
+    border-color: ${({ theme, $isCurrent, $isSelected }) => ($isCurrent ? WARNING_COLOR : ($isSelected ? theme.colors.primary : theme.colors.border))};
   }
 
   &:disabled {
@@ -133,8 +135,8 @@ const FolderItemIcon = styled.div<{ $isReadOnly?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   border-radius: ${({ theme }) => theme.radius.small};
   background: ${({ theme, $isReadOnly }) => $isReadOnly ? WARNING_COLOR + '20' : theme.colors.primary + '20'};
   color: ${({ $isReadOnly, theme }) => $isReadOnly ? WARNING_COLOR : theme.colors.primary};
@@ -142,17 +144,33 @@ const FolderItemIcon = styled.div<{ $isReadOnly?: boolean }>`
 
 const FolderItemInfo = styled.div`
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 `;
 
 const FolderItemName = styled.div`
-  font-weight: 600;
+  font-weight: 500;
   color: ${({ theme }) => theme.colors.text};
+  font-size: 0.95rem;
 `;
 
 const FolderItemMeta = styled.div`
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: ${({ theme }) => theme.colors.textSecondary};
+  background: ${({ theme }) => theme.colors.background};
+  padding: 2px 6px;
+  border-radius: 10px;
 `;
+
+interface FolderNode {
+    id: number;
+    name: string;
+    parentId?: number | null;
+    isReadOnly?: boolean;
+    isHome?: boolean;
+    children: FolderNode[];
+}
 
 const Footer = styled.div`
   display: flex;
@@ -202,7 +220,7 @@ const InfoText = styled.p`
 
 interface FolderMoveModalProps {
     memoId: number;
-    currentFolderId: number | null;
+    currentFolderId: number | null | undefined;
     onClose: () => void;
     onSuccess: (message: string) => void;
 }
@@ -219,42 +237,68 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
     const [isProcessing, setIsProcessing] = useState(false);
 
     const folders = useLiveQuery(() => db.folders.toArray());
-    const memo = useLiveQuery(() => db.logs.get(memoId), [memoId]);
-    const allMemos = useLiveQuery(() => db.logs.toArray());
+    const log = useLiveQuery(() => db.logs.get(memoId), [memoId]);
+    const allLogs = useLiveQuery(() => db.logs.toArray());
 
-    // Calculate memo counts per folder
-    const folderMemoCounts = React.useMemo(() => {
+    // Build folder tree
+    const folderTree = React.useMemo(() => {
+        if (!folders) return [];
+
+        const nodes: Record<number, FolderNode> = {};
+        folders.forEach(f => {
+            nodes[f.id!] = { ...f, id: f.id!, children: [] };
+        });
+
+        const rootNodes: FolderNode[] = [];
+        folders.forEach(f => {
+            if (f.parentId && nodes[f.parentId]) {
+                nodes[f.parentId].children.push(nodes[f.id!]);
+            } else {
+                rootNodes.push(nodes[f.id!]);
+            }
+        });
+
+        // Ensure Home folder comes first if it exists
+        return rootNodes.sort((a, b) => {
+            if (a.isHome) return -1;
+            if (b.isHome) return 1;
+            return a.name.localeCompare(b.name);
+        });
+    }, [folders]);
+
+    // Calculate logs counts per folder
+    const folderLogCounts = React.useMemo(() => {
         const counts: Record<number, number> = {};
-        (allMemos || []).forEach(m => {
-            const fid = m.folderId || 0;
+        (allLogs || []).forEach(l => {
+            const fid = l.folderId || 0;
             counts[fid] = (counts[fid] || 0) + 1;
         });
         return counts;
-    }, [allMemos]);
+    }, [allLogs]);
 
     const handleMoveOrCopy = async () => {
-        if (!selectedFolderId || !memo) return;
+        if (!selectedFolderId || !log) return;
 
         setIsProcessing(true);
 
         try {
             if (mode === 'move') {
-                // If this memo is part of a thread and is the header, move the entire thread
-                if (memo.threadId) {
-                    const threadMemos = await db.logs.where('threadId').equals(memo.threadId).toArray();
-                    const isHeader = threadMemos.length > 1 &&
-                        threadMemos.sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0))[0].id === memoId;
+                // If this log is part of a thread and is the header, move the entire thread
+                if (log.threadId) {
+                    const threadLogs = await db.logs.where('threadId').equals(log.threadId).toArray();
+                    const isHeader = threadLogs.length > 1 &&
+                        threadLogs.sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0))[0].id === memoId;
 
                     if (isHeader) {
                         // Move entire thread
-                        await db.logs.where('threadId').equals(memo.threadId).modify({
+                        await db.logs.where('threadId').equals(log.threadId).modify({
                             folderId: selectedFolderId
                         });
                         onSuccess(language === 'ko'
-                            ? `스레드 전체가 이동되었습니다 (${threadMemos.length}개 항목)`
-                            : `Thread moved (${threadMemos.length} items)`);
+                            ? `스레드 전체가 이동되었습니다 (${threadLogs.length}개 항목)`
+                            : `Thread moved (${threadLogs.length} items)`);
                     } else {
-                        // Move single memo
+                        // Move single log
                         await db.logs.update(memoId, { folderId: selectedFolderId });
                         onSuccess(language === 'ko' ? '항목이 이동되었습니다' : 'Item moved');
                     }
@@ -266,22 +310,22 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
                 // Copy mode
                 const now = new Date();
 
-                // Copy the memo
+                // Copy the log
                 const comments = await db.comments.where('logId').equals(memoId).toArray();
 
-                // Create new memo without id
-                const newMemo: Omit<Log, 'id'> = {
+                // Create new log without id
+                const newLog: Omit<Log, 'id'> = {
                     folderId: selectedFolderId,
-                    title: memo.title,
-                    content: memo.content,
-                    tags: [...memo.tags],
+                    title: log.title,
+                    content: log.content,
+                    tags: [...log.tags],
                     createdAt: now,
                     updatedAt: now,
-                    // Don't copy threadId - copied memo starts fresh
-                    modelId: memo.modelId
+                    // Don't copy threadId - copied log starts fresh
+                    modelId: log.modelId
                 };
 
-                const newLogId = await db.logs.add(newMemo as Log);
+                const newLogId = await db.logs.add(newLog as Log);
 
                 // Copy comments
                 for (const comment of comments) {
@@ -298,7 +342,7 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
 
             onClose();
         } catch (error) {
-            console.error('Failed to move/copy memo:', error);
+            console.error('Failed to move/copy log:', error);
         } finally {
             setIsProcessing(false);
         }
@@ -315,12 +359,48 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
         threadMoveNote: language === 'ko'
             ? '스레드의 첫 번째 메모를 이동하면 스레드 전체가 이동됩니다.'
             : 'Moving the first memo of a thread will move the entire thread.',
-        memoCount: (count: number) => language === 'ko' ? `${count}개 항목` : `${count} items`,
+        memoCount: (count: number) => language === 'ko' ? `${count}개` : `${count}`,
     };
 
-    const isThreadHeader = memo?.threadId && allMemos?.some(m =>
-        m.threadId === memo.threadId && m.id !== memoId && (m.threadOrder || 0) > (memo.threadOrder || 0)
+    const isThreadHeader = log?.threadId && allLogs?.some(l =>
+        l.threadId === log.threadId && l.id !== memoId && (l.threadOrder || 0) > (log.threadOrder || 0)
     );
+
+    const renderFolderNodes = (nodes: FolderNode[], level: number = 0) => {
+        return nodes.map(node => {
+            const isCurrent = node.id === currentFolderId;
+            const isSelected = node.id === selectedFolderId;
+            const logCount = folderLogCounts[node.id] || 0;
+
+            return (
+                <React.Fragment key={node.id}>
+                    <FolderItem
+                        $isSelected={isSelected}
+                        $isCurrent={isCurrent}
+                        $level={level}
+                        disabled={isCurrent && mode === 'move'}
+                        onClick={() => {
+                            if (!(isCurrent && mode === 'move')) {
+                                setSelectedFolderId(node.id);
+                            }
+                        }}
+                    >
+                        <FolderItemIcon $isReadOnly={node.isReadOnly}>
+                            <FiFolder size={16} />
+                        </FolderItemIcon>
+                        <FolderItemInfo>
+                            <FolderItemName>
+                                {node.name}
+                                {isCurrent && ` (${t.currentFolder})`}
+                            </FolderItemName>
+                            <FolderItemMeta>{t.memoCount(logCount)}</FolderItemMeta>
+                        </FolderItemInfo>
+                    </FolderItem>
+                    {node.children.length > 0 && renderFolderNodes(node.children, level + 1)}
+                </React.Fragment>
+            );
+        });
+    };
 
     return (
         <Overlay onClick={onClose}>
@@ -350,41 +430,12 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
                         </InfoText>
                     )}
 
-                    <p style={{ fontSize: '0.9rem', color: 'inherit', marginBottom: '12px' }}>
+                    <p style={{ fontSize: '0.9rem', color: 'inherit', marginBottom: '12px', paddingLeft: '4px' }}>
                         {t.selectFolder}
                     </p>
 
                     <FolderListWrapper>
-                        {(folders || []).map(folder => {
-                            const isCurrent = folder.id === currentFolderId;
-                            const isSelected = folder.id === selectedFolderId;
-                            const memoCount = folderMemoCounts[folder.id!] || 0;
-
-                            return (
-                                <FolderItem
-                                    key={folder.id}
-                                    $isSelected={isSelected}
-                                    $isCurrent={isCurrent}
-                                    disabled={isCurrent && mode === 'move'}
-                                    onClick={() => {
-                                        if (!(isCurrent && mode === 'move')) {
-                                            setSelectedFolderId(folder.id!);
-                                        }
-                                    }}
-                                >
-                                    <FolderItemIcon $isReadOnly={folder.isReadOnly}>
-                                        <FiFolder size={18} />
-                                    </FolderItemIcon>
-                                    <FolderItemInfo>
-                                        <FolderItemName>
-                                            {folder.name}
-                                            {isCurrent && ` (${t.currentFolder})`}
-                                        </FolderItemName>
-                                        <FolderItemMeta>{t.memoCount(memoCount)}</FolderItemMeta>
-                                    </FolderItemInfo>
-                                </FolderItem>
-                            );
-                        })}
+                        {renderFolderNodes(folderTree)}
                     </FolderListWrapper>
                 </Body>
 

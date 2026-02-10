@@ -99,19 +99,20 @@ const ModeButton = styled.button<{ $isActive: boolean }>`
 const FolderListWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.sm};
+  gap: 2px;
 `;
 
-const FolderItem = styled.button<{ $isSelected: boolean; $isCurrent: boolean }>`
+const FolderItem = styled.button<{ $isSelected: boolean; $isCurrent: boolean; $level: number }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.md};
-  padding: ${({ theme }) => theme.spacing.md};
-  background: ${({ theme, $isSelected }) => $isSelected ? theme.colors.primary + '15' : theme.colors.background};
-  border: 2px solid ${({ theme, $isSelected, $isCurrent }) =>
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  padding-left: ${({ $level, theme }) => `calc(${theme.spacing.md} + ${$level * 24}px)`};
+  background: ${({ theme, $isSelected }) => $isSelected ? theme.colors.primary + '15' : 'transparent'};
+  border: 1px solid ${({ theme, $isSelected, $isCurrent }) =>
         $isSelected ? theme.colors.primary :
             $isCurrent ? WARNING_COLOR :
-                theme.colors.border};
+                'transparent'};
   border-radius: ${({ theme }) => theme.radius.medium};
   cursor: ${({ $isCurrent }) => $isCurrent ? 'not-allowed' : 'pointer'};
   opacity: ${({ $isCurrent }) => $isCurrent ? 0.6 : 1};
@@ -120,7 +121,8 @@ const FolderItem = styled.button<{ $isSelected: boolean; $isCurrent: boolean }>`
   transition: all 0.2s;
 
   &:hover:not(:disabled) {
-    border-color: ${({ theme, $isCurrent }) => $isCurrent ? WARNING_COLOR : theme.colors.primary};
+    background: ${({ theme, $isSelected }) => $isSelected ? theme.colors.primary + '20' : theme.colors.background};
+    border-color: ${({ theme, $isCurrent, $isSelected }) => ($isCurrent ? WARNING_COLOR : ($isSelected ? theme.colors.primary : theme.colors.border))};
   }
 
   &:disabled {
@@ -133,8 +135,8 @@ const FolderItemIcon = styled.div<{ $isReadOnly?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   border-radius: ${({ theme }) => theme.radius.small};
   background: ${({ theme, $isReadOnly }) => $isReadOnly ? WARNING_COLOR + '20' : theme.colors.primary + '20'};
   color: ${({ $isReadOnly, theme }) => $isReadOnly ? WARNING_COLOR : theme.colors.primary};
@@ -142,17 +144,33 @@ const FolderItemIcon = styled.div<{ $isReadOnly?: boolean }>`
 
 const FolderItemInfo = styled.div`
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 `;
 
 const FolderItemName = styled.div`
-  font-weight: 600;
+  font-weight: 500;
   color: ${({ theme }) => theme.colors.text};
+  font-size: 0.95rem;
 `;
 
 const FolderItemMeta = styled.div`
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: ${({ theme }) => theme.colors.textSecondary};
+  background: ${({ theme }) => theme.colors.background};
+  padding: 2px 6px;
+  border-radius: 10px;
 `;
+
+interface FolderNode {
+    id: number;
+    name: string;
+    parentId?: number | null;
+    isReadOnly?: boolean;
+    isHome?: boolean;
+    children: FolderNode[];
+}
 
 const Footer = styled.div`
   display: flex;
@@ -221,6 +239,32 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
     const folders = useLiveQuery(() => db.folders.toArray());
     const memo = useLiveQuery(() => db.memos.get(memoId), [memoId]);
     const allMemos = useLiveQuery(() => db.memos.toArray());
+
+    // Build folder tree
+    const folderTree = React.useMemo(() => {
+        if (!folders) return [];
+
+        const nodes: Record<number, FolderNode> = {};
+        folders.forEach(f => {
+            nodes[f.id!] = { ...f, id: f.id!, children: [] };
+        });
+
+        const rootNodes: FolderNode[] = [];
+        folders.forEach(f => {
+            if (f.parentId && nodes[f.parentId]) {
+                nodes[f.parentId].children.push(nodes[f.id!]);
+            } else {
+                rootNodes.push(nodes[f.id!]);
+            }
+        });
+
+        // Ensure Home folder comes first if it exists
+        return rootNodes.sort((a, b) => {
+            if (a.isHome) return -1;
+            if (b.isHome) return 1;
+            return a.name.localeCompare(b.name);
+        });
+    }, [folders]);
 
     // Calculate memo counts per folder
     const folderMemoCounts = React.useMemo(() => {
@@ -315,12 +359,48 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
         threadMoveNote: language === 'ko'
             ? '스레드의 첫 번째 메모를 이동하면 스레드 전체가 이동됩니다.'
             : 'Moving the first memo of a thread will move the entire thread.',
-        memoCount: (count: number) => language === 'ko' ? `${count}개 메모` : `${count} memos`,
+        memoCount: (count: number) => language === 'ko' ? `${count}개` : `${count}`,
     };
 
     const isThreadHeader = memo?.threadId && allMemos?.some(m =>
         m.threadId === memo.threadId && m.id !== memoId && (m.threadOrder || 0) > (memo.threadOrder || 0)
     );
+
+    const renderFolderNodes = (nodes: FolderNode[], level: number = 0) => {
+        return nodes.map(node => {
+            const isCurrent = node.id === currentFolderId;
+            const isSelected = node.id === selectedFolderId;
+            const memoCount = folderMemoCounts[node.id] || 0;
+
+            return (
+                <React.Fragment key={node.id}>
+                    <FolderItem
+                        $isSelected={isSelected}
+                        $isCurrent={isCurrent}
+                        $level={level}
+                        disabled={isCurrent && mode === 'move'}
+                        onClick={() => {
+                            if (!(isCurrent && mode === 'move')) {
+                                setSelectedFolderId(node.id);
+                            }
+                        }}
+                    >
+                        <FolderItemIcon $isReadOnly={node.isReadOnly}>
+                            <FiFolder size={16} />
+                        </FolderItemIcon>
+                        <FolderItemInfo>
+                            <FolderItemName>
+                                {node.name}
+                                {isCurrent && ` (${t.currentFolder})`}
+                            </FolderItemName>
+                            <FolderItemMeta>{t.memoCount(memoCount)}</FolderItemMeta>
+                        </FolderItemInfo>
+                    </FolderItem>
+                    {node.children.length > 0 && renderFolderNodes(node.children, level + 1)}
+                </React.Fragment>
+            );
+        });
+    };
 
     return (
         <Overlay onClick={onClose}>
@@ -350,41 +430,12 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
                         </InfoText>
                     )}
 
-                    <p style={{ fontSize: '0.9rem', color: 'inherit', marginBottom: '12px' }}>
+                    <p style={{ fontSize: '0.9rem', color: 'inherit', marginBottom: '12px', paddingLeft: '4px' }}>
                         {t.selectFolder}
                     </p>
 
                     <FolderListWrapper>
-                        {(folders || []).map(folder => {
-                            const isCurrent = folder.id === currentFolderId;
-                            const isSelected = folder.id === selectedFolderId;
-                            const memoCount = folderMemoCounts[folder.id!] || 0;
-
-                            return (
-                                <FolderItem
-                                    key={folder.id}
-                                    $isSelected={isSelected}
-                                    $isCurrent={isCurrent}
-                                    disabled={isCurrent && mode === 'move'}
-                                    onClick={() => {
-                                        if (!(isCurrent && mode === 'move')) {
-                                            setSelectedFolderId(folder.id!);
-                                        }
-                                    }}
-                                >
-                                    <FolderItemIcon $isReadOnly={folder.isReadOnly}>
-                                        <FiFolder size={18} />
-                                    </FolderItemIcon>
-                                    <FolderItemInfo>
-                                        <FolderItemName>
-                                            {folder.name}
-                                            {isCurrent && ` (${t.currentFolder})`}
-                                        </FolderItemName>
-                                        <FolderItemMeta>{t.memoCount(memoCount)}</FolderItemMeta>
-                                    </FolderItemInfo>
-                                </FolderItem>
-                            );
-                        })}
+                        {renderFolderNodes(folderTree)}
                     </FolderListWrapper>
                 </Body>
 
