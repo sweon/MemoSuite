@@ -15,6 +15,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
     const location = useLocation();
     const { t } = useLanguage();
     const [showExitToast, setShowExitToast] = useState(false);
+    const [toastKey, setToastKey] = useState(0);
     const lastPressTime = useRef<number>(0);
     const { checkGuards } = useExitGuard();
 
@@ -49,6 +50,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
                 if (isEditing) {
                     window.history.forward(); // Return to our trap state instantly
                     setShowExitToast(true);
+                    setToastKey(prev => prev + 1); // Force remount to restart animation/timer
                     return;
                 }
 
@@ -74,6 +76,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
                     // First press. Show warning and stay on page.
                     lastPressTime.current = now;
                     setShowExitToast(true);
+                    setToastKey(prev => prev + 1); // Force remount
                     window.history.forward();
                 }
             }
@@ -87,6 +90,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
 
     return (
         <Toast
+            key={toastKey}
             variant="warning"
             position="centered"
             icon={<FiAlertTriangle size={14} />}
