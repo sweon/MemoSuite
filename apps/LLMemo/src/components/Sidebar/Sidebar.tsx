@@ -6,7 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Log } from '../../db';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiCornerDownRight } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiCornerDownRight, FiArrowUp } from 'react-icons/fi';
 import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -68,6 +68,38 @@ const BrandArea = styled.div`
   flex-direction: column;
   padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.md} ${theme.spacing.sm}`};
   gap: 8px;
+`;
+
+const ScrollTopButton = styled.button<{ $visible: boolean }>`
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: ${({ theme }) => theme.radius.full};
+  background-color: ${({ theme }) => theme.colors.primary};
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: ${({ theme }) => theme.shadows.medium};
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+  transform: translateY(${({ $visible }) => ($visible ? '0' : '20px')});
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: ${({ $visible }) => ($visible ? 'auto' : 'none')};
+  z-index: 100;
+
+  &:hover {
+    background-color: ${({ theme }) => theme.colors.primary};
+    filter: brightness(1.1);
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
 `;
 
 const BrandHeader = styled.div`
@@ -243,6 +275,17 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   // Expansion state (now collapsed by default)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
   const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    setShowScrollTop(scrollTop > 300);
+  };
+
+  const scrollToTop = () => {
+    scrollAreaRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const toggleThread = (threadId: string) => {
     const newSet = new Set(expandedThreads);
@@ -815,7 +858,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           </button>
         </div>
       )}
-      <ScrollableArea id="sidebar-scrollable-area">
+      <ScrollableArea id="sidebar-scrollable-area" ref={scrollAreaRef} onScroll={handleScroll}>
         <BrandArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
           <BrandHeader>
             <AppTitle>LLMemo</AppTitle>
@@ -1026,6 +1069,9 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
         )
       }
+      <ScrollTopButton $visible={showScrollTop} onClick={scrollToTop} title={t.common?.scroll_to_top || "Scroll to top"}>
+        <FiArrowUp size={20} />
+      </ScrollTopButton>
     </SidebarContainer >
   );
 });
