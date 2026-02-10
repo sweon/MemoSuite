@@ -416,6 +416,12 @@ export const MemoDetail: React.FC = () => {
         restoredIdRef.current = null;
         setCommentDraft(null);
         setIsEditingInternal(!id);
+        isClosingRef.current = false;
+
+        // Reset state to avoid stale data when switching memos
+        setTitle('');
+        setContent('');
+        setTags('');
     }, [id]);
 
     // Folder context for read-only mode
@@ -507,7 +513,7 @@ export const MemoDetail: React.FC = () => {
                     return ExitGuardResult.CONTINUE;
                 }
 
-                if (isClosingRef.current) {
+                if (isClosingRef.current || !isCurrentlyDirty) {
                     setIsEditingInternal(false);
                     currentAutosaveIdRef.current = undefined;
                     restoredIdRef.current = null;
@@ -612,6 +618,18 @@ export const MemoDetail: React.FC = () => {
     }, [memo]);
 
     const loadedIdRef = useRef<string | null>(null);
+
+    const [prevId, setPrevId] = useState(id);
+    if (id !== prevId) {
+        setPrevId(id);
+        loadedIdRef.current = null;
+        setTitle('');
+        setContent('');
+        setTags('');
+        setCommentDraft(null);
+        setIsEditingInternal(!id);
+        isClosingRef.current = false;
+    }
 
     useEffect(() => {
         if (id && memo && memo.id !== Number(id)) return;
@@ -1026,6 +1044,7 @@ export const MemoDetail: React.FC = () => {
 
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
+            isClosingRef.current = true;
             if (isNew) {
                 // Navigate back to the previously selected memo (before clicking new)
                 const prevId = localStorage.getItem('dailymemo_prev_memo_id');
@@ -1035,12 +1054,15 @@ export const MemoDetail: React.FC = () => {
                 } else {
                     navigate('/', { replace: true });
                 }
+                setIsEditingInternal(false);
             } else if (searchParams.get('edit')) {
                 navigate(`/memo/${id}`, { replace: true });
+                setIsEditingInternal(false);
+            } else {
+                setIsEditing(false);
             }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
-            setIsEditing(false);
             return;
         }
 
@@ -1256,6 +1278,7 @@ export const MemoDetail: React.FC = () => {
                 {isEditing ? (
                     <ContentPadding>
                         <MarkdownEditor
+                            key={id || 'new'}
                             value={content}
                             onChange={setContent}
                             initialScrollPercentage={prevScrollRatio}

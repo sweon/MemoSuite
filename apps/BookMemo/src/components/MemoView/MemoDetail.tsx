@@ -426,6 +426,12 @@ export const MemoDetail: React.FC = () => {
         restoredIdRef.current = null;
         setCommentDraft(null);
         setIsEditingInternal(!id);
+        isClosingRef.current = false;
+
+        // Reset state to avoid stale data when switching memos
+        setTitle('');
+        setContent('');
+        setTags('');
     }, [id]);
 
     useEffect(() => {
@@ -491,7 +497,7 @@ export const MemoDetail: React.FC = () => {
                     return ExitGuardResult.CONTINUE;
                 }
 
-                if (isClosingRef.current) {
+                if (isClosingRef.current || !isCurrentlyDirty) {
                     setIsEditingInternal(false);
                     currentAutosaveIdRef.current = undefined;
                     restoredIdRef.current = null;
@@ -540,6 +546,7 @@ export const MemoDetail: React.FC = () => {
         setPageNumber('');
         setCommentDraft(null);
         setIsEditingInternal(!id);
+        isClosingRef.current = false;
 
         if (id && bookId) {
             localStorage.setItem('bookmemo_last_memo_id', id);
@@ -1025,12 +1032,17 @@ export const MemoDetail: React.FC = () => {
 
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
+            isClosingRef.current = true;
             if (isNew) {
-                navigate('/');
+                navigate('/', { replace: true });
+                setIsEditingInternal(false);
             } else if (searchParams.get('edit')) {
-                navigate(`/memo/${id}`, { replace: true });
+                const targetBookId = bookId ? Number(bookId) : memo?.bookId;
+                navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
+                setIsEditingInternal(false);
+            } else {
+                setIsEditing(false);
             }
-            setIsEditing(false);
             return;
         }
 
@@ -1279,6 +1291,7 @@ export const MemoDetail: React.FC = () => {
                 {isEditing ? (
                     <ContentPadding>
                         <MarkdownEditor
+                            key={id || 'new'}
                             value={content}
                             onChange={setContent}
                             initialScrollPercentage={prevScrollRatio}

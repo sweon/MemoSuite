@@ -10,13 +10,14 @@ import { useSearch } from '../../contexts/SearchContext';
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
 import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiPrinter } from 'react-icons/fi';
-import { FabricCanvasModal } from '@memosuite/shared-drawing';
+import { useExitGuard, ExitGuardResult, FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
 import { useFolder } from '../../contexts/FolderContext';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 import { Toast } from '../UI/Toast';
+import { FiAlertTriangle } from 'react-icons/fi';
 
 import { llmemoSyncAdapter } from '../../utils/backupAdapter';
 import { DeleteChoiceModal } from './DeleteChoiceModal';
@@ -306,6 +307,12 @@ export const LogDetail: React.FC = () => {
     const { language, t } = useLanguage();
     const { confirm, choice, prompt: modalPrompt } = useModal();
 
+    // Guard Hook
+    const { registerGuard, unregisterGuard } = useExitGuard();
+    const [showExitToast, setShowExitToast] = useState(false);
+    const lastBackPress = useRef(0);
+    const isClosingRef = useRef(false);
+
     const isNew = id === undefined || id === 'new';
 
     const [isEditing, setIsEditing] = useState(isNew);
@@ -334,6 +341,12 @@ export const LogDetail: React.FC = () => {
             setPrevScrollRatio(ratio);
         }
         setIsEditing(true);
+        window.history.pushState({ editing: true, isGuard: true }, '');
+    };
+
+    const stopEditing = () => {
+        isClosingRef.current = true;
+        window.history.back(); // Trigger guard -> allow
     };
 
     // Track Sidebar interactions via t parameter to ensure stable modal opening
@@ -346,6 +359,14 @@ export const LogDetail: React.FC = () => {
         restoredIdRef.current = null;
         setCommentDraft(null);
         setIsEditing(id === undefined || id === 'new');
+        isClosingRef.current = false;
+
+        // Reset state to avoid stale data when switching logs
+        setTitle('');
+        setContent('');
+        setTags('');
+        setModelId(undefined);
+
         if (id && id !== 'new') {
             localStorage.setItem('llmemo_last_log_id', id);
         }
@@ -436,7 +457,42 @@ export const LogDetail: React.FC = () => {
         setTags('');
         setCommentDraft(null);
         setIsEditing(id === undefined || id === 'new');
+        isClosingRef.current = false;
     }
+
+    useEffect(() => {
+        if (isEditing) {
+            const guardId = 'log-edit-guard';
+            registerGuard(guardId, () => {
+                // If any modal is open, let its own guard handle the back navigation
+                if (isFabricModalOpen || isSpreadsheetModalOpen || isShareModalOpen || isDeleteModalOpen) {
+                    return ExitGuardResult.CONTINUE;
+                }
+
+                if (isClosingRef.current || !isCurrentlyDirty) {
+                    setIsEditing(false);
+                    currentAutosaveIdRef.current = undefined;
+                    restoredIdRef.current = null;
+                    return ExitGuardResult.ALLOW_NAVIGATION;
+                }
+
+                const now = Date.now();
+                if (now - lastBackPress.current < 2000) {
+                    isClosingRef.current = true;
+                    setIsEditing(false);
+                    currentAutosaveIdRef.current = undefined;
+                    restoredIdRef.current = null;
+                    return ExitGuardResult.ALLOW_NAVIGATION;
+                } else {
+                    lastBackPress.current = now;
+                    setShowExitToast(true);
+                    return ExitGuardResult.PREVENT_NAVIGATION;
+                }
+            });
+
+            return () => unregisterGuard(guardId);
+        }
+    }, [isEditing, registerGuard, unregisterGuard, isFabricModalOpen, isShareModalOpen, isDeleteModalOpen, isSpreadsheetModalOpen]);
 
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
     const contentDrawingData = React.useMemo(() => {
@@ -893,7 +949,7 @@ export const LogDetail: React.FC = () => {
             }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
-            setIsEditing(false);
+            stopEditing();
             return;
         }
 
@@ -911,7 +967,7 @@ export const LogDetail: React.FC = () => {
             } else if (searchParams.get('edit')) {
                 navigate(`/log/${id}`, { replace: true });
             }
-            setIsEditing(false);
+            stopEditing();
         } else if (result === 'neutral') {
             // Cleanup autosaves on exit without saving
             if (id) {
@@ -937,7 +993,7 @@ export const LogDetail: React.FC = () => {
                     navigate(`/log/${id}`, { replace: true });
                 }
             }
-            setIsEditing(false);
+            stopEditing();
         }
     };
 
@@ -1082,6 +1138,7 @@ export const LogDetail: React.FC = () => {
                 {isEditing ? (
                     <ContentPadding>
                         <MarkdownEditor
+                            key={id || 'new'}
                             value={content}
                             onChange={setContent}
                             initialScrollPercentage={prevScrollRatio}
@@ -1311,6 +1368,15 @@ export const LogDetail: React.FC = () => {
                         message={folderMoveToast}
                         onClose={() => setFolderMoveToast(null)}
                         duration={3000}
+                    />
+                )}
+                {showExitToast && (
+                    <Toast
+                        variant="warning"
+                        position="centered"
+                        icon={<FiAlertTriangle size={14} />}
+                        message={t.log_detail?.exit_toast || "Press back again to exit"}
+                        onClose={() => setShowExitToast(false)}
                     />
                 )}
             </ScrollContainer>

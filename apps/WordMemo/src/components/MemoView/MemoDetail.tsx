@@ -14,7 +14,7 @@ import { BlurredText } from '../UI/BlurredText';
 
 import { wordMemoSyncAdapter } from '../../utils/backupAdapter';
 import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiBookOpen, FiCoffee, FiStar, FiList, FiPlus, FiFolder, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiPrinter } from 'react-icons/fi';
-import { FabricCanvasModal } from '@memosuite/shared-drawing';
+import { useExitGuard, ExitGuardResult, FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
 import { BulkAddModal } from './BulkAddModal';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
@@ -25,6 +25,7 @@ import { DeleteChoiceModal } from './DeleteChoiceModal';
 import { StarButton } from '../Sidebar/itemStyles';
 
 import { Toast } from '../UI/Toast';
+import { FiAlertTriangle } from 'react-icons/fi';
 
 const MainWrapper = styled.div`
   display: flex;
@@ -345,6 +346,13 @@ export const MemoDetail: React.FC = () => {
     const { setSearchQuery } = useSearch();
     const { t, language } = useLanguage();
     const { confirm, choice, prompt: modalPrompt } = useModal();
+
+    // Guard Hook
+    const { registerGuard, unregisterGuard } = useExitGuard();
+    const [showExitToast, setShowExitToast] = useState(false);
+    const lastBackPress = useRef(0);
+    const isClosingRef = useRef(false);
+
     const isNew = id === undefined;
 
     // Track Sidebar interactions via t parameter to ensure stable modal opening
@@ -360,6 +368,12 @@ export const MemoDetail: React.FC = () => {
         if (id) {
             localStorage.setItem('wordmemo_last_word_id', id);
         }
+        isClosingRef.current = false;
+
+        // Reset state to avoid stale data when switching words
+        setTitle('');
+        setContent('');
+        setTags('');
     }, [id]);
 
     const [isEditing, setIsEditing] = useState(isNew);
@@ -436,6 +450,12 @@ export const MemoDetail: React.FC = () => {
             setPrevScrollRatio(ratio);
         }
         setIsEditing(true);
+        window.history.pushState({ editing: true, isGuard: true }, '');
+    };
+
+    const stopEditing = () => {
+        isClosingRef.current = true;
+        window.history.back(); // Trigger guard -> allow
     };
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
@@ -470,7 +490,45 @@ export const MemoDetail: React.FC = () => {
         setSourceId(undefined);
         setCommentDraft(null);
         setIsEditing(id === undefined);
+        isClosingRef.current = false;
     }
+
+    const [showBulkAdd, setShowBulkAdd] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+
+    useEffect(() => {
+        if (isEditing) {
+            const guardId = 'word-edit-guard';
+            registerGuard(guardId, () => {
+                // If any modal is open, let its own guard handle the back navigation
+                if (isFabricModalOpen || isSpreadsheetModalOpen || showShareModal || isDeleteModalOpen || showBulkAdd) {
+                    return ExitGuardResult.CONTINUE;
+                }
+
+                if (isClosingRef.current || !isCurrentlyDirty) {
+                    setIsEditing(false);
+                    currentAutosaveIdRef.current = undefined;
+                    restoredIdRef.current = null;
+                    return ExitGuardResult.ALLOW_NAVIGATION;
+                }
+
+                const now = Date.now();
+                if (now - lastBackPress.current < 2000) {
+                    isClosingRef.current = true;
+                    setIsEditing(false);
+                    currentAutosaveIdRef.current = undefined;
+                    restoredIdRef.current = null;
+                    return ExitGuardResult.ALLOW_NAVIGATION;
+                } else {
+                    lastBackPress.current = now;
+                    setShowExitToast(true);
+                    return ExitGuardResult.PREVENT_NAVIGATION;
+                }
+            });
+
+            return () => unregisterGuard(guardId);
+        }
+    }, [isEditing, registerGuard, unregisterGuard, isFabricModalOpen, showShareModal, isDeleteModalOpen, isSpreadsheetModalOpen, showBulkAdd]);
 
     // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
     const contentDrawingData = React.useMemo(() => {
@@ -533,8 +591,7 @@ export const MemoDetail: React.FC = () => {
         await db.words.update(Number(id), { isStarred: word.isStarred ? 0 : 1 });
     };
 
-    const [showBulkAdd, setShowBulkAdd] = useState(false);
-    const [showShareModal, setShowShareModal] = useState(false);
+
 
     const handleBulkConfirm = async (items: { word: string; meaning: string }[], createAsThread: boolean) => {
         const now = new Date();
@@ -1107,9 +1164,9 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
             } else if (searchParams.get('edit')) {
                 navigate(`/word/${id}`, { replace: true });
             }
+            stopEditing();
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
-            setIsEditing(false);
             return;
         }
 
@@ -1127,7 +1184,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
             } else if (searchParams.get('edit')) {
                 navigate(`/word/${id}`, { replace: true });
             }
-            setIsEditing(false);
+            stopEditing();
         } else if (result === 'neutral') {
             // Cleanup autosaves on exit without saving
             if (id) {
@@ -1153,7 +1210,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     navigate(`/word/${id}`, { replace: true });
                 }
             }
-            setIsEditing(false);
+            stopEditing();
         }
     };
 
@@ -1325,6 +1382,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     isEditing ? (
                         <ContentPadding>
                             <MarkdownEditor
+                                key={id || 'new'}
                                 value={content}
                                 onChange={setContent}
                                 initialScrollPercentage={prevScrollRatio}
@@ -1593,6 +1651,15 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         />
                     )
                 }
+                {showExitToast && (
+                    <Toast
+                        variant="warning"
+                        position="centered"
+                        icon={<FiAlertTriangle size={14} />}
+                        message={t.word_detail?.exit_toast || "Press back again to exit"}
+                        onClose={() => setShowExitToast(false)}
+                    />
+                )}
             </ScrollContainer >
             <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
                 <FiArrowUp size={24} />
