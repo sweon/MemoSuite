@@ -156,30 +156,10 @@ export const MainLayout: React.FC = () => {
   }, []);
 
   // Handle sidebar toggle with history on mobile
-  const toggleSidebar = useCallback((open: boolean, skipHistory = false) => {
+  /* Simplified sidebar toggle */
+  const toggleSidebar = useCallback((open: boolean) => {
     setSidebarOpen(open);
-    if (isMobile) {
-      if (open) {
-        if (!window.history.state?.sidebarOpen) {
-          window.history.pushState({ sidebarOpen: true, isGuard: true }, '');
-        }
-      } else if (!skipHistory) {
-        if (window.history.state?.sidebarOpen) {
-          window.history.back();
-        }
-      }
-    }
-  }, [isMobile]);
-
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      if (isMobile) {
-        setSidebarOpen(!!e.state?.sidebarOpen);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [isMobile]);
+  }, []);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     const parsed = saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
@@ -282,19 +262,13 @@ export const MainLayout: React.FC = () => {
       <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
         <AndroidExitHandler
           isSidebarOpen={isSidebarOpen}
-<<<<<<< HEAD
           onOpenSidebar={() => toggleSidebar(true)}
         />
         <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
-=======
-          onOpenSidebar={() => setSidebarOpen(true)}
-        />
-        <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
->>>>>>> cc439646 (Refine mobile back navigation: Right pane to Sidebar, Sidebar to Exit Warning)
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
           <Sidebar
             ref={sidebarRef}
-            onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)}
+            onCloseMobile={() => toggleSidebar(false)}
             isEditing={isAppEditing || isDirty}
             movingLogId={movingLogId}
             setMovingLogId={setMovingLogId}

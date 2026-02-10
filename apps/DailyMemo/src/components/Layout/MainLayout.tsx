@@ -8,7 +8,7 @@ import { metadataCache, useColorTheme, useLanguage, useModal } from '@memosuite/
 import { AndroidExitHandler } from '../AndroidExitHandler';
 import { useFolder } from '../../contexts/FolderContext';
 import { db } from '../../db';
-import { AndroidExitHandler } from '../AndroidExitHandler';
+
 
 const cleanImageUrl = (url: string): string => {
   if (!url) return '';
@@ -1420,7 +1420,7 @@ export const MainLayout: React.FC = () => {
       >
         <AndroidExitHandler
           isSidebarOpen={isSidebarOpen}
-          onOpenSidebar={() => toggleSidebar(true)}
+          onOpenSidebar={() => setSidebarOpen(true)}
         />
         <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
