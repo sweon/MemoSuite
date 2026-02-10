@@ -17,11 +17,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
     const lastPressTime = useRef<number>(0);
     const { checkGuards } = useExitGuard();
 
-    // Determine if we are at the app root
-    const isAtRoot = location.pathname === '/' ||
-        location.pathname === '/index.html' ||
-        location.pathname.toLowerCase().endsWith('wordmemo/') ||
-        location.pathname === '';
+
 
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -31,29 +27,15 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // TRAP LOGIC
+    // Unified Trap Logic for Mobile
     useEffect(() => {
         if (!isMobile) return;
 
-        if (isAtRoot) {
-            // At root, we only need the exit trap if sidebar is open.
-            // If sidebar is closed at root, we use the sidebar trap.
-            if (isSidebarOpen) {
-                if (!window.history.state?.android_exit_trap) {
-                    window.history.pushState({ android_exit_trap: true }, '');
-                }
-            } else {
-                if (!window.history.state?.sidebar_trap) {
-                    window.history.pushState({ sidebar_trap: true }, '');
-                }
-            }
-        } else if (!isSidebarOpen) {
-            // If sidebar is closed on a detail page, push a sidebar trap
-            if (!window.history.state?.sidebar_trap) {
-                window.history.pushState({ sidebar_trap: true }, '');
-            }
+        // Ensure we always have a trap on top of any navigation
+        if (!window.history.state?.memosuite_trap) {
+            window.history.pushState({ memosuite_trap: true }, '');
         }
-    }, [isAtRoot, isSidebarOpen, isMobile]);
+    }, [location.pathname, isMobile]);
 
     useEffect(() => {
         const handlePopState = (event: PopStateEvent) => {
@@ -63,32 +45,27 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
 
             const guardResult = checkGuards();
             if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
-                if (isAtRoot && isSidebarOpen) {
-                    window.history.pushState({ android_exit_trap: true }, '');
-                } else if (!isSidebarOpen) {
-                    window.history.pushState({ sidebar_trap: true }, '');
+                window.history.pushState({ memosuite_trap: true }, '');
+                return;
+            }
+
+            // If we just popped our trap (current state lacks memosuite_trap)
+            if (!event.state?.memosuite_trap) {
+                if (!isSidebarOpen) {
+                    // One click to open sidebar
+                    onOpenSidebar?.();
+                    // Re-trap immediately to keep the user on the current page
+                    window.history.pushState({ memosuite_trap: true }, '');
                 } else {
-                    window.history.pushState(null, '');
-                }
-                return;
-            }
-
-            // Handle Sidebar Opening when Closed
-            if (!isSidebarOpen) {
-                onOpenSidebar?.();
-                // We don't re-trap here to allow the next back button to proceed naturally
-                return;
-            }
-
-            if (isAtRoot && isSidebarOpen) {
-                if (!event.state?.android_exit_trap) {
+                    // Sidebar is already open. Handle exit logic.
                     const now = Date.now();
                     if (now - lastPressTime.current < 2000) {
-                        // Allow Exit
+                        // Second click within 2000ms -> Allow exit
                     } else {
+                        // First click -> Show Warning and re-trap
                         lastPressTime.current = now;
                         setShowExitToast(true);
-                        window.history.pushState({ android_exit_trap: true }, '');
+                        window.history.pushState({ memosuite_trap: true }, '');
                     }
                 }
             }
@@ -96,7 +73,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
-    }, [isAtRoot, isSidebarOpen, isMobile, checkGuards, onOpenSidebar]);
+    }, [isSidebarOpen, isMobile, checkGuards, onOpenSidebar]);
 
     if (!showExitToast) return null;
 
