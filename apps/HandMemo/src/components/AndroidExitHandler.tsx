@@ -35,13 +35,20 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
     useEffect(() => {
         if (!isMobile) return;
 
-        // If we are at root and sidebar is open, we should engage the trap
-        if (isAtRoot && isSidebarOpen) {
-            if (!window.history.state?.android_exit_trap) {
-                window.history.pushState({ android_exit_trap: true }, '');
+        if (isAtRoot) {
+            // At root, we only need the exit trap if sidebar is open.
+            // If sidebar is closed at root, we use the sidebar trap.
+            if (isSidebarOpen) {
+                if (!window.history.state?.android_exit_trap) {
+                    window.history.pushState({ android_exit_trap: true }, '');
+                }
+            } else {
+                if (!window.history.state?.sidebar_trap) {
+                    window.history.pushState({ sidebar_trap: true }, '');
+                }
             }
         } else if (!isSidebarOpen) {
-            // If sidebar is closed anywhere else, push a sidebar trap
+            // If sidebar is closed on a detail page, push a sidebar trap
             if (!window.history.state?.sidebar_trap) {
                 window.history.pushState({ sidebar_trap: true }, '');
             }
@@ -70,8 +77,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
             // Handle Sidebar Opening when Closed
             if (!isSidebarOpen) {
                 onOpenSidebar?.();
-                // Re-trap
-                window.history.pushState({ sidebar_trap: true }, '');
+                // We don't re-trap here to allow the next back button to proceed naturally
                 return;
             }
 
