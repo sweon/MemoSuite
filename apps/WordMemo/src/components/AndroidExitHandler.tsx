@@ -36,7 +36,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
         if (!window.history.state?.memosuite_trap) {
             window.history.pushState({ memosuite_trap: true }, '');
         }
-    }, [location.pathname, isMobile]);
+    }, [location.pathname, location.search, isMobile]);
 
     useEffect(() => {
         const handlePopState = (event: PopStateEvent) => {
