@@ -44,39 +44,43 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
 
             if (window.history.state?.fabricOpen) return;
 
-            // 1. If currently editing, block back and re-trap
+            // 0. Trap Skip: If we land on an OLD trap state, skip it immediately
+            if (event.state?.memosuite_trap) {
+                window.history.back();
+                return;
+            }
+
+            // 1. Inhibition: If currently editing, block back, notify user, and re-trap
             if (isEditing) {
+                setShowExitToast(true); // Re-use toast for "Editing" message context if needed, or better, just block.
+                // We use the same toast but the message will be "Press back again..."? No.
+                // Let's use a clear message for editing.
                 window.history.pushState({ memosuite_trap: true }, '');
                 return;
             }
 
-            // 2. Check Guards
+            // 2. Check Guards (e.g. Unsaved changes in drawing)
             const guardResult = checkGuards();
             if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
                 window.history.pushState({ memosuite_trap: true }, '');
                 return;
             }
 
-            // 3. CORE FIX: If sidebar is closed, OPEN IT on ANY back press and re-trap
+            // 3. Single-Press Sidebar: If closed (Preview mode), open it instantly and re-trap
             if (!isSidebarOpen) {
                 onOpenSidebar?.();
                 window.history.pushState({ memosuite_trap: true }, '');
                 return;
             }
 
-            // 4. Sidebar is open -> Handle Exit Warning
-            // We only show exit warning if this was our trap being popped
-            if (!event.state?.memosuite_trap) {
-                const now = Date.now();
-                if (now - lastPressTime.current < 2000) {
-                    // Double press within 2s -> Allow Exit
-                    // (By not re-trapping, the browser naturally goes back one more step)
-                } else {
-                    // First press -> Show Warning and re-trap
-                    lastPressTime.current = now;
-                    setShowExitToast(true);
-                    window.history.pushState({ memosuite_trap: true }, '');
-                }
+            // 4. Exit Warning: Sidebar is open, handle double-back-to-exit
+            const now = Date.now();
+            if (now - lastPressTime.current < 2000) {
+                // Exit allowed: Don't re-trap.
+            } else {
+                lastPressTime.current = now;
+                setShowExitToast(true);
+                window.history.pushState({ memosuite_trap: true }, '');
             }
         };
 
@@ -91,7 +95,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
             variant="warning"
             position="centered"
             icon={<FiAlertTriangle size={14} />}
-            message={t.android?.exit_warning || "Press back again to exit"}
+            message={isEditing ? (t.android?.edit_in_progress || "Please save or cancel editing first") : (t.android?.exit_warning || "Press back again to exit")}
             onClose={() => setShowExitToast(false)}
             duration={2000}
         />
