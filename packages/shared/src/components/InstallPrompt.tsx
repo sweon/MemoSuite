@@ -120,9 +120,22 @@ export const InstallPrompt: React.FC<InstallPromptProps> = ({ appName, iconPath 
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        const handleBeforeInstallPrompt = (e: Event) => {
+        const handleBeforeInstallPrompt = async (e: Event) => {
             // Prevent Chrome 67 and earlier from automatically showing the prompt
             e.preventDefault();
+
+            // Check if app is running in standalone mode (already installed)
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+            if (isStandalone) return;
+
+            // Check if app is installed (related apps API)
+            if ('getInstalledRelatedApps' in navigator) {
+                const relatedApps = await (navigator as any).getInstalledRelatedApps();
+                if (relatedApps.length > 0) {
+                    return;
+                }
+            }
+
             // Stash the event so it can be triggered later.
             setDeferredPrompt(e as BeforeInstallPromptEvent);
             // Update UI notify the user they can add to home screen
