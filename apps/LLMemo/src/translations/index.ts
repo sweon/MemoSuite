@@ -245,7 +245,8 @@ export const translations = {
             received: "Received"
         },
         android: {
-            exit_warning: "Press back again\nto exit."
+            exit_warning: "Press back again\nto exit.",
+            edit_in_progress: "Please save or cancel editing first"
         },
         drawing: {
             title: "Drawing",
@@ -535,7 +536,8 @@ export const translations = {
             received: "받음"
         },
         android: {
-            exit_warning: "한 번 더 누르면\n종료됩니다."
+            exit_warning: "한 번 더 누르면\n종료됩니다.",
+            edit_in_progress: "먼저 저장하거나 편집을 취소해주세요"
         },
         drawing: {
             title: "그리기",
