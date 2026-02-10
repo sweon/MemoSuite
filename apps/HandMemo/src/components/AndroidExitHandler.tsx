@@ -19,8 +19,6 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
     const lastPressTime = useRef<number>(0);
     const { checkGuards } = useExitGuard();
 
-
-
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
     useEffect(() => {
@@ -29,65 +27,74 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Unified Trap Logic for Mobile
+    // Push a trap entry on top of every navigation change
     useEffect(() => {
         if (!isMobile) return;
-
-        // Ensure we always have a trap on top of any navigation
         if (!window.history.state?.memosuite_trap) {
             window.history.pushState({ memosuite_trap: true }, '');
         }
     }, [location.pathname, location.search, isMobile]);
 
-    useEffect(() => {
-        const handlePopState = (event: PopStateEvent) => {
-            if (!isMobile) return;
+    // Refs: keep latest values accessible in the stable capture-phase listener
+    const sidebarRef = useRef(isSidebarOpen);
+    const editingRef = useRef(isEditing);
+    const openSidebarRef = useRef(onOpenSidebar);
+    const guardsRef = useRef(checkGuards);
 
-            // Check for drawing/modal guards first
+    useEffect(() => { sidebarRef.current = isSidebarOpen; }, [isSidebarOpen]);
+    useEffect(() => { editingRef.current = isEditing; }, [isEditing]);
+    useEffect(() => { openSidebarRef.current = onOpenSidebar; }, [onOpenSidebar]);
+    useEffect(() => { guardsRef.current = checkGuards; }, [checkGuards]);
+
+    useEffect(() => {
+        if (!isMobile) return;
+
+        const handlePopState = (event: PopStateEvent) => {
+            // Let Fabric.js drawing modal handle its own back
             if (window.history.state?.fabricOpen) return;
 
-            // If we land on a state that IS NOT our trap, a 'Back' movement just occurred.
-            if (!event.state?.memosuite_trap) {
-
-                // 1. Inhibition: If currently editing, block back, notify user, and stay on page.
-                if (isEditing) {
-                    window.history.forward(); // Return to our trap state instantly
-                    setShowExitToast(true);
-                    setToastKey(prev => prev + 1); // Force remount to restart animation/timer
-                    return;
-                }
-
-                // 2. Check Guards
-                const guardResult = checkGuards();
-                if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
-                    window.history.forward();
-                    return;
-                }
-
-                // 3. Absolute Single-Press Sidebar: If closed, open it and stay on page.
-                if (!isSidebarOpen) {
-                    onOpenSidebar?.();
-                    window.history.forward();
-                    return;
-                }
-
-                // 4. Exit Warning
-                const now = Date.now();
-                if (now - lastPressTime.current < 2000) {
-                    // Successful double-press. Exit.
-                } else {
-                    // First press. Show warning and stay on page.
-                    lastPressTime.current = now;
-                    setShowExitToast(true);
-                    setToastKey(prev => prev + 1); // Force remount
-                    window.history.forward();
-                }
+            // --- 1. EDITING: completely block ---
+            if (editingRef.current) {
+                event.stopImmediatePropagation();
+                window.history.pushState({ memosuite_trap: true }, '');
+                setShowExitToast(true);
+                setToastKey(prev => prev + 1);
+                return;
             }
+
+            // --- 2. GUARDS (e.g. unsaved drawing) ---
+            const guardResult = guardsRef.current();
+            if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
+                event.stopImmediatePropagation();
+                window.history.pushState({ memosuite_trap: true }, '');
+                return;
+            }
+
+            // --- 3. SIDEBAR CLOSED (preview mode) → open sidebar ---
+            if (!sidebarRef.current) {
+                event.stopImmediatePropagation();
+                openSidebarRef.current?.();
+                window.history.pushState({ memosuite_trap: true }, '');
+                return;
+            }
+
+            // --- 4. SIDEBAR OPEN → exit warning / exit ---
+            const now = Date.now();
+            if (now - lastPressTime.current < 2000) {
+                // Double-press within 2s: allow exit (don't intercept)
+                return;
+            }
+            event.stopImmediatePropagation();
+            lastPressTime.current = now;
+            setShowExitToast(true);
+            setToastKey(prev => prev + 1);
+            window.history.pushState({ memosuite_trap: true }, '');
         };
 
-        window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, [isSidebarOpen, isMobile, checkGuards, onOpenSidebar, isEditing]);
+        // CAPTURE phase: fires BEFORE React Router's bubble-phase listener
+        window.addEventListener('popstate', handlePopState, true);
+        return () => window.removeEventListener('popstate', handlePopState, true);
+    }, [isMobile]); // Stable: only re-registers when isMobile changes. Refs handle the rest.
 
     if (!showExitToast) return null;
 
