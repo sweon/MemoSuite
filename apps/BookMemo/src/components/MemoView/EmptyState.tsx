@@ -50,7 +50,16 @@ export const EmptyState: React.FC = () => {
     [currentFolderId]
   );
 
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 768);
+
   React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  React.useEffect(() => {
+    if (isMobile) return;
     if (folderBookCount && folderBookCount > 0) {
       const lastBookId = localStorage.getItem('bookmemo_last_book_id');
       const lastMemoId = localStorage.getItem('bookmemo_last_memo_id');
@@ -83,7 +92,7 @@ export const EmptyState: React.FC = () => {
         navigateToLatest();
       }
     }
-  }, [navigate, folderBookCount, currentFolderId]);
+  }, [navigate, folderBookCount, currentFolderId, isMobile]);
 
   const isEmptyFolder = folderBookCount === 0;
 

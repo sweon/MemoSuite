@@ -287,7 +287,9 @@ export const MainLayout: React.FC = () => {
               <h3>WordMemo</h3>
             </div>
           </MobileHeader>
-          <Outlet context={{ setIsDirty, setAppIsEditing, movingWordId, setMovingWordId }} />
+          {(!isMobile || (location.pathname !== '/' && location.pathname !== '/index.html')) && (
+            <Outlet context={{ setIsDirty, setAppIsEditing, movingWordId, setMovingWordId }} />
+          )}
         </ContentWrapper>
       </Container>
     </DragDropContext>

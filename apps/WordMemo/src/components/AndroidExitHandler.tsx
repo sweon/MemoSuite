@@ -10,7 +10,7 @@ interface AndroidExitHandlerProps {
     onOpenSidebar?: () => void;
 }
 
-export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSidebarOpen }) => {
+export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSidebarOpen, onOpenSidebar }) => {
     const location = useLocation();
     const { t } = useLanguage();
     const [showExitToast, setShowExitToast] = useState(false);
@@ -40,6 +40,11 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
             if (!window.history.state?.android_exit_trap) {
                 window.history.pushState({ android_exit_trap: true }, '');
             }
+        } else if (!isSidebarOpen) {
+            // If sidebar is closed anywhere else, push a sidebar trap
+            if (!window.history.state?.sidebar_trap) {
+                window.history.pushState({ sidebar_trap: true }, '');
+            }
         }
     }, [isAtRoot, isSidebarOpen, isMobile]);
 
@@ -53,9 +58,19 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
             if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
                 if (isAtRoot && isSidebarOpen) {
                     window.history.pushState({ android_exit_trap: true }, '');
+                } else if (!isSidebarOpen) {
+                    window.history.pushState({ sidebar_trap: true }, '');
                 } else {
                     window.history.pushState(null, '');
                 }
+                return;
+            }
+
+            // Handle Sidebar Opening when Closed
+            if (!isSidebarOpen) {
+                onOpenSidebar?.();
+                // Re-trap
+                window.history.pushState({ sidebar_trap: true }, '');
                 return;
             }
 
@@ -75,7 +90,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
-    }, [isAtRoot, isSidebarOpen, isMobile, checkGuards]);
+    }, [isAtRoot, isSidebarOpen, isMobile, checkGuards, onOpenSidebar]);
 
     if (!showExitToast) return null;
 

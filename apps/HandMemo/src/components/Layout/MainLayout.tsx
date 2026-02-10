@@ -1446,7 +1446,9 @@ export const MainLayout: React.FC = () => {
             {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
             <h3>HandMemo</h3>
           </MobileHeader>
-          <Outlet context={{ setAppIsEditing, movingMemoId, setMovingMemoId }} />
+          {(!isMobile || (location.pathname !== '/' && location.pathname !== '/index.html')) && (
+            <Outlet context={{ setAppIsEditing, movingMemoId, setMovingMemoId }} />
+          )}
         </ContentWrapper>
 
         {pasteButton && (

@@ -287,7 +287,9 @@ export const MainLayout: React.FC = () => {
             <FiMenu size={24} onClick={() => toggleSidebar(true)} />
             <h3>LLMemo</h3>
           </MobileHeader>
-          <Outlet context={{ setIsDirty, setAppIsEditing, movingLogId, setMovingLogId }} />
+          {(!isMobile || (location.pathname !== '/' && location.pathname !== '/index.html')) && (
+            <Outlet context={{ setIsDirty, setAppIsEditing, movingLogId, setMovingLogId }} />
+          )}
         </ContentWrapper>
       </Container>
     </DragDropContext>

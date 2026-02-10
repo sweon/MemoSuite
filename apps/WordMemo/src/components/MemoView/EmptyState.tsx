@@ -50,7 +50,16 @@ export const EmptyState: React.FC = () => {
     [currentFolderId]
   );
 
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 768);
+
   React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  React.useEffect(() => {
+    if (isMobile) return;
     if (folderWordCount && folderWordCount > 0) {
       const lastId = localStorage.getItem('wordmemo_last_word_id');
 
@@ -78,7 +87,7 @@ export const EmptyState: React.FC = () => {
         navigateToLatest();
       }
     }
-  }, [navigate, folderWordCount, currentFolderId]);
+  }, [navigate, folderWordCount, currentFolderId, isMobile]);
 
   const isEmptyFolder = folderWordCount === 0;
 

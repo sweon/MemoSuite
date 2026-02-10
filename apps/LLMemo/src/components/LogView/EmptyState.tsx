@@ -50,7 +50,16 @@ export const EmptyState: React.FC = () => {
     [currentFolderId]
   );
 
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 768);
+
   React.useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  React.useEffect(() => {
+    if (isMobile) return;
     if (folderLogCount && folderLogCount > 0) {
       const lastId = localStorage.getItem('llmemo_last_log_id');
 
@@ -78,7 +87,7 @@ export const EmptyState: React.FC = () => {
         navigateToLatest();
       }
     }
-  }, [navigate, folderLogCount, currentFolderId]);
+  }, [navigate, folderLogCount, currentFolderId, isMobile]);
 
   const isEmptyFolder = folderLogCount === 0;
 
