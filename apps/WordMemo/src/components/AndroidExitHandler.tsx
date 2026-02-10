@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useLanguage } from '@memosuite/shared';
-
-import { useLocation, useNavigate } from 'react-router-dom';
 import { Toast } from './UI/Toast';
 import { FiAlertTriangle } from 'react-icons/fi';
 import { useExitGuard, ExitGuardResult } from '@memosuite/shared-drawing';
@@ -11,89 +10,72 @@ interface AndroidExitHandlerProps {
     onOpenSidebar?: () => void;
 }
 
-export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSidebarOpen, onOpenSidebar }) => {
+export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSidebarOpen }) => {
     const location = useLocation();
-    const navigate = useNavigate();
     const { t } = useLanguage();
     const [showExitToast, setShowExitToast] = useState(false);
     const lastPressTime = useRef<number>(0);
-
-    const isAtRoot = location.pathname === '/' || location.pathname === '' || location.pathname === '/index.html' || location.pathname === '/wordmemo/' || location.pathname === '/WordMemo/';
-
     const { checkGuards } = useExitGuard();
 
+    // Determine if we are at the app root
+    const isAtRoot = location.pathname === '/' ||
+        location.pathname === '/index.html' ||
+        location.pathname.toLowerCase().endsWith('wordmemo/') ||
+        location.pathname === '';
+
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth <= 768);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // TRAP LOGIC
     useEffect(() => {
-        // Function to ensure we have an interceptor state
-        const ensureGuardState = () => {
-            if (!window.history.state || !window.history.state.isGuard) {
-                window.history.pushState({ isGuard: true, sidebarOpen: isSidebarOpen }, '');
+        if (!isMobile) return;
+
+        // If we are at root and sidebar is open, we should engage the trap
+        if (isAtRoot && isSidebarOpen) {
+            if (!window.history.state?.android_exit_trap) {
+                window.history.pushState({ android_exit_trap: true }, '');
             }
-        };
+        }
+    }, [isAtRoot, isSidebarOpen, isMobile]);
 
-        ensureGuardState();
-
+    useEffect(() => {
         const handlePopState = (event: PopStateEvent) => {
-            // Skip entirely if Fabric canvas modal is open (it handles its own back button)
-            if (window.history.state?.fabricOpen) {
-                return;
-            }
+            if (!isMobile) return;
 
-            // Check guards first
+            if (window.history.state?.fabricOpen) return;
+
             const guardResult = checkGuards();
             if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
-                // Restore state (undo pop)
-                window.history.pushState({ isGuard: true, sidebarOpen: isSidebarOpen }, '');
-                return;
-            }
-            if (guardResult === ExitGuardResult.ALLOW_NAVIGATION || (guardResult as string) === 'ALLOW') {
-                // Accept pop (do nothing, let it be)
-                return;
-            }
-
-            // If the state we popped TO does not have our flag, it means we intercepted a "back" 
-            // that tried to leave the app or go past our first entry.
-            if (!event.state || !event.state.isGuard) {
-                if (!isAtRoot) {
-                    // Smart navigation: go to root instead of exiting
-                    navigate('/', { replace: true });
-                    onOpenSidebar?.();
-                    // Re-push guard for the new root state
-                    window.history.pushState({ isGuard: true, sidebarOpen: true }, '');
-                } else if (isMobile && isSidebarOpen === false && onOpenSidebar) {
-                    // At root but sidebar closed: open sidebar
-                    onOpenSidebar();
-                    window.history.pushState({ isGuard: true, sidebarOpen: true }, '');
+                if (isAtRoot && isSidebarOpen) {
+                    window.history.pushState({ android_exit_trap: true }, '');
                 } else {
-                    // Already at root (or sidebar open): exit warning logic
-                    const now = Date.now();
-                    const timeDiff = now - lastPressTime.current;
+                    window.history.pushState(null, '');
+                }
+                return;
+            }
 
-                    if (timeDiff < 2000) {
-                        // Real exit: go back once more which will actually leave the site
-                        window.history.back();
+            if (isAtRoot && isSidebarOpen) {
+                if (!event.state?.android_exit_trap) {
+                    const now = Date.now();
+                    if (now - lastPressTime.current < 2000) {
+                        // Allow Exit
                     } else {
-                        // First press: warn, show toast, and re-push the guard
                         lastPressTime.current = now;
                         setShowExitToast(true);
-                        window.history.pushState({ isGuard: true, sidebarOpen: isSidebarOpen }, '');
+                        window.history.pushState({ android_exit_trap: true }, '');
                     }
                 }
             }
         };
 
         window.addEventListener('popstate', handlePopState);
-
-        return () => {
-            window.removeEventListener('popstate', handlePopState);
-        };
-    }, [isAtRoot, navigate, checkGuards, isMobile, isSidebarOpen, onOpenSidebar]);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [isAtRoot, isSidebarOpen, isMobile, checkGuards]);
 
     if (!showExitToast) return null;
 
@@ -102,8 +84,9 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
             variant="warning"
             position="centered"
             icon={<FiAlertTriangle size={14} />}
-            message={t.android?.exit_warning || "Press back again\nto exit."}
+            message={t.android?.exit_warning || "Press back again to exit"}
             onClose={() => setShowExitToast(false)}
+            duration={2000}
         />
     );
 };

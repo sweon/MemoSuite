@@ -5,6 +5,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { FiMenu, FiSave } from 'react-icons/fi';
 import { metadataCache, useColorTheme, useLanguage, useModal } from '@memosuite/shared';
+import { AndroidExitHandler } from '../AndroidExitHandler';
 import { useFolder } from '../../contexts/FolderContext';
 import { db } from '../../db';
 import { AndroidExitHandler } from '../AndroidExitHandler';
@@ -912,31 +913,10 @@ export const MainLayout: React.FC = () => {
     }
   }, [currentFolderId, navigate]);
 
-  // Handle sidebar toggle with history on mobile
-  const toggleSidebar = useCallback((open: boolean, skipHistory = false) => {
+  // Simplified sidebar toggle for mobile
+  const toggleSidebar = useCallback((open: boolean) => {
     setSidebarOpen(open);
-    if (isMobile) {
-      if (open) {
-        if (!window.history.state?.sidebarOpen) {
-          window.history.pushState({ sidebarOpen: true, isGuard: true }, '');
-        }
-      } else if (!skipHistory) {
-        if (window.history.state?.sidebarOpen) {
-          window.history.back();
-        }
-      }
-    }
-  }, [isMobile]);
-
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      if (isMobile) {
-        setSidebarOpen(!!e.state?.sidebarOpen);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [isMobile]);
+  }, []);
 
 
   useEffect(() => {
@@ -1446,7 +1426,7 @@ export const MainLayout: React.FC = () => {
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
           <Sidebar
             ref={sidebarRef}
-            onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)}
+            onCloseMobile={() => toggleSidebar(false)}
             isEditing={isAppEditing}
             movingMemoId={movingMemoId}
             setMovingMemoId={setMovingMemoId}

@@ -117,6 +117,8 @@ const MobileHeader = styled.div`
 
   @media (max-width: 768px) {
     display: flex;
+    justify-content: space-between;
+    width: 100%;
   }
 `;
 
@@ -145,7 +147,7 @@ const MAX_WIDTH = 600;
 
 export const MainLayout: React.FC = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  useLanguage();
+  useLanguage(); // Ensure usage
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
@@ -153,32 +155,6 @@ export const MainLayout: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Handle sidebar toggle with history on mobile
-  const toggleSidebar = useCallback((open: boolean, skipHistory = false) => {
-    setSidebarOpen(open);
-    if (isMobile) {
-      if (open) {
-        if (!window.history.state?.sidebarOpen) {
-          window.history.pushState({ sidebarOpen: true, isGuard: true }, '');
-        }
-      } else if (!skipHistory) {
-        if (window.history.state?.sidebarOpen) {
-          window.history.back();
-        }
-      }
-    }
-  }, [isMobile]);
-
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      if (isMobile) {
-        setSidebarOpen(!!e.state?.sidebarOpen);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [isMobile]);
 
   useEffect(() => {
     localStorage.setItem('wm_sidebar_open', String(isSidebarOpen));
@@ -190,23 +166,19 @@ export const MainLayout: React.FC = () => {
     return Math.max(MIN_WIDTH, parsed);
   });
   const [isResizing, setIsResizing] = useState(false);
-  const [isDirty, setIsDirty] = useState(false); // Kept for legacy compatibility if needed
-  const [isAppEditing, setAppIsEditing] = useState(false); // Added for strict synchronization
+  const [isDirty, setIsDirty] = useState(false);
+  const [isAppEditing, setAppIsEditing] = useState(false);
   const [movingWordId, setMovingWordId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<SidebarRef>(null);
   const longPressTimer = useRef<any>(null);
 
   const startResizing = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    // ... (resizing logic omitted for brevity in replace, but needed in context)
-    // Prevent default to stop text selection etc.
-    // e.preventDefault(); // Don't prevent default on touchstart to allow scrolling if needed, but here it's a handle
-
     if ('touches' in e) {
       longPressTimer.current = setTimeout(() => {
         setIsResizing(true);
         if (navigator.vibrate) navigator.vibrate(50);
-      }, 200); // Shorter delay for better responsiveness
+      }, 200);
     } else {
       e.preventDefault();
       setIsResizing(true);
@@ -284,13 +256,13 @@ export const MainLayout: React.FC = () => {
       <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
         <AndroidExitHandler
           isSidebarOpen={isSidebarOpen}
-          onOpenSidebar={() => toggleSidebar(true)}
+          onOpenSidebar={() => setSidebarOpen(true)}
         />
-        <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
+        <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
           <Sidebar
             ref={sidebarRef}
-            onCloseMobile={(skip: boolean | undefined) => toggleSidebar(false, skip)}
+            onCloseMobile={() => setSidebarOpen(false)}
             isEditing={isAppEditing || isDirty}
             movingWordId={movingWordId}
             setMovingWordId={setMovingWordId}
@@ -308,7 +280,7 @@ export const MainLayout: React.FC = () => {
           <MobileHeader>
             <FiMenu
               size={24}
-              onClick={() => toggleSidebar(true)}
+              onClick={() => setSidebarOpen(true)}
               style={{ flexShrink: 0, cursor: 'pointer' }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>

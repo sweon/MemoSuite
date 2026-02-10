@@ -282,9 +282,15 @@ export const MainLayout: React.FC = () => {
       <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
         <AndroidExitHandler
           isSidebarOpen={isSidebarOpen}
+<<<<<<< HEAD
           onOpenSidebar={() => toggleSidebar(true)}
         />
         <Overlay $isOpen={isSidebarOpen} onClick={() => toggleSidebar(false)} />
+=======
+          onOpenSidebar={() => setSidebarOpen(true)}
+        />
+        <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
+>>>>>>> cc439646 (Refine mobile back navigation: Right pane to Sidebar, Sidebar to Exit Warning)
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
           <Sidebar
             ref={sidebarRef}

@@ -13,7 +13,10 @@ import { MemoDetail } from './components/MemoView/MemoDetail';
 import { EmptyState } from './components/MemoView/EmptyState';
 import { SettingsPage } from './pages/SettingsPage';
 import { FolderPage } from './pages/FolderPage';
+<<<<<<< HEAD
 
+=======
+>>>>>>> cc439646 (Refine mobile back navigation: Right pane to Sidebar, Sidebar to Exit Warning)
 import { Toast } from './components/UI/Toast';
 import pkg from '../package.json';
 import { db } from './db';

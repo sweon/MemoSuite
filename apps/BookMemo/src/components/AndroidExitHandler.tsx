@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useLanguage } from '@memosuite/shared';
-
-import { useLocation, useNavigate } from 'react-router-dom';
 import { Toast } from './UI/Toast';
 import { FiAlertTriangle } from 'react-icons/fi';
 import { useExitGuard, ExitGuardResult } from '@memosuite/shared-drawing';
@@ -11,12 +10,16 @@ interface AndroidExitHandlerProps {
     onOpenSidebar?: () => void;
 }
 
+<<<<<<< HEAD
 export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSidebarOpen, onOpenSidebar }) => {
+=======
+export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSidebarOpen }) => {
+>>>>>>> cc439646 (Refine mobile back navigation: Right pane to Sidebar, Sidebar to Exit Warning)
     const location = useLocation();
-    const navigate = useNavigate();
     const { t } = useLanguage();
     const [showExitToast, setShowExitToast] = useState(false);
     const lastPressTime = useRef<number>(0);
+<<<<<<< HEAD
 
     const isAtRoot = location.pathname === '/' || location.pathname === '' || location.pathname === '/index.html' || location.pathname === '/bookmemo/' || location.pathname === '/BookMemo/';
 
@@ -34,20 +37,45 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
         const ensureGuardState = () => {
             if (!window.history.state || !window.history.state.isGuard) {
                 window.history.pushState({ isGuard: true, sidebarOpen: isSidebarOpen }, '');
+=======
+    const { checkGuards } = useExitGuard();
+
+    // Determine if we are at the app root
+    const isAtRoot = location.pathname === '/' ||
+        location.pathname === '/index.html' ||
+        location.pathname.toLowerCase().endsWith('bookmemo/') ||
+        location.pathname === '';
+
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // TRAP LOGIC
+    useEffect(() => {
+        if (!isMobile) return;
+
+        // If we are at root and sidebar is open, we should engage the trap
+        if (isAtRoot && isSidebarOpen) {
+            if (!window.history.state?.android_exit_trap) {
+                window.history.pushState({ android_exit_trap: true }, '');
+>>>>>>> cc439646 (Refine mobile back navigation: Right pane to Sidebar, Sidebar to Exit Warning)
             }
-        };
+        }
+    }, [isAtRoot, isSidebarOpen, isMobile]);
 
-        ensureGuardState();
-
+    useEffect(() => {
         const handlePopState = (event: PopStateEvent) => {
-            // Skip entirely if Fabric canvas modal is open (it handles its own back button)
-            if (window.history.state?.fabricOpen) {
-                return;
-            }
+            if (!isMobile) return;
 
-            // Check guards first
+            if (window.history.state?.fabricOpen) return;
+
             const guardResult = checkGuards();
             if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
+<<<<<<< HEAD
                 // Restore state (undo pop)
                 window.history.pushState({ isGuard: true, sidebarOpen: isSidebarOpen }, '');
                 return;
@@ -74,26 +102,45 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
                     // Already at root (or sidebar open): exit warning logic
                     const now = Date.now();
                     const timeDiff = now - lastPressTime.current;
+=======
+                if (isAtRoot && isSidebarOpen) {
+                    window.history.pushState({ android_exit_trap: true }, '');
+                } else {
+                    window.history.pushState(null, '');
+                }
+                return;
+            }
+>>>>>>> cc439646 (Refine mobile back navigation: Right pane to Sidebar, Sidebar to Exit Warning)
 
-                    if (timeDiff < 2000) {
-                        // Real exit: go back once more which will actually leave the site
-                        window.history.back();
+            if (isAtRoot && isSidebarOpen) {
+                if (!event.state?.android_exit_trap) {
+                    const now = Date.now();
+                    if (now - lastPressTime.current < 2000) {
+                        // Allow Exit
                     } else {
-                        // First press: warn, show toast, and re-push the guard
                         lastPressTime.current = now;
                         setShowExitToast(true);
+<<<<<<< HEAD
                         window.history.pushState({ isGuard: true, sidebarOpen: isSidebarOpen }, '');
+=======
+                        window.history.pushState({ android_exit_trap: true }, '');
+>>>>>>> cc439646 (Refine mobile back navigation: Right pane to Sidebar, Sidebar to Exit Warning)
                     }
                 }
             }
         };
 
         window.addEventListener('popstate', handlePopState);
+<<<<<<< HEAD
 
         return () => {
             window.removeEventListener('popstate', handlePopState);
         };
     }, [isAtRoot, navigate, checkGuards, isMobile, isSidebarOpen, onOpenSidebar]);
+=======
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [isAtRoot, isSidebarOpen, isMobile, checkGuards]);
+>>>>>>> cc439646 (Refine mobile back navigation: Right pane to Sidebar, Sidebar to Exit Warning)
 
     if (!showExitToast) return null;
 
@@ -102,8 +149,9 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
             variant="warning"
             position="centered"
             icon={<FiAlertTriangle size={14} />}
-            message={t.android?.exit_warning || "Press back again\nto exit."}
+            message={t.android?.exit_warning || "Press back again to exit"}
             onClose={() => setShowExitToast(false)}
+            duration={2000}
         />
     );
 };

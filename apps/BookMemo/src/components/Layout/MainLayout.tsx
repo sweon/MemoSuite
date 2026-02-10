@@ -229,31 +229,10 @@ export const MainLayout: React.FC = () => {
     };
   }, [isResizing, handleMouseMove, handleTouchMove, stopResizing]);
 
-  // Handle sidebar toggle with history on mobile
-  const toggleSidebar = useCallback((open: boolean, skipHistory = false) => {
+  // Simplified sidebar toggle
+  const toggleSidebar = useCallback((open: boolean) => {
     setSidebarOpen(open);
-    if (isMobile) {
-      if (open) {
-        if (!window.history.state?.sidebarOpen) {
-          window.history.pushState({ sidebarOpen: true, isGuard: true }, '');
-        }
-      } else if (!skipHistory) {
-        if (window.history.state?.sidebarOpen) {
-          window.history.back();
-        }
-      }
-    }
-  }, [isMobile]);
-
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      if (isMobile) {
-        setSidebarOpen(!!e.state?.sidebarOpen);
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [isMobile]);
+  }, []);
 
   const location = useLocation();
   useEffect(() => {
@@ -284,7 +263,7 @@ export const MainLayout: React.FC = () => {
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>
           <Sidebar
             ref={sidebarRef}
-            onCloseMobile={(skip) => toggleSidebar(false, skip)}
+            onCloseMobile={() => toggleSidebar(false)}
             isEditing={isAppEditing || isDirty}
             movingMemoId={movingMemoId}
             setMovingMemoId={setMovingMemoId}
