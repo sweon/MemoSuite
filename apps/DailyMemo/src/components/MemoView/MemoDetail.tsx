@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useLanguage, useModal, metadataCache, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext } from '@memosuite/shared';
+import { SyncModal, useLanguage, useModal, metadataCache, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext, PrintSettingsModal } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
@@ -435,6 +435,7 @@ export const MemoDetail: React.FC = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isFabricModalOpen, setIsFabricModalOpen] = useState(false);
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
     const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
@@ -1258,7 +1259,7 @@ export const MemoDetail: React.FC = () => {
                                 <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
                                     <FiShare2 size={14} /> {t.memo_detail.share_memo}
                                 </ActionButton>
-                                <ActionButton onClick={() => window.print()} $mobileOrder={7}>
+                                <ActionButton onClick={() => setIsPrintModalOpen(true)} $mobileOrder={7}>
                                     <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                                 </ActionButton>
                                 <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={8}>
@@ -1356,6 +1357,13 @@ export const MemoDetail: React.FC = () => {
                         duration={3000}
                     />
                 )}
+                <PrintSettingsModal
+                    isOpen={isPrintModalOpen}
+                    onClose={() => setIsPrintModalOpen(false)}
+                    appName="DailyMemo"
+                    language={language}
+                    title={title || memo?.title}
+                />
 
                 {showExitToast && (
                     <Toast

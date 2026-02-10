@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useModal, useLanguage, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext } from '@memosuite/shared';
+import { SyncModal, useModal, useLanguage, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext, PrintSettingsModal } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
@@ -461,6 +461,7 @@ export const MemoDetail: React.FC = () => {
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [isFabricModalOpen, setIsFabricModalOpen] = useState(false);
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const originalSpreadsheetJsonRef = useRef<string | null>(null); // Store original JSON string for accurate matching
@@ -1360,8 +1361,8 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                                 <ActionButton onClick={() => setShowShareModal(true)} $mobileOrder={5}>
                                     <FiShare2 size={13} /> {t.word_detail.share_word}
                                 </ActionButton>
-                                <ActionButton onClick={() => window.print()} $mobileOrder={10}>
-                                    <FiPrinter size={13} /> {language === 'ko' ? '인쇄' : 'Print'}
+                                <ActionButton onClick={() => setIsPrintModalOpen(true)} $mobileOrder={7}>
+                                    <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
                                 </ActionButton>
                                 {!isReadOnly && (
                                     <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={11}>
@@ -1663,6 +1664,13 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                         onClose={() => setShowExitToast(false)}
                     />
                 )}
+                <PrintSettingsModal
+                    isOpen={isPrintModalOpen}
+                    onClose={() => setIsPrintModalOpen(false)}
+                    appName="WordMemo"
+                    language={language}
+                    title={title}
+                />
             </ScrollContainer >
             <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
                 <FiArrowUp size={24} />

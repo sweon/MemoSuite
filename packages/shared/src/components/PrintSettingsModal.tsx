@@ -60,14 +60,17 @@ function savePrintSettings(appName: string, settings: PrintSettings) {
 export function executePrint(settings: PrintSettings, title?: string) {
     // Build @page CSS
     const m = settings.margins;
-    const pageCss = `@page { margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; }`;
+    const pageCss = `@page { 
+        size: auto;
+        margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; 
+    }`;
+
+    // Build page numbers via @page margin boxes for modern browsers (Chrome 131+, Firefox)
+    const pageNumCss = buildPageNumberCss(settings);
 
     // Build header / footer running elements via fixed-position boxes
     const headerHtml = buildRunningElement('print-header', settings.headerLeft, settings.headerCenter, settings.headerRight, 'top', m, settings.showBorder, title, settings.pageNumber);
     const footerHtml = buildRunningElement('print-footer', settings.footerLeft, settings.footerCenter, settings.footerRight, 'bottom', m, settings.showBorder, title, settings.pageNumber);
-
-    // Page numbers via CSS counters (if configured)
-    const pageNumCss = buildPageNumberCss(settings);
 
     // Inject style + elements
     const styleEl = document.createElement('style');
@@ -76,29 +79,55 @@ export function executePrint(settings: PrintSettings, title?: string) {
         ${pageCss}
         ${pageNumCss}
         @media print {
+            /* Global Reset for Print */
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                width: 100% !important;
+                height: auto !important;
+            }
+            
+            #root, #app-root {
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                width: 100% !important;
+                display: block !important;
+            }
+
+            /* Prevent content from overlapping headers/footers if they are fixed */
+            /* We use fixed positioning to repeat on every page */
+            
             #print-hf-wrapper {
                 display: block !important;
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                z-index: 99999;
             }
+
             #print-header-container, #print-footer-container {
                 display: block !important;
                 position: fixed;
-                left: 0; right: 0;
+                left: 0; 
+                right: 0;
                 z-index: 99999;
-                font-size: 9pt;
-                color: #333;
+                font-size: 8pt;
+                color: #666;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: transparent;
+                pointer-events: none;
+                width: 100%;
+                box-sizing: border-box;
             }
+
             #print-header-container {
-                top: 0;
+                /* Place it within the top margin */
+                top: calc(-${m.top}mm + 5mm);
             }
+
             #print-footer-container {
-                bottom: 0;
+                /* Place it within the bottom margin */
+                bottom: calc(-${m.bottom}mm + 5mm);
             }
+
             .print-hf-row {
                 display: flex;
                 justify-content: space-between;
@@ -106,23 +135,39 @@ export function executePrint(settings: PrintSettings, title?: string) {
                 width: 100%;
                 padding: 0;
             }
+
             .print-hf-cell {
                 flex: 1;
+                /* Limit height to prevent expansion */
+                max-height: 10mm;
+                overflow: hidden;
+                white-space: nowrap;
+                text-overflow: ellipsis;
             }
+
             .print-hf-cell.left { text-align: left; }
             .print-hf-cell.center { text-align: center; }
             .print-hf-cell.right { text-align: right; }
+
             #print-header-container .print-border-line {
-                border-bottom: 0.5pt solid #999;
-                margin-top: 4px;
+                border-bottom: 0.2pt solid #ccc;
+                margin-top: 2px;
+                width: 100%;
             }
+
             #print-footer-container .print-border-line {
-                border-top: 0.5pt solid #999;
-                margin-bottom: 4px;
+                border-top: 0.2pt solid #ccc;
+                margin-bottom: 2px;
+                width: 100%;
+            }
+            
+            /* Ensure page counter starts correctly */
+            body {
+                counter-reset: page 1;
             }
         }
         @media screen {
-            #print-header-container, #print-footer-container { display: none !important; }
+            #print-hf-wrapper { display: none !important; }
         }
     `;
     document.head.appendChild(styleEl);
@@ -139,14 +184,14 @@ export function executePrint(settings: PrintSettings, title?: string) {
         setTimeout(() => {
             document.getElementById('print-settings-style')?.remove();
             document.getElementById('print-hf-wrapper')?.remove();
-        }, 500);
+        }, 1000);
     });
 }
 
 function resolveVariable(text: string, title?: string): string {
     const now = new Date();
     return text
-        .replace(/\{title\}/gi, title || '')
+        .replace(/\{title\}/gi, title || 'Untitled')
         .replace(/\{date\}/gi, now.toLocaleDateString())
         .replace(/\{time\}/gi, now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
         .replace(/\{datetime\}/gi, now.toLocaleString());
@@ -176,14 +221,12 @@ function buildRunningElement(
     }
 
     const hasContent = resolvedL || resolvedC || resolvedR;
-    if (!hasContent) return '';
+    if (!hasContent && !showBorder) return '';
 
     const borderHtml = showBorder ? `<div class="print-border-line"></div>` : '';
-    const paddingStyle = position === 'top'
-        ? `padding: 0 ${margins.right}mm 0 ${margins.left}mm;`
-        : `padding: 0 ${margins.right}mm 0 ${margins.left}mm;`;
+    const containerStyle = `padding: 0 ${margins.right}mm 0 ${margins.left}mm;`;
 
-    return `<div id="${id}-container" style="${paddingStyle}">
+    return `<div id="${id}-container" style="${containerStyle}">
         ${position === 'bottom' ? borderHtml : ''}
         <div class="print-hf-row">
             <div class="print-hf-cell left">${resolvedL}</div>
@@ -205,15 +248,30 @@ function buildPageNumberCss(settings: PrintSettings): string {
         default: counterContent = `counter(page)`; break;
     }
 
-    // We inject page numbers via CSS counters on a pseudo-element of the header/footer
-    // But since counter(page) only works in @page margins in some browsers,
-    // we use a class-based approach with the existing running elements.
-    // For broader compatibility, we'll add a page-number span and use CSS content.
+    const posMap: Record<PageNumberPosition, string> = {
+        'none': '',
+        'top-left': '@top-left',
+        'top-center': '@top-center',
+        'top-right': '@top-right',
+        'bottom-left': '@bottom-left',
+        'bottom-center': '@bottom-center',
+        'bottom-right': '@bottom-right',
+    };
+
+    const marginBox = posMap[settings.pageNumber];
+
     return `
         @media print {
-            .print-page-number {
-                display: inline !important;
+            @page {
+                ${marginBox ? `${marginBox} { 
+                    content: ${counterContent}; 
+                    font-size: 8pt; 
+                    color: #666; 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                }` : ''}
             }
+            
+            /* Fallback/Legacy technique for page numbers */
             .print-page-number::after {
                 content: ${counterContent};
             }
@@ -231,23 +289,23 @@ interface Preset {
 const PRESETS: Preset[] = [
     {
         label: 'None', labelKo: '없음',
-        apply: s => ({ ...s, headerLeft: '', headerCenter: '', headerRight: '', footerLeft: '', footerCenter: '', footerRight: '', pageNumber: 'none' as PageNumberPosition }),
+        apply: s => ({ ...s, headerLeft: '', headerCenter: '', headerRight: '', footerLeft: '', footerCenter: '', footerRight: '', pageNumber: 'none' as PageNumberPosition, showBorder: false }),
     },
     {
-        label: 'Page number only', labelKo: '페이지 번호만',
-        apply: s => ({ ...s, headerLeft: '', headerCenter: '', headerRight: '', footerLeft: '', footerCenter: '', footerRight: '', pageNumber: 'bottom-center' as PageNumberPosition, pageNumberFormat: 'number' as PageNumberFormat }),
+        label: 'Simple No.', labelKo: '간단 번호',
+        apply: s => ({ ...s, headerLeft: '', headerCenter: '', headerRight: '', footerLeft: '', footerCenter: '', footerRight: '', pageNumber: 'bottom-center' as PageNumberPosition, pageNumberFormat: 'number' as PageNumberFormat, showBorder: false }),
     },
     {
-        label: 'Title + Page', labelKo: '제목 + 페이지',
-        apply: s => ({ ...s, headerLeft: '', headerCenter: '{title}', headerRight: '', footerLeft: '', footerCenter: '', footerRight: '', pageNumber: 'bottom-right' as PageNumberPosition, pageNumberFormat: 'n-of-total' as PageNumberFormat, showBorder: true }),
+        label: 'Standard', labelKo: '표준',
+        apply: s => ({ ...s, headerLeft: '{title}', headerCenter: '', headerRight: '{date}', footerLeft: '', footerCenter: '', footerRight: '', pageNumber: 'bottom-center' as PageNumberPosition, pageNumberFormat: 'n-of-total' as PageNumberFormat, showBorder: true }),
     },
     {
-        label: 'Date + Page', labelKo: '날짜 + 페이지',
-        apply: s => ({ ...s, headerLeft: '{date}', headerCenter: '', headerRight: '', footerLeft: '', footerCenter: '', footerRight: '', pageNumber: 'bottom-center' as PageNumberPosition, pageNumberFormat: 'dash-number' as PageNumberFormat }),
+        label: 'Academic', labelKo: '학술용',
+        apply: s => ({ ...s, headerLeft: '', headerCenter: '{title}', headerRight: '', footerLeft: '{date}', footerCenter: '', footerRight: '', pageNumber: 'bottom-right' as PageNumberPosition, pageNumberFormat: 'page-n' as PageNumberFormat, showBorder: true }),
     },
     {
-        label: 'Full (Title+Date+Page)', labelKo: '전체 (제목+날짜+페이지)',
-        apply: s => ({ ...s, headerLeft: '{date}', headerCenter: '{title}', headerRight: '{time}', footerLeft: '', footerCenter: '', footerRight: '', pageNumber: 'bottom-center' as PageNumberPosition, pageNumberFormat: 'page-n' as PageNumberFormat, showBorder: true }),
+        label: 'Archive', labelKo: '기록용',
+        apply: s => ({ ...s, headerLeft: '{date} {time}', headerCenter: '{title}', headerRight: '', footerLeft: 'MemoSuite', footerCenter: '', footerRight: '', pageNumber: 'bottom-right' as PageNumberPosition, pageNumberFormat: 'dash-number' as PageNumberFormat, showBorder: true }),
     },
 ];
 

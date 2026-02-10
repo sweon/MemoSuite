@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useModal, useLanguage, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext } from '@memosuite/shared';
+import { SyncModal, useModal, useLanguage, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext, PrintSettingsModal } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
@@ -343,6 +343,7 @@ export const LogDetail: React.FC = () => {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
     const {
@@ -878,7 +879,7 @@ export const LogDetail: React.FC = () => {
     };
 
     const handlePrint = () => {
-        window.print();
+        setIsPrintModalOpen(true);
     };
 
     const currentModelName = models?.find(m => m.id === modelId)?.name || t.log_detail.untitled_model;
@@ -1002,6 +1003,13 @@ export const LogDetail: React.FC = () => {
                         <CommentsSection logId={Number(id)} />
                     </CommentsWrapper>
                 )}
+                <PrintSettingsModal
+                    isOpen={isPrintModalOpen}
+                    onClose={() => setIsPrintModalOpen(false)}
+                    appName="LLMemo"
+                    language={language}
+                    title={title}
+                />
             </ScrollContainer>
 
             <GoToTopButton
