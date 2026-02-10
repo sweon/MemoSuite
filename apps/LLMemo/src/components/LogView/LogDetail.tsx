@@ -5,13 +5,11 @@ import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type CommentDraft } from '../../db';
-import { useSearch } from '../../contexts/SearchContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiFolder, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiPrinter } from 'react-icons/fi';
-import { useExitGuard, ExitGuardResult, FabricCanvasModal } from '@memosuite/shared-drawing';
-import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
+import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiFolder, FiArrowUp, FiArrowDown, FiPrinter } from 'react-icons/fi';
+import { useExitGuard, ExitGuardResult } from '@memosuite/shared-drawing';
 import { FolderMoveModal } from '../FolderView/FolderMoveModal';
 import { useFolder } from '../../contexts/FolderContext';
 import { format } from 'date-fns';
@@ -20,7 +18,6 @@ import { Toast } from '../UI/Toast';
 import { FiAlertTriangle } from 'react-icons/fi';
 
 import { llmemoSyncAdapter } from '../../utils/backupAdapter';
-import { DeleteChoiceModal } from './DeleteChoiceModal';
 
 const MainWrapper = styled.div`
   display: flex;
@@ -303,9 +300,8 @@ export const LogDetail: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const location = useLocation();
-    const { setSearchQuery } = useSearch();
     const { language, t } = useLanguage();
-    const { confirm, choice, prompt: modalPrompt } = useModal();
+    const { choice } = useModal();
 
     // Guard Hook
     const { registerGuard, unregisterGuard } = useExitGuard();
@@ -317,7 +313,6 @@ export const LogDetail: React.FC = () => {
 
     const [isEditing, setIsEditing] = useState(isNew);
     const [showGoToTop, setShowGoToTop] = useState(false);
-    const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const [headerHeight, setHeaderHeight] = useState(0);
@@ -332,115 +327,27 @@ export const LogDetail: React.FC = () => {
         });
         observer.observe(actionBarRef.current);
         return () => observer.disconnect();
-    }, [isEditing]); // re-observe when editing toggles as action bar content changes
+    }, [isEditing]);
 
     const handleStartEdit = () => {
-        if (containerRef.current) {
-            const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-            const ratio = scrollTop / (scrollHeight - clientHeight || 1);
-            setPrevScrollRatio(ratio);
-        }
         setIsEditing(true);
         window.history.pushState({ editing: true, isGuard: true }, '');
     };
 
-    const stopEditing = () => {
-        isClosingRef.current = true;
-        window.history.back(); // Trigger guard -> allow
-    };
-
-    // Track Sidebar interactions via t parameter to ensure stable modal opening
-    const tParam = searchParams.get('t');
-    const prevTParam = useRef<string | null>(null);
     const currentAutosaveIdRef = useRef<number | undefined>(undefined);
-
-    useEffect(() => {
-        currentAutosaveIdRef.current = undefined;
-        restoredIdRef.current = null;
-        setCommentDraft(null);
-        setIsEditing(id === undefined || id === 'new');
-        isClosingRef.current = false;
-
-        // Reset state to avoid stale data when switching logs
-        setTitle('');
-        setContent('');
-        setTags('');
-        setModelId(undefined);
-
-        if (id && id !== 'new') {
-            localStorage.setItem('llmemo_last_log_id', id);
-        }
-    }, [id]);
-
-
-
-    const handleGoToTop = () => {
-        containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    const handleGoToBottom = () => {
-        if (containerRef.current) {
-            containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' });
-        }
-    };
-
-    useEffect(() => {
-        if (tParam && tParam !== prevTParam.current) {
-            prevTParam.current = tParam;
-
-            // Reset editing states for fresh requests
-            setEditingDrawingData(undefined);
-            setEditingSpreadsheetData(undefined);
-
-            if (isNew) {
-                setContent('');
-                setTitle('');
-                setTags('');
-                setModelId(undefined);
-            }
-
-            // Re-trigger modal if URL state indicates it should be open
-            if (searchParams.get('drawing') === 'true') {
-                fabricCheckpointRef.current = content;
-                setIsFabricModalOpen(true);
-            }
-            if (searchParams.get('spreadsheet') === 'true') {
-                setIsSpreadsheetModalOpen(true);
-            }
-        }
-    }, [tParam, searchParams, isNew]);
-
-    // Recover spreadsheet data from navigation state if available (e.g. after initial save of new memo)
-    useEffect(() => {
-        if (location.state?.spreadsheetData && location.state?.spreadsheetJson) {
-            setEditingSpreadsheetData(location.state.spreadsheetData);
-            originalSpreadsheetJsonRef.current = location.state.spreadsheetJson;
-            setIsSpreadsheetModalOpen(true);
-        }
-    }, [location.state]);
 
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [tags, setTags] = useState(''); // Comma separated for editing
     const [modelId, setModelId] = useState<number | undefined>(undefined);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [isDeletingThreadHead, setIsDeletingThreadHead] = useState(false);
-    const [isFabricModalOpen, setIsFabricModalOpen] = useState(false);
-    const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
-    const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
-    const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
-    const fabricCheckpointRef = useRef<string | null>(null);
-    const spreadsheetCheckpointRef = useRef<string | null>(null);
-    const originalSpreadsheetJsonRef = useRef<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
     const {
-        currentFolderId,
-        currentFolder
+        currentFolderId
     } = useFolder();
-    const isReadOnly = currentFolder?.isReadOnly || false;
-    const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
@@ -448,24 +355,53 @@ export const LogDetail: React.FC = () => {
     const restoredIdRef = useRef<string | null>(null);
     const loadedIdRef = useRef<string | null>(null);
 
-    const [prevId, setPrevId] = useState(id);
-    if (id !== prevId) {
-        setPrevId(id);
-        loadedIdRef.current = null; // Clear loaded ref so useEffect re-loads for the new ID
+    const log = useLiveQuery(
+        () => {
+            if (!id || id === 'new') return undefined;
+            const numericId = Number(id);
+            if (isNaN(numericId)) return undefined;
+            return db.logs.get(numericId);
+        },
+        [id]
+    );
+
+    const { setIsDirty, setAppIsEditing } = useOutletContext<{
+        setIsDirty: (d: boolean) => void;
+        setAppIsEditing: (e: boolean) => void;
+    }>() || {};
+
+    const hasDraftChanges = !!commentDraft;
+    const isCurrentlyDirty = !!(isNew
+        ? (title.trim() || content.trim() || tags.trim() || hasDraftChanges)
+        : (!!log && (
+            (title || '').trim() !== (log.title || '').trim() ||
+            (content || '') !== (log.content || '') ||
+            (tags || '').trim() !== (log.tags.join(', ') || '').trim() ||
+            (modelId || null) !== (log.modelId || null) ||
+            hasDraftChanges
+        )));
+
+    useEffect(() => {
+        loadedIdRef.current = null;
         setTitle('');
         setContent('');
         setTags('');
         setCommentDraft(null);
         setIsEditing(id === undefined || id === 'new');
         isClosingRef.current = false;
-    }
+    }, [id]);
+
+    useEffect(() => {
+        if (id && id !== 'new') {
+            localStorage.setItem('llmemo_last_log_id', id);
+        }
+    }, [id]);
 
     useEffect(() => {
         if (isEditing) {
             const guardId = 'log-edit-guard';
             registerGuard(guardId, () => {
-                // If any modal is open, let its own guard handle the back navigation
-                if (isFabricModalOpen || isSpreadsheetModalOpen || isShareModalOpen || isDeleteModalOpen) {
+                if (isShareModalOpen || isFolderMoveModalOpen) {
                     return ExitGuardResult.CONTINUE;
                 }
 
@@ -492,54 +428,27 @@ export const LogDetail: React.FC = () => {
 
             return () => unregisterGuard(guardId);
         }
-    }, [isEditing, registerGuard, unregisterGuard, isFabricModalOpen, isShareModalOpen, isDeleteModalOpen, isSpreadsheetModalOpen]);
-
-    // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
-    const contentDrawingData = React.useMemo(() => {
-        const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
-        return match ? match[1] : undefined;
-    }, [content]);
-
-    const log = useLiveQuery(
-        () => {
-            if (!id || id === 'new') return undefined;
-            const numericId = Number(id);
-            if (isNaN(numericId)) return undefined;
-            return db.logs.get(numericId);
-        },
-        [id]
-    );
-
-    const { setIsDirty, setAppIsEditing, movingLogId, setMovingLogId } = useOutletContext<{
-        setIsDirty: (d: boolean) => void;
-        setAppIsEditing: (e: boolean) => void;
-        movingLogId?: number | null;
-        setMovingLogId?: (id: number | null) => void;
-    }>();
-
-    const isMovingLocal = movingLogId === Number(id);
-
-    const hasDraftChanges = !!commentDraft;
-    const isCurrentlyDirty = !!(isNew
-        ? (title.trim() || content.trim() || tags.trim() || hasDraftChanges)
-        : (!!log && (
-            (title || '').trim() !== (log.title || '').trim() ||
-            (content || '') !== (log.content || '') ||
-            (tags || '').trim() !== (log.tags.join(', ') || '').trim() ||
-            (modelId || null) !== (log.modelId || null) ||
-            hasDraftChanges
-        )));
+    }, [isEditing, isCurrentlyDirty, registerGuard, unregisterGuard, isShareModalOpen, isFolderMoveModalOpen]);
 
     useEffect(() => {
-        setIsDirty(isEditing || hasDraftChanges);
+        if (setIsDirty) setIsDirty(isEditing || hasDraftChanges);
         if (setAppIsEditing) setAppIsEditing(isEditing);
         return () => {
-            setIsDirty(false);
+            if (setIsDirty) setIsDirty(false);
             if (setAppIsEditing) setAppIsEditing(false);
         };
     }, [isEditing, hasDraftChanges, setIsDirty, setAppIsEditing]);
 
-    // scroll 이벤트 리스너 등록 (log가 로드된 후)
+    const handleGoToTop = () => {
+        containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleGoToBottom = () => {
+        if (containerRef.current) {
+            containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' });
+        }
+    };
+
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
@@ -563,7 +472,6 @@ export const LogDetail: React.FC = () => {
             const loadData = async () => {
                 const tagsStr = log.tags.join(', ');
 
-                // Check for autosave for initial display
                 const existing = await db.autosaves
                     .where('originalId')
                     .equals(Number(id))
@@ -586,7 +494,6 @@ export const LogDetail: React.FC = () => {
                     initialModelId = draft.modelId;
                     initialCommentDraft = draft.commentDraft || null;
 
-                    // Resume autosave session and mark as restored
                     currentAutosaveIdRef.current = draft.id;
                     restoredIdRef.current = id || null;
                 }
@@ -597,7 +504,6 @@ export const LogDetail: React.FC = () => {
                 setModelId(initialModelId);
                 setCommentDraft(initialCommentDraft);
 
-                // Initialize lastSavedState with initial values
                 lastSavedState.current = {
                     title: initialTitle,
                     content: initialContent,
@@ -623,11 +529,8 @@ export const LogDetail: React.FC = () => {
                 }, { replace: true, state: { editing: true, isGuard: true } });
             }
 
-            // Restoration prompt for existing log
             const checkExistingAutosave = async () => {
                 if (!isEditing && !shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
-
-                // Don't restore if we already restored/checked in this edit session
                 if (isEditing && restoredIdRef.current === id) return;
 
                 const existing = await db.autosaves
@@ -653,7 +556,6 @@ export const LogDetail: React.FC = () => {
                             setCommentDraft(draft.commentDraft);
                         }
 
-                        // Also update lastSavedState to match the restored draft
                         lastSavedState.current = {
                             title: draft.title,
                             content: draft.content,
@@ -671,14 +573,11 @@ export const LogDetail: React.FC = () => {
             setTitle('');
             setContent('');
             setTags(threadContext?.inheritedTags?.join(', ') || '');
-            setEditingDrawingData(undefined);
-            setEditingSpreadsheetData(undefined);
-            setModelId(threadContext?.inheritedModelId || undefined);
             setCommentDraft(null);
             setIsEditing(true);
             loadedIdRef.current = 'new';
+            setModelId(threadContext?.inheritedModelId || undefined);
 
-            // Restoration prompt for new log
             const checkNewAutosave = async () => {
                 const latest = await db.autosaves
                     .filter(a => a.originalId === undefined)
@@ -699,7 +598,6 @@ export const LogDetail: React.FC = () => {
                             setCommentDraft(draft.commentDraft);
                         }
 
-                        // Also update lastSavedState to match the restored draft
                         lastSavedState.current = {
                             title: draft.title,
                             content: draft.content,
@@ -713,14 +611,9 @@ export const LogDetail: React.FC = () => {
             checkNewAutosave();
         }
 
-        if (searchParams.get('drawing') === 'true') {
-            setIsFabricModalOpen(true);
-        }
-
         return () => { isCurrent = false; };
-    }, [log, isNew, id, searchParams, isEditing]);
+    }, [log, isNew, id, searchParams, isEditing, location.pathname, navigate]);
 
-    // Set default model if new and models loaded
     useEffect(() => {
         if (isNew && !modelId && models && models.length > 0) {
             setModelId(models[0].id);
@@ -735,7 +628,7 @@ export const LogDetail: React.FC = () => {
     }, [title, content, tags, modelId, commentDraft]);
 
     useEffect(() => {
-        const isEditingAnything = isEditing || isFabricModalOpen || isSpreadsheetModalOpen || !!commentDraft;
+        const isEditingAnything = isEditing || !!commentDraft;
         if (!isEditingAnything) return;
 
         const interval = setInterval(async () => {
@@ -776,16 +669,15 @@ export const LogDetail: React.FC = () => {
             currentAutosaveIdRef.current = newId;
             lastSavedState.current = { title: cTitle, content: cContent, tags: cTags, modelId: cModelId, commentDraft: cCommentDraft };
 
-            // Keep only latest 20 autosaves
             const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();
             if (allAutosaves.length > 20) {
                 const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
                 await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
             }
-        }, 7000); // 7 seconds
+        }, 7000);
 
         return () => clearInterval(interval);
-    }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft]); // Removed log dependency to prevent interval reset on DB updates
+    }, [id, isEditing, !!commentDraft]);
 
     const handleSave = async (overrideTitle?: string, overrideContent?: string, _overrideSearch?: string, overrideState?: any) => {
         const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -794,7 +686,6 @@ export const LogDetail: React.FC = () => {
         const currentTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
         const untitled = t.log_detail.untitled;
 
-        // Treat as untitled if empty OR matches the placeholder
         const isCurrentlyUntitled = !currentTitle || currentTitle === untitled;
 
         let finalTitle = currentTitle;
@@ -803,7 +694,7 @@ export const LogDetail: React.FC = () => {
             finalTitle = contentFallback || untitled;
         }
 
-        if (id) {
+        if (id && id !== 'new') {
             await db.logs.update(Number(id), {
                 title: finalTitle,
                 content: currentContent,
@@ -812,144 +703,50 @@ export const LogDetail: React.FC = () => {
                 updatedAt: now
             });
 
-            // Cleanup autosaves for this log
             await db.autosaves.where('originalId').equals(Number(id)).delete();
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
 
-            // Clear edit param if present to prevent re-entering edit mode
-            if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
+            if (searchParams.get('edit')) {
                 navigate(`/log/${id}`, { replace: true });
             }
         } else {
-            // Extract thread context from URL params if present (from Append button)
             const threadContext = extractThreadContext(searchParams);
 
             const newId = await db.logs.add({
                 folderId: threadContext?.inheritedFolderId ?? currentFolderId ?? undefined,
                 title: finalTitle,
                 content: currentContent,
-                tags: threadContext?.inheritedTags ?? tagArray,
-                modelId: threadContext?.inheritedModelId ?? (modelId ? Number(modelId) : undefined),
+                tags: threadContext?.inheritedTags || tagArray,
+                modelId: modelId ? Number(modelId) : (threadContext?.inheritedModelId || undefined),
+                threadId: threadContext?.threadId ?? undefined,
+                threadOrder: threadContext?.threadOrder ?? undefined,
                 createdAt: now,
-                updatedAt: now,
-                threadId: threadContext?.threadId,
-                threadOrder: threadContext?.threadOrder
+                updatedAt: now
             });
 
-            // Cleanup all new log autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
 
-            // Navigate without thread params to avoid re-applying on subsequent saves
             navigate(`/log/${newId}`, { replace: true, state: overrideState });
         }
     };
 
-    const handleDelete = async () => {
-        if (!id || !log) return;
-
-        // Check if it's a thread head and has other logs
-        const isHead = !!(log.threadId && log.threadOrder === 0);
-        let hasOthers = false;
-
-        if (isHead && log.threadId) {
-            const threadLogs = await db.logs.where('threadId').equals(log.threadId).toArray();
-            hasOthers = threadLogs.length > 1;
-        }
-
-        setIsDeletingThreadHead(isHead && hasOthers);
-        setIsDeleteModalOpen(true);
-    };
-
-    const performDeleteLogOnly = async () => {
-        if (!id || !log) return;
-        setIsDeleting(true);
-
-        const threadId = log.threadId;
-        const currentId = Number(id);
-
-        await db.logs.delete(currentId);
-        await db.comments.where('logId').equals(currentId).delete();
-
-        if (threadId) {
-            const remainingLogs = await db.logs.where('threadId').equals(threadId).sortBy('threadOrder');
-
-            if (remainingLogs.length > 0) {
-                // Re-sequence remaining logs to ensure there's a 0 order and it's contiguous
-                await db.transaction('rw', db.logs, async () => {
-                    for (let i = 0; i < remainingLogs.length; i++) {
-                        await db.logs.update(remainingLogs[i].id!, { threadOrder: i });
-                    }
-                });
-            }
-        }
-
-        // Always clear last log ID and navigate to empty state after deletion as requested
-        localStorage.removeItem('llmemo_last_log_id');
-        setIsDeleteModalOpen(false);
-        navigate('/', { replace: true });
-    };
-
-    const performDeleteThread = async () => {
-        if (!log || !log.threadId) return;
-        setIsDeleting(true);
-
-        const threadId = log.threadId;
-        const threadLogs = await db.logs.where('threadId').equals(threadId).toArray();
-        const logIds = threadLogs.map(l => l.id!);
-
-        await db.transaction('rw', [db.logs, db.comments], async () => {
-            await db.logs.bulkDelete(logIds);
-            for (const lid of logIds) {
-                await db.comments.where('logId').equals(lid).delete();
-            }
-        });
-
-        // Clear last log ID to prevent auto-redirect by EmptyState
-        localStorage.removeItem('llmemo_last_log_id');
-
-        setIsDeleteModalOpen(false);
-        navigate('/', { replace: true });
-    };
-
-    const handleAddThread = async () => {
-        if (!log || !id) return;
-
-        try {
-            const context = await prepareThreadForNewItem({
-                currentItem: log,
-                currentId: Number(id),
-                table: db.logs
-            });
-
-            // Add modelId to context for LLMemo-specific inheritance
-            const enrichedContext = {
-                ...context,
-                inheritedModelId: log.modelId
-            };
-
-            // Navigate to new log page with thread context (same pattern as sidebar)
-            const url = buildThreadNavigationUrl('/new', enrichedContext, { edit: 'true' });
-            navigate(url, { replace: true, state: { isGuard: true } });
-        } catch (error) {
-            console.error("Failed to add thread:", error);
-            await confirm({ message: "Failed to add thread. Please try again.", cancelText: null });
-        }
-    };
-
-    const currentModelName = models?.find(m => m.id === modelId)?.name || t.log_detail.unknown_model;
-
-
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
-            if (isNew) {
-                navigate('/');
-            } else if (searchParams.get('edit')) {
-                navigate(`/log/${id}`, { replace: true });
-            }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
-            stopEditing();
+            isClosingRef.current = true;
+            setIsEditing(false);
+
+            if (isNew) {
+                navigate('/', { replace: true });
+            } else if (searchParams.get('edit')) {
+                navigate(`/log/${id}`, { replace: true });
+            } else {
+                window.history.back();
+            }
             return;
         }
 
@@ -962,26 +759,29 @@ export const LogDetail: React.FC = () => {
 
         if (result === 'confirm') {
             await handleSave();
+            isClosingRef.current = true;
+            setIsEditing(false);
             if (isNew) {
-                navigate('/');
+                navigate('/', { replace: true });
             } else if (searchParams.get('edit')) {
                 navigate(`/log/${id}`, { replace: true });
+            } else {
+                window.history.back();
             }
-            stopEditing();
         } else if (result === 'neutral') {
-            // Cleanup autosaves on exit without saving
-            if (id) {
+            if (id && id !== 'new') {
                 await db.autosaves.where('originalId').equals(Number(id)).delete();
             } else {
                 await db.autosaves.filter(a => a.originalId === undefined).delete();
             }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
+            isClosingRef.current = true;
+            setIsEditing(false);
 
             if (isNew) {
-                navigate('/');
+                navigate('/', { replace: true });
             } else {
-                // Reset states to original log data
                 if (log) {
                     setTitle(log.title);
                     setContent(log.content);
@@ -991,11 +791,97 @@ export const LogDetail: React.FC = () => {
                 }
                 if (searchParams.get('edit')) {
                     navigate(`/log/${id}`, { replace: true });
+                } else {
+                    window.history.back();
                 }
             }
-            stopEditing();
         }
     };
+
+    const handleDelete = async () => {
+        if (!id) return;
+        const result = await (choice as any)({
+            message: language === 'ko' ? "이 로그를 어떻게 삭제하시겠습니까?" : "How would you like to delete this log?",
+            confirmText: language === 'ko' ? "전체 스레드 삭제" : "Delete entire thread",
+            neutralText: language === 'ko' ? "이 로그만 삭제" : "Delete only this log",
+            cancelText: language === 'ko' ? "취소" : "Cancel"
+        });
+
+        if (result === 'confirm') {
+            await performDeleteThread();
+        } else if (result === 'neutral') {
+            await performDeleteLogOnly();
+        }
+    };
+
+    const performDeleteLogOnly = async () => {
+        if (!id) return;
+        const logToDelete = await db.logs.get(Number(id));
+        if (!logToDelete) return;
+
+        setIsDeleting(true);
+        try {
+            await db.logs.delete(Number(id));
+            await db.comments.where('logId').equals(Number(id)).delete();
+            await db.autosaves.where('originalId').equals(Number(id)).delete();
+
+            const remainingInThread = await db.logs.where('threadId').equals(logToDelete.threadId || -1).toArray();
+            if (remainingInThread.length > 0) {
+                const sorted = remainingInThread.sort((a, b) => (b.threadOrder || 0) - (a.threadOrder || 0));
+                navigate(`/log/${sorted[0].id}`);
+            } else {
+                navigate('/');
+            }
+        } catch (err) {
+            console.error(err);
+            setIsDeleting(false);
+        }
+    };
+
+    const performDeleteThread = async () => {
+        if (!id) return;
+        const logToDelete = await db.logs.get(Number(id));
+        if (!logToDelete || !logToDelete.threadId) return;
+
+        setIsDeleting(true);
+        try {
+            const threadLogs = await db.logs.where('threadId').equals(logToDelete.threadId).toArray();
+            const threadLogIds = threadLogs.map(l => l.id!);
+
+            await db.logs.bulkDelete(threadLogIds);
+            for (const logId of threadLogIds) {
+                await db.comments.where('logId').equals(logId).delete();
+                await db.autosaves.where('originalId').equals(logId).delete();
+            }
+            navigate('/');
+        } catch (err) {
+            console.error(err);
+            setIsDeleting(false);
+        }
+    };
+
+    const handleAddThread = async () => {
+        if (!id || !log) return;
+
+        try {
+            const context = await prepareThreadForNewItem({
+                currentItem: log,
+                currentId: Number(id),
+                table: db.logs
+            });
+
+            const url = buildThreadNavigationUrl('/log/new', context, { edit: 'true' });
+            navigate(url, { replace: true, state: { isGuard: true } });
+        } catch (error) {
+            console.error("Failed to add thread:", error);
+        }
+    };
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const currentModelName = models?.find(m => m.id === modelId)?.name || t.log_detail.untitled_model;
 
     if (isDeleting || (!isNew && !log)) {
         if (isDeleting) return null;
@@ -1042,347 +928,124 @@ export const LogDetail: React.FC = () => {
                                 <>
                                     <span>{currentModelName}</span>
                                     <span>•</span>
-                                    <span>{log && format(log.createdAt, language === 'ko' ? 'yyyy년 M월 d일' : 'MMM d, yyyy')}</span>
-                                    {log?.tags.map(t => (
-                                        <span
-                                            key={t}
-                                            onClick={() => setSearchQuery(`tag:${t}`)}
-                                            style={{
-                                                background: '#eee',
-                                                padding: '2px 6px',
-                                                borderRadius: '4px',
-                                                fontSize: '12px',
-                                                color: '#333',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            {t}
-                                        </span>
-                                    ))}
+                                    <span>{log && format(log.createdAt, language === 'ko' ? 'yyyy. MM. dd.' : 'yyyy-MM-dd')}</span>
+                                    {log && log.tags.length > 0 && (
+                                        <>
+                                            <span>•</span>
+                                            <span>{log.tags.join(', ')}</span>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </MetaRow>
-                        <GoToBottomButton onClick={handleGoToBottom} title="Go to Bottom">
-                            <FiArrowDown size={16} />
-                        </GoToBottomButton>
+                        {!isEditing && <GoToBottomButton title={t.log_detail.go_to_bottom} onClick={handleGoToBottom}><FiArrowDown /></GoToBottomButton>}
                     </HeaderRow>
-
                 </Header>
 
                 <ActionBar ref={actionBarRef}>
                     {isEditing ? (
                         <>
-                            <ActionButton
-                                $variant="primary"
-                                onClick={() => handleSave()}
-                                disabled={!isCurrentlyDirty}
-                                style={{
-                                    opacity: !isCurrentlyDirty ? 0.5 : 1,
-                                    cursor: !isCurrentlyDirty ? 'not-allowed' : 'pointer'
-                                }}
-                            >
-                                <FiSave size={14} /> {t.log_detail.save}
+                            <ActionButton $variant="primary" onClick={() => handleSave()}>
+                                <FiSave size={16} />
+                                <span className="hide-on-mobile">{t.log_detail.save}</span>
                             </ActionButton>
-                            <ActionButton $variant="cancel" onClick={handleExit}>
-                                <FiX size={14} /> {t.log_detail.exit}
+                            <ActionButton onClick={handleExit}>
+                                <FiX size={16} />
+                                <span className="hide-on-mobile">{t.log_detail.exit}</span>
                             </ActionButton>
                         </>
                     ) : (
                         <>
-                            {!isReadOnly && (
-                                <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
-                                    <FiEdit2 size={14} /> {t.log_detail.edit}
-                                </ActionButton>
-                            )}
-                            {!isNew && (
-                                <ActionButton onClick={handleAddThread} $mobileOrder={2}>
-                                    <FiGitMerge size={14} /> {t.log_detail.add_thread}
-                                </ActionButton>
-                            )}
-                            {!isNew && (
-                                <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={4}>
-                                    <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
-                                </ActionButton>
-                            )}
-                            <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={5}>
-                                <FiShare2 size={14} /> {t.log_detail.share_log}
+                            <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
+                                <FiEdit2 size={16} />
+                                <span className="hide-on-mobile">{t.log_detail.edit}</span>
                             </ActionButton>
-                            {!isNew && (
-                                <ActionButton
-                                    $variant={isMovingLocal ? "primary" : undefined}
-                                    onClick={() => {
-                                        if (isMovingLocal) {
-                                            setMovingLogId?.(null);
-                                        } else {
-                                            setMovingLogId?.(Number(id));
-                                        }
-                                    }}
-                                    $mobileOrder={6}
-                                >
-                                    <FiArrowRightCircle size={14} />
-                                    {isMovingLocal ? t.log_detail.moving : t.log_detail.move}
-                                </ActionButton>
-                            )}
-                            <ActionButton onClick={() => window.print()} $mobileOrder={7}>
-                                <FiPrinter size={14} /> {language === 'ko' ? '인쇄' : 'Print'}
+                            <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                                <FiGitMerge size={16} />
+                                <span className="hide-on-mobile">{t.log_detail.add_thread}</span>
                             </ActionButton>
-                            {!isReadOnly && (
-                                <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={8}>
-                                    <FiTrash2 size={14} /> {t.log_detail.delete}
-                                </ActionButton>
-                            )}
+                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={3}>
+                                <FiFolder size={16} />
+                                <span className="hide-on-mobile">{t.log_detail.move_folder}</span>
+                            </ActionButton>
+                            <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={4}>
+                                <FiShare2 size={16} />
+                                <span className="hide-on-mobile">{t.log_detail.share}</span>
+                            </ActionButton>
+                            <ActionButton onClick={handlePrint} className="hide-on-mobile">
+                                <FiPrinter size={16} />
+                                <span>{t.log_detail.print || "Print"}</span>
+                            </ActionButton>
+                            <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={5}>
+                                <FiTrash2 size={16} />
+                                <span className="hide-on-mobile">{t.log_detail.delete}</span>
+                            </ActionButton>
                         </>
                     )}
                 </ActionBar>
 
-                {isEditing ? (
-                    <ContentPadding>
+                <ContentPadding>
+                    {isEditing ? (
                         <MarkdownEditor
-                            key={id || 'new'}
                             value={content}
                             onChange={setContent}
-                            initialScrollPercentage={prevScrollRatio}
                         />
-                    </ContentPadding>
-                ) : (
-                    <ContentPadding>
+                    ) : (
                         <MarkdownView
                             content={content}
-                            isReadOnly={isReadOnly}
-                            onEditDrawing={(json) => {
-                                if (isReadOnly) return;
-                                fabricCheckpointRef.current = content;
-                                setEditingDrawingData(json);
-                                setIsFabricModalOpen(true);
-                            }}
-                            onEditSpreadsheet={(json) => {
-                                if (isReadOnly) return;
-                                spreadsheetCheckpointRef.current = content;
-                                originalSpreadsheetJsonRef.current = json; // Store original JSON string
-                                try {
-                                    setEditingSpreadsheetData(JSON.parse(json));
-                                    setIsSpreadsheetModalOpen(true);
-                                } catch (e) {
-                                    console.error('Failed to parse spreadsheet JSON for editing', e);
-                                }
-                            }}
                         />
-                    </ContentPadding>
-                )}
+                    )}
+                </ContentPadding>
+
                 {!isEditing && !isNew && log && (
                     <CommentsWrapper>
-                        <CommentsSection
-                            logId={log.id!}
-                            initialEditingState={commentDraft}
-                            onEditingChange={setCommentDraft}
-                        />
+                        <CommentsSection logId={Number(id)} />
                     </CommentsWrapper>
                 )}
-                {isFabricModalOpen && (
-                    <FabricCanvasModal
-                        key={tParam || 'default'} // Force re-mount on new requests
-                        language={language}
-                        initialData={editingDrawingData || (searchParams.get('drawing') === 'true' && isNew ? undefined : contentDrawingData)}
-                        onSave={async (json: string) => {
-                            const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
-                            let found = false;
-                            const newContent = content.replace(fabricRegex, (match, p1) => {
-                                if (!found && p1.trim() === editingDrawingData?.trim()) {
-                                    found = true;
-                                    return `\`\`\`fabric\n${json}\n\`\`\``;
-                                }
-                                return match;
-                            });
-
-                            setContent(newContent);
-                            fabricCheckpointRef.current = newContent;
-                            if (id) {
-                                await db.logs.update(Number(id), {
-                                    content: newContent,
-                                    updatedAt: new Date()
-                                });
-                            }
-                        }}
-                        onAutosave={(json) => {
-                            const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
-                            let found = false;
-                            const newContent = content.replace(fabricRegex, (match, p1) => {
-                                if (!found && p1.trim() === editingDrawingData?.trim()) {
-                                    found = true;
-                                    return `\`\`\`fabric\n${json}\n\`\`\``;
-                                }
-                                return match;
-                            });
-                            if (newContent !== content) setContent(newContent);
-                        }}
-                        onClose={() => {
-                            if (fabricCheckpointRef.current !== null) {
-                                setContent(fabricCheckpointRef.current);
-                                fabricCheckpointRef.current = null;
-                            }
-                            setIsFabricModalOpen(false);
-                            setEditingDrawingData(undefined);
-                        }}
-                    />
-                )}
-
-                <SpreadsheetModal
-                    isOpen={isSpreadsheetModalOpen}
-                    onClose={() => {
-                        if (spreadsheetCheckpointRef.current !== null) {
-                            setContent(spreadsheetCheckpointRef.current);
-                            spreadsheetCheckpointRef.current = null;
-                        }
-                        setIsSpreadsheetModalOpen(false);
-                        setEditingSpreadsheetData(undefined);
-                    }}
-                    onSave={async (data: any) => {
-                        const json = JSON.stringify(data);
-                        let newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                        const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
-
-                        // Use original JSON string for accurate matching
-                        const targetRaw = originalSpreadsheetJsonRef.current?.trim() || '';
-                        if (targetRaw) {
-                            let found = false;
-                            newContent = content.replace(spreadsheetRegex, (match, p1) => {
-                                if (!found && p1.trim() === targetRaw) {
-                                    found = true;
-                                    return `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                                }
-                                return match;
-                            });
-                            // Update ref for subsequent saves
-                            if (found) {
-                                originalSpreadsheetJsonRef.current = json;
-                            }
-                        } else if (content.includes('```spreadsheet')) {
-                            newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
-                            originalSpreadsheetJsonRef.current = json;
-                        } else if (content.trim()) {
-                            newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
-                            originalSpreadsheetJsonRef.current = json;
-                        }
-
-                        setContent(newContent);
-                        spreadsheetCheckpointRef.current = newContent;
-
-                        const isInitialSpreadsheet = searchParams.get('spreadsheet') === 'true';
-
-                        // If it's a new spreadsheet memo from sidebar, ask for title and auto-save
-                        if (isNew && isInitialSpreadsheet) {
-                            const inputTitle = await modalPrompt({
-                                message: t.log_detail.title_prompt || (language === 'ko' ? '로그 제목을 입력하세요' : 'Enter log title'),
-                                placeholder: t.log_detail.untitled
-                            });
-                            const finalTitle = inputTitle?.trim() || t.log_detail.untitled;
-
-                            setTitle(finalTitle);
-
-                            // Trigger save with new content and title
-                            // Keep spreadsheet=true and pass data in state to prevent "empty sheet" bug on remount
-                            await handleSave(finalTitle, newContent, searchParams.toString(), {
-                                spreadsheetData: data,
-                                spreadsheetJson: json
-                            });
-                        } else {
-                            if (id) {
-                                // Trigger save with new content
-                                // Use handleSave to update lastSavedState and avoid race conditions with main Save button
-                                await handleSave(undefined, newContent);
-                            }
-                        }
-                    }}
-                    onAutosave={(data) => {
-                        const json = JSON.stringify(data);
-                        let newContent = content;
-                        const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
-
-                        // Use original JSON string for accurate matching
-                        const targetRaw = originalSpreadsheetJsonRef.current?.trim() || '';
-                        if (targetRaw) {
-                            let found = false;
-                            newContent = content.replace(spreadsheetRegex, (match, p1) => {
-                                if (!found && p1.trim() === targetRaw) {
-                                    found = true;
-                                    return `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                                }
-                                return match;
-                            });
-                            // Update ref for subsequent autosaves
-                            if (found && newContent !== content) {
-                                originalSpreadsheetJsonRef.current = json;
-                                setContent(newContent);
-                            }
-                        } else if (content.includes('```spreadsheet')) {
-                            newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
-                            if (newContent !== content) {
-                                originalSpreadsheetJsonRef.current = json;
-                                setContent(newContent);
-                            }
-                        } else if (searchParams.get('spreadsheet') === 'true' || content.trim().startsWith('```spreadsheet')) {
-                            newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                            originalSpreadsheetJsonRef.current = json;
-                            setContent(newContent);
-                        } else if (content.trim()) {
-                            newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
-                            originalSpreadsheetJsonRef.current = json;
-                            setContent(newContent);
-                        } else {
-                            newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                            originalSpreadsheetJsonRef.current = json;
-                            setContent(newContent);
-                        }
-                    }}
-                    initialData={editingSpreadsheetData}
-                    language={language as 'en' | 'ko'}
-                />
-                {log && (
-                    <SyncModal
-                        isOpen={isShareModalOpen}
-                        onClose={() => setIsShareModalOpen(false)}
-                        adapter={llmemoSyncAdapter}
-                        initialItemId={log.id!}
-                        t={t}
-                        language={language}
-                    />
-                )}
-                {isDeleteModalOpen && (
-                    <DeleteChoiceModal
-                        onClose={() => setIsDeleteModalOpen(false)}
-                        onDeleteLogOnly={performDeleteLogOnly}
-                        onDeleteThread={performDeleteThread}
-                        isThreadHead={isDeletingThreadHead}
-                    />
-                )}
-                {isFolderMoveModalOpen && log?.id && (
-                    <FolderMoveModal
-                        memoId={log.id}
-                        currentFolderId={log.folderId || null}
-                        onClose={() => setIsFolderMoveModalOpen(false)}
-                        onSuccess={() => { }}
-                    />
-                )}
-                {folderMoveToast && (
-                    <Toast
-                        message={folderMoveToast}
-                        onClose={() => setFolderMoveToast(null)}
-                        duration={3000}
-                    />
-                )}
-                {showExitToast && (
-                    <Toast
-                        variant="warning"
-                        position="centered"
-                        icon={<FiAlertTriangle size={14} />}
-                        message={t.log_detail?.exit_toast || "Press back again to exit"}
-                        onClose={() => setShowExitToast(false)}
-                    />
-                )}
             </ScrollContainer>
-            <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
+
+            <GoToTopButton
+                $show={showGoToTop}
+                onClick={handleGoToTop}
+                title={t.log_detail.go_to_top}
+            >
                 <FiArrowUp size={24} />
             </GoToTopButton>
+
+            {isShareModalOpen && (
+                <SyncModal
+                    isOpen={isShareModalOpen}
+                    onClose={() => setIsShareModalOpen(false)}
+                    adapter={llmemoSyncAdapter}
+                    initialItemId={log?.id}
+                    t={t}
+                    language={language}
+                />
+            )}
+
+            {isFolderMoveModalOpen && log?.id && (
+                <FolderMoveModal
+                    memoId={log.id}
+                    currentFolderId={log.folderId || null}
+                    onClose={() => setIsFolderMoveModalOpen(false)}
+                    onSuccess={(msg) => setToastMessage(msg)}
+                />
+            )}
+
+            {toastMessage && (
+                <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+            )}
+
+            {showExitToast && (
+                <Toast
+                    variant="warning"
+                    position="centered"
+                    icon={<FiAlertTriangle size={14} />}
+                    message={t.log_detail.exit_warning || "Press back again to exit"}
+                    onClose={() => setShowExitToast(false)}
+                    duration={2000}
+                />
+            )}
         </MainWrapper>
     );
 };

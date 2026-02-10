@@ -411,11 +411,6 @@ export const MemoDetail: React.FC = () => {
         window.history.pushState({ editing: true, isGuard: true }, '');
     };
 
-    const stopEditing = () => {
-        isClosingRef.current = true;
-        window.history.back(); // Trigger guard -> allow
-    };
-
     // Track Sidebar interactions via t parameter to ensure stable modal opening
     const tParam = searchParams.get('t');
     const prevTParam = useRef<string | null>(null);
@@ -526,7 +521,7 @@ export const MemoDetail: React.FC = () => {
     const setIsEditing = (val: boolean) => {
         if (val === isEditingInternal) return;
         if (val) startEditing();
-        else stopEditing();
+        else handleExit();
     };
 
     const [title, setTitle] = useState('');
@@ -1032,16 +1027,18 @@ export const MemoDetail: React.FC = () => {
 
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
             isClosingRef.current = true;
+            setIsEditingInternal(false);
+
             if (isNew) {
                 navigate('/', { replace: true });
-                setIsEditingInternal(false);
             } else if (searchParams.get('edit')) {
                 const targetBookId = bookId ? Number(bookId) : memo?.bookId;
                 navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
-                setIsEditingInternal(false);
             } else {
-                setIsEditing(false);
+                window.history.back();
             }
             return;
         }
@@ -1055,14 +1052,17 @@ export const MemoDetail: React.FC = () => {
 
         if (result === 'confirm') {
             await handleSave();
+            isClosingRef.current = true;
+            setIsEditingInternal(false);
             if (isNew) {
-                navigate('/');
+                navigate('/', { replace: true });
             } else if (searchParams.get('edit')) {
-                navigate(`/memo/${id}`, { replace: true });
+                const targetBookId = bookId ? Number(bookId) : memo?.bookId;
+                navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
+            } else {
+                window.history.back();
             }
-            setIsEditing(false);
         } else if (result === 'neutral') {
-            // Cleanup autosaves on exit without saving
             if (id) {
                 await db.autosaves.where('originalId').equals(Number(id)).delete();
             } else {
@@ -1070,11 +1070,12 @@ export const MemoDetail: React.FC = () => {
             }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
+            isClosingRef.current = true;
+            setIsEditingInternal(false);
 
             if (isNew) {
-                navigate('/');
+                navigate('/', { replace: true });
             } else {
-                // Reset states to original memo data
                 if (memo) {
                     setTitle(memo.title);
                     setContent(memo.content);
@@ -1087,9 +1088,10 @@ export const MemoDetail: React.FC = () => {
                 if (searchParams.get('edit')) {
                     const targetBookId = bookId ? Number(bookId) : memo?.bookId;
                     navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
+                } else {
+                    window.history.back();
                 }
             }
-            setIsEditing(false);
         }
     };
 

@@ -456,11 +456,6 @@ export const MemoDetail: React.FC = () => {
         window.history.pushState({ editing: true, isGuard: true }, '');
     };
 
-    const stopEditing = () => {
-        isClosingRef.current = true;
-        window.history.back(); // Trigger guard -> allow
-    };
-
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
     const commentDraftRef = useRef<CommentDraft | null>(null);
     useEffect(() => { commentDraftRef.current = commentDraft; }, [commentDraft]);
@@ -542,7 +537,7 @@ export const MemoDetail: React.FC = () => {
     const setIsEditing = (val: boolean) => {
         if (val === isEditingInternal) return;
         if (val) startEditing();
-        else stopEditing();
+        else handleExit();
     };
 
     const [title, setTitle] = useState('');
@@ -993,25 +988,20 @@ export const MemoDetail: React.FC = () => {
 
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
-            isClosingRef.current = true;
-            if (isNew) {
-                // Navigate back to the previously selected memo (before clicking new)
-                const prevId = localStorage.getItem('handmemo_prev_memo_id');
-                localStorage.removeItem('handmemo_prev_memo_id'); // Clean up
-                if (prevId) {
-                    navigate(`/memo/${prevId}`, { replace: true });
-                } else {
-                    navigate('/', { replace: true });
-                }
-                setIsEditingInternal(false);
-            } else if (searchParams.get('edit')) {
-                navigate(`/memo/${id}`, { replace: true });
-                setIsEditingInternal(false);
-            } else {
-                setIsEditing(false);
-            }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
+            isClosingRef.current = true;
+            setIsEditingInternal(false);
+
+            if (isNew) {
+                const prevId = localStorage.getItem('handmemo_prev_memo_id');
+                localStorage.removeItem('handmemo_prev_memo_id');
+                navigate(prevId ? `/memo/${prevId}` : '/', { replace: true });
+            } else if (searchParams.get('edit')) {
+                navigate(`/memo/${id}`, { replace: true });
+            } else {
+                window.history.back();
+            }
             return;
         }
 
@@ -1025,9 +1015,17 @@ export const MemoDetail: React.FC = () => {
         if (result === 'confirm') {
             await handleSave();
             localStorage.removeItem('handmemo_prev_memo_id');
+            isClosingRef.current = true;
             setIsEditingInternal(false);
+            if (isNew) {
+                const prevId = localStorage.getItem('handmemo_prev_memo_id');
+                navigate(prevId ? `/memo/${prevId}` : '/', { replace: true });
+            } else if (searchParams.get('edit')) {
+                navigate(`/memo/${id}`, { replace: true });
+            } else {
+                window.history.back();
+            }
         } else if (result === 'neutral') {
-            // Cleanup autosaves on exit without saving
             if (id) {
                 await db.autosaves.where('originalId').equals(Number(id)).delete();
             } else {
@@ -1035,31 +1033,27 @@ export const MemoDetail: React.FC = () => {
             }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
+            isClosingRef.current = true;
+            setIsEditingInternal(false);
 
             if (isNew) {
-                // Navigate back to the previously selected memo (before clicking new)
                 const prevId = localStorage.getItem('handmemo_prev_memo_id');
-                localStorage.removeItem('handmemo_prev_memo_id'); // Clean up
-                if (prevId) {
-                    navigate(`/memo/${prevId}`, { replace: true });
-                } else {
-                    navigate('/', { replace: true });
-                }
+                localStorage.removeItem('handmemo_prev_memo_id');
+                navigate(prevId ? `/memo/${prevId}` : '/', { replace: true });
             } else {
-                // Reset states to original memo data
                 if (memo) {
                     setTitle(memo.title);
                     setContent(memo.content);
-                    const tagsStr = memo.tags.join(', ');
-                    setTags(tagsStr);
+                    setTags(memo.tags.join(', '));
                     setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : format(memo.createdAt, 'yyyy-MM-dd'));
                     setCommentDraft(null);
                 }
                 if (searchParams.get('edit')) {
                     navigate(`/memo/${id}`, { replace: true });
+                } else {
+                    window.history.back();
                 }
             }
-            setIsEditingInternal(false);
         }
     };
 

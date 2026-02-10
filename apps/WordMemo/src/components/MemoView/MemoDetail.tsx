@@ -452,11 +452,6 @@ export const MemoDetail: React.FC = () => {
         setIsEditing(true);
         window.history.pushState({ editing: true, isGuard: true }, '');
     };
-
-    const stopEditing = () => {
-        isClosingRef.current = true;
-        window.history.back(); // Trigger guard -> allow
-    };
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [tags, setTags] = useState(''); // Comma separated for editing
@@ -1159,14 +1154,18 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
     const handleExit = async () => {
         if (!isCurrentlyDirty) {
+            currentAutosaveIdRef.current = undefined;
+            restoredIdRef.current = null;
+            isClosingRef.current = true;
+            setIsEditing(false);
+
             if (isPlaceholder || isNew) {
                 navigate('/', { replace: true });
             } else if (searchParams.get('edit')) {
                 navigate(`/word/${id}`, { replace: true });
+            } else {
+                window.history.back();
             }
-            stopEditing();
-            currentAutosaveIdRef.current = undefined;
-            restoredIdRef.current = null;
             return;
         }
 
@@ -1179,14 +1178,16 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
         if (result === 'confirm') {
             await handleSave();
+            isClosingRef.current = true;
+            setIsEditing(false);
             if (isPlaceholder || isNew) {
                 navigate('/', { replace: true });
             } else if (searchParams.get('edit')) {
                 navigate(`/word/${id}`, { replace: true });
+            } else {
+                window.history.back();
             }
-            stopEditing();
         } else if (result === 'neutral') {
-            // Cleanup autosaves on exit without saving
             if (id) {
                 await db.autosaves.where('originalId').equals(Number(id)).delete();
             } else {
@@ -1194,11 +1195,12 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
             }
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
+            isClosingRef.current = true;
+            setIsEditing(false);
 
             if (isPlaceholder || isNew) {
                 navigate('/', { replace: true });
             } else {
-                // Reset states to original word data
                 if (word) {
                     setTitle(word.title);
                     setContent(word.content);
@@ -1208,9 +1210,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 }
                 if (searchParams.get('edit')) {
                     navigate(`/word/${id}`, { replace: true });
+                } else {
+                    window.history.back();
                 }
             }
-            stopEditing();
         }
     };
 
