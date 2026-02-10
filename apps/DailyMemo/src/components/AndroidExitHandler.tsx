@@ -44,41 +44,40 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
 
             if (window.history.state?.fabricOpen) return;
 
-            // 0. Trap Skip: If we land on an OLD trap state, skip it immediately
-            if (event.state?.memosuite_trap) {
-                window.history.back();
-                return;
-            }
+            // If we land on a state that IS NOT our trap, a 'Back' movement just occurred.
+            if (!event.state?.memosuite_trap) {
 
-            // 1. Inhibition: If currently editing, block back, notify user, and re-trap
-            if (isEditing) {
-                setShowExitToast(true);
-                window.history.pushState({ memosuite_trap: true }, '');
-                return;
-            }
+                // 1. Inhibition: If currently editing, block back, notify user, and stay on page.
+                if (isEditing) {
+                    window.history.forward(); // Return to our trap state instantly
+                    setShowExitToast(true);
+                    return;
+                }
 
-            // 2. Check Guards
-            const guardResult = checkGuards();
-            if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
-                window.history.pushState({ memosuite_trap: true }, '');
-                return;
-            }
+                // 2. Check Guards
+                const guardResult = checkGuards();
+                if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
+                    window.history.forward();
+                    return;
+                }
 
-            // 3. Single-Press Sidebar: If closed, open it instantly and re-trap
-            if (!isSidebarOpen) {
-                onOpenSidebar?.();
-                window.history.pushState({ memosuite_trap: true }, '');
-                return;
-            }
+                // 3. Absolute Single-Press Sidebar: If closed, open it and stay on page.
+                if (!isSidebarOpen) {
+                    onOpenSidebar?.();
+                    window.history.forward();
+                    return;
+                }
 
-            // 4. Exit Warning
-            const now = Date.now();
-            if (now - lastPressTime.current < 2000) {
-                // Double press within 2s -> Allow Exit
-            } else {
-                lastPressTime.current = now;
-                setShowExitToast(true);
-                window.history.pushState({ memosuite_trap: true }, '');
+                // 4. Exit Warning
+                const now = Date.now();
+                if (now - lastPressTime.current < 2000) {
+                    // Successful double-press. Exit.
+                } else {
+                    // First press. Show warning and stay on page.
+                    lastPressTime.current = now;
+                    setShowExitToast(true);
+                    window.history.forward();
+                }
             }
         };
 
