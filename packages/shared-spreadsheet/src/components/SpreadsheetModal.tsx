@@ -2,10 +2,11 @@ import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react'
 import { Workbook, type WorkbookInstance } from "@fortune-sheet/react";
 import "@fortune-sheet/react/dist/index.css";
 import styled from 'styled-components';
-import { X, Save, Keyboard } from 'lucide-react';
+import { X, Save, Keyboard, Check } from 'lucide-react';
 const XIcon = X as any;
 const SaveIcon = Save as any;
 const KeyboardIcon = Keyboard as any;
+const CheckIcon = Check as any;
 import { v4 as uuidv4 } from 'uuid';
 import {
   exportToolBarItem,
@@ -230,6 +231,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
   const [mountKey, setMountKey] = useState(() => uuidv4());
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [savedToastVisible, setSavedToastVisible] = useState(false);
 
   // Use a ref to track if we've pushed our history state
   const historyStatePushedRef = useRef(false);
@@ -397,6 +399,8 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
           dataToSave = workbookData;
         }
         await onSave(dataToSave);
+        setSavedToastVisible(true);
+        setTimeout(() => setSavedToastVisible(false), 500);
       }
     } finally {
       setIsSaving(false);
@@ -538,6 +542,49 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
           </EditorContainer>
         </ModalContent>
       </ModalOverlay>
+
+      {savedToastVisible && (
+        <>
+          <style>{`
+            @keyframes fadeInOut {
+              0% { opacity: 0; transform: translate(-50%, -40%); }
+              100% { opacity: 1; transform: translate(-50%, -50%); }
+            }
+          `}</style>
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'rgba(255, 255, 255, 0.95)',
+            padding: '24px 48px',
+            borderRadius: '16px',
+            zIndex: 20002, // Higher than Exit Confirm Dialog (20000)
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            backdropFilter: 'blur(4px)',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+            animation: 'fadeInOut 0.3s ease',
+            pointerEvents: 'none',
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              background: '#20c997',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <CheckIcon size={28} color="white" />
+            </div>
+            <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#333' }}>{'Saved!'}</span>
+          </div>
+        </>
+      )}
 
       {isExitConfirmOpen && (
         <Backdrop onClick={(e) => e.stopPropagation()}>
