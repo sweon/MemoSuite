@@ -227,7 +227,7 @@
         }
 
         .features li::before {
-            content: \"✓\";
+            content: "✓";
             color: var(--primary);
             font-weight: 900;
             background: var(--primary-glow);
@@ -265,97 +265,6 @@
             color: var(--text);
             transform: scale(1.05);
             box-shadow: 0 0 20px var(--primary-glow);
-        }
-
-        #install-banner {
-            position: fixed;
-            bottom: 2rem;
-            left: 50%;
-            transform: translateX(-50%) translateY(150%);
-            width: 90%;
-            max-width: 500px;
-            background: rgba(28, 37, 61, 0.9);
-            backdrop-filter: blur(20px);
-            padding: 1.2rem;
-            display: none;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            box-sizing: border-box;
-            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        #install-banner.show {
-            display: flex;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        .install-content {
-            display: flex;
-            align-items: center;
-            gap: 1.2rem;
-        }
-
-        .install-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: var(--radius-sm);
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        .install-text h3 {
-            margin: 0;
-            font-size: 1rem;
-            font-weight: 800;
-            color: var(--text);
-        }
-
-        .install-text p {
-            margin: 4px 0 0 0;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        .btn-install {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 0.7rem 1.4rem;
-            border-radius: var(--radius-full);
-            font-weight: 800;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: var(--transition);
-            box-shadow: 0 4px 15px var(--primary-glow);
-        }
-
-        .btn-install:hover {
-            background: var(--primary-hover);
-            transform: scale(1.05);
-            box-shadow: 0 6px 20px var(--primary-glow);
-        }
-
-        .btn-close {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            font-size: 1.8rem;
-            cursor: pointer;
-            padding: 0.5rem;
-            display: flex;
-            align-items: center;
-            line-height: 1;
-            transition: var(--transition);
-        }
-
-        .btn-close:hover {
-            color: var(--text);
-            transform: rotate(90deg);
         }
 
         footer {
@@ -526,23 +435,6 @@
         </div>
     </div>
 
-    <!-- PWA Install Banner -->
-    <div id="install-banner">
-        <div class="install-content">
-            <div class="install-icon">
-                <img src="./HandMemo/pwa-192x192.png" alt="App Icon">
-            </div>
-            <div class="install-text">
-                <h3 id="install-title">기기에 앱 설치하기</h3>
-                <p id="install-desc">더 빠르고 편리하게 사용하세요</p>
-            </div>
-        </div>
-        <div class="install-actions">
-            <button id="install-btn" class="btn-install">설치</button>
-            <button id="close-banner" class="btn-close">&times;</button>
-        </div>
-    </div>
-
     <footer>
         &copy; 2026 Seyeon Weon
     </footer>
@@ -556,44 +448,6 @@
                     .catch(registrationError => console.log('SW registration failed: ', registrationError));
             });
         }
-
-        // PWA Install Logic
-        let deferredPrompt;
-        const installBanner = document.getElementById('install-banner');
-        const installBtn = document.getElementById('install-btn');
-        const closeBannerBtn = document.getElementById('close-banner');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            setTimeout(() => {
-                installBanner.style.display = 'flex';
-                requestAnimationFrame(() => {
-                    installBanner.classList.add('show');
-                });
-            }, 2000);
-        });
-
-        installBtn.addEventListener('click', (e) => {
-            installBanner.classList.remove('show');
-            setTimeout(() => {
-                installBanner.style.display = 'none';
-            }, 600);
-
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    deferredPrompt = null;
-                });
-            }
-        });
-
-        closeBannerBtn.addEventListener('click', () => {
-            installBanner.classList.remove('show');
-            setTimeout(() => {
-                installBanner.style.display = 'none';
-            }, 600);
-        });
 
         const translations = {
             ko: {
@@ -615,10 +469,7 @@
                     "폰을 분실하는 등의 경우에 데이터를 잃어버릴 수 있습니다.",
                     "다른 기기에 공유를 해두거나, 주기적으로 파일로 따로 저장을 해두어야 합니다."
                 ],
-                btn: "English",
-                installTitle: "기기에 앱 설치하기",
-                installDesc: "더 빠르고 편리하게 사용하세요",
-                installBtn: "설치"
+                btn: "English"
             },
             en: {
                 title: "MemoSuite",
@@ -639,10 +490,7 @@
                     "You may lose data if your device is lost.",
                     "You should share it to another device or periodically save it as a file."
                 ],
-                btn: "한국어",
-                installTitle: "Install App",
-                installDesc: "For a faster and better experience",
-                installBtn: "Install"
+                btn: "한국어"
             }
         };
 
@@ -651,9 +499,6 @@
         const subtitle = document.querySelector('header p');
         const cards = document.querySelectorAll('.card p'); // Hand, Book, Word, LLMemo in order
         const featureItems = document.querySelectorAll('.features li');
-        const installTitle = document.getElementById('install-title');
-        const installDesc = document.getElementById('install-desc');
-        const installBtnText = document.getElementById('install-btn');
 
         let currentLang = 'ko';
 
@@ -676,10 +521,6 @@
                 featureItems.forEach((item, index) => {
                     item.textContent = t.features[index];
                 });
-
-                installTitle.textContent = t.installTitle;
-                installDesc.textContent = t.installDesc;
-                installBtnText.textContent = t.installBtn;
 
                 toggleBtn.textContent = t.btn;
                 document.documentElement.lang = currentLang;
