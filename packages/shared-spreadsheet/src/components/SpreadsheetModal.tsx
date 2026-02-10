@@ -255,9 +255,10 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
     exitNoSave: language === 'ko' ? '저장하지 않고 종료' : 'Exit without Saving',
     cancel: language === 'ko' ? '취소' : 'Cancel',
     exitTitle: language === 'ko' ? '종료하시겠습니까?' : 'Exit Spreadsheet?',
-    exitMessage: language === 'ko' ? '저장하지 않은 변경사항이 있을 수 있습니다.' : 'You may have unsaved changes.',
+    exitMessage: language === 'ko' ? '변경사항을 취소하시겠습니까?' : 'Are you sure you want to discard your changes?',
     keyboard: language === 'ko' ? '입력' : 'Keyboard',
     saving: language === 'ko' ? '저장 중...' : 'Saving...',
+    saved: language === 'ko' ? '저장됨!' : 'Saved!',
   }), [language]);
 
   // Handle open/reset
@@ -581,7 +582,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
             }}>
               <CheckIcon size={28} color="white" />
             </div>
-            <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#333' }}>{'Saved!'}</span>
+            <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#333' }}>{labels.saved}</span>
           </div>
         </>
       )}
