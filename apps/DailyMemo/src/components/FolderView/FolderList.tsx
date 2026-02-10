@@ -683,17 +683,21 @@ export const FolderList: React.FC<FolderListProps> = ({
 
     const handleAddFolder = async () => {
         const now = new Date();
+        const isHome = currentFolder?.isHome || (homeFolder && currentFolderId === homeFolder.id);
 
-        // Find next available year
-        const currentYear = now.getFullYear();
-        let nextYear = currentYear;
-        const existingNames = new Set(folders?.map(f => f.name));
-
-        while (existingNames.has(nextYear.toString())) {
-            nextYear++;
+        let newName = '';
+        if (isHome) {
+            // Find next available year
+            const currentYearNum = now.getFullYear();
+            let nextYear = currentYearNum;
+            const existingNames = new Set(folders?.map(f => f.name));
+            while (existingNames.has(nextYear.toString())) {
+                nextYear++;
+            }
+            newName = nextYear.toString();
+        } else {
+            newName = language === 'ko' ? '새 폴더' : 'New Folder';
         }
-
-        const newName = nextYear.toString();
 
         const newId = await db.folders.add({
             name: newName,
@@ -704,8 +708,8 @@ export const FolderList: React.FC<FolderListProps> = ({
             updatedAt: now
         });
 
-        // Auto-create month folders 1-12 if creating at root level (year folder)
-        if (currentFolderId === null || (homeFolder && currentFolderId === homeFolder.id)) {
+        // Auto-create month folders 1-12 ONLY if creating at root level (year folder)
+        if (isHome) {
             for (let m = 1; m <= 12; m++) {
                 const monthName = language === 'ko' ? `${m}월` : m.toString();
                 await db.folders.add({
@@ -737,11 +741,14 @@ export const FolderList: React.FC<FolderListProps> = ({
         const name = editingName.trim();
         if (!name) return;
 
-        // Validate Year Format (YYYY)
-        if (!/^\d{4}$/.test(name)) {
+        const targetFolder = folders?.find(f => f.id === folderId);
+        const isYearFolder = targetFolder?.parentId === homeFolder?.id && homeFolder !== null;
+
+        // Validate Year Format (YYYY) only for year folders
+        if (isYearFolder && !/^\d{4}$/.test(name)) {
             alert(language === 'ko'
-                ? '폴더 이름은 4자리 연도(예: 2026)여야 합니다.'
-                : 'Folder name must be a 4-digit year (e.g. 2026).');
+                ? '연도 폴더 이름은 4자리 숫자(예: 2026)여야 합니다.'
+                : 'Year folder name must be a 4-digit number (e.g. 2026).');
             return;
         }
 
