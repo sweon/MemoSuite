@@ -257,6 +257,7 @@ export const MainLayout: React.FC = () => {
         <AndroidExitHandler
           isSidebarOpen={isSidebarOpen}
           onOpenSidebar={() => setSidebarOpen(true)}
+          isEditing={isAppEditing || isDirty}
         />
         <Overlay $isOpen={isSidebarOpen} onClick={() => setSidebarOpen(false)} />
         <SidebarWrapper id="app-sidebar-area" $isOpen={isSidebarOpen} $width={sidebarWidth}>

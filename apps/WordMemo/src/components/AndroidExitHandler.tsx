@@ -8,9 +8,10 @@ import { useExitGuard, ExitGuardResult } from '@memosuite/shared-drawing';
 interface AndroidExitHandlerProps {
     isSidebarOpen?: boolean;
     onOpenSidebar?: () => void;
+    isEditing?: boolean;
 }
 
-export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSidebarOpen, onOpenSidebar }) => {
+export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSidebarOpen, onOpenSidebar, isEditing }) => {
     const location = useLocation();
     const { t } = useLanguage();
     const [showExitToast, setShowExitToast] = useState(false);
@@ -43,6 +44,12 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
 
             if (window.history.state?.fabricOpen) return;
 
+            // Block back button if editing in the right pane
+            if (isEditing) {
+                window.history.pushState({ memosuite_trap: true }, '');
+                return;
+            }
+
             const guardResult = checkGuards();
             if (guardResult === ExitGuardResult.PREVENT_NAVIGATION || (guardResult as string) === 'PREVENT') {
                 window.history.pushState({ memosuite_trap: true }, '');
@@ -73,7 +80,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
 
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
-    }, [isSidebarOpen, isMobile, checkGuards, onOpenSidebar]);
+    }, [isSidebarOpen, isMobile, checkGuards, onOpenSidebar, isEditing]);
 
     if (!showExitToast) return null;
 
