@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Memo } from '../../db';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiPenTool } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiPenTool, FiCornerDownRight } from 'react-icons/fi';
 import { BsKeyboard } from 'react-icons/bs';
 import { RiTable2 } from 'react-icons/ri';
 import { useRegisterSW } from 'virtual:pwa-register/react';
@@ -285,6 +285,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       else next.add(id);
       return next;
     });
+  };
+
+  const collapseAllThreads = () => {
+    const threadIds = new Set<string>();
+    allMemos?.forEach(m => {
+      if (m.threadId) threadIds.add(m.threadId);
+    });
+    setCollapsedThreads(threadIds);
   };
 
   const needRefreshRef = useRef(false);
@@ -823,6 +831,12 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
           </BrandHeader>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingBottom: '4px' }}>
+            <Tooltip content={t.sidebar.collapse_all}>
+              <IconButton onClick={collapseAllThreads}>
+                <FiCornerDownRight size={18} />
+              </IconButton>
+            </Tooltip>
+
             <Tooltip content={t.sidebar.decrease_font}>
               <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
                 <FiMinus size={18} />

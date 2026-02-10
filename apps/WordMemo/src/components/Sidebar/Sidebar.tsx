@@ -6,7 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import type { Word } from '../../db';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiMinus } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiMinus, FiCornerDownRight } from 'react-icons/fi';
 import { Tooltip } from '../UI/Tooltip';
 import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 import { useFolder } from '../../contexts/FolderContext';
@@ -316,6 +316,10 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     if (newSet.has(threadId)) newSet.delete(threadId);
     else newSet.add(threadId);
     setExpandedThreads(newSet);
+  };
+
+  const collapseAllThreads = () => {
+    setExpandedThreads(new Set());
   };
 
   const { mode, theme, toggleTheme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
@@ -851,6 +855,12 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           </BrandHeader>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingBottom: '4px' }}>
+            <Tooltip content={t.sidebar.collapse_all}>
+              <IconButton onClick={collapseAllThreads}>
+                <FiCornerDownRight size={18} />
+              </IconButton>
+            </Tooltip>
+
             <Tooltip content={t.sidebar.decrease_font}>
               <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
                 <FiMinus size={18} />

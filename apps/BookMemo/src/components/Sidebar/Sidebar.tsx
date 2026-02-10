@@ -6,7 +6,7 @@ import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus } from 'react-icons/fi';
+import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiCornerDownRight } from 'react-icons/fi';
 import { BreadcrumbNav } from '../UI/BreadcrumbNav';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Tooltip } from '../UI/Tooltip';
@@ -242,6 +242,18 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const { t, language } = useLanguage();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-memo-asc' | 'last-comment-desc'>('date-desc');
   const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
+  const [expandedBookIds, setExpandedBookIds] = useState<Set<number>>(new Set());
+
+  const toggleBook = (bookId: number) => {
+    setExpandedBookIds(prev => {
+      const next = new Set(prev);
+      if (next.has(bookId)) next.delete(bookId);
+      else next.add(bookId);
+      return next;
+    });
+  };
+
+  const collapseAllBooks = () => setExpandedBookIds(new Set());
 
   const { mode, toggleTheme, theme, fontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const {
@@ -630,6 +642,12 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           </BrandHeader>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingBottom: '4px' }}>
+            <Tooltip content={t.sidebar.collapse_all}>
+              <IconButton onClick={collapseAllBooks}>
+                <FiCornerDownRight size={18} />
+              </IconButton>
+            </Tooltip>
+
             <Tooltip content={t.sidebar.decrease_font}>
               <IconButton onClick={decreaseFontSize} disabled={fontSize <= 12}>
                 <FiMinus size={18} />
@@ -764,6 +782,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                         onTogglePin={handleTogglePinBook}
                         onMove={(id, type) => handleMove(id, type)}
                         isMoving={!!movingMemoId}
+                        isCollapsed={!expandedBookIds.has(book.id!)}
+                        onToggle={() => toggleBook(book.id!)}
                       />
                     </div>
                   )}

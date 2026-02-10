@@ -94,15 +94,20 @@ interface Props {
   onTogglePin?: (id: number, e: React.MouseEvent) => void;
   onMove?: (id: number, type: 'book' | 'memo') => void;
   isMoving?: boolean;
+  isCollapsed?: boolean;
+  onToggle?: () => void;
 }
 
-export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeNavigate, onTogglePin, onMove, isMoving }) => {
+export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeNavigate, onTogglePin, onMove, isMoving, isCollapsed: isCollapsedProp, onToggle }) => {
   const { bookId: activeId, id: activeMemoId } = useParams();
   const { t, language } = useLanguage();
   const { searchQuery } = useSearch();
   const { theme } = useColorTheme();
   const navigate = useNavigate();
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [internalIsCollapsed, setInternalIsCollapsed] = useState(true);
+
+  const isCollapsed = isCollapsedProp !== undefined ? isCollapsedProp : internalIsCollapsed;
+  const setIsCollapsed = onToggle ? () => onToggle() : setInternalIsCollapsed;
 
   const progressPercent = book.totalPages > 0
     ? Math.round(((book.currentPage || 0) / book.totalPages) * 100)
