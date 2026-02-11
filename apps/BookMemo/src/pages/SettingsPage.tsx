@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AppLockSettings, DataManagementSection, LanguageSettings, ThemeSettings, useColorTheme, useConfirm, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
