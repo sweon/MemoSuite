@@ -37,19 +37,11 @@ export function ThreadableList<T>({
     getItemId,
     useExternalContext = false
 }: ThreadableListProps<T>) {
-    const [combineTargetId, setCombineTargetId] = useState<string | null>(null);
-
     const handleDragUpdate = (update: DragUpdate) => {
-        if (update.combine) {
-            setCombineTargetId(update.combine.draggableId);
-        } else {
-            setCombineTargetId(null);
-        }
         onDragUpdate?.(update);
     };
 
     const handleDragEnd = (result: DropResult) => {
-        setCombineTargetId(null);
         onDragEnd(result);
     };
 
@@ -78,7 +70,7 @@ export function ThreadableList<T>({
                                             zIndex: snapshot.isDragging ? 100 : 1
                                         }}
                                     >
-                                        {renderItem(item, index, combineTargetId === id)}
+                                        {renderItem(item, index, !!snapshot.combineTargetFor)}
                                     </div>
                                 )}
                             </TouchDelayDraggable>
