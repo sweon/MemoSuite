@@ -41,9 +41,9 @@ const BreadcrumbItemStyled = styled.button<{ $isActive?: boolean; $isHome?: bool
   padding: 4px 8px;
   border: none;
   background: ${({ $isActive }) => $isActive ? `${APP_COLOR}22` : 'transparent'};
-  color: ${({ $isActive, theme }) => $isActive ? APP_COLOR : theme.colors.textSecondary};
-  font-size: 0.8rem;
-  font-weight: ${({ $isActive }) => $isActive ? 600 : 500};
+  color: ${({ $isActive, theme }) => $isActive ? APP_COLOR : theme.colors.text};
+  font-size: 0.85rem;
+  font-weight: ${({ $isActive }) => $isActive ? 700 : 500};
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;

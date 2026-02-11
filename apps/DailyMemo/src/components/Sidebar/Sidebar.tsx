@@ -59,7 +59,7 @@ const SidebarContainer = styled.div`
 `;
 
 const Header = styled.div`
-  padding: 0.5rem;
+  padding: 6px 0.5rem 0.5rem;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   position: sticky;
   top: 0;
@@ -193,7 +193,7 @@ const IconButton = styled.button`
 const BrandArea = styled.div`
   display: flex;
   flex-direction: column;
-  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.md} ${theme.spacing.sm}`};
+  padding: 8px 1rem 6px;
   gap: 8px;
 `;
 
@@ -310,7 +310,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   const [collapsedThreads, setCollapsedThreads] = useState<Set<string>>(new Set());
   const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -654,7 +653,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   }, [location.pathname, groupedItems.length]);
 
   const onDragEnd = async (result: DropResult) => {
-    setIsDragging(false);
     const { combine, draggableId, destination } = result;
 
     // Handle Combining (Joining Threads)
@@ -926,11 +924,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       <ScrollableArea id="sidebar-scrollable-area" ref={scrollAreaRef} onScroll={handleScroll}>
         <BrandArea style={{
           opacity: isEditing ? 0.5 : 1,
-          pointerEvents: isEditing ? 'none' : 'auto',
-          position: isDragging ? 'sticky' : 'relative',
-          top: 0,
-          zIndex: 10,
-          background: isDragging ? theme.colors.surface : 'transparent'
+          pointerEvents: isEditing ? 'none' : 'auto'
         }}>
           <BrandHeader>
             <AppTitle>DailyMemo</AppTitle>
@@ -1045,11 +1039,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
 
         <Header style={{
           opacity: isEditing ? 0.5 : 1,
-          pointerEvents: isEditing ? 'none' : 'auto',
-          position: isDragging ? 'sticky' : 'relative',
-          top: isDragging ? '220px' : '0', // Adjust top for header to be below BrandArea when sticky
-          zIndex: 9,
-          background: isDragging ? theme.colors.surface : 'transparent'
+          pointerEvents: isEditing ? 'none' : 'auto'
         }}>
           <TopActions>
             <Button
@@ -1105,7 +1095,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
         <ThreadableList
           items={groupedItems}
           droppableId="sidebar-memos"
-          onDragStart={() => setIsDragging(true)}
+          onDragStart={() => { }}
           onDragEnd={onDragEnd}
           useExternalContext={true}
           getItemId={(item) => item.memo.id!}

@@ -55,8 +55,7 @@ const SidebarContainer = styled.div`
 `;
 
 const Header = styled.div`
-  padding: 0.5rem;
-  background: ${({ theme }) => theme.colors.surface};
+  padding: 4px 0.5rem 0.5rem;
 `;
 
 const StickyHeaderArea = styled.div`
@@ -67,10 +66,12 @@ const StickyHeaderArea = styled.div`
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
+
+
 const BrandArea = styled.div`
   display: flex;
   flex-direction: column;
-  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.md} ${theme.spacing.sm}`};
+  padding: 8px 1rem 6px;
   gap: 8px;
 `;
 
@@ -344,7 +345,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const [combineTargetId, setCombineTargetId] = useState<string | null>(null);
   const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -940,9 +940,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     handleDragEnd: async (result: DropResult) => {
       await onDragEnd(result);
     },
-    handleDragStart: () => {
-      setIsDragging(true);
-    },
+    handleDragStart: () => { },
     handleDragUpdate: (update: DragUpdate) => {
       onDragUpdate(update);
     }
@@ -985,11 +983,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       <ScrollableArea id="sidebar-scrollable-area" ref={scrollAreaRef} onScroll={handleScroll}>
         <BrandArea style={{
           opacity: isEditing ? 0.5 : 1,
-          pointerEvents: isEditing ? 'none' : 'auto',
-          position: isDragging ? 'sticky' : 'relative',
-          top: 0,
-          zIndex: 10,
-          background: isDragging ? theme.colors.surface : 'transparent'
+          pointerEvents: isEditing ? 'none' : 'auto'
         }}>
           <BrandHeader>
             <AppTitle>WordMemo</AppTitle>
@@ -1093,11 +1087,9 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                 padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
                 fontSize: window.innerWidth <= 768 ? '13px' : '0.75rem',
                 borderRadius: '6px',
-                border: `1px solid ${theme.colors.border} `,
+                border: `1px solid ${theme.colors.border}`,
                 background: theme.colors.surface,
-                color: theme.colors.text,
-                opacity: isEditing ? 0.5 : 1,
-                pointerEvents: isEditing ? 'none' : 'auto'
+                color: theme.colors.text
               }}
             >
               <option value="date-desc">{language === 'ko' ? '최신순' : 'Newest'}</option>
@@ -1113,13 +1105,9 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
         <StickyHeaderArea style={{
           opacity: isEditing ? 0.5 : 1,
-          pointerEvents: isEditing ? 'none' : 'auto',
-          position: isDragging ? 'sticky' : 'relative',
-          top: isDragging ? '230px' : '0',
-          zIndex: 9,
-          background: isDragging ? theme.colors.surface : 'transparent'
+          pointerEvents: isEditing ? 'none' : 'auto'
         }}>
-          <div style={{ padding: '6px 1rem 0.5rem' }}>
+          <div style={{ padding: '6px 1rem 2px' }}>
             <StudyModeGroup>
               <StudyModeOption
                 $active={studyMode === 'hide-meanings'}
@@ -1142,7 +1130,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                 navigate('/new', { replace: true, state: { isGuard: true } });
                 onCloseMobile(true);
               }}>
-                <FiPlus size={16} />
+                <FiPlus />
                 {language === 'ko' ? '새 단어' : 'New Word'}
               </Button>
             </TopActions>

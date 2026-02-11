@@ -55,7 +55,7 @@ const SidebarContainer = styled.div`
 `;
 
 const Header = styled.div`
-  padding: 0.5rem;
+  padding: 6px 0.5rem 0.5rem;
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   position: sticky;
   top: 0;
@@ -206,7 +206,7 @@ export interface SidebarRef {
 const BrandArea = styled.div`
   display: flex;
   flex-direction: column;
-  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.md} ${theme.spacing.sm}`};
+  padding: 8px 1rem 6px;
   gap: 8px;
 `;
 
@@ -277,8 +277,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
   const [expandedBookIds, setExpandedBookIds] = useState<Set<number>>(new Set());
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const isNavigatingRef = useRef(false);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const scrollTop = e.currentTarget.scrollTop;
@@ -386,12 +386,9 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
   useImperativeHandle(ref, () => ({
     handleDragEnd: async (result: DropResult) => {
-      setIsDragging(false);
       await onDragEnd(result);
     },
-    handleDragStart: () => {
-      setIsDragging(true);
-    }
+    handleDragStart: () => { }
   }));
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
@@ -686,11 +683,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       <ScrollableArea id="sidebar-scrollable-area" ref={scrollAreaRef} onScroll={handleScroll}>
         <BrandArea style={{
           opacity: isEditing ? 0.5 : 1,
-          pointerEvents: isEditing ? 'none' : 'auto',
-          position: isDragging ? 'sticky' : 'relative',
-          top: 0,
-          zIndex: 10,
-          background: isDragging ? theme.colors.surface : 'transparent'
+          pointerEvents: isEditing ? 'none' : 'auto'
         }}>
           <BrandHeader>
             <AppTitle>BookMemo</AppTitle>
@@ -748,12 +741,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               <BreadcrumbNav
                 items={breadcrumbs}
                 onNavigate={(folderId) => {
+                  isNavigatingRef.current = true;
                   navigateToFolder(folderId);
                   setShowFolderList(true);
                   navigate('/folders', { replace: true, state: { isGuard: true } });
                   onCloseMobile(true);
                 }}
                 onNavigateHome={() => {
+                  isNavigatingRef.current = true;
                   navigateToHome();
                   setShowFolderList(true);
                   navigate('/folders', { replace: true, state: { isGuard: true } });
@@ -801,11 +796,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
         <Header style={{
           opacity: isEditing ? 0.5 : 1,
-          pointerEvents: isEditing ? 'none' : 'auto',
-          position: isDragging ? 'sticky' : 'relative',
-          top: isDragging ? '230px' : '0',
-          zIndex: 9,
-          background: isDragging ? theme.colors.surface : 'transparent'
+          pointerEvents: isEditing ? 'none' : 'auto'
         }}>
           <TopActions>
             <Button onClick={() => {
