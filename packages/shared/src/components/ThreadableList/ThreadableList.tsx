@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import type { DropResult, DragUpdate, DragStart } from '@hello-pangea/dnd';
 
