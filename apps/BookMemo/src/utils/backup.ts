@@ -17,8 +17,6 @@ export const getBackupData = async (memoIds?: number[], excludeIds?: number[]) =
     if (excludeIds && excludeIds.length > 0) {
         memos = memos.filter(l => l.id !== undefined && !excludeIds.includes(l.id));
         comments = comments.filter(c => c.memoId !== undefined && !excludeIds.includes(c.memoId));
-        // Note: books are usually small and shared if their memos are shared. 
-        // We can exclude books too if they were just synced, but filtering by memos is primary.
     }
 
     return {
@@ -128,45 +126,48 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
     await db.transaction('rw', db.books, db.memos, db.comments, db.folders, async () => {
         const localFolderByName = new Map<string, number>();
         const folderIdMap = new Map<number, number>();
+        const getParentName = (parentId: number | null | undefined) => {
+            if (!parentId) return '';
+            const p = allLocalFolders.find(f => f.id === parentId);
+            if (!p) return '';
+            if (p.isHome || p.name.normalize('NFC') === '홈' || p.name.normalize('NFC') === '기본 폴더') return '__HOME__';
+            return p.name.normalize('NFC');
+        };
+
         allLocalFolders.forEach(f => {
             const name = f.name.normalize('NFC');
-            // If we already have this name, and the current f is NOT home, don't overwrite if existing IS home
-            const existingId = localFolderByName.get(name);
-            const existingF = existingId ? allLocalFolders.find(ef => ef.id === existingId) : null;
-
-            if (existingF && existingF.isHome) {
-                // Do not overwrite actual Home
-                return;
-            }
-            localFolderByName.set(name, f.id!);
+            const parentName = getParentName(f.parentId);
+            const key = `${parentName}|${name}`;
+            if (!localFolderByName.has(key) || f.isHome) localFolderByName.set(key, f.id!);
         });
 
-        // Double check: Force Home Folder ID if found
         const realHome = allLocalFolders.find(f => f.isHome);
-        let homeId = realHome?.id;
+        const homeId = realHome?.id;
         if (realHome) {
-            localFolderByName.set(realHome.name.normalize('NFC'), realHome.id!);
+            localFolderByName.set('|' + realHome.name.normalize('NFC'), realHome.id!);
+            localFolderByName.set('__HOME__|' + realHome.name.normalize('NFC'), realHome.id!);
         }
 
         if (data.folders) {
             const newFolderIds = new Set<number>();
-
-            // Pass 1: Create/Update folders without parentId
             for (const f of data.folders) {
                 const oldId = f.id;
                 const normalizedName = f.name.normalize('NFC');
-
-                // Special handling: Merge '기본 폴더' or imported Home into 'Home' to prevent hidden data
                 if ((normalizedName === '기본 폴더' || f.isHome) && homeId) {
                     folderIdMap.set(oldId, homeId);
-                    continue; // Skip creating/updating '기본 폴더', just map it to Home
+                    continue;
                 }
-
-
-                const existingId = localFolderByName.get(normalizedName);
+                const isHomeFolder = (folder: any) => folder.isHome || folder.name.normalize('NFC') === '홈' || folder.name.normalize('NFC') === '기본 폴더';
+                let importParentName = '';
+                if (f.parentId) {
+                    const parentFolder = data.folders.find((df: any) => df.id === f.parentId);
+                    if (parentFolder) importParentName = isHomeFolder(parentFolder) ? '__HOME__' : parentFolder.name.normalize('NFC');
+                }
+                const key = `${importParentName}|${normalizedName}`;
+                let existingId = localFolderByName.get(key);
+                if (!existingId && (normalizedName === '홈' || normalizedName === '기본 폴더')) existingId = homeId;
                 const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
                 const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
-
                 if (existingId) {
                     folderIdMap.set(oldId, existingId);
                     const existingFolder = allLocalFolders.find(lf => lf.id === existingId);
@@ -174,52 +175,34 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     if (updatedAt.getTime() > localTime) {
                         const folderUpdates: any = { color: f.color, updatedAt };
                         if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
-                        // Don't update parentId here
                         await db.folders.update(existingId, folderUpdates);
                     }
                 } else {
-                    const { id: _, parentId, ...folderData } = f; // Exclude parentId
+                    const { id: _, parentId, ...folderData } = f;
                     folderData.createdAt = createdAt;
                     folderData.updatedAt = updatedAt;
                     const newId = await db.folders.add(folderData);
                     folderIdMap.set(oldId, newId as number);
-                    localFolderByName.set(f.name.normalize('NFC'), newId as number);
+                    localFolderByName.set(`${importParentName}|${normalizedName}`, newId as number);
                     newFolderIds.add(newId as number);
+                    allLocalFolders.push({ ...folderData, id: newId as number, name: f.name, parentId: parentId } as any);
                 }
             }
-
-            // Pass 2: Restore hierarchy
             for (const f of data.folders) {
                 const currentId = folderIdMap.get(f.id);
                 if (!currentId) continue;
-
                 let targetParentId: number | undefined;
-
-                if (f.parentId !== undefined && f.parentId !== null) {
-                    targetParentId = folderIdMap.get(f.parentId);
-                }
-
-                // If no parent defined, and not a home folder, attach to Home
-                if (targetParentId === undefined && !f.isHome && homeId && currentId !== homeId) {
-                    targetParentId = homeId;
-                }
-
+                if (f.parentId !== undefined && f.parentId !== null) targetParentId = folderIdMap.get(f.parentId);
+                if (targetParentId === undefined && !f.isHome && homeId && currentId !== homeId) targetParentId = homeId;
                 if (targetParentId) {
-                    const mappedParentId = targetParentId;
-                    if (mappedParentId) {
-                        const isNew = newFolderIds.has(currentId);
-
-                        if (isNew) {
-                            await db.folders.update(currentId, { parentId: mappedParentId });
-                        } else {
-                            const existingFolder = allLocalFolders.find(lf => lf.id === currentId);
-                            const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
-                            const localTime = existingFolder?.updatedAt.getTime() || 0;
-
-                            if (updatedAt.getTime() > localTime) {
-                                await db.folders.update(currentId, { parentId: mappedParentId });
-                            }
-                        }
+                    const isNew = newFolderIds.has(currentId);
+                    if (isNew) {
+                        await db.folders.update(currentId, { parentId: targetParentId });
+                    } else {
+                        const existingFolder = allLocalFolders.find(lf => lf.id === currentId);
+                        const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
+                        const localTime = existingFolder?.updatedAt.getTime() || 0;
+                        if (updatedAt.getTime() > localTime) await db.folders.update(currentId, { parentId: targetParentId });
                     }
                 }
             }
@@ -227,35 +210,22 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
 
         const bookIdMap = new Map<number, number>();
         const memoIdMap = new Map<number, number>();
-        let defaultFolderId = localFolderByName.get('기본 폴더'.normalize('NFC')) || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
-
-        // If no default folder found locally, use Home
-        if (defaultFolderId === undefined) {
-            defaultFolderId = homeId;
-        }
-
-        // If no default folder found locally, try to use one from the imported folders
-        if (defaultFolderId === undefined && folderIdMap.size > 0) {
-            defaultFolderId = folderIdMap.values().next().value;
-        }
+        let defaultFolderId = localFolderByName.get('__HOME__|기본 폴더'.normalize('NFC')) || localFolderByName.get('|기본 폴더'.normalize('NFC')) || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
+        if (defaultFolderId === undefined) defaultFolderId = homeId;
 
         for (const b of books) {
             const oldBookId = b.id;
             const createdAt = typeof b.createdAt === 'string' ? new Date(b.createdAt) : b.createdAt;
             const updatedAt = typeof b.updatedAt === 'string' ? new Date(b.updatedAt) : b.updatedAt;
-
             const existingBook = allLocalBooks.find(pb =>
                 pb.title === b.title && pb.author === b.author && Math.abs(pb.createdAt.getTime() - createdAt.getTime()) < 5000
             );
-
             let targetFolderId = defaultFolderId;
             if (b.folderId) targetFolderId = folderIdMap.get(b.folderId) ?? defaultFolderId;
-
             if (existingBook) {
                 bookIdMap.set(oldBookId, existingBook.id!);
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingBook.updatedAt.getTime();
-
                 if (incomingTime > localTime) {
                     const updates: any = { folderId: targetFolderId, updatedAt };
                     if ((b.currentPage || 0) > (existingBook.currentPage || 0)) updates.currentPage = b.currentPage;
@@ -284,14 +254,12 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
             const oldId = l.id;
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
             const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
-
             const existingMemo = allLocalMemos.find(pl =>
                 pl.title === l.title && Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
             );
-
             let targetFolderId = defaultFolderId;
-            if (l.folderId) targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
-
+            const importFolderId = typeof l.folderId === 'string' ? parseInt(l.folderId, 10) : l.folderId;
+            if (importFolderId) targetFolderId = folderIdMap.get(importFolderId) ?? defaultFolderId;
             const resolution = memoConflictMap.has(i) ? resolutions[memoConflictMap.get(i)!] : null;
 
             if (existingMemo) {
@@ -311,31 +279,38 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     mirrorIds.push(newId as number);
                     continue;
                 }
-
                 memoIdMap.set(oldId, existingMemo.id!);
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingMemo.updatedAt.getTime();
-
                 if (resolution === 'remote' || incomingTime > localTime) {
                     const updates: any = {
                         folderId: targetFolderId,
                         content: l.content,
                         updatedAt: updatedAt,
-                        tags: l.tags,
+                        tags: Array.isArray(l.tags) ? l.tags : [],
                         title: l.title
                     };
                     if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                     if (l.bookId && bookIdMap.has(l.bookId)) updates.bookId = bookIdMap.get(l.bookId);
                     await db.memos.update(existingMemo.id!, updates);
                     mirrorIds.push(existingMemo.id!);
+                } else if (Math.abs(incomingTime - localTime) < 5000 && existingMemo.folderId !== targetFolderId) {
+                    await db.memos.update(existingMemo.id!, { folderId: targetFolderId });
+                    mirrorIds.push(existingMemo.id!);
+                } else {
+                    mirrorIds.push(existingMemo.id!);
                 }
             } else {
                 const { id, ...memoData } = l;
-                memoData.createdAt = createdAt;
-                memoData.updatedAt = updatedAt;
-                if (l.pinnedAt) memoData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                memoData.createdAt = createdAt instanceof Date && !isNaN(createdAt.getTime()) ? createdAt : new Date();
+                memoData.updatedAt = updatedAt instanceof Date && !isNaN(updatedAt.getTime()) ? updatedAt : new Date();
+                if (l.pinnedAt) {
+                    const pDate = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                    memoData.pinnedAt = pDate instanceof Date && !isNaN(pDate.getTime()) ? pDate : undefined;
+                }
                 if (l.bookId && bookIdMap.has(l.bookId)) memoData.bookId = bookIdMap.get(l.bookId);
                 memoData.folderId = targetFolderId;
+                memoData.tags = Array.isArray(l.tags) ? l.tags : [];
                 const newId = await db.memos.add(memoData);
                 memoIdMap.set(oldId, newId as number);
                 mirrorIds.push(newId as number);
@@ -345,12 +320,11 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
         if (data.comments) {
             for (const c of data.comments) {
                 const { id, ...commentData } = c;
-                commentData.createdAt = typeof c.createdAt === 'string' ? new Date(c.createdAt) : c.createdAt;
-                commentData.updatedAt = typeof c.updatedAt === 'string' ? new Date(c.updatedAt) : c.updatedAt;
                 const oldOwnerId = c.memoId !== undefined ? c.memoId : c.logId;
                 if (oldOwnerId && memoIdMap.has(oldOwnerId)) {
                     commentData.memoId = memoIdMap.get(oldOwnerId);
-                    delete commentData.logId;
+                    commentData.createdAt = typeof c.createdAt === 'string' ? new Date(c.createdAt) : c.createdAt;
+                    commentData.updatedAt = typeof c.updatedAt === 'string' ? new Date(c.updatedAt) : c.updatedAt;
                     const duplicates = await db.comments.where('memoId').equals(commentData.memoId).toArray();
                     const exists = duplicates.some(d =>
                         d.content === commentData.content &&

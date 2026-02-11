@@ -84,11 +84,11 @@ export const importData = async (file: File, password?: string) => {
 };
 
 export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver) => {
-    if (!data.logs || (!data.sources && !data.models)) {
+    if (!data.logs && !data.memos && !data.books) {
         throw new Error('Invalid backup file format');
     }
 
-    const words = data.logs || [];
+    const words = data.logs || data.memos || data.books || [];
     const allLocalFolders = await db.folders.toArray();
     const allLocalWords = await db.words.toArray();
 
@@ -126,46 +126,55 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
     await db.transaction('rw', db.words, db.sources, db.comments, db.folders, async () => {
         const localFolderByName = new Map<string, number>();
         const folderIdMap = new Map<number, number>();
+
+        const getParentName = (parentId: number | null | undefined) => {
+            if (!parentId) return '';
+            const p = allLocalFolders.find(f => f.id === parentId);
+            if (!p) return '';
+            if (p.isHome || p.name.normalize('NFC') === '홈' || p.name.normalize('NFC') === '기본 폴더') return '__HOME__';
+            return p.name.normalize('NFC');
+        };
+
         allLocalFolders.forEach(f => {
             const name = f.name.normalize('NFC');
-            // If we already have this name, and the current f is NOT home, don't overwrite if existing IS home
-            const existingId = localFolderByName.get(name);
-            const existingF = existingId ? allLocalFolders.find(ef => ef.id === existingId) : null;
-
-            if (existingF && existingF.isHome) {
-                // Do not overwrite actual Home
-                return;
+            const parentName = getParentName(f.parentId);
+            const key = `${parentName}|${name}`;
+            if (!localFolderByName.has(key) || f.isHome) {
+                localFolderByName.set(key, f.id!);
             }
-            localFolderByName.set(name, f.id!);
         });
 
-        // Double check: Force Home Folder ID if found
         const realHome = allLocalFolders.find(f => f.isHome);
-        let homeId = realHome?.id;
+        const homeId = realHome?.id;
         if (realHome) {
-            localFolderByName.set(realHome.name.normalize('NFC'), realHome.id!);
+            localFolderByName.set('|' + realHome.name.normalize('NFC'), realHome.id!);
+            localFolderByName.set('__HOME__|' + realHome.name.normalize('NFC'), realHome.id!);
         }
-        const sourceIdMap = new Map<number, number>();
 
         if (data.folders) {
             const newFolderIds = new Set<number>();
-
-            // Pass 1: Create/Update folders without parentId
             for (const f of data.folders) {
                 const oldId = f.id;
                 const normalizedName = f.name.normalize('NFC');
-
-                // Special handling: Merge '기본 폴더' or imported Home into 'Home' to prevent hidden data
                 if ((normalizedName === '기본 폴더' || f.isHome) && homeId) {
                     folderIdMap.set(oldId, homeId);
-                    continue; // Skip creating/updating '기본 폴더', just map it to Home
+                    continue;
                 }
-
-
-                const existingId = localFolderByName.get(normalizedName);
+                const isHomeFolder = (folder: any) => folder.isHome || folder.name.normalize('NFC') === '홈' || folder.name.normalize('NFC') === '기본 폴더';
+                let importParentName = '';
+                if (f.parentId) {
+                    const parentFolder = data.folders.find((df: any) => df.id === f.parentId);
+                    if (parentFolder) {
+                        importParentName = isHomeFolder(parentFolder) ? '__HOME__' : parentFolder.name.normalize('NFC');
+                    }
+                }
+                const key = `${importParentName}|${normalizedName}`;
+                let existingId = localFolderByName.get(key);
+                if (!existingId && (normalizedName === '홈' || normalizedName === '기본 폴더')) {
+                    existingId = homeId;
+                }
                 const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
                 const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
-
                 if (existingId) {
                     folderIdMap.set(oldId, existingId);
                     const existingFolder = allLocalFolders.find(lf => lf.id === existingId);
@@ -173,73 +182,47 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     if (updatedAt.getTime() > localTime) {
                         const folderUpdates: any = { color: f.color, updatedAt };
                         if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
-                        // Don't update parentId here
                         await db.folders.update(existingId, folderUpdates);
                     }
                 } else {
-                    const { id: _, parentId, ...folderData } = f; // Exclude parentId
+                    const { id: _, parentId, ...folderData } = f;
                     folderData.createdAt = createdAt;
                     folderData.updatedAt = updatedAt;
                     const newId = await db.folders.add(folderData);
                     folderIdMap.set(oldId, newId as number);
-                    localFolderByName.set(f.name.normalize('NFC'), newId as number);
+                    localFolderByName.set(`${importParentName}|${normalizedName}`, newId as number);
                     newFolderIds.add(newId as number);
+                    allLocalFolders.push({ ...folderData, id: newId as number, name: f.name, parentId: parentId } as any);
                 }
-
-
-
             }
-
-            // Pass 2: Restore hierarchy
             for (const f of data.folders) {
                 const currentId = folderIdMap.get(f.id);
                 if (!currentId) continue;
-
                 let targetParentId: number | undefined;
-
-                if (f.parentId !== undefined && f.parentId !== null) {
-                    targetParentId = folderIdMap.get(f.parentId);
-                }
-
-                // If no parent defined, and not a home folder, attach to Home
-                if (targetParentId === undefined && !f.isHome && homeId && currentId !== homeId) {
-                    targetParentId = homeId;
-                }
-
+                if (f.parentId !== undefined && f.parentId !== null) targetParentId = folderIdMap.get(f.parentId);
+                if (targetParentId === undefined && !f.isHome && homeId && currentId !== homeId) targetParentId = homeId;
                 if (targetParentId) {
-                    const mappedParentId = targetParentId;
-                    if (mappedParentId) {
-                        const isNew = newFolderIds.has(currentId);
-
-                        if (isNew) {
-                            await db.folders.update(currentId, { parentId: mappedParentId });
-                        } else {
-                            const existingFolder = allLocalFolders.find(lf => lf.id === currentId);
-                            const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
-                            const localTime = existingFolder?.updatedAt.getTime() || 0;
-
-                            if (updatedAt.getTime() > localTime) {
-                                await db.folders.update(currentId, { parentId: mappedParentId });
-                            }
-                        }
+                    const isNew = newFolderIds.has(currentId);
+                    if (isNew) {
+                        await db.folders.update(currentId, { parentId: targetParentId });
+                    } else {
+                        const existingFolder = allLocalFolders.find(lf => lf.id === currentId);
+                        const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
+                        const localTime = existingFolder?.updatedAt.getTime() || 0;
+                        if (updatedAt.getTime() > localTime) await db.folders.update(currentId, { parentId: targetParentId });
                     }
                 }
             }
         }
 
+        const sourceIdMap = new Map<number, number>();
         if (data.sources) {
             for (const s of data.sources) {
                 const oldId = s.id;
-                // Guard against invalid keys for indexing
                 let existing;
-                if (s.url) {
-                    existing = await db.sources.where('url').equals(s.url).first();
-                } else if (s.name) {
-                    existing = await db.sources.where('name').equals(s.name).first();
-                }
-
+                if (s.url) existing = await db.sources.where('url').equals(s.url).first();
+                else if (s.name) existing = await db.sources.where('name').equals(s.name).first();
                 if (existing) sourceIdMap.set(oldId, existing.id!);
-
                 else {
                     const { id, ...sourceData } = s;
                     sourceData.createdAt = typeof s.createdAt === 'string' ? new Date(s.createdAt) : s.createdAt;
@@ -251,33 +234,20 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
         }
 
         const wordIdMap = new Map<number, number>();
-        let defaultFolderId = localFolderByName.get('기본 폴더'.normalize('NFC')) || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
-
-        // If no default folder found locally, use Home
-        if (defaultFolderId === undefined) {
-            defaultFolderId = homeId;
-        }
-
-        // If no default folder found locally, try to use one from the imported folders
-        if (defaultFolderId === undefined && folderIdMap.size > 0) {
-            defaultFolderId = folderIdMap.values().next().value;
-        }
-
-
+        let defaultFolderId = localFolderByName.get('__HOME__|기본 폴더'.normalize('NFC')) || localFolderByName.get('|기본 폴더'.normalize('NFC')) || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
+        if (defaultFolderId === undefined) defaultFolderId = homeId;
 
         for (let i = 0; i < words.length; i++) {
             const l = words[i];
             const oldId = l.id;
             const createdAt = typeof l.createdAt === 'string' ? new Date(l.createdAt) : l.createdAt;
             const updatedAt = typeof l.updatedAt === 'string' ? new Date(l.updatedAt) : l.updatedAt;
-
             const existingWord = allLocalWords.find(pl =>
                 pl.title === l.title && Math.abs(pl.createdAt.getTime() - createdAt.getTime()) < 5000
             );
-
             let targetFolderId = defaultFolderId;
-            if (l.folderId) targetFolderId = folderIdMap.get(l.folderId) ?? defaultFolderId;
-
+            const importFolderId = typeof l.folderId === 'string' ? parseInt(l.folderId, 10) : l.folderId;
+            if (importFolderId) targetFolderId = folderIdMap.get(importFolderId) ?? defaultFolderId;
             const resolution = wordConflictMap.has(i) ? resolutions[wordConflictMap.get(i)!] : null;
 
             if (existingWord) {
@@ -293,22 +263,21 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     logData.folderId = targetFolderId;
                     const sId = l.sourceId !== undefined ? l.sourceId : l.modelId;
                     if (sId !== undefined && sourceIdMap.has(sId)) logData.sourceId = sourceIdMap.get(sId);
+                    else logData.sourceId = undefined;
                     const newId = await db.words.add(logData);
                     wordIdMap.set(oldId, newId as number);
                     mirrorIds.push(newId as number);
                     continue;
                 }
-
                 wordIdMap.set(oldId, existingWord.id!);
                 const incomingTime = updatedAt.getTime();
                 const localTime = existingWord.updatedAt.getTime();
-
                 if (resolution === 'remote' || incomingTime > localTime) {
                     const updates: any = {
                         folderId: targetFolderId,
                         content: l.content,
                         updatedAt: updatedAt,
-                        tags: l.tags,
+                        tags: Array.isArray(l.tags) ? l.tags : [],
                         title: l.title
                     };
                     if (l.pinnedAt) updates.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
@@ -317,44 +286,47 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     if (l.isStarred !== undefined) updates.isStarred = l.isStarred;
                     await db.words.update(existingWord.id!, updates);
                     mirrorIds.push(existingWord.id!);
+                } else if (Math.abs(incomingTime - localTime) < 5000 && existingWord.folderId !== targetFolderId) {
+                    await db.words.update(existingWord.id!, { folderId: targetFolderId });
+                    mirrorIds.push(existingWord.id!);
+                } else {
+                    mirrorIds.push(existingWord.id!);
                 }
             } else {
                 const { id, ...logData } = l;
-                logData.createdAt = createdAt;
-                logData.updatedAt = updatedAt;
-                if (l.pinnedAt) logData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                logData.createdAt = createdAt instanceof Date && !isNaN(createdAt.getTime()) ? createdAt : new Date();
+                logData.updatedAt = updatedAt instanceof Date && !isNaN(updatedAt.getTime()) ? updatedAt : new Date();
+                if (l.pinnedAt) {
+                    const pDate = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
+                    logData.pinnedAt = pDate instanceof Date && !isNaN(pDate.getTime()) ? pDate : undefined;
+                }
                 logData.folderId = targetFolderId;
                 const sId = l.sourceId !== undefined ? l.sourceId : l.modelId;
-                // Sanitize logData to ensure no invalid keys are passed to Dexie
-                // modelId is from LLMemo exports and invalid in WordMemo
                 const { modelId, ...cleanLogData } = logData;
                 if (sId !== undefined && sourceIdMap.has(sId)) (cleanLogData as any).sourceId = sourceIdMap.get(sId);
-
+                cleanLogData.tags = Array.isArray(l.tags) ? l.tags : [];
                 const newId = await db.words.add(cleanLogData);
                 wordIdMap.set(oldId, newId as number);
                 mirrorIds.push(newId as number);
-
             }
         }
-
-
         if (data.comments) {
             for (const c of data.comments) {
                 const { id, ...commentData } = c;
-                if (commentData.wordId && wordIdMap.has(commentData.wordId)) {
-                    commentData.wordId = wordIdMap.get(commentData.wordId);
+                const oldOwnerId = c.wordId !== undefined ? c.wordId : c.logId;
+                if (oldOwnerId && wordIdMap.has(oldOwnerId)) {
+                    commentData.wordId = wordIdMap.get(oldOwnerId);
                     commentData.createdAt = typeof c.createdAt === 'string' ? new Date(c.createdAt) : c.createdAt;
                     commentData.updatedAt = typeof c.updatedAt === 'string' ? new Date(c.updatedAt) : c.updatedAt;
                     const duplicates = await db.comments.where('wordId').equals(commentData.wordId).toArray();
                     const exists = duplicates.some(d =>
                         d.content === commentData.content &&
-                        Math.abs(d.createdAt.getTime() - commentData.createdAt.getTime()) < 1000
+                        Math.abs(d.createdAt.getTime() - commentData.createdAt.getTime()) < 5000
                     );
                     if (!exists) await db.comments.add(commentData);
                 }
             }
         }
     });
-
     return mirrorIds;
 };
