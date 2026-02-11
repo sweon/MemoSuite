@@ -124,6 +124,9 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
         const localFolderByName = new Map(allLocalFolders.map(f => [f.name, f.id]));
 
         if (data.folders) {
+            const newFolderIds = new Set<number>();
+
+            // Pass 1: Create/Update folders without parentId
             for (const f of data.folders) {
                 const oldId = f.id;
                 const existingId = localFolderByName.get(f.name);
@@ -137,15 +140,42 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     if (updatedAt.getTime() > localTime) {
                         const folderUpdates: any = { color: f.color, updatedAt };
                         if (f.pinnedAt) folderUpdates.pinnedAt = typeof f.pinnedAt === 'string' ? new Date(f.pinnedAt) : f.pinnedAt;
+                        // Don't update parentId here
                         await db.folders.update(existingId, folderUpdates);
                     }
                 } else {
-                    const { id: _, ...folderData } = f;
+                    const { id: _, parentId, ...folderData } = f; // Exclude parentId
                     folderData.createdAt = createdAt;
                     folderData.updatedAt = updatedAt;
                     const newId = await db.folders.add(folderData);
                     folderIdMap.set(oldId, newId as number);
                     localFolderByName.set(f.name, newId as number);
+                    newFolderIds.add(newId as number);
+                }
+            }
+
+            // Pass 2: Restore hierarchy
+            for (const f of data.folders) {
+                const currentId = folderIdMap.get(f.id);
+                if (!currentId) continue;
+
+                if (f.parentId !== undefined && f.parentId !== null) {
+                    const mappedParentId = folderIdMap.get(f.parentId);
+                    if (mappedParentId) {
+                        const isNew = newFolderIds.has(currentId);
+
+                        if (isNew) {
+                            await db.folders.update(currentId, { parentId: mappedParentId });
+                        } else {
+                            const existingFolder = allLocalFolders.find(lf => lf.id === currentId);
+                            const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
+                            const localTime = existingFolder?.updatedAt.getTime() || 0;
+
+                            if (updatedAt.getTime() > localTime) {
+                                await db.folders.update(currentId, { parentId: mappedParentId });
+                            }
+                        }
+                    }
                 }
             }
         }
