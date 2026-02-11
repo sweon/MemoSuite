@@ -636,163 +636,182 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, combine, draggableId } = result;
 
-    if (destination?.droppableId.startsWith('folder-')) {
-      const folderId = parseInt(destination.droppableId.replace('folder-', ''));
-      // ThreadableList usually uses itemId as draggableId. 
-      // check getItemId: if single -> log.id, if header -> `thread-header-${id}`, etc.
-
-      if (!isNaN(folderId)) {
-        // Parse the draggableId correctly
-        let targetLogId: number | null = null;
-        let isThreadHeader = false;
-
-        if (draggableId.startsWith('thread-header-')) {
-          targetLogId = Number(draggableId.replace('thread-header-', ''));
-          isThreadHeader = true;
-        } else if (draggableId.startsWith('thread-child-')) {
-          targetLogId = Number(draggableId.replace('thread-child-', ''));
-        } else {
-          targetLogId = Number(draggableId);
-        }
-
-        if (targetLogId && !isNaN(targetLogId)) {
-          const log = await db.logs.get(targetLogId);
-          if (log) {
-            if (isThreadHeader && log.threadId) {
-              // Move entire thread
-              const siblings = await db.logs.where('threadId').equals(log.threadId).toArray();
-              for (const s of siblings) {
-                await db.logs.update(s.id!, { folderId, updatedAt: new Date() });
-              }
-            } else {
-              // Move single log
-              await db.logs.update(targetLogId, { folderId, updatedAt: new Date() });
-            }
-            setToastMessage(language === 'ko' ? '로그를 이동했습니다.' : 'Moved log.');
-            return;
-          }
-        }
-      }
-    }
-
     const parseLogId = (dId: string) => {
       if (dId.startsWith('thread-header-')) return Number(dId.replace('thread-header-', ''));
       if (dId.startsWith('thread-child-')) return Number(dId.replace('thread-child-', ''));
       return Number(dId);
     };
 
-    const updateThreadOrder = async (threadId: string, logIds: number[]) => {
-      await db.transaction('rw', db.logs, async () => {
-        for (let i = 0; i < logIds.length; i++) {
-          await db.logs.update(logIds[i], { threadId, threadOrder: i });
-        }
-      });
-    };
+    if (!destination && !combine) return;
 
+    const sourceId = parseLogId(draggableId);
+    if (!sourceId || isNaN(sourceId)) return;
+
+    // --- Handle Combining (Joining Threads) ---
     if (combine) {
-      const sourceId = parseLogId(draggableId);
       const targetId = parseLogId(combine.draggableId);
-      if (sourceId === targetId) {
-        return;
-      }
+      if (sourceId === targetId) return;
 
       const [sourceLog, targetLog] = await Promise.all([
         db.logs.get(sourceId),
         db.logs.get(targetId)
       ]);
 
-      if (!sourceLog || !targetLog) {
-        return;
-      }
+      if (!sourceLog || !targetLog) return;
 
-      // If dropped on its own thread member (header or child), treat as extraction
-      if (sourceLog.threadId && sourceLog.threadId === targetLog.threadId) {
-        await db.logs.update(sourceId, { threadId: undefined, threadOrder: undefined });
-        return;
-      }
+      const newThreadId = targetLog.threadId || crypto.randomUUID();
+      const targetItem = flatItems.find(it => it.log.id === targetId);
+      const isTargetHeader = targetItem?.type === 'thread-header' || !targetLog.threadId;
 
-      if (targetLog.threadId) {
-        const tid = targetLog.threadId;
-        const members = await db.logs.where('threadId').equals(tid).sortBy('threadOrder');
-        const newIds = members.filter(m => m.id !== sourceId).map(m => m.id!);
-        newIds.push(sourceId);
-        await updateThreadOrder(tid, newIds);
-      } else {
-        const newThreadId = crypto.randomUUID();
-        await updateThreadOrder(newThreadId, [targetId, sourceId]);
-      }
-      return;
-    }
-
-    if (!destination) {
-      return;
-    }
-    if (source.index === destination.index) {
-      return;
-    }
-
-    const movedFlatItem = flatItems[source.index];
-    if (!movedFlatItem) {
-      return;
-    }
-
-    const logId = movedFlatItem.log.id!;
-    const nextList = [...flatItems];
-    const [removed] = nextList.splice(source.index, 1);
-    nextList.splice(destination.index, 0, removed);
-
-    const prevItem = nextList[destination.index - 1];
-
-    // Determine if the dropped position should join a thread
-    let targetThreadId: string | undefined = undefined;
-
-    // SMART JOIN LOGIC:
-    // 1. If dropped after a thread header: 
-    //    - If we are a single log or a child from another thread, join this thread.
-    //    - If we are already a header, we stay standalone (don't merge via reorder).
-    // 2. If dropped after a thread child: 
-    //    - Only join if we were ALREADY in that thread (reordering within thread).
-    //    - If we move a child to another thread's children, it extracts.
-    // This makes extraction much easier: just drag a child log away from its thread items.
-    if (prevItem && (prevItem.type === 'thread-header' || prevItem.type === 'thread-child')) {
-      const isSameThread = movedFlatItem.log.threadId === prevItem.threadId;
-
-      if (isSameThread) {
-        targetThreadId = prevItem.threadId;
-      }
-    }
-    // Otherwise: targetThreadId remains undefined → extract from thread (or stay standalone)
-
-    if (targetThreadId) {
-      // Update the log to join the thread
-      await db.logs.update(logId, { threadId: targetThreadId });
-
-      // Get all thread members from the simulated nextList in their new order
-      // Filter by log ID instead of type/threadId to catch the dragged item
-      const threadLogIds = new Set<number>();
-
-      // First, get all existing thread members
-      const existingMembers = await db.logs.where('threadId').equals(targetThreadId).toArray();
-      existingMembers.forEach(log => threadLogIds.add(log.id!));
-
-      // Add the dragged item
-      threadLogIds.add(logId);
-
-      // Now extract IDs in the order they appear in nextList
-      const ids: number[] = [];
-      nextList.forEach(item => {
-        if (item.type !== 'single' && item.type !== 'thread-header' && item.type !== 'thread-child') return;
-        const itemLogId = item.log.id!;
-        if (threadLogIds.has(itemLogId) && !ids.includes(itemLogId)) {
-          ids.push(itemLogId);
+      await db.transaction('rw', db.logs, async () => {
+        // Prepare target if not in thread
+        if (!targetLog.threadId) {
+          await db.logs.update(targetId, {
+            threadId: newThreadId,
+            threadOrder: 1 // Target moves to 1 to make room for source
+          });
         }
-      });
 
-      // Update all thread members with their new order
-      await updateThreadOrder(targetThreadId, ids);
-    } else {
-      await db.logs.update(logId, { threadId: undefined, threadOrder: undefined });
+        const existingSiblings = await db.logs.where('threadId').equals(newThreadId).toArray();
+        const sortedSiblings = existingSiblings.sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
+
+        // Identify source items
+        let sourceItems: Log[] = [sourceLog];
+        if (sourceLog.threadId) {
+          const sSiblings = await db.logs.where('threadId').equals(sourceLog.threadId).toArray();
+          const sSorted = sSiblings.sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
+          const isSourceHeader = draggableId.startsWith('thread-header-');
+          if (isSourceHeader) {
+            sourceItems = sSorted;
+          }
+        }
+
+        if (isTargetHeader) {
+          // Prepend
+          const filteredTargetSiblings = sortedSiblings.filter(m => !sourceItems.some(si => si.id === m.id));
+          const newList = [...sourceItems, ...filteredTargetSiblings];
+
+          for (let i = 0; i < newList.length; i++) {
+            await db.logs.update(newList[i].id!, {
+              threadId: newThreadId,
+              threadOrder: i
+            });
+          }
+        } else {
+          // Append
+          const filteredTargetSiblings = sortedSiblings.filter(m => !sourceItems.some(si => si.id === m.id));
+          let currentMax = filteredTargetSiblings.reduce((max, m) => Math.max(max, m.threadOrder ?? 0), -1);
+
+          for (const si of sourceItems) {
+            currentMax++;
+            await db.logs.update(si.id!, {
+              threadId: newThreadId,
+              threadOrder: currentMax
+            });
+          }
+        }
+        await db.logs.update(sourceId, { updatedAt: new Date() });
+      });
+      return;
     }
+
+    // Check if dropping onto a folder
+    if (destination?.droppableId.startsWith('folder-')) {
+      const folderId = parseInt(destination.droppableId.replace('folder-', ''));
+      if (!isNaN(folderId)) {
+        const log = await db.logs.get(sourceId);
+        if (log) {
+          const isThreadHeader = draggableId.startsWith('thread-header-');
+          if (isThreadHeader && log.threadId) {
+            // Move entire thread
+            const siblings = await db.logs.where('threadId').equals(log.threadId).toArray();
+            for (const s of siblings) {
+              await db.logs.update(s.id!, { folderId, updatedAt: new Date() });
+            }
+          } else {
+            // Move single log
+            await db.logs.update(sourceId, {
+              folderId,
+              threadId: undefined,
+              threadOrder: undefined,
+              updatedAt: new Date()
+            });
+          }
+          setToastMessage(language === 'ko' ? '로그를 이동했습니다.' : 'Moved log.');
+          return;
+        }
+      }
+    }
+
+    const sourceLog = await db.logs.get(sourceId);
+    if (!sourceLog) return;
+
+    if (!destination) return; // Guaranteed by early return 
+
+    const sourceIndex = source.index;
+    const destIndex = destination.index;
+    if (sourceIndex === destIndex) return;
+
+    const items = flatItems;
+    const targetItem = items[destIndex];
+    const prevItem = items[destIndex - 1];
+
+    // --- Thread Reordering & Joining Logic ---
+    let destThreadId: string | undefined = undefined;
+
+    if (targetItem?.log.threadId) {
+      destThreadId = targetItem.log.threadId;
+    } else if (prevItem?.log.threadId && sourceLog.threadId === prevItem.log.threadId) {
+      destThreadId = prevItem.log.threadId;
+    }
+
+    if (destThreadId) {
+      await db.transaction('rw', db.logs, async () => {
+        const siblings = await db.logs.where('threadId').equals(destThreadId!).toArray();
+        const sortedSiblings = siblings.sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
+
+        const filteredSiblings = sortedSiblings.filter(m => m.id !== sourceId);
+
+        const threadBlockStart = items.findIndex(it => it.log.threadId === destThreadId);
+        let positionInThread = destIndex - threadBlockStart;
+
+        positionInThread = Math.max(0, Math.min(positionInThread, filteredSiblings.length));
+
+        const newThreadItems = [...filteredSiblings];
+        newThreadItems.splice(positionInThread, 0, sourceLog as any);
+
+        for (let i = 0; i < newThreadItems.length; i++) {
+          await db.logs.update(newThreadItems[i].id!, {
+            threadId: destThreadId,
+            threadOrder: i
+          });
+        }
+        await db.logs.update(sourceId, { updatedAt: new Date() });
+      });
+      return;
+    }
+
+    // --- Generic Sort Reordering / Extraction ---
+    let newTime: number;
+    if (destIndex === 0) {
+      newTime = items[0].log.createdAt.getTime() + 60000;
+    } else if (destIndex === items.length - 1) {
+      newTime = items[items.length - 1].log.createdAt.getTime() - 60000;
+    } else {
+      const beforeIdx = destIndex < sourceIndex ? destIndex - 1 : destIndex;
+      const afterIdx = destIndex < sourceIndex ? destIndex : destIndex + 1;
+      const t1 = items[beforeIdx].log.createdAt.getTime();
+      const t2 = items[afterIdx].log.createdAt.getTime();
+      newTime = (t1 + t2) / 2;
+    }
+
+    await db.logs.update(sourceId, {
+      threadId: undefined,
+      threadOrder: undefined,
+      createdAt: new Date(newTime) // LLMemo uses createdAt for default sorting in many places, 
+      // but let's check if it actually sorts by createdAt or updatedAt.
+      // Line 516-534 says it uses lastDate which is l.createdAt (Line 491-500).
+    });
   };
 
   const handleMove = async (targetLogId: number) => {

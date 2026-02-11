@@ -701,54 +701,43 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, combine, draggableId } = result;
+
+    const parseLogId = (dId: string) => {
+      if (dId.startsWith('thread-header-')) return Number(dId.replace('thread-header-', ''));
+      if (dId.startsWith('log-')) return Number(dId.replace('log-', ''));
+      return Number(dId);
+    };
+
+    if (!destination && !combine) return;
     setCombineTargetId(null);
+
+    const sourceId = parseLogId(draggableId);
+    if (!sourceId || isNaN(sourceId)) return;
 
     // 0. Handle Folder Drop
     if (destination?.droppableId.startsWith('folder-')) {
       const folderId = parseInt(destination.droppableId.replace('folder-', ''));
-      const wordId = parseInt(draggableId.replace('log-', '')); // draggableId might be 'log-123' based on usage? 
-      // Wait, let's check how draggableId is constructed. 
-      // In SidebarMemoItem it uses `log-${log.id}`? No, looking at existing code for combine:
-      // const sourceId = Number(draggableId.replace('log-', ''));
-      // So yes, it has prefix 'log-'.
-
-      if (!isNaN(folderId) && !isNaN(wordId)) {
-        // If it's a thread header, move all items in thread?
-        const sourceWord = await db.words.get(wordId);
+      if (!isNaN(folderId)) {
+        const sourceWord = await db.words.get(sourceId);
         if (sourceWord) {
-          if (sourceWord.threadId) {
-            // Check if we dragged the header?
-            // The item types are:
-            // thread-header: draggableId=`log-${log.id}` (log is the first one)
-            // thread-child: draggableId=`log-${log.id}`
-            // If we drag a thread header, `type` in Draggable might be different?
-            // The existing code doesn't seem to set `type` on Draggable explicitly for thread vs memo, 
-            // but let's assume if we drag a header (which is just a word) we move that word.
-            // However, user requirement says "dragging their headers" moves entire thread.
-
-            // Let's check if the dragged item corresponds to a thread header in `flatItems`.
-            // Actually, finding the word is enough. If I drag a word, I move that word. 
-            // BUT if I drag a thread header, I should move the whole thread?
-            // existing logic for combine/reorder handles threads.
-
-            // For now, let's move the single word. 
-            // Re-reading objective: "This includes moving entire threads by dragging their headers."
-            // In HandMemo, I did: if (destination.droppableId.startsWith('folder-')) { ... move thread if needed }
-
-            // Let's implement thread move logic here too.
+          const isThreadHeader = draggableId.startsWith('thread-header-');
+          if (isThreadHeader && sourceWord.threadId) {
+            // Move entire thread
             const siblings = await db.words.where('threadId').equals(sourceWord.threadId).toArray();
-
-            // Better: Check if `flatItems` says it's a header? 
-            // `flatItems` is state derived. 
-
-            // If it has a threadId, we should probably move ALL items in that thread to functionality consistency.
             for (const s of siblings) {
               await db.words.update(s.id!, { folderId, updatedAt: new Date() });
             }
           } else {
-            await db.words.update(wordId, { folderId, updatedAt: new Date() });
+            // Move single word
+            await db.words.update(sourceId, {
+              folderId,
+              threadId: undefined,
+              threadOrder: undefined,
+              updatedAt: new Date()
+            });
           }
           setToastMessage(language === 'ko' ? '단어를 이동했습니다.' : 'Moved word.');
+          setListKey(v => v + 1);
           return;
         }
       }
@@ -756,56 +745,145 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
     // 1. Handle Combination (Merging threads or adding to thread)
     if (combine) {
-      const sourceId = Number(draggableId.replace('log-', ''));
-      const targetId = Number(combine.draggableId.replace('log-', ''));
-
+      const targetId = parseLogId(combine.draggableId);
       if (sourceId === targetId) return;
 
-      const sourceWord = await db.words.get(sourceId);
-      const targetWord = await db.words.get(targetId);
+      const [sourceWord, targetWord] = await Promise.all([
+        db.words.get(sourceId),
+        db.words.get(targetId)
+      ]);
 
       if (!sourceWord || !targetWord) return;
 
-      const targetThreadId = targetWord.threadId || `thread-${Date.now()}`;
+      const newThreadId = targetWord.threadId || `thread-${Date.now()}`;
+      const targetItem = flatItems.find(it => it.log.id === targetId);
+      const isTargetHeader = targetItem?.type === 'thread-header' || !targetWord.threadId;
 
-      // If target wasn't in a thread, update it
-      if (!targetWord.threadId) {
-        await db.words.update(targetId, { threadId: targetThreadId });
-      }
-
-      // If source was in a different thread, move ALL of its siblings
-      if (sourceWord.threadId) {
-        const siblings = await db.words.where('threadId').equals(sourceWord.threadId).toArray();
-        for (const s of siblings) {
-          await db.words.update(s.id!, { threadId: targetThreadId });
+      await db.transaction('rw', db.words, async () => {
+        // Prepare target if not in thread
+        if (!targetWord.threadId) {
+          await db.words.update(targetId, {
+            threadId: newThreadId,
+            threadOrder: 1 // Target moves to 1 to make room for source
+          });
         }
-      } else {
-        await db.words.update(sourceId, { threadId: targetThreadId });
-      }
 
-      setExpandedThreads(prev => new Set([...Array.from(prev), targetThreadId]));
+        const existingSiblings = await db.words.where('threadId').equals(newThreadId).toArray();
+        const sortedSiblings = existingSiblings.sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
+
+        // Identify source items
+        let sourceItems: Word[] = [sourceWord];
+        if (sourceWord.threadId) {
+          const sSiblings = await db.words.where('threadId').equals(sourceWord.threadId).toArray();
+          const sSorted = sSiblings.sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
+          const isSourceHeader = draggableId.startsWith('thread-header-');
+          if (isSourceHeader) {
+            sourceItems = sSorted;
+          }
+        }
+
+        if (isTargetHeader) {
+          // Prepend
+          const filteredTargetSiblings = sortedSiblings.filter(m => !sourceItems.some(si => si.id === m.id));
+          const newList = [...sourceItems, ...filteredTargetSiblings];
+
+          for (let i = 0; i < newList.length; i++) {
+            await db.words.update(newList[i].id!, {
+              threadId: newThreadId,
+              threadOrder: i
+            });
+          }
+        } else {
+          // Append
+          const filteredTargetSiblings = sortedSiblings.filter(m => !sourceItems.some(si => si.id === m.id));
+          let currentMax = filteredTargetSiblings.reduce((max, m) => Math.max(max, m.threadOrder ?? 0), -1);
+
+          for (const si of sourceItems) {
+            currentMax++;
+            await db.words.update(si.id!, {
+              threadId: newThreadId,
+              threadOrder: currentMax
+            });
+          }
+        }
+        await db.words.update(sourceId, { updatedAt: new Date() });
+      });
+
+      setExpandedThreads(prev => new Set([...Array.from(prev), newThreadId]));
       setListKey(v => v + 1);
       return;
     }
 
-    // 2. Handle Reordering (Extraction from thread)
+    // 2. Handle Reordering
     if (!destination) return;
-    if (source.index === destination.index) return;
 
-    const draggedItem = flatItems[source.index];
-    if (draggedItem.type === 'thread-child') {
-      // If a child is dragged out of its thread boundaries, extract it
-      const threadBoundaryIds = flatItems
-        .filter(it => (it.type === 'thread-header' || it.type === 'thread-child') && it.threadId === draggedItem.threadId)
-        .map(it => it.log.id);
+    const sourceIndex = source.index;
+    const destIndex = destination.index;
+    if (sourceIndex === destIndex) return;
 
-      const targetId = flatItems[destination.index].log.id;
+    const sourceWord = await db.words.get(sourceId);
+    if (!sourceWord) return;
 
-      if (!threadBoundaryIds.includes(targetId)) {
-        await db.words.update(draggedItem.log.id!, { threadId: undefined });
-        setListKey(v => v + 1);
-      }
+    const items = flatItems;
+    const targetItem = items[destIndex];
+    const prevItem = items[destIndex - 1];
+
+    // --- Thread Reordering & Joining Logic ---
+    let destThreadId: string | undefined = undefined;
+
+    if (targetItem?.log.threadId) {
+      destThreadId = targetItem.log.threadId;
+    } else if (prevItem?.log.threadId && sourceWord.threadId === prevItem.log.threadId) {
+      destThreadId = prevItem.log.threadId;
     }
+
+    if (destThreadId) {
+      await db.transaction('rw', db.words, async () => {
+        const siblings = await db.words.where('threadId').equals(destThreadId!).toArray();
+        const sortedSiblings = siblings.sort((a, b) => (a.threadOrder ?? 0) - (b.threadOrder ?? 0));
+
+        const filteredSiblings = sortedSiblings.filter(m => m.id !== sourceId);
+
+        const threadBlockStart = items.findIndex(it => it.log.threadId === destThreadId);
+        let positionInThread = destIndex - threadBlockStart;
+
+        positionInThread = Math.max(0, Math.min(positionInThread, filteredSiblings.length));
+
+        const newThreadItems = [...filteredSiblings];
+        newThreadItems.splice(positionInThread, 0, sourceWord as any);
+
+        for (let i = 0; i < newThreadItems.length; i++) {
+          await db.words.update(newThreadItems[i].id!, {
+            threadId: destThreadId,
+            threadOrder: i
+          });
+        }
+        await db.words.update(sourceId, { updatedAt: new Date() });
+      });
+      setListKey(v => v + 1);
+      return;
+    }
+
+    // --- Generic Sort Reordering / Extraction ---
+    let newTime: number;
+    if (destIndex === 0) {
+      newTime = items[0].log.createdAt.getTime() + 60000;
+    } else if (destIndex === items.length - 1) {
+      newTime = items[items.length - 1].log.createdAt.getTime() - 60000;
+    } else {
+      const beforeIdx = destIndex < sourceIndex ? destIndex - 1 : destIndex;
+      const afterIdx = destIndex < sourceIndex ? destIndex : destIndex + 1;
+      const t1 = items[beforeIdx].log.createdAt.getTime();
+      const t2 = items[afterIdx].log.createdAt.getTime();
+      newTime = (t1 + t2) / 2;
+    }
+
+    await db.words.update(sourceId, {
+      threadId: undefined,
+      threadOrder: undefined,
+      createdAt: new Date(newTime)
+    });
+    setListKey(v => v + 1);
   };
 
   const onDragUpdate = (update: DragUpdate) => {

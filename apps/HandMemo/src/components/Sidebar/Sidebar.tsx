@@ -667,34 +667,58 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       if (!sourceMemo || !targetMemo) return;
 
       const newThreadId = targetMemo.threadId || uuidv4();
+      const targetItem = groupedItems.find(it => it.memo.id === targetId);
+      const isTargetHeader = targetItem?.isThreadHead || !targetMemo.threadId;
 
-      if (!targetMemo.threadId) {
-        await db.memos.update(targetId, {
-          threadId: newThreadId,
-          threadOrder: 0
-        });
-      }
-
-      if (sourceMemo.threadId && sourceMemo.threadId !== newThreadId) {
-        const sourceThreadMemos = await db.memos.where('threadId').equals(sourceMemo.threadId).toArray();
-        const targetThreadMemos = await db.memos.where('threadId').equals(newThreadId).toArray();
-        let maxOrder = Math.max(...targetThreadMemos.map(m => m.threadOrder || 0), -1);
-
-        for (const sm of sourceThreadMemos) {
-          maxOrder++;
-          await db.memos.update(sm.id!, {
+      await db.transaction('rw', db.memos, async () => {
+        // Ensure target is in thread
+        if (!targetMemo.threadId) {
+          await db.memos.update(targetId, {
             threadId: newThreadId,
-            threadOrder: maxOrder
+            threadOrder: 1 // Target moves to 1 to make room for source
           });
         }
-      } else {
-        const targetThreadMemos = await db.memos.where('threadId').equals(newThreadId).toArray();
-        const maxOrder = Math.max(...targetThreadMemos.map(m => m.threadOrder || 0), -1);
-        await db.memos.update(sourceId, {
-          threadId: newThreadId,
-          threadOrder: maxOrder + 1
-        });
-      }
+
+        const existingSiblings = await db.memos.where('threadId').equals(newThreadId).toArray();
+        const sortedSiblings = existingSiblings.sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0));
+
+        // Identify source items (move entire thread if dragging header)
+        let sourceItems: Memo[] = [sourceMemo];
+        if (sourceMemo.threadId) {
+          const sSiblings = await db.memos.where('threadId').equals(sourceMemo.threadId).toArray();
+          const sSorted = sSiblings.sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0));
+          const isSourceHeader = groupedItems.find(it => it.memo.id === sourceId)?.isThreadHead;
+          if (isSourceHeader) {
+            sourceItems = sSorted;
+          }
+        }
+
+        if (isTargetHeader) {
+          // Prepend sourceItems
+          const filteredTargetSiblings = sortedSiblings.filter(m => !sourceItems.some(si => si.id === m.id));
+          const newList = [...sourceItems, ...filteredTargetSiblings];
+
+          for (let i = 0; i < newList.length; i++) {
+            await db.memos.update(newList[i].id!, {
+              threadId: newThreadId,
+              threadOrder: i
+            });
+          }
+        } else {
+          // Append sourceItems
+          const filteredTargetSiblings = sortedSiblings.filter(m => !sourceItems.some(si => si.id === m.id));
+          let currentMax = filteredTargetSiblings.reduce((max, m) => Math.max(max, m.threadOrder || 0), -1);
+
+          for (const si of sourceItems) {
+            currentMax++;
+            await db.memos.update(si.id!, {
+              threadId: newThreadId,
+              threadOrder: currentMax
+            });
+          }
+        }
+        await db.memos.update(sourceId, { updatedAt: new Date() });
+      });
       return;
     }
 
@@ -744,9 +768,55 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
 
     const items = groupedItems;
     const targetItem = items[destIndex];
-    if (!targetItem) return;
+    const prevItem = items[destIndex - 1];
 
-    // Generic "Sort Reordering" using updatedAt calculation
+    // --- Thread Reordering & Joining Logic ---
+    let destThreadId: string | undefined = undefined;
+
+    // Logic: If target position is part of a thread, join it.
+    // If dropped at indices of current thread block, stay in it.
+    if (targetItem?.threadId) {
+      destThreadId = targetItem.threadId;
+    } else if (prevItem?.threadId && sourceMemo.threadId === prevItem.threadId) {
+      // Dropped at the very end of its own thread block
+      destThreadId = prevItem.threadId;
+    }
+
+    if (destThreadId) {
+      // Transactional thread update
+      await db.transaction('rw', db.memos, async () => {
+        const siblings = await db.memos.where('threadId').equals(destThreadId!).toArray();
+        const sortedSiblings = siblings.sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0));
+
+        // Remove source from siblings if it was already there (internal reorder)
+        const filteredSiblings = sortedSiblings.filter(m => m.id !== sourceMemoId);
+
+        // Calculate relative position in thread
+        const threadBlockStart = items.findIndex(it => it.threadId === destThreadId);
+        let positionInThread = destIndex - threadBlockStart;
+
+        // Clamp position
+        positionInThread = Math.max(0, Math.min(positionInThread, filteredSiblings.length));
+
+        const newThreadItems = [...filteredSiblings];
+        newThreadItems.splice(positionInThread, 0, sourceMemo as any);
+
+        // Reassign orders
+        for (let i = 0; i < newThreadItems.length; i++) {
+          await db.memos.update(newThreadItems[i].id!, {
+            threadId: destThreadId,
+            threadOrder: i
+          });
+        }
+
+        // Update updatedAt to reflect latest change in thread
+        await db.memos.update(sourceMemoId, { updatedAt: new Date() });
+      });
+      return;
+    }
+
+    // --- Generic Sort Reordering / Extraction ---
+    // Calculate new position using updatedAt for sorting
     let newTime: number;
     if (destIndex === 0) {
       newTime = items[0].memo.updatedAt.getTime() + 60000; // 1 min later
@@ -761,36 +831,12 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       newTime = (t1 + t2) / 2;
     }
 
-    // Pattern: Drag child and drop ABOVE its own header or BELOW its own thread block -> Extract
-    if (sourceMemo.threadId) {
-      const headerItem = items.find(it => it.isThreadHead && it.threadId === sourceMemo.threadId);
-      if (headerItem) {
-        const headerIdx = items.indexOf(headerItem);
-        // If moved above the header, extract
-        if (destIndex <= headerIdx) {
-          await db.memos.update(sourceMemoId, {
-            threadId: undefined,
-            threadOrder: undefined,
-            updatedAt: new Date(newTime)
-          });
-          return;
-        }
-
-        // If moved far below the thread (past all siblings), extract
-        const threadMemos = items.filter(it => it.threadId === sourceMemo.threadId);
-        const lastThreadIdx = items.indexOf(threadMemos[threadMemos.length - 1]);
-        if (destIndex > lastThreadIdx) {
-          await db.memos.update(sourceMemoId, {
-            threadId: undefined,
-            threadOrder: undefined,
-            updatedAt: new Date(newTime)
-          });
-          return;
-        }
-      }
-    }
-
-    await db.memos.update(sourceMemoId, { updatedAt: new Date(newTime) });
+    // If it was in a thread and moved to a non-thread position, extract it
+    await db.memos.update(sourceMemoId, {
+      threadId: undefined,
+      threadOrder: undefined,
+      updatedAt: new Date(newTime)
+    });
   };
 
   const handleMove = async (targetMemoId: number) => {
