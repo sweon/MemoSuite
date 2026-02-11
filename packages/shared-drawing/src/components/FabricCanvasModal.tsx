@@ -1310,8 +1310,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     // Guard State
     const { registerGuard, unregisterGuard } = useExitGuard();
     const isClosingRef = useRef(false);
+    const isSavingRef = useRef(false);
     const mountTimeRef = useRef(Date.now());
-
     const handleActualClose = useRef(propsOnClose);
     const lastAddedObjectRef = useRef<fabric.Object | null>(null);
     const lastAddedObjectTimeRef = useRef(0);
@@ -3494,22 +3494,22 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 {item.type === 'action' && (
                     <>
                         {item.actionId === 'undo' && (
-                            <ToolButton onClick={handleUndo} title={`${t.drawing?.undo || 'Undo'} (Ctrl + Z)`} disabled={!canUndo}>
+                            <ToolButton onClick={handleUndo} title={`${t.drawing?.undo || 'Undo'} (Ctrl + Z)`} disabled={!canUndo || isSaving}>
                                 <FiRotateCcw size={16} />
                             </ToolButton>
                         )}
                         {item.actionId === 'redo' && (
-                            <ToolButton onClick={handleRedo} title={`${t.drawing?.redo || 'Redo'} (Ctrl + Y)`} disabled={!canRedo}>
+                            <ToolButton onClick={handleRedo} title={`${t.drawing?.redo || 'Redo'} (Ctrl + Y)`} disabled={!canRedo || isSaving}>
                                 <FiRotateCw size={16} />
                             </ToolButton>
                         )}
                         {item.actionId === 'download_png' && (
-                            <ToolButton onClick={handleDownloadPNG} title={t.drawing?.download || 'Download as PNG'}>
+                            <ToolButton onClick={handleDownloadPNG} title={t.drawing?.download || 'Download as PNG'} disabled={isSaving}>
                                 <FiDownload size={16} />
                             </ToolButton>
                         )}
                         {item.actionId === 'clear' && (
-                            <ToolButton onClick={() => setIsClearConfirmOpen(true)} title={t.drawing?.clear_all || 'Clear All'}>
+                            <ToolButton onClick={() => setIsClearConfirmOpen(true)} title={t.drawing?.clear_all || 'Clear All'} disabled={isSaving}>
                                 <FiTrash2 size={16} />
                             </ToolButton>
                         )}
@@ -4358,7 +4358,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         if (historyIndexRef.current === lastSavedIndexRef.current) {
             // Clean state, exit immediately
             isClosingRef.current = true;
-            onClose();
+            onCloseRef.current();
             // Safety timeout
             setTimeout(() => {
                 if (isClosingRef.current) {
@@ -4374,7 +4374,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         setIsExitConfirmOpen(false);
         // Explicitly set closing flag and trigger the wrap
         isClosingRef.current = true;
-        onClose();
+        onCloseRef.current();
 
         // Safety timeout
         setTimeout(() => {
@@ -4382,11 +4382,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 handleActualClose.current();
             }
         }, 300);
-    };
-
-    const handleSaveAndExit = async () => {
-        await handleSave();
-        handleConfirmExit();
     };
 
     const getCanvasJson = useCallback(() => {
@@ -4416,9 +4411,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         return JSON.stringify(jsonObj);
     }, [background, backgroundSize, backgroundBundleGap, backgroundColorIntensity, backgroundColorType, lineOpacity, backgroundImageOpacity, backgroundImage]);
 
-    // Autosave logic
+    // Callback refs to handle stale closures during async operations
+    const onSaveRef = useRef(onSave);
+    useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
     const onAutosaveRef = useRef(onAutosave);
     useEffect(() => { onAutosaveRef.current = onAutosave; }, [onAutosave]);
+    const onCloseRef = useRef(propsOnClose);
+    useEffect(() => { onCloseRef.current = propsOnClose; }, [propsOnClose]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -4433,25 +4432,48 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         return () => clearInterval(interval);
     }, [getCanvasJson]);
 
-    const handleSave = async () => {
-        if (!fabricCanvasRef.current || isSaving) return;
+    const handleSaveAndExit = async () => {
+        if (isSavingRef.current) return;
+        const success = await handleSave();
+        if (success) {
+            handleConfirmExit();
+        }
+    };
+
+    const handleSave = async (): Promise<boolean> => {
+        if (!fabricCanvasRef.current || isSavingRef.current) return false;
+
+        isSavingRef.current = true;
         setIsSaving(true);
 
-        // Give time for UI to update (show loading indicator)
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Give React a tick to update the UI (showing the spinner) before heavy serialization
+        await new Promise(resolve => setTimeout(resolve, 0));
 
         try {
+            const canvas = fabricCanvasRef.current;
+            // Finalize any ongoing edits
+            canvas.discardActiveObject();
+            canvas.renderAll();
+
             const json = getCanvasJson();
             if (json) {
-                await onSave(json);
-                lastSavedIndexRef.current = historyIndexRef.current;
+                // Store the index we are about to save
+                const savedIndex = historyIndexRef.current;
+
+                await onSaveRef.current(json);
+
+                lastSavedIndexRef.current = savedIndex;
                 setSavedToastVisible(true);
                 setTimeout(() => setSavedToastVisible(false), 500);
+                return true;
             }
-            setIsSaving(false);
+            return false;
         } catch (err) {
-            console.error('Failed to save drawing', err);
+            console.error('Critical failure in handleSave:', err);
+            return false;
+        } finally {
             setIsSaving(false);
+            isSavingRef.current = false;
         }
     };
 
@@ -4471,13 +4493,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         setIsPageEditing(false);
     };
 
-    // ... (omitted intermediate lines if tool allows or do separate calls, but seeing replace_file_content limitation)
-    // Actually I need to replace separate chunks.
-
-
     // Keyboard Shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (isSaving) return;
             // Don't trigger shortcuts if user is typing in an input
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
@@ -5498,7 +5517,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                             )}
                             <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
                         </CompactActionButton>
-                        <CompactActionButton onClick={handleCancelWrapped} title={t.drawing?.exit || 'Exit'}>
+                        <CompactActionButton
+                            onClick={handleCancelWrapped}
+                            disabled={isSaving}
+                            title={t.drawing?.exit || 'Exit'}
+                        >
                             <FiX size={12} />
                         </CompactActionButton>
                     </ToolGroup>

@@ -1391,13 +1391,25 @@ export const MemoDetail: React.FC = () => {
                                     }
                                     return match;
                                 });
-                            } else if (content.trim().startsWith('```fabric')) {
-                                newContent = `\`\`\`fabric\n${json}\n\`\`\``;
-                            } else {
+                                if (!found) {
+                                    const matches = content.match(fabricRegex);
+                                    if (matches && matches.length === 1) {
+                                        newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
+                                        found = true;
+                                    }
+                                }
+                                if (!found && !content.includes('```fabric')) {
+                                    newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                }
+                            } else if (content.includes('```fabric')) {
+                                // Replace the only block if we have one, or the first one if multiple
                                 newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
+                            } else {
+                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                             }
 
                             setContent(newContent);
+                            setEditingDrawingData(json);
                             fabricCheckpointRef.current = newContent; // Update checkpoint on manual save
                             if (id && memo) {
                                 await db.memos.update(Number(id), {
@@ -1427,6 +1439,14 @@ export const MemoDetail: React.FC = () => {
                                     }
                                     return match;
                                 });
+                                if (!found) {
+                                    const matches = content.match(fabricRegex);
+                                    if (matches && matches.length === 1) {
+                                        newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
+                                    } else if (!newContent.includes('```fabric')) { // Fallback if no specific block found but no fabric block exists
+                                        newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                    }
+                                }
                             } else if (searchParams.get('drawing') === 'true' || content.trim().startsWith('```fabric')) {
                                 newContent = `\`\`\`fabric\n${json}\n\`\`\``;
                             } else {
@@ -1436,7 +1456,10 @@ export const MemoDetail: React.FC = () => {
                                     newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                                 }
                             }
-                            if (newContent !== content) setContent(newContent);
+                            if (newContent !== content) {
+                                setContent(newContent);
+                                setEditingDrawingData(json);
+                            }
                         }}
                     />
                 )}

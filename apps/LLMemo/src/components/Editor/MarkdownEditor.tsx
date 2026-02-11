@@ -432,11 +432,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     if (editingBlockRef.current) {
       const { start, end } = editingBlockRef.current;
       cm.replaceRange(newBlock, { line: start, ch: 0 }, { line: end, ch: cm.getLine(end).length });
+      const newLines = newBlock.split('\n').length;
+      editingBlockRef.current = { start, end: start + newLines - 1 };
     } else {
       cm.replaceRange(`\n${newBlock}\n`, cm.getCursor());
     }
-    editingBlockRef.current = null;
-    setIsDrawingOpen(false);
+    // Do not close modal here, allow further edits
+    // setIsDrawingOpen(false); 
     onChange(cm.getValue());
   };
 
@@ -450,6 +452,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       const currentBlock = cm.getRange({ line: start, ch: 0 }, { line: end, ch: cm.getLine(end).length });
       if (newBlock !== currentBlock) {
         cm.replaceRange(newBlock, { line: start, ch: 0 }, { line: end, ch: cm.getLine(end).length });
+        const newLines = newBlock.split('\n').length;
+        editingBlockRef.current = { start, end: start + newLines - 1 };
         onChange(cm.getValue());
       }
     } else if (lastCursorRef.current) {

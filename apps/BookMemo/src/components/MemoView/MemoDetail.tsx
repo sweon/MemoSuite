@@ -1388,6 +1388,7 @@ export const MemoDetail: React.FC = () => {
                         }
 
                         setContent(newContent);
+                        setEditingDrawingData(json);
                         fabricCheckpointRef.current = newContent;
                         if (id && memo) {
                             await db.memos.update(Number(id), {
@@ -1414,7 +1415,10 @@ export const MemoDetail: React.FC = () => {
                         } else {
                             newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
                         }
-                        if (newContent !== content) setContent(newContent);
+                        if (newContent !== content) {
+                            setContent(newContent);
+                            setEditingDrawingData(json);
+                        }
                     }}
                     onClose={() => {
                         if (fabricCheckpointRef.current !== null) {

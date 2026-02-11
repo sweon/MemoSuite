@@ -1443,15 +1443,30 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                             onSave={async (json: string) => {
                                 const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
                                 let found = false;
-                                const newContent = content.replace(fabricRegex, (match, p1) => {
-                                    if (!found && p1.trim() === editingDrawingData?.trim()) {
+                                let newContent = content;
+                                if (editingDrawingData) {
+                                    newContent = content.replace(fabricRegex, (match, p1) => {
+                                        if (!found && p1.trim() === editingDrawingData.trim()) {
+                                            found = true;
+                                            return `\`\`\`fabric\n${json}\n\`\`\``;
+                                        }
+                                        return match;
+                                    });
+                                }
+
+                                if (!found) {
+                                    const matches = content.match(fabricRegex);
+                                    if (matches && matches.length === 1) {
+                                        newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
                                         found = true;
-                                        return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    } else if (!content.includes('```fabric')) {
+                                        newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                        found = true;
                                     }
-                                    return match;
-                                });
+                                }
 
                                 setContent(newContent);
+                                setEditingDrawingData(json);
                                 fabricCheckpointRef.current = newContent;
                                 if (id) {
                                     await db.words.update(Number(id), {
@@ -1463,14 +1478,26 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                             onAutosave={(json) => {
                                 const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
                                 let found = false;
-                                const newContent = content.replace(fabricRegex, (match, p1) => {
-                                    if (!found && p1.trim() === editingDrawingData?.trim()) {
-                                        found = true;
-                                        return `\`\`\`fabric\n${json}\n\`\`\``;
+                                let newContent = content;
+                                if (editingDrawingData) {
+                                    newContent = content.replace(fabricRegex, (match, p1) => {
+                                        if (!found && p1.trim() === editingDrawingData.trim()) {
+                                            found = true;
+                                            return `\`\`\`fabric\n${json}\n\`\`\``;
+                                        }
+                                        return match;
+                                    });
+                                    if (!found) {
+                                        const matches = content.match(fabricRegex);
+                                        if (matches && matches.length === 1) {
+                                            newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
+                                        }
                                     }
-                                    return match;
-                                });
-                                if (newContent !== content) setContent(newContent);
+                                }
+                                if (newContent !== content) {
+                                    setContent(newContent);
+                                    setEditingDrawingData(json);
+                                }
                             }}
                             onClose={() => {
                                 if (fabricCheckpointRef.current !== null) {
