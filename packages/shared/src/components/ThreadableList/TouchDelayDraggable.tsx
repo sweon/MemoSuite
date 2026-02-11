@@ -10,15 +10,16 @@ interface TouchDelayDraggableProps extends DraggableProps {
 /**
  * A wrapper around Draggable that requires a longer press on touch devices
  * before drag starts. This prevents accidental drags when scrolling.
- * Uses native capture listeners to intercept and delay events from the library.
  */
 export const TouchDelayDraggable: React.FC<TouchDelayDraggableProps> = ({
     children,
     touchDelay = 1000,
     ...draggableProps
 }) => {
+    // Start disabled to prevent immediate drag on touch
     const [isDragDisabled, setIsDragDisabled] = useState(true);
     const timerRef = useRef<any>(null);
+    const resetTimerRef = useRef<any>(null);
     const startPosRef = useRef<{ x: number; y: number } | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const isLongPressedRef = useRef(false);
@@ -28,69 +29,63 @@ export const TouchDelayDraggable: React.FC<TouchDelayDraggableProps> = ({
         if (!el) return;
 
         const handleTouchStart = (e: TouchEvent) => {
-            // If it's our own synthetic event, don't block it
-            if ((e as any)._isSynthetic) {
-                return;
+            if ((e as any)._isSynthetic) return;
+
+            if (resetTimerRef.current) {
+                clearTimeout(resetTimerRef.current);
+                resetTimerRef.current = null;
             }
 
             const touch = e.touches[0];
             startPosRef.current = { x: touch.clientX, y: touch.clientY };
             isLongPressedRef.current = false;
 
-            // 1. STOP the library from seeing this initial touch immediate
-            // We use stopPropagation in the capture phase to hide it from the library's listeners
+            // Block library from seeing this initial touch
             e.stopPropagation();
 
-            if (timerRef.current) {
-                clearTimeout(timerRef.current);
-            }
-
+            if (timerRef.current) clearTimeout(timerRef.current);
             timerRef.current = setTimeout(() => {
-                // Success! 1000ms passed without significant movement.
                 isLongPressedRef.current = true;
 
-                // 2. Enable the draggable component so it will respond to the next event
+                // 1. Enable before dispatching
                 setIsDragDisabled(false);
 
-                if (window.navigator.vibrate) {
-                    window.navigator.vibrate(40);
-                }
+                if (window.navigator.vibrate) window.navigator.vibrate(40);
 
-                // 3. Programmatically restart the drag session in the library
-                // We need a tiny delay for React to update the DOM with isDragDisabled=false
+                // 2. Small delay for React to update DOM before synthetic event
                 setTimeout(() => {
                     if (isLongPressedRef.current) {
-                        const touch = e.touches[0];
+                        const t = e.touches[0];
                         const syntheticEvent = new TouchEvent('touchstart', {
                             cancelable: true,
                             bubbles: true,
-                            touches: [touch as any],
-                            targetTouches: [touch as any],
-                            changedTouches: [touch as any],
+                            touches: [t as any],
+                            targetTouches: [t as any],
+                            changedTouches: [t as any],
                         });
                         (syntheticEvent as any)._isSynthetic = true;
                         e.target?.dispatchEvent(syntheticEvent);
                     }
                 }, 50);
-
                 timerRef.current = null;
             }, touchDelay);
         };
 
         const handleTouchMove = (e: TouchEvent) => {
             if ((e as any)._isSynthetic) return;
-            if (!startPosRef.current || isLongPressedRef.current) return;
 
+            // If we are already in long-press mode, let the movements pass through to the library
+            if (isLongPressedRef.current) return;
+
+            if (!startPosRef.current) return;
             const touch = e.touches[0];
-            const moveX = Math.abs(touch.clientX - startPosRef.current.x);
-            const moveY = Math.abs(touch.clientY - startPosRef.current.y);
+            const dx = Math.abs(touch.clientX - startPosRef.current.x);
+            const dy = Math.abs(touch.clientY - startPosRef.current.y);
 
-            // If moved significantly, cancel the long press timer.
-            if (moveX > 10 || moveY > 10) {
-                if (timerRef.current) {
-                    clearTimeout(timerRef.current);
-                    timerRef.current = null;
-                }
+            // If moved significantly during wait, cancel the timer
+            if (dx > 10 || dy > 10) {
+                if (timerRef.current) clearTimeout(timerRef.current);
+                timerRef.current = null;
                 startPosRef.current = null;
             }
         };
@@ -98,18 +93,20 @@ export const TouchDelayDraggable: React.FC<TouchDelayDraggableProps> = ({
         const handleTouchEnd = (e: TouchEvent) => {
             if ((e as any)._isSynthetic) return;
 
-            if (timerRef.current) {
-                clearTimeout(timerRef.current);
-                timerRef.current = null;
-            }
+            if (timerRef.current) clearTimeout(timerRef.current);
+            timerRef.current = null;
             startPosRef.current = null;
             isLongPressedRef.current = false;
 
-            // Re-disable for the next interaction
-            setIsDragDisabled(true);
+            // CRITICAL: Delay re-disabling to allow the library to finish its cleanup/animations.
+            // If we disable too fast (especially in the capture phase), the library's
+            // state machine can get stuck in "dragging" mode, causing gray-out issues.
+            resetTimerRef.current = setTimeout(() => {
+                setIsDragDisabled(true);
+                resetTimerRef.current = null;
+            }, 500);
         };
 
-        // Attach native listeners in the capture phase to ensure they fire BEFORE the library
         el.addEventListener('touchstart', handleTouchStart, { capture: true, passive: false });
         el.addEventListener('touchmove', handleTouchMove, { capture: true, passive: true });
         el.addEventListener('touchend', handleTouchEnd, { capture: true });
@@ -120,11 +117,16 @@ export const TouchDelayDraggable: React.FC<TouchDelayDraggableProps> = ({
             el.removeEventListener('touchmove', handleTouchMove, { capture: true });
             el.removeEventListener('touchend', handleTouchEnd, { capture: true });
             el.removeEventListener('touchcancel', handleTouchEnd, { capture: true });
+            if (timerRef.current) clearTimeout(timerRef.current);
+            if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
         };
     }, [touchDelay]);
 
-    // Handle mouse interaction (should be instant)
     const handleMouseDown = () => {
+        if (resetTimerRef.current) {
+            clearTimeout(resetTimerRef.current);
+            resetTimerRef.current = null;
+        }
         setIsDragDisabled(false);
     };
 
@@ -135,8 +137,8 @@ export const TouchDelayDraggable: React.FC<TouchDelayDraggableProps> = ({
                     ref={wrapperRef}
                     onMouseDown={handleMouseDown}
                     style={{
-                        touchAction: 'pan-y', // Important: allows scrolling vertically
-                        display: 'contents' // Makes the wrapper div "invisible" for layout purposes
+                        touchAction: 'pan-y',
+                        display: 'contents'
                     }}
                 >
                     {children(provided, snapshot)}
