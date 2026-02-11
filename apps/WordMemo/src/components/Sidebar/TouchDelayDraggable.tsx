@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Draggable } from '@hello-pangea/dnd';
 import type { DraggableProps } from '@hello-pangea/dnd';
 
@@ -10,91 +10,93 @@ interface TouchDelayDraggableProps extends DraggableProps {
 /**
  * A wrapper around Draggable that requires a longer press on touch devices
  * before drag starts. This prevents accidental drags when scrolling.
+ * Uses native capture listeners to intercept and delay events from the library.
  */
 export const TouchDelayDraggable: React.FC<TouchDelayDraggableProps> = ({
     children,
-    touchDelay = 800,
+    touchDelay = 1000,
     ...draggableProps
 }) => {
-    const [isDragDisabled, setIsDragDisabled] = useState(false);
-    const touchTimerRef = useRef<number | null>(null);
-    const startPosRef = useRef<{ x: number, y: number } | null>(null);
+    const [isDragDisabled, setIsDragDisabled] = useState(true);
+    const timerRef = useRef<any>(null);
+    const startPosRef = useRef<{ x: number; y: number } | null>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const isLongPressedRef = useRef(false);
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        // If it's a synthetic event we generated, don't trap it
-        if ((e.nativeEvent as any)._isSynthetic) return;
+    useEffect(() => {
+        const el = wrapperRef.current;
+        if (!el) return;
 
-        const touch = e.touches[0];
-        startPosRef.current = { x: touch.clientX, y: touch.clientY };
-        setIsDragDisabled(true);
+        const handleTouchStart = (e: TouchEvent) => {
+            if ((e as any)._isSynthetic) return;
+            const touch = e.touches[0];
+            startPosRef.current = { x: touch.clientX, y: touch.clientY };
+            isLongPressedRef.current = false;
+            e.stopPropagation();
+            if (timerRef.current) clearTimeout(timerRef.current);
+            timerRef.current = setTimeout(() => {
+                isLongPressedRef.current = true;
+                setIsDragDisabled(false);
+                if (window.navigator.vibrate) window.navigator.vibrate(40);
+                setTimeout(() => {
+                    if (isLongPressedRef.current) {
+                        const t = e.touches[0];
+                        const syntheticEvent = new TouchEvent('touchstart', {
+                            cancelable: true, bubbles: true,
+                            touches: [t as any], targetTouches: [t as any], changedTouches: [t as any],
+                        });
+                        (syntheticEvent as any)._isSynthetic = true;
+                        e.target?.dispatchEvent(syntheticEvent);
+                    }
+                }, 50);
+                timerRef.current = null;
+            }, touchDelay);
+        };
 
-        if (touchTimerRef.current) window.clearTimeout(touchTimerRef.current);
-
-        touchTimerRef.current = window.setTimeout(() => {
-            // Long press success
-            setIsDragDisabled(false);
-            if (window.navigator.vibrate) window.navigator.vibrate(40);
-
-            // Programmatically restart drag after a tiny delay for React to update isDragDisabled
-            setTimeout(() => {
-                if (!startPosRef.current) return;
-                const target = e.target as HTMLElement;
-
-                // Use any cast to satisfy TS strict Touch type requirements in event constructor
-                const syntheticEvent = new TouchEvent('touchstart', {
-                    bubbles: true,
-                    cancelable: true,
-                    touches: [touch as any],
-                    targetTouches: [touch as any],
-                    changedTouches: [touch as any],
-                });
-                (syntheticEvent as any)._isSynthetic = true;
-                target.dispatchEvent(syntheticEvent);
-            }, 50);
-        }, touchDelay);
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (!startPosRef.current || (e.nativeEvent as any)._isSynthetic) return;
-        const touch = e.touches[0];
-        const dx = Math.abs(touch.clientX - startPosRef.current.x);
-        const dy = Math.abs(touch.clientY - startPosRef.current.y);
-
-        if (dx > 10 || dy > 10) {
-            if (touchTimerRef.current) {
-                window.clearTimeout(touchTimerRef.current);
-                touchTimerRef.current = null;
+        const handleTouchMove = (e: TouchEvent) => {
+            if ((e as any)._isSynthetic) return;
+            if (!startPosRef.current || isLongPressedRef.current) return;
+            const touch = e.touches[0];
+            const dx = Math.abs(touch.clientX - startPosRef.current.x);
+            const dy = Math.abs(touch.clientY - startPosRef.current.y);
+            if (dx > 10 || dy > 10) {
+                if (timerRef.current) clearTimeout(timerRef.current);
+                timerRef.current = null;
+                startPosRef.current = null;
             }
-            startPosRef.current = null;
-            setIsDragDisabled(true);
-        }
-    };
+        };
 
-    const handleTouchEnd = () => {
-        if (touchTimerRef.current) {
-            window.clearTimeout(touchTimerRef.current);
-            touchTimerRef.current = null;
-        }
-        startPosRef.current = null;
-        // Small delay before enabling to prevent accidental drag on quick tap
-        setTimeout(() => setIsDragDisabled(false), 100);
-    };
+        const handleTouchEnd = (e: TouchEvent) => {
+            if ((e as any)._isSynthetic) return;
+            if (timerRef.current) clearTimeout(timerRef.current);
+            timerRef.current = null;
+            startPosRef.current = null;
+            isLongPressedRef.current = false;
+            setIsDragDisabled(true);
+        };
+
+        el.addEventListener('touchstart', handleTouchStart, { capture: true, passive: false });
+        el.addEventListener('touchmove', handleTouchMove, { capture: true, passive: true });
+        el.addEventListener('touchend', handleTouchEnd, { capture: true });
+        el.addEventListener('touchcancel', handleTouchEnd, { capture: true });
+
+        return () => {
+            el.removeEventListener('touchstart', handleTouchStart, { capture: true });
+            el.removeEventListener('touchmove', handleTouchMove, { capture: true });
+            el.removeEventListener('touchend', handleTouchEnd, { capture: true });
+            el.removeEventListener('touchcancel', handleTouchEnd, { capture: true });
+        };
+    }, [touchDelay]);
+
+    const handleMouseDown = () => setIsDragDisabled(false);
 
     return (
-        <Draggable {...draggableProps} isDragDisabled={isDragDisabled}>
-            {(provided, snapshot) => {
-                // We attach handlers to a wrapper that doesn't interfere with library's innerRef
-                return (
-                    <div
-                        onTouchStart={handleTouchStart}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                        style={{ touchAction: 'pan-y' }}
-                    >
-                        {children(provided, snapshot)}
-                    </div>
-                );
-            }}
+        <Draggable {...draggableProps} isDragDisabled={draggableProps.isDragDisabled || isDragDisabled}>
+            {(provided, snapshot) => (
+                <div ref={wrapperRef} onMouseDown={handleMouseDown} style={{ touchAction: 'pan-y', display: 'contents' }}>
+                    {children(provided, snapshot)}
+                </div>
+            )}
         </Draggable>
     );
 };
