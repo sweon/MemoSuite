@@ -318,6 +318,7 @@ interface SidebarProps {
 
 export interface SidebarRef {
   handleDragEnd: (result: DropResult) => Promise<void>;
+  handleDragStart: () => void;
   handleDragUpdate: (update: DragUpdate) => void;
 }
 
@@ -343,6 +344,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const [combineTargetId, setCombineTargetId] = useState<string | null>(null);
   const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -938,6 +940,9 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     handleDragEnd: async (result: DropResult) => {
       await onDragEnd(result);
     },
+    handleDragStart: () => {
+      setIsDragging(true);
+    },
     handleDragUpdate: (update: DragUpdate) => {
       onDragUpdate(update);
     }
@@ -978,7 +983,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
         </div>
       )}
       <ScrollableArea id="sidebar-scrollable-area" ref={scrollAreaRef} onScroll={handleScroll}>
-        <BrandArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+        <BrandArea style={{
+          opacity: isEditing ? 0.5 : 1,
+          pointerEvents: isEditing ? 'none' : 'auto',
+          position: isDragging ? 'sticky' : 'relative',
+          top: 0,
+          zIndex: 10,
+          background: isDragging ? theme.colors.surface : 'transparent'
+        }}>
           <BrandHeader>
             <AppTitle>WordMemo</AppTitle>
             <AppVersion>v{pkg.version}</AppVersion>
@@ -1099,7 +1111,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           </div>
         </BrandArea>
 
-        <StickyHeaderArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+        <StickyHeaderArea style={{
+          opacity: isEditing ? 0.5 : 1,
+          pointerEvents: isEditing ? 'none' : 'auto',
+          position: isDragging ? 'sticky' : 'relative',
+          top: isDragging ? '230px' : '0',
+          zIndex: 9,
+          background: isDragging ? theme.colors.surface : 'transparent'
+        }}>
           <div style={{ padding: '6px 1rem 0.5rem' }}>
             <StudyModeGroup>
               <StudyModeOption

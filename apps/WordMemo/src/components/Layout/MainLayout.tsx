@@ -239,6 +239,12 @@ export const MainLayout: React.FC = () => {
     }
   }, [location.pathname, isMobile]);
 
+  const handleDragStart = () => {
+    if (sidebarRef.current) {
+      sidebarRef.current.handleDragStart();
+    }
+  };
+
   const handleDragEnd = async (result: DropResult) => {
     if (sidebarRef.current) {
       await sidebarRef.current.handleDragEnd(result);
@@ -252,7 +258,7 @@ export const MainLayout: React.FC = () => {
   };
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd} onDragUpdate={handleDragUpdate}>
+    <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragUpdate={handleDragUpdate}>
       <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
         <AndroidExitHandler
           isSidebarOpen={isSidebarOpen}

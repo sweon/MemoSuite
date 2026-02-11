@@ -200,6 +200,7 @@ interface SidebarProps {
 
 export interface SidebarRef {
   handleDragEnd: (result: DropResult) => Promise<void>;
+  handleDragStart: () => void;
 }
 
 const BrandArea = styled.div`
@@ -276,6 +277,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
   const [expandedBookIds, setExpandedBookIds] = useState<Set<number>>(new Set());
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -384,7 +386,11 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
   useImperativeHandle(ref, () => ({
     handleDragEnd: async (result: DropResult) => {
+      setIsDragging(false);
       await onDragEnd(result);
+    },
+    handleDragStart: () => {
+      setIsDragging(true);
     }
   }));
 
@@ -678,7 +684,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
         </div>
       )}
       <ScrollableArea id="sidebar-scrollable-area" ref={scrollAreaRef} onScroll={handleScroll}>
-        <BrandArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+        <BrandArea style={{
+          opacity: isEditing ? 0.5 : 1,
+          pointerEvents: isEditing ? 'none' : 'auto',
+          position: isDragging ? 'sticky' : 'relative',
+          top: 0,
+          zIndex: 10,
+          background: isDragging ? theme.colors.surface : 'transparent'
+        }}>
           <BrandHeader>
             <AppTitle>BookMemo</AppTitle>
             <AppVersion>v{pkg.version}</AppVersion>
@@ -786,7 +799,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           </div>
         </BrandArea>
 
-        <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+        <Header style={{
+          opacity: isEditing ? 0.5 : 1,
+          pointerEvents: isEditing ? 'none' : 'auto',
+          position: isDragging ? 'sticky' : 'relative',
+          top: isDragging ? '230px' : '0',
+          zIndex: 9,
+          background: isDragging ? theme.colors.surface : 'transparent'
+        }}>
           <TopActions>
             <Button onClick={() => {
               handleSafeNavigation(() => {

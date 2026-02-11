@@ -246,6 +246,12 @@ export const MainLayout: React.FC = () => {
   // - Mobile: only when sidebar is open
   const isResizeHandleVisible = !isMobile || isSidebarOpen;
 
+  const handleDragStart = () => {
+    if (sidebarRef.current) {
+      sidebarRef.current.handleDragStart();
+    }
+  };
+
   const handleDragEnd = async (result: DropResult) => {
     if (sidebarRef.current) {
       await sidebarRef.current.handleDragEnd(result);
@@ -253,7 +259,7 @@ export const MainLayout: React.FC = () => {
   };
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
+    <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <Container id="app-main-layout-container" ref={containerRef} $isResizing={isResizing}>
         <AndroidExitHandler
           isSidebarOpen={isSidebarOpen}

@@ -329,6 +329,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const needRefreshRef = useRef(false);
 
   const {
@@ -634,6 +635,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   }));
 
   const onDragEnd = async (result: DropResult) => {
+    setIsDragging(false);
     const { source, destination, combine, draggableId } = result;
 
     const parseLogId = (dId: string) => {
@@ -887,7 +889,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
         </div>
       )}
       <ScrollableArea id="sidebar-scrollable-area" ref={scrollAreaRef} onScroll={handleScroll}>
-        <BrandArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+        <BrandArea style={{
+          opacity: isEditing ? 0.5 : 1,
+          pointerEvents: isEditing ? 'none' : 'auto',
+          position: isDragging ? 'sticky' : 'relative',
+          top: 0,
+          zIndex: 10,
+          background: isDragging ? theme.colors.surface : 'transparent'
+        }}>
           <BrandHeader>
             <AppTitle>LLMemo</AppTitle>
             <AppVersion>v{pkg.version}</AppVersion>
@@ -989,7 +998,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           </div>
         </BrandArea>
 
-        <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+        <Header style={{
+          opacity: isEditing ? 0.5 : 1,
+          pointerEvents: isEditing ? 'none' : 'auto',
+          position: isDragging ? 'sticky' : 'relative',
+          top: isDragging ? '230px' : '0',
+          zIndex: 9,
+          background: isDragging ? theme.colors.surface : 'transparent'
+        }}>
           <TopActions>
             <Button
               onClick={() => {
@@ -1010,6 +1026,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           items={flatItems}
           droppableId="root"
           type="LOG_LIST"
+          onDragStart={() => setIsDragging(true)}
           onDragEnd={onDragEnd}
           // onDragUpdate is handled by ThreadableList but we can pass it if we need extra logic
           getItemId={(item) => {

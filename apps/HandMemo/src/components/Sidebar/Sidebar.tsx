@@ -318,6 +318,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   const [collapsedThreads, setCollapsedThreads] = useState<Set<string>>(new Set());
   const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -651,6 +652,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   }, [location.pathname, groupedItems.length]);
 
   const onDragEnd = async (result: DropResult) => {
+    setIsDragging(false);
     const { combine, draggableId, destination } = result;
 
     // Handle Combining (Joining Threads)
@@ -920,7 +922,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
         </div>
       )}
       <ScrollableArea id="sidebar-scrollable-area" ref={scrollAreaRef} onScroll={handleScroll}>
-        <BrandArea style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+        <BrandArea style={{
+          opacity: isEditing ? 0.5 : 1,
+          pointerEvents: isEditing ? 'none' : 'auto',
+          position: isDragging ? 'sticky' : 'relative',
+          top: 0,
+          zIndex: 10,
+          background: isDragging ? theme.colors.surface : 'transparent'
+        }}>
           <BrandHeader>
             <AppTitle>HandMemo</AppTitle>
             <AppVersion>v{pkg.version}</AppVersion>
@@ -1031,7 +1040,14 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
           </div>
         </BrandArea>
 
-        <Header style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}>
+        <Header style={{
+          opacity: isEditing ? 0.5 : 1,
+          pointerEvents: isEditing ? 'none' : 'auto',
+          position: isDragging ? 'sticky' : 'relative',
+          top: isDragging ? '220px' : '0',
+          zIndex: 9,
+          background: isDragging ? theme.colors.surface : 'transparent'
+        }}>
           <TopActions>
             <Button
               $color="#0072B2"
@@ -1085,6 +1101,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
         <ThreadableList
           items={groupedItems}
           droppableId="sidebar-memos"
+          onDragStart={() => setIsDragging(true)}
           onDragEnd={onDragEnd}
           useExternalContext={true}
           getItemId={(item) => item.memo.id!}
