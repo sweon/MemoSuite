@@ -363,7 +363,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
     if (startLine !== -1) {
       for (let r = startLine + 1; r < cm.lineCount(); r++) {
-        if (cm.getLine(r).trim() === '```') {
+        if (cm.getLine(r).trim().startsWith('```')) {
           endLine = r;
           break;
         }
@@ -795,7 +795,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           let startLine = i;
           let endLine = -1;
           for (let j = i + 1; j < cm.lineCount(); j++) {
-            if (cm.getLine(j).trim() === '```') {
+            if (cm.getLine(j).trim().startsWith('```')) {
               endLine = j;
               break;
             }
