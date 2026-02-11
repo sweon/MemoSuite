@@ -418,6 +418,20 @@
                     <p>일기 및 일일 기록</p>
                 </div>
             </a>
+            <div class="card" style="--brand: #71717a; cursor: default;">
+                <div class="icon"
+                    style="background: linear-gradient(135deg, #52525b, #27272a); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px rgba(0,0,0,0.3);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="50%" height="50%" viewBox="0 0 24 24" fill="none"
+                        stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </div>
+                <div class="text-content">
+                    <h2>나만의 앱</h2>
+                    <p>앞의 5개의 앱 가운데 하나를 바탕으로, 여섯 번째 앱을 바이브 코딩으로 만들어서 세상에 공개해 주세요.</p>
+                </div>
+            </div>
         </div>
 
         <div class="features">
@@ -458,6 +472,8 @@
                 wordMemo: "AI를 활용한 단어 공부",
                 llMemo: "LLM과의 대화 기록",
                 dailyMemo: "일기 및 일일 기록",
+                yourAppTitle: "나만의 앱",
+                yourAppDesc: "앞의 5개의 앱 가운데 하나를 바탕으로, 여섯 번째 앱을 바이브 코딩으로 만들어서 세상에 공개해 주세요.",
                 features: [
                     "모든 데이터가 자신의 기기에만 저장됩니다.",
                     "다른 기기와의 데이터 동기화를 할 때 암호화되어 전송됩니다.",
@@ -479,6 +495,8 @@
                 wordMemo: "AI-Powered Vocabulary Study",
                 llMemo: "LLM Chat Log",
                 dailyMemo: "Diary & Daily Journal",
+                yourAppTitle: "Your App",
+                yourAppDesc: "Create the 6th app with Vibe Coding based on one of the 5 apps above and release it to the world.",
                 features: [
                     "All data is stored locally on your device.",
                     "Data synchronization between devices is fully encrypted.",
@@ -497,7 +515,8 @@
         const toggleBtn = document.getElementById('lang-toggle');
         const title = document.querySelector('header h1');
         const subtitle = document.querySelector('header p');
-        const cards = document.querySelectorAll('.card p'); // Hand, Book, Word, LLMemo in order
+        const cards = document.querySelectorAll('.card p'); // Hand, Book, Word, LLMemo, DailyMemo, YourApp
+        const lastCardTitle = document.querySelector('.card:last-child h2');
         const featureItems = document.querySelectorAll('.features li');
 
         let currentLang = 'ko';
@@ -517,6 +536,8 @@
                 cards[2].textContent = t.wordMemo;
                 cards[3].textContent = t.llMemo;
                 cards[4].textContent = t.dailyMemo;
+                cards[5].textContent = t.yourAppDesc;
+                if (lastCardTitle) lastCardTitle.textContent = t.yourAppTitle;
 
                 featureItems.forEach((item, index) => {
                     item.textContent = t.features[index];
