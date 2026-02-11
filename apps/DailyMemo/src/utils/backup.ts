@@ -120,8 +120,8 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
     }
 
     await db.transaction('rw', db.memos, db.comments, db.folders, async () => {
+        const localFolderByName = new Map(allLocalFolders.map(f => [f.name.normalize('NFC'), f.id!]));
         const folderIdMap = new Map<number, number>();
-        const localFolderByName = new Map(allLocalFolders.map(f => [f.name, f.id]));
 
         if (data.folders) {
             const newFolderIds = new Set<number>();
@@ -129,7 +129,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
             // Pass 1: Create/Update folders without parentId
             for (const f of data.folders) {
                 const oldId = f.id;
-                const existingId = localFolderByName.get(f.name);
+                const existingId = localFolderByName.get(f.name.normalize('NFC'));
                 const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
                 const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
 
@@ -149,7 +149,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     folderData.updatedAt = updatedAt;
                     const newId = await db.folders.add(folderData);
                     folderIdMap.set(oldId, newId as number);
-                    localFolderByName.set(f.name, newId as number);
+                    localFolderByName.set(f.name.normalize('NFC'), newId as number);
                     newFolderIds.add(newId as number);
                 }
             }
@@ -181,7 +181,7 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
         }
 
         const memoIdMap = new Map<number, number>();
-        let defaultFolderId = localFolderByName.get('기본 폴더') || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
+        let defaultFolderId = localFolderByName.get('기본 폴더'.normalize('NFC')) || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
 
         // If no default folder found locally, try to use one from the imported folders
         if (defaultFolderId === undefined && folderIdMap.size > 0) {
