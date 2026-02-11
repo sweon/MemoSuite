@@ -188,7 +188,12 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
 
         const bookIdMap = new Map<number, number>();
         const memoIdMap = new Map<number, number>();
-        const defaultFolderId = localFolderByName.get('기본 폴더') || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
+        let defaultFolderId = localFolderByName.get('기본 폴더') || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
+
+        // If no default folder found locally, try to use one from the imported folders
+        if (defaultFolderId === undefined && folderIdMap.size > 0) {
+            defaultFolderId = folderIdMap.values().next().value;
+        }
 
         for (const b of books) {
             const oldBookId = b.id;
