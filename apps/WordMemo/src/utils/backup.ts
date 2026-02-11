@@ -124,8 +124,27 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
     if (conflicts.length > 0 && resolver) resolutions = await resolver(conflicts);
 
     await db.transaction('rw', db.words, db.sources, db.comments, db.folders, async () => {
-        const localFolderByName = new Map(allLocalFolders.map(f => [f.name.normalize('NFC'), f.id!]));
+        const localFolderByName = new Map<string, number>();
         const folderIdMap = new Map<number, number>();
+        allLocalFolders.forEach(f => {
+            const name = f.name.normalize('NFC');
+            // If we already have this name, and the current f is NOT home, don't overwrite if existing IS home
+            const existingId = localFolderByName.get(name);
+            const existingF = existingId ? allLocalFolders.find(ef => ef.id === existingId) : null;
+
+            if (existingF && existingF.isHome) {
+                // Do not overwrite actual Home
+                return;
+            }
+            localFolderByName.set(name, f.id!);
+        });
+
+        // Double check: Force Home Folder ID if found
+        const realHome = allLocalFolders.find(f => f.isHome);
+        let homeId = realHome?.id;
+        if (realHome) {
+            localFolderByName.set(realHome.name.normalize('NFC'), realHome.id!);
+        }
         const sourceIdMap = new Map<number, number>();
 
         if (data.folders) {
@@ -134,7 +153,16 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
             // Pass 1: Create/Update folders without parentId
             for (const f of data.folders) {
                 const oldId = f.id;
-                const existingId = localFolderByName.get(f.name.normalize('NFC'));
+                const normalizedName = f.name.normalize('NFC');
+
+                // Special handling: Merge '기본 폴더' or imported Home into 'Home' to prevent hidden data
+                if ((normalizedName === '기본 폴더' || f.isHome) && homeId) {
+                    folderIdMap.set(oldId, homeId);
+                    continue; // Skip creating/updating '기본 폴더', just map it to Home
+                }
+
+
+                const existingId = localFolderByName.get(normalizedName);
                 const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
                 const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
 
@@ -157,6 +185,9 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                     localFolderByName.set(f.name.normalize('NFC'), newId as number);
                     newFolderIds.add(newId as number);
                 }
+
+
+
             }
 
             // Pass 2: Restore hierarchy
@@ -164,8 +195,19 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                 const currentId = folderIdMap.get(f.id);
                 if (!currentId) continue;
 
+                let targetParentId: number | undefined;
+
                 if (f.parentId !== undefined && f.parentId !== null) {
-                    const mappedParentId = folderIdMap.get(f.parentId);
+                    targetParentId = folderIdMap.get(f.parentId);
+                }
+
+                // If no parent defined, and not a home folder, attach to Home
+                if (targetParentId === undefined && !f.isHome && homeId && currentId !== homeId) {
+                    targetParentId = homeId;
+                }
+
+                if (targetParentId) {
+                    const mappedParentId = targetParentId;
                     if (mappedParentId) {
                         const isNew = newFolderIds.has(currentId);
 
@@ -188,8 +230,16 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
         if (data.sources) {
             for (const s of data.sources) {
                 const oldId = s.id;
-                const existing = await db.sources.where('url').equals(s.url).first();
+                // Guard against invalid keys for indexing
+                let existing;
+                if (s.url) {
+                    existing = await db.sources.where('url').equals(s.url).first();
+                } else if (s.name) {
+                    existing = await db.sources.where('name').equals(s.name).first();
+                }
+
                 if (existing) sourceIdMap.set(oldId, existing.id!);
+
                 else {
                     const { id, ...sourceData } = s;
                     sourceData.createdAt = typeof s.createdAt === 'string' ? new Date(s.createdAt) : s.createdAt;
@@ -203,10 +253,17 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
         const wordIdMap = new Map<number, number>();
         let defaultFolderId = localFolderByName.get('기본 폴더'.normalize('NFC')) || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
 
+        // If no default folder found locally, use Home
+        if (defaultFolderId === undefined) {
+            defaultFolderId = homeId;
+        }
+
         // If no default folder found locally, try to use one from the imported folders
         if (defaultFolderId === undefined && folderIdMap.size > 0) {
             defaultFolderId = folderIdMap.values().next().value;
         }
+
+
 
         for (let i = 0; i < words.length; i++) {
             const l = words[i];
@@ -268,12 +325,18 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                 if (l.pinnedAt) logData.pinnedAt = typeof l.pinnedAt === 'string' ? new Date(l.pinnedAt) : l.pinnedAt;
                 logData.folderId = targetFolderId;
                 const sId = l.sourceId !== undefined ? l.sourceId : l.modelId;
-                if (sId !== undefined && sourceIdMap.has(sId)) logData.sourceId = sourceIdMap.get(sId);
-                const newId = await db.words.add(logData);
+                // Sanitize logData to ensure no invalid keys are passed to Dexie
+                // modelId is from LLMemo exports and invalid in WordMemo
+                const { modelId, ...cleanLogData } = logData;
+                if (sId !== undefined && sourceIdMap.has(sId)) (cleanLogData as any).sourceId = sourceIdMap.get(sId);
+
+                const newId = await db.words.add(cleanLogData);
                 wordIdMap.set(oldId, newId as number);
                 mirrorIds.push(newId as number);
+
             }
         }
+
 
         if (data.comments) {
             for (const c of data.comments) {

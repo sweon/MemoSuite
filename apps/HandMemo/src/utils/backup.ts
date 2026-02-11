@@ -120,8 +120,27 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
     }
 
     await db.transaction('rw', db.memos, db.comments, db.folders, async () => {
-        const localFolderByName = new Map(allLocalFolders.map(f => [f.name.normalize('NFC'), f.id!]));
+        const localFolderByName = new Map<string, number>();
         const folderIdMap = new Map<number, number>();
+        allLocalFolders.forEach(f => {
+            const name = f.name.normalize('NFC');
+            // If we already have this name, and the current f is NOT home, don't overwrite if existing IS home
+            const existingId = localFolderByName.get(name);
+            const existingF = existingId ? allLocalFolders.find(ef => ef.id === existingId) : null;
+
+            if (existingF && existingF.isHome) {
+                // Do not overwrite actual Home
+                return;
+            }
+            localFolderByName.set(name, f.id!);
+        });
+
+        // Double check: Force Home Folder ID if found
+        const realHome = allLocalFolders.find(f => f.isHome);
+        let homeId = realHome?.id;
+        if (realHome) {
+            localFolderByName.set(realHome.name.normalize('NFC'), realHome.id!);
+        }
 
         if (data.folders) {
             const newFolderIds = new Set<number>();
@@ -129,7 +148,16 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
             // Pass 1: Create/Update folders without parentId
             for (const f of data.folders) {
                 const oldId = f.id;
-                const existingId = localFolderByName.get(f.name.normalize('NFC'));
+                const normalizedName = f.name.normalize('NFC');
+
+                // Special handling: Merge '기본 폴더' or imported Home into 'Home' to prevent hidden data
+                if ((normalizedName === '기본 폴더' || f.isHome) && homeId) {
+                    folderIdMap.set(oldId, homeId);
+                    continue; // Skip creating/updating '기본 폴더', just map it to Home
+                }
+
+
+                const existingId = localFolderByName.get(normalizedName);
                 const createdAt = typeof f.createdAt === 'string' ? new Date(f.createdAt) : f.createdAt;
                 const updatedAt = typeof f.updatedAt === 'string' ? new Date(f.updatedAt) : f.updatedAt;
 
@@ -159,8 +187,19 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
                 const currentId = folderIdMap.get(f.id);
                 if (!currentId) continue;
 
+                let targetParentId: number | undefined;
+
                 if (f.parentId !== undefined && f.parentId !== null) {
-                    const mappedParentId = folderIdMap.get(f.parentId);
+                    targetParentId = folderIdMap.get(f.parentId);
+                }
+
+                // If no parent defined, and not a home folder, attach to Home
+                if (targetParentId === undefined && !f.isHome && homeId && currentId !== homeId) {
+                    targetParentId = homeId;
+                }
+
+                if (targetParentId) {
+                    const mappedParentId = targetParentId;
                     if (mappedParentId) {
                         const isNew = newFolderIds.has(currentId);
 
@@ -182,6 +221,11 @@ export const mergeBackupData = async (data: any, resolver?: SyncConflictResolver
 
         const memoIdMap = new Map<number, number>();
         let defaultFolderId = localFolderByName.get('기본 폴더'.normalize('NFC')) || (allLocalFolders.length > 0 ? allLocalFolders[0].id : undefined);
+
+        // If no default folder found locally, use Home
+        if (defaultFolderId === undefined) {
+            defaultFolderId = homeId;
+        }
 
         // If no default folder found locally, try to use one from the imported folders
         if (defaultFolderId === undefined && folderIdMap.size > 0) {

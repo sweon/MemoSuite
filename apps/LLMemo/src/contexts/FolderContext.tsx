@@ -47,15 +47,14 @@ export const FolderProvider: React.FC<FolderProviderProps> = ({ children }) => {
 
     const folders = useLiveQuery(() => db.folders.toArray()) || [];
 
-    const homeFolder = folders.find(f => f.isHome) || null;
+    const homeFolder = folders.find(f => f.isHome) || folders.find(f => f.name.normalize('NFC') === '기본 폴더') || null;
 
     // Ensure we have a valid folder selected
     useEffect(() => {
         if (folders.length > 0) {
             if (currentFolderId === null || !folders.find(f => f.id === currentFolderId)) {
-                const home = folders.find(f => f.isHome);
-                if (home) {
-                    setCurrentFolderIdState(home.id!);
+                if (homeFolder) {
+                    setCurrentFolderIdState(homeFolder.id!);
                 } else {
                     setCurrentFolderIdState(folders[0].id!);
                 }
