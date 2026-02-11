@@ -764,21 +764,30 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     const sourceMemo = await db.memos.get(sourceMemoId);
     if (!sourceMemo) return;
 
+    const items = groupedItems;
     const sourceIndex = result.source.index;
     const destIndex = destination.index;
-    if (sourceIndex === destIndex) return;
 
-    const items = groupedItems;
+    // Check if we should return early
+    if (sourceIndex === destIndex) {
+      const item = items[sourceIndex];
+      // Only proceed if it's a thread item that might want extraction
+      if (!item.isThreadHead && !item.isThreadChild) return;
+    }
+
     const targetItem = items[destIndex];
     const prevItem = items[destIndex - 1];
 
     // --- Thread Reordering & Joining Logic ---
     let destThreadId: string | undefined = undefined;
 
-    // Logic: If target position is part of a thread, join it.
-    // If dropped at indices of current thread block, stay in it.
-    if (targetItem?.threadId) {
+    // Logic: If target position is a thread child, join/stay in thread.
+    // If target position is a thread head, it means "above the header", so extract.
+    if (targetItem?.isThreadChild) {
       destThreadId = targetItem.threadId;
+    } else if (targetItem?.isThreadHead) {
+      // Dropped on/above header -> extract
+      destThreadId = undefined;
     } else if (prevItem?.threadId && sourceMemo.threadId === prevItem.threadId) {
       // Dropped at the very end of its own thread block
       destThreadId = prevItem.threadId;

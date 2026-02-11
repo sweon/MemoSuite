@@ -817,22 +817,31 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     // 2. Handle Reordering
     if (!destination) return;
 
+    const items = flatItems;
     const sourceIndex = source.index;
     const destIndex = destination.index;
-    if (sourceIndex === destIndex) return;
 
     const sourceWord = await db.words.get(sourceId);
     if (!sourceWord) return;
 
-    const items = flatItems;
+    // Check if we should return early
+    if (sourceIndex === destIndex) {
+      const item = items[sourceIndex];
+      // Only proceed if it's a thread item that might want extraction
+      if (item.type !== 'thread-header' && item.type !== 'thread-child') return;
+    }
+
     const targetItem = items[destIndex];
     const prevItem = items[destIndex - 1];
 
     // --- Thread Reordering & Joining Logic ---
     let destThreadId: string | undefined = undefined;
 
-    if (targetItem?.log.threadId) {
+    if (targetItem?.type === 'thread-child') {
       destThreadId = targetItem.log.threadId;
+    } else if (targetItem?.type === 'thread-header') {
+      // Dropped on/above header -> extract
+      destThreadId = undefined;
     } else if (prevItem?.log.threadId && sourceWord.threadId === prevItem.log.threadId) {
       destThreadId = prevItem.log.threadId;
     }
