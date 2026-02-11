@@ -80,8 +80,8 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
 
             // --- 4. SIDEBAR OPEN → exit warning / exit ---
             const now = Date.now();
-            if (now - lastPressTime.current < 2000) {
-                // Double-press within 2s: allow exit (don't intercept)
+            if (now - lastPressTime.current < 3000) {
+                // Double-press within 3s: allow exit (don't intercept)
                 return;
             }
             event.stopImmediatePropagation();
@@ -106,7 +106,7 @@ export const AndroidExitHandler: React.FC<AndroidExitHandlerProps> = ({ isSideba
             icon={<FiAlertTriangle size={14} />}
             message={isEditing ? (t.android?.edit_in_progress || "Please save or cancel editing first") : (t.android?.exit_warning || "Press back again to exit")}
             onClose={() => setShowExitToast(false)}
-            duration={2000}
+            duration={3000}
         />
     );
 };
