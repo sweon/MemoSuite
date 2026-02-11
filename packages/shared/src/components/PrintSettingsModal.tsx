@@ -177,11 +177,20 @@ export function executePrint(settings: PrintSettings, title?: string) {
     wrapper.innerHTML = headerHtml + footerHtml;
     document.body.appendChild(wrapper);
 
+    // Temporarily change document title for filename when saving as PDF
+    const originalTitle = document.title;
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+    const filename = `${title || 'Untitled'}_${dateStr}_${timeStr}`;
+    document.title = filename;
+
     // Wait a tick for the browser to apply styles, then print
     requestAnimationFrame(() => {
         window.print();
         // Cleanup after print dialog closes
         setTimeout(() => {
+            document.title = originalTitle;
             document.getElementById('print-settings-style')?.remove();
             document.getElementById('print-hf-wrapper')?.remove();
         }, 1000);
