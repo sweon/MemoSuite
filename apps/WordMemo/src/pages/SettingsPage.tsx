@@ -482,7 +482,7 @@ export const SettingsPage: React.FC = () => {
       if (registration.waiting || needRefresh) {
         installUpdate();
       } else if (registration.installing) {
-        setToastMessage(t.language === 'ko' ? "새 버전을 다운로드하고 있습니다..." : "Downloading new version...");
+        setToastMessage(t.sidebar.downloading_update);
         const worker = registration.installing;
         if (worker) {
           worker.addEventListener('statechange', () => {

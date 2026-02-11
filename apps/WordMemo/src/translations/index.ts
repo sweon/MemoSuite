@@ -34,7 +34,15 @@ export const translations = {
             sort_starred: "Starred",
             press_back_again: "Press back again to exit the app",
             select_target: "Select Target",
-            cancel: "Cancel"
+            cancel: "Cancel",
+            app_updated: "App updated!",
+            downloading_update: "Downloading new version...",
+            checking: "Checking...",
+            move_success: "Word moved successfully",
+            move_failed: "Failed to move word",
+            move_entire_thread: "Moved entire thread.",
+            record_log: "Log",
+            sketch_log: "Sketch",
         },
         settings: {
             title: "Settings",
@@ -374,7 +382,15 @@ export const translations = {
             sort_starred: "별표순",
             press_back_again: "한 번 더 누르면 앱이 종료됩니다",
             select_target: "이동 위치 선택",
-            cancel: "취소"
+            cancel: "취소",
+            app_updated: "앱이 업데이트되었습니다!",
+            downloading_update: "새 버전을 다운로드하고 있습니다...",
+            checking: "확인 중...",
+            move_success: "단어를 이동했습니다.",
+            move_failed: "단어 이동 실패",
+            move_entire_thread: "스레드 전체를 이동했습니다.",
+            record_log: "기록",
+            sketch_log: "그리기",
         },
         settings: {
             title: "설정",

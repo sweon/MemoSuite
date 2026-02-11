@@ -26,7 +26,15 @@ export const translations = {
             more_logs: "{count} more",
             drop_to_extract: "Drop to Extract",
             select_target: "Select target log",
-            cancel: "Cancel"
+            cancel: "Cancel",
+            app_updated: "App updated!",
+            downloading_update: "Downloading new version...",
+            checking: "Checking...",
+            move_success: "Log moved successfully",
+            move_failed: "Failed to move log",
+            move_entire_thread: "Moved entire thread.",
+            chat_log: "Chat",
+            sketch_log: "Sketch",
         },
         settings: {
             title: "Settings",
@@ -317,7 +325,15 @@ export const translations = {
             more_logs: "{count}개 더보기",
             drop_to_extract: "여기 놓아 추출",
             select_target: "이동할 대상을 선택하세요",
-            cancel: "취소"
+            cancel: "취소",
+            app_updated: "앱이 업데이트되었습니다!",
+            downloading_update: "새 버전을 다운로드하고 있습니다...",
+            checking: "확인 중...",
+            move_success: "로그를 이동했습니다.",
+            move_failed: "로그 이동 실패",
+            move_entire_thread: "스레드 전체를 이동했습니다.",
+            chat_log: "대화",
+            sketch_log: "그리기",
         },
         settings: {
             title: "설정",

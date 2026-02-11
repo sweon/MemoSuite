@@ -261,7 +261,7 @@ export interface SidebarRef {
 
 export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false, movingLogId, setMovingLogId }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const {
     currentFolderId,
     homeFolder,
@@ -399,7 +399,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
         installUpdate();
       } else if (registration.installing) {
         if (!isSilent) {
-          setToastMessage(language === 'ko' ? "새 버전을 다운로드하고 있습니다..." : "Downloading new version...");
+          setToastMessage(t.sidebar.downloading_update);
         }
 
         const worker = registration.installing;
@@ -737,7 +737,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               updatedAt: new Date()
             });
           }
-          setToastMessage(language === 'ko' ? '로그를 이동했습니다.' : 'Moved log.');
+          setToastMessage(t.sidebar.move_entire_thread);
           return;
         }
       }
@@ -847,10 +847,10 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       });
 
       setMovingLogId(null);
-      setToastMessage(language === 'ko' ? '로그를 이동했습니다.' : 'Log moved successfully');
+      setToastMessage(t.sidebar.move_success);
     } catch (err) {
       console.error('Failed to move log', err);
-      setToastMessage(language === 'ko' ? '이동 실패' : 'Failed to move log');
+      setToastMessage(t.sidebar.move_failed);
     }
   };
 

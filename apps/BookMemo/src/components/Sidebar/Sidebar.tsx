@@ -337,7 +337,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       if (isNaN(bookId)) return;
 
       await db.books.update(bookId, { folderId, updatedAt: new Date() });
-      setToastMessage(language === 'ko' ? '책을 이동했습니다.' : 'Moved book.');
+      setToastMessage(t.sidebar.move_entire_thread);
       return;
     }
   };
@@ -378,7 +378,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       }
 
       setMovingMemoId(null);
-      setToastMessage(language === 'ko' ? '메모를 이동했습니다.' : 'Memo moved.');
+      setToastMessage(t.sidebar.move_success);
     } catch (error) {
       console.error("Failed to move memo:", error);
     }
@@ -482,7 +482,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
         installUpdate();
       } else if (registration.installing) {
         if (!isSilent) {
-          setToastMessage(language === 'ko' ? "새 버전을 다운로드하고 있습니다..." : "Downloading new version...");
+          setToastMessage(t.sidebar.downloading_update);
         }
 
         const worker = registration.installing;
@@ -806,7 +806,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               });
             }}>
               <FiPlus />
-              {language === 'ko' ? '새 책' : 'New Book'}
+              {t.sidebar.new}
             </Button>
           </TopActions>
         </Header>

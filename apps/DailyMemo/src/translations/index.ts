@@ -29,7 +29,12 @@ export const translations = {
             drawing_memo: "Drawing",
             text_memo: "Text",
             sheet_memo: "Sheet",
-            app_updated: "App updated!"
+            app_updated: "App updated!",
+            downloading_update: "Downloading new version...",
+            checking: "Checking...",
+            move_success: "Memo moved successfully",
+            move_failed: "Failed to move memo",
+            move_entire_thread: "Moved entire thread.",
         },
         settings: {
             title: "Settings",
@@ -400,7 +405,12 @@ export const translations = {
             drawing_memo: "그리기",
             text_memo: "글",
             sheet_memo: "시트",
-            app_updated: "앱이 업데이트되었습니다!"
+            app_updated: "앱이 업데이트되었습니다!",
+            downloading_update: "새 버전을 다운로드하고 있습니다...",
+            checking: "확인 중...",
+            move_success: "메모를 이동했습니다.",
+            move_failed: "메모 이동 실패",
+            move_entire_thread: "스레드 전체를 이동했습니다.",
         },
         settings: {
             title: "설정",

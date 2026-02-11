@@ -462,7 +462,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       } else if (registration.installing) {
         // Update found and is downloading
         if (!isSilent) {
-          setToastMessage(language === 'ko' ? "새 버전을 다운로드하고 있습니다..." : "Downloading new version...");
+          setToastMessage(t.sidebar.downloading_update);
         }
 
         const worker = registration.installing;
@@ -738,7 +738,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               updatedAt: new Date()
             });
           }
-          setToastMessage(language === 'ko' ? '단어를 이동했습니다.' : 'Moved word.');
+          setToastMessage(t.sidebar.move_entire_thread);
           setListKey(v => v + 1);
           return;
         }
@@ -929,7 +929,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       });
 
       setMovingWordId(null);
-      setToastMessage(language === 'ko' ? '기록을 이동했습니다.' : 'Word moved.');
+      setToastMessage(t.sidebar.move_success);
       setListKey(v => v + 1);
     } catch (error) {
       console.error("Failed to move word:", error);
@@ -963,7 +963,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
           zIndex: 100
         }}>
-          <span>{language === 'ko' ? '이동할 대상을 선택하세요' : 'Select target item'}</span>
+          <span>{t.sidebar.select_target}</span>
           <button
             onClick={() => setMovingWordId?.(null)}
             style={{
@@ -976,7 +976,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               fontSize: '0.75rem'
             }}
           >
-            {language === 'ko' ? '취소' : 'Cancel'}
+            {t.sidebar.cancel}
           </button>
         </div>
       )}
@@ -1131,7 +1131,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                 onCloseMobile(true);
               }}>
                 <FiPlus />
-                {language === 'ko' ? '새 단어' : 'New Word'}
+                {t.sidebar.new}
               </Button>
             </TopActions>
           </Header>

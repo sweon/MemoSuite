@@ -413,7 +413,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
         installUpdate();
       } else if (registration.installing) {
         if (!isSilent) {
-          setToastMessage(language === 'ko' ? "새 버전을 다운로드하고 있습니다..." : "Downloading new version...");
+          setToastMessage(t.sidebar.downloading_update);
         }
 
         const worker = registration.installing;
@@ -747,7 +747,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
         for (const tm of threadMemos) {
           await db.memos.update(tm.id!, { folderId, updatedAt: new Date() });
         }
-        setToastMessage(language === 'ko' ? '스레드 전체를 이동했습니다.' : 'Moved entire thread.');
+        setToastMessage(t.sidebar.move_entire_thread);
       } else {
         // Just move this memo
         await db.memos.update(sourceMemoId, {
@@ -756,7 +756,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
           threadOrder: undefined,
           updatedAt: new Date()
         });
-        setToastMessage(language === 'ko' ? '메모를 이동했습니다.' : 'Moved memo.');
+        setToastMessage(t.sidebar.move_success);
       }
       return;
     }
@@ -1055,7 +1055,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                 });
               }}>
               <BsKeyboard />
-              {language === 'ko' ? '글' : 'Text'}
+              {t.sidebar.text_memo}
             </Button>
             <Button
               $color="#D55E00"
@@ -1070,7 +1070,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                 });
               }}>
               <FiPenTool />
-              {language === 'ko' ? '그리기' : 'Drawing'}
+              {t.sidebar.drawing_memo}
             </Button>
             <Button
               $color="#009E73"
@@ -1085,7 +1085,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                 });
               }}>
               <RiTable2 />
-              {language === 'ko' ? '시트' : 'Sheet'}
+              {t.sidebar.sheet_memo}
             </Button>
           </TopActions>
         </Header>
