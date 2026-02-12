@@ -15,6 +15,10 @@ export interface ThreadableItem {
     createdAt?: Date;
     updatedAt?: Date;
     title?: string;
+    modelId?: number;             // LLMemo
+    sourceId?: number;            // WordMemo
+    bookId?: number;              // BookMemo
+    pageNumber?: number;          // BookMemo
 }
 
 /**
@@ -77,7 +81,11 @@ export async function prepareThreadForNewItem<T extends ThreadableItem>(
         threadId,
         threadOrder,
         inheritedFolderId: currentItem.folderId,
-        inheritedTags: currentItem.tags || []
+        inheritedTags: currentItem.tags || [],
+        inheritedModelId: currentItem.modelId,
+        inheritedSourceId: currentItem.sourceId,
+        inheritedBookId: currentItem.bookId,
+        inheritedPageNumber: currentItem.pageNumber
     };
 }
 
