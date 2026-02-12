@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { AppLockSettings, DataManagementSection, LanguageSettings, ThemeSettings, useColorTheme, useConfirm, useLanguage } from '@memosuite/shared';
+import { AppLockSettings, AutoBackupSetup, DataManagementSection, LanguageSettings, ThemeSettings, useColorTheme, useConfirm, useLanguage } from '@memosuite/shared';
+import type { UseAutoBackupReturn } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiLock, FiEdit3, FiArrowUpCircle } from 'react-icons/fi';
@@ -226,8 +227,8 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
 
 type SubMenu = 'main' | 'data' | 'editor' | 'theme' | 'language' | 'about' | 'appLock' | 'updates';
 
-export const SettingsPage: React.FC = () => {
-  const { t } = useLanguage();
+export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ autoBackup }) => {
+  const { t, language } = useLanguage();
   const { confirm } = useConfirm();
   useColorTheme();
   const [currentSubMenu, setCurrentSubMenu] = useState<SubMenu>('main');
@@ -499,6 +500,11 @@ export const SettingsPage: React.FC = () => {
       {currentSubMenu === 'data' && (
         <Section>
           {renderHeader(t.settings.data_management)}
+          {autoBackup && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <AutoBackupSetup autoBackup={autoBackup} language={language} />
+            </div>
+          )}
           <DataManagementSection
             adapter={wordMemoAdapter}
             fileNamePrefix="wordmemo"

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AppLockSettings, DataManagementSection, LanguageSettings, ThemeSettings, useConfirm, useLanguage } from '@memosuite/shared';
+import { AppLockSettings, AutoBackupSetup, DataManagementSection, LanguageSettings, ThemeSettings, useConfirm, useLanguage } from '@memosuite/shared';
+import type { UseAutoBackupReturn } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -308,8 +309,8 @@ type SubMenu = 'main' | 'models' | 'data' | 'editor' | 'theme' | 'language' | 'a
 
 
 
-export const SettingsPage: React.FC = () => {
-  const { t } = useLanguage();
+export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ autoBackup }) => {
+  const { t, language } = useLanguage();
   const { confirm } = useConfirm();
 
   const [currentSubMenu, setCurrentSubMenu] = useState<SubMenu>('main');
@@ -703,6 +704,11 @@ export const SettingsPage: React.FC = () => {
       {currentSubMenu === 'data' && (
         <Section>
           {renderHeader(t.settings.data_management)}
+          {autoBackup && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <AutoBackupSetup autoBackup={autoBackup} language={language} />
+            </div>
+          )}
           <DataManagementSection
             adapter={llmemoAdapter}
             fileNamePrefix="llmemo"

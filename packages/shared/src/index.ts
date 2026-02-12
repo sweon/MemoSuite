@@ -25,6 +25,9 @@ export * from './components/ThreadableList';
 export * from './components/PremiumCard';
 export * from './components/PrintSettingsModal';
 
+// Auto Backup
+export * from './autoBackup';
+
 
 // Utils
 export * from './utils/crypto';

@@ -1,5 +1,5 @@
-import { useLayoutEffect, useEffect } from 'react';
-import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageProvider, LockScreen, ModalProvider, useAuth, useLanguage, requestPersistence } from '@memosuite/shared';
+import { useLayoutEffect, useEffect, useCallback, useState } from 'react';
+import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageProvider, LockScreen, ModalProvider, useAuth, useLanguage, requestPersistence, useAutoBackup, RestorePrompt, BackupReminder } from '@memosuite/shared';
 
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -16,8 +16,33 @@ import { ExitGuardProvider } from '@memosuite/shared-drawing';
 import { db } from './db';
 
 function AppContent() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { isLocked, isLoading } = useAuth();
+  const [skipRestore, setSkipRestore] = useState(false);
+
+  const hasData = useCallback(async () => {
+    const count = await db.words.count();
+    return count > 0;
+  }, []);
+
+  const autoBackup = useAutoBackup({
+    adapter: {
+      getBackupData: async () => {
+        const { getBackupData } = await import('./utils/backup');
+        return await getBackupData();
+      },
+      mergeBackupData: async (data: any) => {
+        const { mergeBackupData } = await import('./utils/backup');
+        await mergeBackupData(data);
+      },
+      clearAllData: async () => {
+        await db.delete();
+      },
+    },
+    appName: 'wordmemo',
+    hasData,
+    language,
+  });
 
   // Request storage persistence on startup
   useEffect(() => {
@@ -79,13 +104,28 @@ function AppContent() {
             <SearchProvider>
               <HashRouter>
                 <InstallPrompt appName="WordMemo" t={t} iconPath="./pwa-192x192.png" />
+                {autoBackup.hasAppData === false && !skipRestore && (
+                  <RestorePrompt
+                    language={language}
+                    onRestore={async (file, password) => {
+                      const result = await autoBackup.restoreFromSelectedFile(file, password);
+                      if (result.success) {
+                        window.location.reload();
+                      }
+                      return result;
+                    }}
+                    onSkip={() => setSkipRestore(true)}
+                    isProcessing={autoBackup.isProcessing}
+                  />
+                )}
+                <BackupReminder autoBackup={autoBackup} language={language} />
                 <Routes>
                   <Route path="/" element={<MainLayout />}>
                     <Route index element={<EmptyState />} />
                     <Route path="folders" element={<FolderPage />} />
                     <Route path="new" element={<MemoDetail />} />
                     <Route path="word/:id" element={<MemoDetail />} />
-                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="settings" element={<SettingsPage autoBackup={autoBackup} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Route>
                 </Routes>
