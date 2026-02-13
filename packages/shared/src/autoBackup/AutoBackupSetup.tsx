@@ -223,10 +223,8 @@ const translations = {
         stop_backup: '자동 백업 중지 및 설정 초기화',
         stop_confirm: '자동 백업 설정을 모두 삭제하고 중지하시겠습니까?',
         reminder_label: '백업 알림 주기',
-        reminder_days_1: '1일 마다',
-        reminder_days_3: '3일 마다 (기본)',
-        reminder_days_7: '7일 마다',
-        reminder_days_14: '14일 마다',
+        days_suffix: '일 마다',
+        default_label: '기본',
         reminder_days_never: '알림 끄기',
         status_warning: '백업이 오래되었습니다!',
     },
@@ -259,10 +257,8 @@ const translations = {
         stop_backup: 'Stop Auto Backup & Reset Settings',
         stop_confirm: 'Are you sure you want to delete all auto-backup settings and stop?',
         reminder_label: 'Backup Reminder',
-        reminder_days_1: 'Every 1 day',
-        reminder_days_3: 'Every 3 days (Default)',
-        reminder_days_7: 'Every 7 days',
-        reminder_days_14: 'Every 14 days',
+        days_suffix: ' days',
+        default_label: 'Default',
         reminder_days_never: 'Disable Reminder',
         status_warning: 'Backup overdue!',
     }
@@ -392,11 +388,12 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
                                     onChange={(e) => autoBackup.setMobileInterval(Number(e.target.value))}
                                     style={{ padding: '4px 8px', fontSize: '0.85rem' }}
                                 >
-                                    <option value={1}>{t.reminder_days_1}</option>
-                                    <option value={3}>{t.reminder_days_3}</option>
-                                    <option value={7}>{t.reminder_days_7}</option>
-                                    <option value={14}>{t.reminder_days_14}</option>
                                     <option value={0}>{t.reminder_days_never}</option>
+                                    {Array.from({ length: 14 }, (_, i) => i + 1).map(day => (
+                                        <option key={day} value={day}>
+                                            {day}{t.days_suffix} {day === 3 ? `(${t.default_label})` : ''}
+                                        </option>
+                                    ))}
                                 </Select>
                             </div>
                         </InfoRow>
