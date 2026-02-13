@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NodeViewWrapper, NodeViewProps } from '@tiptap/react';
+import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import styled from 'styled-components';
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { useLanguage } from '../../../i18n';
@@ -39,14 +39,6 @@ const PreviewImage = styled.img`
   display: block;
 `;
 
-const Placeholder = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  color: #868e96;
-  font-size: 14px;
-`;
 
 const EditOverlay = styled.div`
   position: absolute;
@@ -81,7 +73,7 @@ const HandwritingComponent: React.FC<NodeViewProps> = ({ node, updateAttributes 
       const staticCanvas = new fabric.StaticCanvas(tempCanvasEl);
       staticCanvas.loadFromJSON(data, () => {
         // Filter out background, erasers, and other non-content objects
-        const objects = staticCanvas.getObjects().filter(obj =>
+        const objects = staticCanvas.getObjects().filter((obj: any) =>
           obj.visible &&
           !(obj as any).isPageBackground &&
           !(obj as any).isPixelEraser &&
@@ -93,7 +85,7 @@ const HandwritingComponent: React.FC<NodeViewProps> = ({ node, updateAttributes 
           // Calculate maxY of actual content
           let maxY = 0;
 
-          objects.forEach(obj => {
+          objects.forEach((obj: any) => {
             const bound = obj.getBoundingRect(true);
             maxY = Math.max(maxY, bound.top + bound.height);
           });

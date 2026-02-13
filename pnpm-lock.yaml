@@ -731,6 +731,9 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
+      fabric:
+        specifier: ^5.5.2
+        version: 5.5.2
       html5-qrcode:
         specifier: ^2.3.8
         version: 2.3.8
@@ -756,6 +759,9 @@ importers:
         specifier: ^0.9.0
         version: 0.9.0(@tiptap/core@3.19.0(@tiptap/pm@3.19.0))
     devDependencies:
+      '@types/fabric':
+        specifier: ^5.3.10
+        version: 5.3.11
       '@types/react':
         specifier: ^19.2.5
         version: 19.2.8
