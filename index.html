@@ -586,7 +586,9 @@
                 const listEl = document.createElement('ul');
                 section.items.forEach(item => {
                     const itemEl = document.createElement('li');
-                    itemEl.innerHTML = item;
+                    const spanEl = document.createElement('span');
+                    spanEl.innerHTML = item;
+                    itemEl.appendChild(spanEl);
                     listEl.appendChild(itemEl);
                 });
                 sectionEl.appendChild(listEl);
