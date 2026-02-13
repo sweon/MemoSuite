@@ -129,6 +129,16 @@ const MessageText = styled.div<{ $error?: boolean }>`
     font-size: 0.85rem;
 `;
 
+const WarningBox = styled.div`
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(243, 156, 18, 0.1);
+    border-left: 3px solid #f39c12;
+    font-size: 0.8rem;
+    color: ${({ theme }) => theme.colors.text};
+    line-height: 1.4;
+`;
+
 interface AutoBackupSetupProps {
     autoBackup: UseAutoBackupReturn;
     language: string;
@@ -158,6 +168,7 @@ const translations = {
         password_optional: '비밀번호 생략 시 자동으로 안전하게 관리됩니다.',
         setup_button: '자동 백업 시작',
         desktop_setup_alert: '자동 백업 파일을 저장할 새 폴더를 만드세요.',
+        password_warning: '⚠️ 시스템 기본 암호를 사용하면 같은 앱을 가진 다른 사람도 열어볼 수 있습니다.',
     },
     en: {
         title: 'Auto Backup',
@@ -182,6 +193,7 @@ const translations = {
         password_optional: 'If left blank, the system handles it automatically.',
         setup_button: 'Start Auto Backup',
         desktop_setup_alert: 'Please create a new folder to save the auto-backup file.',
+        password_warning: '⚠️ Note: Backups using the default system key can be opened by anyone using the same app.',
     }
 };
 
@@ -257,6 +269,12 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
                             {t.password_optional}
                         </div>
                     </FormGroup>
+
+                    {!password.trim() && (
+                        <WarningBox>
+                            {t.password_warning}
+                        </WarningBox>
+                    )}
 
                     <Button
                         onClick={() => handleSetup(password)}
