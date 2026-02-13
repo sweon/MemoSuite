@@ -2515,24 +2515,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             // Protect dimensions in image mode to prevent loops or jumping
             if (backgroundRef.current === 'image') return;
 
-            if (pageHeightRef.current < newHeight) {
-                pageHeightRef.current = newHeight;
-                setPageHeightState(newHeight);
-                if (pageRectRef.current) {
-                    pageRectRef.current.set('height', newHeight).setCoords();
-                }
-                updateCanvasCssClip();
-            }
-
-            if (Math.abs(pageWidthRef.current - newWidth) > 5) {
-                pageWidthRef.current = newWidth;
-                setPageWidthState(newWidth);
-                if (pageRectRef.current) {
-                    pageRectRef.current.set('width', newWidth).setCoords();
-                }
-                updateCanvasCssClip();
-            }
-
             if (changed) {
                 canvas.renderAll();
                 syncScrollToViewport();
@@ -2543,9 +2525,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             const width = canvasViewportRef.current.clientWidth;
             const height = canvasViewportRef.current.clientHeight;
             pageWidthRef.current = width;
-            pageHeightRef.current = height;
+
+            // Only set initial height if not already set (e.g. from initialData parsing)
+            if (pageHeightRef.current <= 0) {
+                // Default to a reasonable size if starting fresh, or fill viewport if small
+                const defaultHeight = Math.min(height, 500);
+                pageHeightRef.current = defaultHeight;
+                setPageHeightState(defaultHeight);
+            }
+
             setPageWidthState(width);
-            setPageHeightState(height);
             resizeObserver.observe(canvasViewportRef.current);
         }
 
@@ -3122,28 +3111,27 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     }
 
                     objects.forEach((obj: any) => {
-                        // Ignore background and ui elements
-                        if (obj.isPageBackground || obj.isPixelEraser || obj.excludeFromExport) return;
-                        const bottom = (obj.top || 0) + (obj.height || 0) * (obj.scaleY || 1);
+                        // Ignore background and ui elements (Unify with preview filtering)
+                        if (obj.isPageBackground || obj.isPixelEraser || obj.isObjectEraser || obj.excludeFromExport || !obj.visible) return;
+
+                        const bound = obj.getBoundingRect(true);
+                        const bottom = bound.top + bound.height;
                         if (bottom > maxTop) maxTop = bottom;
                     });
 
                     // Ensure page height covers at least the content
-                    const currentHeight = pageHeightRef.current;
                     const viewportHeight = viewportHeightRef.current || canvas.getHeight() || 500;
 
-                    // Buffer: Only add a small safety margin (50px) if content is near bottom
-                    // instead of half a screen, to prevent infinite growth.
-                    const BUFFER = 50;
-                    const minContentHeight = Math.max(maxTop + BUFFER, viewportHeight);
+                    // Tight Crop Implementation (Unified with Preview)
+                    const PADDING_BOTTOM = 40;
+                    const MIN_HEIGHT = 100;
+                    const isNewDrawing = objects.length === 0 || (objects.length === 1 && (objects[0] as any).isPageBackground);
+                    const tightHeight = isNewDrawing ? viewportHeight : Math.max(MIN_HEIGHT, maxTop + PADDING_BOTTOM);
 
-                    if (minContentHeight > currentHeight) {
-                        const newHeight = minContentHeight;
-                        pageHeightRef.current = newHeight;
-                        setPageHeightState(newHeight);
-                        if (pageRectRef.current) {
-                            pageRectRef.current.set('height', newHeight).setCoords();
-                        }
+                    pageHeightRef.current = tightHeight;
+                    setPageHeightState(tightHeight);
+                    if (pageRectRef.current) {
+                        pageRectRef.current.set('height', tightHeight).setCoords();
                     }
 
                     // Force update total pages based on potentially new height

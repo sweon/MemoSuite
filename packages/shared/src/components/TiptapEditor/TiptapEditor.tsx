@@ -4,7 +4,14 @@ import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import styled from 'styled-components';
 // import { useLanguage } from '../../i18n';
-import { FaBold, FaItalic, FaStrikethrough, FaCode, FaListUl, FaListOl, FaQuoteRight } from 'react-icons/fa';
+import {
+  FaBold, FaItalic, FaStrikethrough, FaCode, FaListUl, FaListOl, FaQuoteRight,
+  FaUndo, FaRedo, FaTerminal, FaPencilAlt
+} from 'react-icons/fa';
+import { MdFormatClear, MdHorizontalRule, MdLayersClear } from 'react-icons/md';
+import { AiOutlineEnter } from 'react-icons/ai';
+import { FiPenTool } from 'react-icons/fi';
+import { Handwriting } from './extensions/Handwriting';
 
 const EditorWrapper = styled.div`
   border: 1px solid ${({ theme }) => theme.colors?.border || '#ccc'};
@@ -19,16 +26,16 @@ const EditorWrapper = styled.div`
     outline: none;
     padding: 1rem;
     font-family: inherit;
-    line-height: 1.6;
+    line-height: 1.4;
     color: ${({ theme }) => theme.colors?.text || '#333'};
 
     p {
-      margin-bottom: 1em;
+      margin: 0;
     }
 
     h1, h2, h3, h4, h5, h6 {
-      margin-top: 1.5em;
-      margin-bottom: 0.5em;
+      margin-top: 1em;
+      margin-bottom: 0.25em;
       font-weight: 600;
       line-height: 1.25;
     }
@@ -117,16 +124,7 @@ const ToolbarButton = styled.button`
 
 const ToolbarGroup = styled.div`
   display: flex;
-  gap: 2px;
-  padding-right: 8px;
-  margin-right: 8px;
-  border-right: 1px solid ${({ theme }) => theme.colors?.border || '#eee'};
-  
-  &:last-child {
-    border-right: none;
-    padding-right: 0;
-    margin-right: 0;
-  }
+  gap: 4px;
 `;
 
 interface TiptapEditorProps {
@@ -142,6 +140,7 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, cla
     extensions: [
       StarterKit,
       Markdown,
+      Handwriting,
     ],
     content: value, // 초기값 설정
     onUpdate: ({ editor }) => {
@@ -173,6 +172,33 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, cla
       <Toolbar>
         <ToolbarGroup>
           <ToolbarButton
+            onClick={() => (editor.chain().focus() as any).setHandwriting().run()}
+            title="Handwriting"
+            style={{ color: '#D55E00' }}
+          >
+            <FiPenTool />
+          </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarGroup>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().chain().focus().undo().run()}
+            title="Undo"
+          >
+            <FaUndo />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().chain().focus().redo().run()}
+            title="Redo"
+          >
+            <FaRedo />
+          </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarGroup>
+          <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             disabled={!editor.can().chain().focus().toggleBold().run()}
             className={editor.isActive('bold') ? 'is-active' : ''}
@@ -196,9 +222,30 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, cla
           >
             <FaStrikethrough />
           </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            disabled={!editor.can().chain().focus().toggleCode().run()}
+            className={editor.isActive('code') ? 'is-active' : ''}
+            title="Inline Code"
+          >
+            <FaCode />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().unsetAllMarks().run()}
+            title="Clear Format"
+          >
+            <MdFormatClear />
+          </ToolbarButton>
         </ToolbarGroup>
 
         <ToolbarGroup>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setParagraph().run()}
+            className={editor.isActive('paragraph') ? 'is-active' : ''}
+            title="Paragraph"
+          >
+            P
+          </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             className={editor.isActive('heading', { level: 1 }) ? 'is-active' : ''}
@@ -237,23 +284,40 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, cla
           >
             <FaListOl />
           </ToolbarButton>
-        </ToolbarGroup>
-
-        <ToolbarGroup>
           <ToolbarButton
-            onClick={() => editor.chain().focus().toggleCode().run()}
-            disabled={!editor.can().chain().focus().toggleCode().run()}
-            className={editor.isActive('code') ? 'is-active' : ''}
-            title="Code"
+            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            className={editor.isActive('codeBlock') ? 'is-active' : ''}
+            title="Code Block"
           >
-            <FaCode />
+            <FaTerminal />
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             className={editor.isActive('blockquote') ? 'is-active' : ''}
-            title="Quote"
+            title="Blockquote"
           >
             <FaQuoteRight />
+          </ToolbarButton>
+        </ToolbarGroup>
+
+        <ToolbarGroup>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setHorizontalRule().run()}
+            title="Horizontal Rule"
+          >
+            <MdHorizontalRule />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setHardBreak().run()}
+            title="Hard Break"
+          >
+            <AiOutlineEnter />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().clearNodes().run()}
+            title="Clear Style"
+          >
+            <MdLayersClear />
           </ToolbarButton>
         </ToolbarGroup>
       </Toolbar>
