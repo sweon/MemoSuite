@@ -32,7 +32,8 @@ function AppContent() {
       db.memos.count(),
       db.folders.count()
     ]);
-    return memos > 0 || folders > 1;
+    // HandMemo has 2 folders by default (Home and Default)
+    return memos > 0 || folders > 2;
   }, []);
 
   const autoBackup = useAutoBackup({

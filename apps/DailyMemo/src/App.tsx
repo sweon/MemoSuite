@@ -33,7 +33,8 @@ function AppContent() {
       db.memos.count(),
       db.folders.count()
     ]);
-    return memos > 0 || folders > 1;
+    // DailyMemo has 14 default folders (Home, Year, 12 Months)
+    return memos > 0 || folders > 14;
   }, []);
 
   const autoBackup = useAutoBackup({
