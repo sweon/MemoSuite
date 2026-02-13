@@ -33,8 +33,8 @@ function AppContent() {
       db.memos.count(),
       db.folders.count()
     ]);
-    // DailyMemo now starts with only the Home folder
-    return memos > 0 || folders > 1;
+    // DailyMemo has 14 default folders (Home, Year, 12 Months)
+    return memos > 0 || folders > 14;
   }, []);
 
   const autoBackup = useAutoBackup({
@@ -96,6 +96,47 @@ function AppContent() {
       }
     };
     recoverAutosaves();
+  }, [isLocked, isLoading]);
+  // Ensure current year folder exists
+  useEffect(() => {
+    const checkYearFolder = async () => {
+      if (isLocked || isLoading) return;
+
+      const now = new Date();
+      const currentYear = now.getFullYear().toString();
+
+      const existing = await db.folders.where('name').equals(currentYear).first();
+      if (!existing) {
+        // Find home folder to set as parent
+        const home = await db.folders.where('isHome').equals(1).first();
+        const homeId = home?.id;
+
+        const yearId = await db.folders.add({
+          name: currentYear,
+          parentId: homeId || null,
+          isHome: false,
+          isReadOnly: false,
+          excludeFromGlobalSearch: false,
+          createdAt: now,
+          updatedAt: now
+        });
+
+        // Create 12 month folders under the new year folder
+        const months = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+        for (const month of months) {
+          await db.folders.add({
+            name: month,
+            parentId: yearId as number,
+            isHome: false,
+            isReadOnly: false,
+            excludeFromGlobalSearch: false,
+            createdAt: now,
+            updatedAt: now
+          });
+        }
+      }
+    };
+    checkYearFolder();
   }, [isLocked, isLoading]);
 
   // No longer reset hash to home on startup, as it breaks deep links and share targets.

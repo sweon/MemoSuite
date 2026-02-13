@@ -65,9 +65,10 @@ export const FolderProvider: React.FC<FolderProviderProps> = ({ children }) => {
             // Auto-create home folder if none exist
             const createHome = async () => {
                 const now = new Date();
+                const year = now.getFullYear().toString();
 
                 // Create home folder
-                await db.folders.add({
+                const homeId = await db.folders.add({
                     name: '홈',
                     parentId: null,
                     isHome: true,
@@ -76,6 +77,31 @@ export const FolderProvider: React.FC<FolderProviderProps> = ({ children }) => {
                     createdAt: now,
                     updatedAt: now
                 });
+
+                // Create current year folder
+                const yearId = await db.folders.add({
+                    name: year,
+                    parentId: homeId as number,
+                    isHome: false,
+                    isReadOnly: false,
+                    excludeFromGlobalSearch: false,
+                    createdAt: now,
+                    updatedAt: now
+                });
+
+                // Create 12 month folders
+                const months = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+                for (const month of months) {
+                    await db.folders.add({
+                        name: month,
+                        parentId: yearId as number,
+                        isHome: false,
+                        isReadOnly: false,
+                        excludeFromGlobalSearch: false,
+                        createdAt: now,
+                        updatedAt: now
+                    });
+                }
             };
             createHome();
         }
