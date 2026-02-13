@@ -207,13 +207,32 @@
             box-sizing: border-box;
         }
 
+        .features h3 {
+            font-size: 1.1rem;
+            margin: 0 0 1.25rem 0;
+            color: var(--text);
+            font-weight: 800;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.6rem;
+            letter-spacing: -0.02em;
+        }
+
+        .feature-section {
+            margin-bottom: 3rem;
+        }
+
+        .feature-section:last-child {
+            margin-bottom: 0;
+        }
+
         .features ul {
             list-style: none;
-            padding: 0;
+            padding: 0 0 0 0.5rem;
+            /* Base indentation */
             margin: 0;
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         .features li {
@@ -221,8 +240,8 @@
             color: var(--text-muted);
             display: flex;
             align-items: flex-start;
-            gap: 1rem;
-            line-height: 1.5;
+            gap: 0.85rem;
+            line-height: 1.6;
             font-weight: 500;
         }
 
@@ -239,6 +258,19 @@
             border-radius: 50%;
             flex-shrink: 0;
             font-size: 0.8rem;
+        }
+
+        .features h3 {
+            font-size: 1.1rem;
+            margin: 1.5rem 0 1rem 0;
+            color: var(--text);
+            font-weight: 800;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .features h3:first-child {
+            margin-top: 0;
         }
 
         #lang-toggle {
@@ -434,14 +466,8 @@
             </div>
         </div>
 
-        <div class="features">
-            <ul>
-                <li>다른 기기와의 데이터 동기화를 할 때 암호화되어 전송됩니다.</li>
-                <li>데이터를 파일로 저장하고 다시 불러들일 수 있습니다.</li>
-                <li>손글씨, 마크다운, 수식 입력이 됩니다.</li>
-                <li>메모들을 묶음으로 관리할 수 있습니다.</li>
-                <li>위의 앱 버튼을 클릭하면 앱을 설치할 수 있습니다.</li>
-            </ul>
+        <div class="features" id="features-content">
+            <!-- Content will be injected by JavaScript -->
         </div>
     </div>
 
@@ -470,13 +496,29 @@
                 dailyMemo: "일기 및 일일 기록",
                 yourAppTitle: "나만의 앱",
                 yourAppDesc: "앞의 5개의 앱 가운데 하나를 바탕으로, 여섯 번째 앱을 바이브 코딩으로 만들어서 세상에 공개해 주세요.",
-                features: [
-                    "다른 기기와의 데이터 동기화를 할 때 암호화되어 전송됩니다.",
-                    "데이터를 파일로 저장하고 다시 불러들일 수 있습니다.",
-                    "손글씨, 마크다운, 수식 입력이 됩니다.",
-                    "메모들을 묶음으로 관리할 수 있습니다.",
-                    "위의 앱 버튼을 클릭하면 앱을 설치할 수 있습니다."
-                ],
+                features: {
+                    install: {
+                        title: "설치",
+                        items: ["위의 버튼을 클릭하면 앱을 설치할 수 있습니다."]
+                    },
+                    common: {
+                        title: "공통 기능",
+                        items: [
+                            "마크다운, 손글씨, 수식 입력이 됩니다.",
+                            "메모들을 묶음으로 관리할 수 있습니다."
+                        ]
+                    },
+                    data: {
+                        title: "데이터 관리",
+                        items: [
+                            "모든 데이터가 자신의 기기에만 저장됩니다.",
+                            "다른 기기와 데이터 동기화를 할 때 암호화되어 전송됩니다.",
+                            "데이터를 파일로 저장하고 다시 불러들일 수 있습니다.",
+                            "폰을 분실하는 등의 경우에 데이터를 잃어버릴 수 있습니다.",
+                            "다른 기기에 싱크를 해두거나, 주기적으로 파일로 따로 보관을 해두어야 합니다."
+                        ]
+                    }
+                },
                 btn: "English"
             },
             en: {
@@ -489,13 +531,29 @@
                 dailyMemo: "Diary & Daily Journal",
                 yourAppTitle: "Your App",
                 yourAppDesc: "Create the 6th app with Vibe Coding based on one of the 5 apps above and release it to the world.",
-                features: [
-                    "Data synchronization between devices is fully encrypted.",
-                    "You can export data to a file and import it later.",
-                    "Supports handwriting, Markdown, and math formulas.",
-                    "Manage memos in bundles.",
-                    "Click the app buttons above to install each app."
-                ],
+                features: {
+                    install: {
+                        title: "Installation",
+                        items: ["Click the buttons above to install the apps."]
+                    },
+                    common: {
+                        title: "Common Features",
+                        items: [
+                            "Supports Markdown, handwriting, and math formulas.",
+                            "Manage memos in bundles."
+                        ]
+                    },
+                    data: {
+                        title: "Data Management",
+                        items: [
+                            "All data is stored only on your own device.",
+                            "Data is encrypted during synchronization with other devices.",
+                            "Save data to files and import it back.",
+                            "Data may be lost in cases such as losing your phone.",
+                            "Sync with another device or save to separate files periodically."
+                        ]
+                    }
+                },
                 btn: "한국어"
             }
         };
@@ -505,9 +563,33 @@
         const subtitle = document.querySelector('header p');
         const cards = document.querySelectorAll('.card p'); // Hand, Book, Word, LLMemo, DailyMemo, YourApp
         const lastCardTitle = document.querySelector('.card:last-child h2');
-        const featureItems = document.querySelectorAll('.features li');
+        const featuresContent = document.getElementById('features-content');
 
         let currentLang = 'ko';
+
+        function updateFeatures(t) {
+            featuresContent.innerHTML = '';
+
+            Object.values(t.features).forEach(section => {
+                const sectionEl = document.createElement('div');
+                sectionEl.className = 'feature-section';
+                const titleEl = document.createElement('h3');
+                titleEl.textContent = section.title;
+                sectionEl.appendChild(titleEl);
+
+                const listEl = document.createElement('ul');
+                section.items.forEach(item => {
+                    const itemEl = document.createElement('li');
+                    itemEl.textContent = item;
+                    listEl.appendChild(itemEl);
+                });
+                sectionEl.appendChild(listEl);
+                featuresContent.appendChild(sectionEl);
+            });
+        }
+
+        // Initialize features
+        updateFeatures(translations[currentLang]);
 
         toggleBtn.addEventListener('click', () => {
             currentLang = currentLang === 'ko' ? 'en' : 'ko';
@@ -527,9 +609,7 @@
                 cards[5].textContent = t.yourAppDesc;
                 if (lastCardTitle) lastCardTitle.textContent = t.yourAppTitle;
 
-                featureItems.forEach((item, index) => {
-                    item.textContent = t.features[index];
-                });
+                updateFeatures(t);
 
                 toggleBtn.textContent = t.btn;
                 document.documentElement.lang = currentLang;
