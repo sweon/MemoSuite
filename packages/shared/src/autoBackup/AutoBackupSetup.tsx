@@ -195,6 +195,7 @@ const translations = {
         backup_now: '지금 백업',
         platform_desktop: '데스크톱 모드 (동기화 중)',
         platform_mobile: '모바일 모드 (수동 백업)',
+        mobile_backup_hint: '백업은 다운로드 폴더에 앱 이름으로 시작되는 파일로 저장됩니다. 파일 숫자가 계속 늘어나므로, 오래된 백업 파일을 수동으로 삭제를 해주어야 합니다.',
         backup_success: '백업 완료!',
         backup_failed: '백업 실패',
         change_password: '비밀번호 변경',
@@ -223,6 +224,7 @@ const translations = {
         backup_now: 'Backup Now',
         platform_desktop: 'Desktop Mode (Syncing)',
         platform_mobile: 'Mobile Mode (Manual)',
+        mobile_backup_hint: 'Backups are saved in the Downloads folder with files starting with the app name. Since files accumulate, please manually delete old backups.',
         backup_success: 'Backup complete!',
         backup_failed: 'Backup failed',
         change_password: 'Change Password',
@@ -297,6 +299,11 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
                 <div style={{ fontWeight: 400, opacity: 0.8, marginTop: 4 }}>
                     {autoBackup.isDesktop ? t.platform_desktop : t.platform_mobile}
                 </div>
+                {!autoBackup.isDesktop && (
+                    <div style={{ fontWeight: 400, opacity: 0.6, marginTop: 10, fontSize: '0.8rem', lineHeight: 1.4, wordBreak: 'keep-all' }}>
+                        💡 {t.mobile_backup_hint}
+                    </div>
+                )}
             </StatusText>
 
             {!autoBackup.isSetUp ? (
