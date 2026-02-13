@@ -38,6 +38,8 @@ export interface AutoBackupState {
     lastBackupTime: string | null;
     /** Whether the directory handle is stored */
     hasDirectoryHandle: boolean;
+    /** Debugging/Explicit check: is this running on mobile? */
+    isMobile?: boolean;
 }
 
 /**
@@ -362,11 +364,16 @@ export function getAutoBackupState(appName: string): AutoBackupState {
     const lastBackup = getStorageValue(appName, 'lastBackup');
     const isEnabled = getStorageValue(appName, 'enabled') === 'true';
 
+    // If it's a mobile device (by UA or touch), FORCE it to be treated as mobile,
+    // ignoring FileSystemAccess support. This ensures mobile UI is shown.
+    const finalIsDesktop = isDesktop && !isMobile;
+
     return {
-        isEnabled: isEnabled && (isDesktop ? hasDirectory : true),
-        isDesktop: isDesktop && !isMobile,
+        isEnabled: isEnabled && (finalIsDesktop ? hasDirectory : true),
+        isDesktop: finalIsDesktop,
         lastBackupTime: lastBackup,
         hasDirectoryHandle: hasDirectory,
+        isMobile: isMobile // Added for clarity/debugging if needed
     };
 }
 
