@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLanguage } from '@memosuite/shared';
+import { useLanguage, useTouchClipboard } from '@memosuite/shared';
 
 import SimpleMDE from 'react-simplemde-editor';
 import 'easymde/dist/easymde.min.css';
@@ -330,6 +330,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [isKeyboardDisabled, setIsKeyboardDisabled] = useState(() =>
     localStorage.getItem('memosuite_hide_keyboard') === 'true'
   );
+  const touchClipboard = useTouchClipboard(cmRef, language, onChange);
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
@@ -703,6 +704,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         },
         className: "fa fa-keyboard-o",
         title: language === 'ko' ? "키보드 숨기기 토글" : "Toggle Hide Keyboard",
+      }, {
+        name: "select-mode",
+        action: () => touchClipboard.enterMode(),
+        className: "fa fa-i-cursor",
+        title: language === 'ko' ? "선택 모드 (복사/붙여넣기)" : "Select Mode (Copy/Paste)",
       }] : []),
       "bold", "italic", "heading", "quote", "unordered-list", "ordered-list",
       {
@@ -855,6 +861,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   return (
     <>
+      {touchClipboard.renderToolbar()}
       <EditorWrapper>
         <SimpleMDE
           value={value}
