@@ -126,10 +126,9 @@ export class DailyMemoDatabase extends Dexie {
         // Seed default data if not exists (Fresh install)
         this.on('populate', async () => {
             const now = new Date();
-            const year = now.getFullYear().toString();
 
             // Create home folder first
-            const homeId = await this.folders.add({
+            await this.folders.add({
                 name: '홈',
                 parentId: null,
                 isHome: true,
@@ -138,31 +137,6 @@ export class DailyMemoDatabase extends Dexie {
                 createdAt: now,
                 updatedAt: now
             });
-
-            // Create current year folder under home
-            const yearId = await this.folders.add({
-                name: year,
-                parentId: homeId as number,
-                isHome: false,
-                isReadOnly: false,
-                excludeFromGlobalSearch: false,
-                createdAt: now,
-                updatedAt: now
-            });
-
-            // Create 12 month folders under year folder
-            const months = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-            for (const month of months) {
-                await this.folders.add({
-                    name: month,
-                    parentId: yearId as number,
-                    isHome: false,
-                    isReadOnly: false,
-                    excludeFromGlobalSearch: false,
-                    createdAt: now,
-                    updatedAt: now
-                });
-            }
         });
 
         // Version 11: Ensure all existing memos have a folderId

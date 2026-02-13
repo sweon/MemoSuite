@@ -97,44 +97,51 @@ export class LLMLogDatabase extends Dexie {
         // Version 7: Add folders table and folderId to logs
         this.version(7).stores({
             folders: '++id, name, createdAt, updatedAt',
-            logs: '++id, folderId, title, *tags, modelId, createdAt, updatedAt, threadId'
         }).upgrade(async tx => {
             const foldersTable = tx.table('folders');
             const logsTable = tx.table('logs');
 
             const now = new Date();
-            const defaultFolderId = await foldersTable.add({
-                name: '기본 폴더',
-                isReadOnly: false,
+            const homeId = await foldersTable.add({
+                name: '홈',
+                parentId: null,
+                isHome: true,
+                isReadOnly: true,
                 excludeFromGlobalSearch: false,
                 createdAt: now,
                 updatedAt: now
             });
 
-            await logsTable.toCollection().modify({ folderId: defaultFolderId });
+            await logsTable.toCollection().modify({ folderId: homeId });
         });
         // Version 8: Ensure all existing logs have a folderId
         this.version(8).stores({}).upgrade(async tx => {
             const foldersTable = tx.table('folders');
             const logsTable = tx.table('logs');
 
-            let defaultFolder = await foldersTable.toCollection().first();
-            if (!defaultFolder) {
+            let homeFolder = await foldersTable.where('isHome').equals(1).first();
+            if (!homeFolder) {
+                homeFolder = await foldersTable.toCollection().first();
+            }
+
+            if (!homeFolder) {
                 const now = new Date();
                 const id = await foldersTable.add({
-                    name: '기본 폴더',
-                    isReadOnly: false,
+                    name: '홈',
+                    parentId: null,
+                    isHome: true,
+                    isReadOnly: true,
                     excludeFromGlobalSearch: false,
                     createdAt: now,
                     updatedAt: now
                 }) as number;
-                defaultFolder = { id };
+                homeFolder = { id };
             }
 
             // Update logs that don't have a folderId
             await logsTable.toCollection().modify((log: Log) => {
                 if (!log.folderId) {
-                    log.folderId = defaultFolder.id;
+                    log.folderId = homeFolder.id;
                 }
             });
         });
@@ -154,20 +161,26 @@ export class LLMLogDatabase extends Dexie {
             const folders = await foldersTable.toArray();
             const now = new Date();
 
-            // Create home folder
-            const homeId = await foldersTable.add({
-                name: '홈',
-                parentId: null,
-                isHome: true,
-                isReadOnly: true,
-                excludeFromGlobalSearch: false,
-                createdAt: now,
-                updatedAt: now
-            }) as number;
+            let homeFolder = folders.find(f => f.isHome);
+            let homeId: number;
 
-            // Move all existing folders under home
+            if (!homeFolder) {
+                homeId = await foldersTable.add({
+                    name: '홈',
+                    parentId: null,
+                    isHome: true,
+                    isReadOnly: true,
+                    excludeFromGlobalSearch: false,
+                    createdAt: now,
+                    updatedAt: now
+                }) as number;
+            } else {
+                homeId = homeFolder.id!;
+            }
+
+            // Move all other folders under home
             for (const folder of folders) {
-                if (!folder.parentId) {
+                if (folder.id !== homeId && !folder.parentId) {
                     await foldersTable.update(folder.id, {
                         parentId: homeId
                     });
@@ -184,8 +197,10 @@ export const db = new LLMLogDatabase();
 db.on('populate', () => {
     const now = new Date();
     db.folders.add({
-        name: '기본 폴더',
-        isReadOnly: false,
+        name: '홈',
+        parentId: null,
+        isHome: true,
+        isReadOnly: true,
         excludeFromGlobalSearch: false,
         createdAt: now,
         updatedAt: now

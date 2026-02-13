@@ -139,16 +139,18 @@ export class BookMemoDatabase extends Dexie {
             const memosTable = tx.table('memos');
 
             const now = new Date();
-            const defaultFolderId = await foldersTable.add({
-                name: '기본 폴더',
-                isReadOnly: false,
+            const homeId = await foldersTable.add({
+                name: '홈',
+                parentId: null,
+                isHome: true,
+                isReadOnly: true,
                 excludeFromGlobalSearch: false,
                 createdAt: now,
                 updatedAt: now
             });
 
             // Update all existing memos to belong to the default folder
-            await memosTable.toCollection().modify({ folderId: defaultFolderId });
+            await memosTable.toCollection().modify({ folderId: homeId });
         });
 
         // Version 11: Add folderId to books and migrate
@@ -159,24 +161,26 @@ export class BookMemoDatabase extends Dexie {
             const booksTable = tx.table('books');
 
             // Find or create default folder
-            let defaultFolder = await foldersTable.where('name').equals('기본 폴더').first();
-            let defaultFolderId: number;
+            let homeFolder = await foldersTable.where('isHome').equals(1).first();
+            let homeId: number;
 
-            if (!defaultFolder) {
+            if (!homeFolder) {
                 const now = new Date();
-                defaultFolderId = await foldersTable.add({
-                    name: '기본 폴더',
-                    isReadOnly: false,
+                homeId = await foldersTable.add({
+                    name: '홈',
+                    parentId: null,
+                    isHome: true,
+                    isReadOnly: true,
                     excludeFromGlobalSearch: false,
                     createdAt: now,
                     updatedAt: now
                 }) as number;
             } else {
-                defaultFolderId = defaultFolder.id!;
+                homeId = homeFolder.id!;
             }
 
             // Update all existing books to belong to the default folder
-            await booksTable.toCollection().modify({ folderId: defaultFolderId });
+            await booksTable.toCollection().modify({ folderId: homeId });
         });
 
         // Version 12: Ensure all existing books and memos have a folderId
@@ -185,30 +189,36 @@ export class BookMemoDatabase extends Dexie {
             const booksTable = tx.table('books');
             const memosTable = tx.table('memos');
 
-            let defaultFolder = await foldersTable.toCollection().first();
-            if (!defaultFolder) {
+            let homeFolder = await foldersTable.where('isHome').equals(1).first();
+            if (!homeFolder) {
+                homeFolder = await foldersTable.toCollection().first();
+            }
+
+            if (!homeFolder) {
                 const now = new Date();
                 const id = await foldersTable.add({
-                    name: '기본 폴더',
-                    isReadOnly: false,
+                    name: '홈',
+                    parentId: null,
+                    isHome: true,
+                    isReadOnly: true,
                     excludeFromGlobalSearch: false,
                     createdAt: now,
                     updatedAt: now
                 }) as number;
-                defaultFolder = { id };
+                homeFolder = { id };
             }
 
             // Update books that don't have a folderId
             await booksTable.toCollection().modify((book: Book) => {
                 if (!book.folderId) {
-                    book.folderId = defaultFolder.id;
+                    book.folderId = homeFolder.id;
                 }
             });
 
             // Update memos that don't have a folderId
             await memosTable.toCollection().modify((memo: Memo) => {
                 if (!memo.folderId) {
-                    memo.folderId = defaultFolder.id;
+                    memo.folderId = homeFolder.id;
                 }
             });
         });
@@ -230,20 +240,26 @@ export class BookMemoDatabase extends Dexie {
             const folders = await foldersTable.toArray();
             const now = new Date();
 
-            // Create home folder
-            const homeId = await foldersTable.add({
-                name: '홈',
-                parentId: null,
-                isHome: true,
-                isReadOnly: true,
-                excludeFromGlobalSearch: false,
-                createdAt: now,
-                updatedAt: now
-            }) as number;
+            let homeFolder = folders.find(f => f.isHome);
+            let homeId: number;
 
-            // Move all existing folders under home
+            if (!homeFolder) {
+                homeId = await foldersTable.add({
+                    name: '홈',
+                    parentId: null,
+                    isHome: true,
+                    isReadOnly: true,
+                    excludeFromGlobalSearch: false,
+                    createdAt: now,
+                    updatedAt: now
+                }) as number;
+            } else {
+                homeId = homeFolder.id!;
+            }
+
+            // Move all other folders under home
             for (const folder of folders) {
-                if (!folder.parentId) {
+                if (folder.id !== homeId && !folder.parentId) {
                     await foldersTable.update(folder.id, {
                         parentId: homeId
                     });
@@ -260,8 +276,10 @@ export const db = new BookMemoDatabase();
 db.on('populate', () => {
     const now = new Date();
     db.folders.add({
-        name: '기본 폴더',
-        isReadOnly: false,
+        name: '홈',
+        parentId: null,
+        isHome: true,
+        isReadOnly: true,
         excludeFromGlobalSearch: false,
         createdAt: now,
         updatedAt: now

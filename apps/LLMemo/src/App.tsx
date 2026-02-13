@@ -23,8 +23,8 @@ function AppContent() {
       db.logs.count(),
       db.folders.count()
     ]);
-    // LLMemo has 2 folders by default (Home and Default)
-    return logs > 0 || folders > 2;
+    // LLMemo now starts with only the Home folder
+    return logs > 0 || folders > 1;
   }, []);
 
   const autoBackup = useAutoBackup({

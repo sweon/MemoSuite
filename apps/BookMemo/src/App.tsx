@@ -28,8 +28,8 @@ function AppContent() {
       db.memos.count(),
       db.folders.count()
     ]);
-    // BookMemo has 2 folders by default (Home and Default)
-    return books > 0 || memos > 0 || folders > 2;
+    // BookMemo now starts with only the Home folder
+    return books > 0 || memos > 0 || folders > 1;
   }, []);
 
   const autoBackup = useAutoBackup({

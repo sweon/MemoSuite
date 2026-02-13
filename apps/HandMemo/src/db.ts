@@ -111,9 +111,11 @@ export class HandMemoDatabase extends Dexie {
             const memosTable = tx.table('memos');
 
             const now = new Date();
-            const defaultFolderId = await foldersTable.add({
-                name: '기본 폴더',
-                isReadOnly: false,
+            const homeId = await foldersTable.add({
+                name: '홈',
+                parentId: null,
+                isHome: true,
+                isReadOnly: true,
                 excludeFromGlobalSearch: false,
                 createdAt: now,
                 updatedAt: now
@@ -121,7 +123,7 @@ export class HandMemoDatabase extends Dexie {
 
             // Update all existing memos to belong to the default folder
             if (memosTable) {
-                await memosTable.toCollection().modify({ folderId: defaultFolderId });
+                await memosTable.toCollection().modify({ folderId: homeId });
             }
         });
 
@@ -129,8 +131,10 @@ export class HandMemoDatabase extends Dexie {
         this.on('populate', () => {
             const now = new Date();
             this.folders.add({
-                name: '기본 폴더',
-                isReadOnly: false,
+                name: '홈',
+                parentId: null,
+                isHome: true,
+                isReadOnly: true,
                 excludeFromGlobalSearch: false,
                 createdAt: now,
                 updatedAt: now
@@ -142,23 +146,29 @@ export class HandMemoDatabase extends Dexie {
             const foldersTable = tx.table('folders');
             const memosTable = tx.table('memos');
 
-            let defaultFolder = await foldersTable.toCollection().first();
-            if (!defaultFolder) {
+            let homeFolder = await foldersTable.where('isHome').equals(1).first();
+            if (!homeFolder) {
+                homeFolder = await foldersTable.toCollection().first();
+            }
+
+            if (!homeFolder) {
                 const now = new Date();
                 const id = await foldersTable.add({
-                    name: '기본 폴더',
-                    isReadOnly: false,
+                    name: '홈',
+                    parentId: null,
+                    isHome: true,
+                    isReadOnly: true,
                     excludeFromGlobalSearch: false,
                     createdAt: now,
                     updatedAt: now
                 }) as number;
-                defaultFolder = { id };
+                homeFolder = { id };
             }
 
             // Update memos that don't have a folderId
             await memosTable.toCollection().modify(memo => {
                 if (!memo.folderId) {
-                    memo.folderId = defaultFolder.id;
+                    memo.folderId = homeFolder.id;
                 }
             });
         });
@@ -178,20 +188,26 @@ export class HandMemoDatabase extends Dexie {
             const folders = await foldersTable.toArray();
             const now = new Date();
 
-            // Create home folder
-            const homeId = await foldersTable.add({
-                name: '홈',
-                parentId: null,
-                isHome: true,
-                isReadOnly: true,
-                excludeFromGlobalSearch: false,
-                createdAt: now,
-                updatedAt: now
-            }) as number;
+            let homeFolder = folders.find(f => f.isHome);
+            let homeId: number;
 
-            // Move all existing folders under home
+            if (!homeFolder) {
+                homeId = await foldersTable.add({
+                    name: '홈',
+                    parentId: null,
+                    isHome: true,
+                    isReadOnly: true,
+                    excludeFromGlobalSearch: false,
+                    createdAt: now,
+                    updatedAt: now
+                }) as number;
+            } else {
+                homeId = homeFolder.id!;
+            }
+
+            // Move all other folders under home
             for (const folder of folders) {
-                if (!folder.parentId) {
+                if (folder.id !== homeId && !folder.parentId) {
                     await foldersTable.update(folder.id, {
                         parentId: homeId
                     });

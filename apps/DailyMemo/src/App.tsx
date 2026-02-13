@@ -33,8 +33,8 @@ function AppContent() {
       db.memos.count(),
       db.folders.count()
     ]);
-    // DailyMemo has 14 default folders (Home, Year, 12 Months)
-    return memos > 0 || folders > 14;
+    // DailyMemo now starts with only the Home folder
+    return memos > 0 || folders > 1;
   }, []);
 
   const autoBackup = useAutoBackup({
@@ -96,28 +96,6 @@ function AppContent() {
       }
     };
     recoverAutosaves();
-  }, [isLocked, isLoading]);
-
-  // Ensure current year folder exists
-  useEffect(() => {
-    const checkYearFolder = async () => {
-      if (isLocked || isLoading) return;
-
-      const now = new Date();
-      const currentYear = now.getFullYear().toString();
-
-      const existing = await db.folders.where('name').equals(currentYear).first();
-      if (!existing) {
-        await db.folders.add({
-          name: currentYear,
-          isReadOnly: false,
-          excludeFromGlobalSearch: false,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-    };
-    checkYearFolder();
   }, [isLocked, isLoading]);
 
   // No longer reset hash to home on startup, as it breaks deep links and share targets.
