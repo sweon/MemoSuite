@@ -10,9 +10,10 @@ interface MarkdownEditorProps {
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   value,
   onChange,
-  initialScrollPercentage
+  ...props
 }) => {
   // initialScrollPercentage is not yet supported in TiptapEditor
+  const { initialScrollPercentage: _ } = props as any;
 
   return (
     <TiptapEditor value={value} onChange={onChange} />

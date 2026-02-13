@@ -3,7 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import styled from 'styled-components';
-import { useLanguage } from '../../i18n';
+// import { useLanguage } from '../../i18n';
 import { FaBold, FaItalic, FaStrikethrough, FaCode, FaListUl, FaListOl, FaQuoteRight } from 'react-icons/fa';
 
 const EditorWrapper = styled.div`
@@ -136,7 +136,7 @@ interface TiptapEditorProps {
 }
 
 export const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, className }) => {
-  const { t } = useLanguage(); // 다국어 지원 (선택사항)
+  // const { t } = useLanguage(); // 다국어 지원 (선택사항)
 
   const editor = useEditor({
     extensions: [
@@ -149,7 +149,7 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, cla
       const markdown = (editor.storage as any).markdown.getMarkdown();
       onChange(markdown);
     },
-    onCreate: ({ editor }) => {
+    onCreate: () => {
       // 초기 로딩 시 마크다운 설정 (필요한 경우)
       // content prop이 잘 동작하면 생략 가능
     }
