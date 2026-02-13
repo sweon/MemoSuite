@@ -160,6 +160,51 @@ const Select = styled.select`
     }
 `;
 
+const SpinnerContainer = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+`;
+
+const SpinnerButton = styled.button`
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.text};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: bold;
+    transition: all 0.2s;
+
+    &:hover:not(:disabled) {
+        border-color: ${({ theme }) => theme.colors.primary};
+        background: ${({ theme }) => theme.colors.background};
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+
+    &:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+`;
+
+const SpinnerValue = styled.div`
+    font-size: 0.95rem;
+    font-weight: 600;
+    min-width: 100px;
+    text-align: center;
+    color: ${({ theme }) => theme.colors.text};
+`;
+
 const WarningBox = styled.div`
     margin-top: 16px;
     padding: 12px;
@@ -382,20 +427,26 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
                     {!autoBackup.isDesktop && (
                         <InfoRow>
                             <InfoLabel>{t.reminder_label}</InfoLabel>
-                            <div style={{ width: '50%' }}>
-                                <Select
-                                    value={autoBackup.state.mobileWarningInterval ?? 3}
-                                    onChange={(e) => autoBackup.setMobileInterval(Number(e.target.value))}
-                                    style={{ padding: '4px 8px', fontSize: '0.85rem' }}
+                            <SpinnerContainer>
+                                <SpinnerButton
+                                    onClick={() => autoBackup.setMobileInterval(Math.max(0, (autoBackup.state.mobileWarningInterval ?? 3) - 1))}
+                                    disabled={autoBackup.state.mobileWarningInterval === 0}
                                 >
-                                    <option value={0}>{t.reminder_days_never}</option>
-                                    {Array.from({ length: 14 }, (_, i) => i + 1).map(day => (
-                                        <option key={day} value={day}>
-                                            {day}{t.days_suffix} {day === 3 ? `(${t.default_label})` : ''}
-                                        </option>
-                                    ))}
-                                </Select>
-                            </div>
+                                    −
+                                </SpinnerButton>
+                                <SpinnerValue>
+                                    {autoBackup.state.mobileWarningInterval === 0
+                                        ? t.reminder_days_never
+                                        : `${autoBackup.state.mobileWarningInterval}${t.days_suffix}${autoBackup.state.mobileWarningInterval === 3 ? ` (${t.default_label})` : ''}`
+                                    }
+                                </SpinnerValue>
+                                <SpinnerButton
+                                    onClick={() => autoBackup.setMobileInterval(Math.min(14, (autoBackup.state.mobileWarningInterval ?? 3) + 1))}
+                                    disabled={autoBackup.state.mobileWarningInterval === 14}
+                                >
+                                    +
+                                </SpinnerButton>
+                            </SpinnerContainer>
                         </InfoRow>
                     )}
 
