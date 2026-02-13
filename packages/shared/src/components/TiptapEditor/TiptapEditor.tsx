@@ -10,7 +10,8 @@ import {
 } from 'react-icons/fa';
 import { MdFormatClear, MdHorizontalRule, MdLayersClear } from 'react-icons/md';
 import { AiOutlineEnter } from 'react-icons/ai';
-import { FiPenTool, FiGrid } from 'react-icons/fi';
+import { FiPenTool } from 'react-icons/fi';
+import { RiTable2 } from 'react-icons/ri';
 import { Handwriting } from './extensions/Handwriting';
 import { Spreadsheet } from './extensions/Spreadsheet';
 
@@ -183,9 +184,9 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, cla
           <ToolbarButton
             onClick={() => (editor.chain().focus() as any).setSpreadsheet().run()}
             title="Spreadsheet"
-            style={{ color: '#00acc1' }}
+            style={{ color: '#009E73' }}
           >
-            <FiGrid />
+            <RiTable2 />
           </ToolbarButton>
         </ToolbarGroup>
 

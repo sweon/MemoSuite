@@ -216,6 +216,7 @@ const SpreadsheetComponent: React.FC<NodeViewProps> = ({ node, updateAttributes 
 
             {isModalOpen && (
                 <SpreadsheetModal
+                    isOpen={isModalOpen}
                     initialData={data}
                     onSave={handleSave}
                     onClose={handleClose}
