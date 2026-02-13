@@ -144,21 +144,7 @@ const MessageText = styled.div<{ $error?: boolean }>`
     font-size: 0.85rem;
 `;
 
-const Select = styled.select`
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: ${({ theme }) => theme.radius.medium};
-    background: ${({ theme }) => theme.colors.surface};
-    color: ${({ theme }) => theme.colors.text};
-    font-size: 0.95rem;
-    cursor: pointer;
 
-    &:focus {
-        outline: none;
-        border-color: ${({ theme }) => theme.colors.primary};
-    }
-`;
 
 const SpinnerContainer = styled.div`
     display: flex;
