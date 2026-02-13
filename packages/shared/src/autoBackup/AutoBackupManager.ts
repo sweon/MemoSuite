@@ -259,68 +259,6 @@ export async function downloadBackupFile(
 }
 
 /**
- * Check if the Web Share API with file sharing is available.
- */
-export function isWebShareSupported(): boolean {
-    return 'share' in navigator && 'canShare' in navigator;
-}
-
-/**
- * Mobile: Share encrypted backup file via Web Share API.
- * Uses the native share sheet so users can save to Google Drive, iCloud, etc.
- * Returns false if sharing was cancelled or failed.
- */
-export async function shareBackupFile(
-    appName: string,
-    adapter: DataAdapter,
-    password?: string
-): Promise<boolean> {
-    try {
-        const data = await adapter.getBackupData();
-        const backupPayload = {
-            version: 1,
-            timestamp: new Date().toISOString(),
-            data
-        };
-        const jsonStr = JSON.stringify(backupPayload);
-        const activePassword = password || getActivePassword(appName);
-        const encryptedContent = await encryptData(jsonStr, activePassword);
-        const finalPayload = JSON.stringify({
-            version: 1,
-            isEncrypted: true,
-            appName,
-            encryptedContent
-        }, null, 2);
-
-        const fileName = `${appName}-backup-${new Date().toISOString().slice(0, 10)}.json`;
-        const file = new File([finalPayload], fileName, { type: 'application/json' });
-
-        const shareData = {
-            title: `${appName.toUpperCase()} Backup`,
-            files: [file]
-        };
-
-        if (navigator.canShare && navigator.canShare(shareData)) {
-            await navigator.share(shareData);
-            const now = new Date().toISOString();
-            setStorageValue(appName, 'lastBackup', now);
-            return true;
-        } else {
-            // Fallback to download if file sharing is not supported
-            return await downloadBackupFile(appName, adapter, password);
-        }
-    } catch (err: any) {
-        if (err.name === 'AbortError') {
-            // User cancelled the share — still counts as intent to backup
-            return false;
-        }
-        console.error('Share backup failed, falling back to download:', err);
-        // Fallback to download
-        return await downloadBackupFile(appName, adapter, password);
-    }
-}
-
-/**
  * Restore data from a user-selected backup file.
  */
 export async function restoreFromFile(

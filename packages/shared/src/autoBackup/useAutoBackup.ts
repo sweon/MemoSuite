@@ -7,13 +7,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { DataAdapter } from '../data/types';
 import {
     isFileSystemAccessSupported,
-    isWebShareSupported,
     getAutoBackupState,
     getAutoBackupPassword,
     setAutoBackupPassword,
     pickBackupDirectory,
     downloadBackupFile,
-    shareBackupFile,
     restoreFromFile,
     restoreFromDirectory,
     createDesktopAutoBackupScheduler,
@@ -45,8 +43,7 @@ export interface UseAutoBackupReturn {
     isProcessing: boolean;
     /** Whether the platform supports auto-backup (desktop File System Access) */
     isDesktop: boolean;
-    /** Whether the platform supports Web Share API with file sharing */
-    canShare: boolean;
+
 
     /** Whether the user has chosen to skip restoration (persists in localStorage until clear) */
     skipRestore: boolean;
@@ -58,8 +55,7 @@ export interface UseAutoBackupReturn {
     setup: (password?: string) => Promise<boolean>;
     /** Trigger a manual backup (desktop: to directory, mobile: download) */
     manualBackup: () => Promise<boolean>;
-    /** Share backup file via Web Share API (mobile) */
-    shareBackup: () => Promise<boolean>;
+
     /** Restore from a user-selected file with optional password */
     restoreFromSelectedFile: (file: File, password?: string) => Promise<{ success: boolean; error?: string }>;
     /** Attempt auto-restore from desktop directory */
@@ -80,7 +76,7 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
     const cleanupRef = useRef<(() => void) | null>(null);
 
     const isDesktop = isFileSystemAccessSupported();
-    const canShare = isWebShareSupported();
+
 
     // Check if app has data on mount
     useEffect(() => {
@@ -155,8 +151,6 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
                 } else {
                     success = await downloadBackupFile(appName, adapter, password);
                 }
-            } else if (canShare) {
-                success = await shareBackupFile(appName, adapter, password);
             } else {
                 success = await downloadBackupFile(appName, adapter, password);
             }
@@ -169,21 +163,6 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
             return false;
         }
     }, [appName, adapter, isDesktop]);
-
-    const shareBackup = useCallback(async (): Promise<boolean> => {
-        setIsProcessing(true);
-        try {
-            const password = getAutoBackupPassword(appName) || undefined;
-            const success = await shareBackupFile(appName, adapter, password);
-            setState(getAutoBackupState(appName));
-            setIsProcessing(false);
-            return success;
-        } catch {
-            setIsProcessing(false);
-            return false;
-        }
-    }, [appName, adapter]);
-
     const restoreFromSelectedFile = useCallback(async (file: File, password?: string): Promise<{ success: boolean; error?: string }> => {
         setIsProcessing(true);
         const result = await restoreFromFile(file, adapter, password);
@@ -234,12 +213,10 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
         lastBackupText,
         isProcessing,
         isDesktop,
-        canShare,
         skipRestore,
         setSkipRestore,
         setup,
         manualBackup,
-        shareBackup,
         restoreFromSelectedFile,
         autoRestore,
         stop,

@@ -197,11 +197,8 @@ const translations = {
         platform_mobile: '모바일 모드 (수동 백업)',
         backup_success: '백업 완료!',
         backup_failed: '백업 실패',
-        share_backup: '공유',
-        share_success: '공유 완료!',
         change_password: '비밀번호 변경',
         change_folder: '폴더 변경',
-        password_optional: '비밀번호 생략 시 자동으로 안전하게 관리됩니다.',
         setup_button: '백업 시작하기',
         desktop_setup_alert: '자동 백업 파일을 저장할 새 폴더를 만드세요.',
         password_warning: '⚠️ 시스템 기본 암호를 사용하면 같은 앱을 가진 다른 사람도 열어볼 수 있습니다.',
@@ -228,11 +225,8 @@ const translations = {
         platform_mobile: 'Mobile Mode (Manual)',
         backup_success: 'Backup complete!',
         backup_failed: 'Backup failed',
-        share_backup: 'Share',
-        share_success: 'Shared!',
         change_password: 'Change Password',
         change_folder: 'Change Folder',
-        password_optional: 'If left blank, the system handles it automatically.',
         setup_button: 'Start Backup',
         desktop_setup_alert: 'Please create a new folder to save the auto-backup file.',
         password_warning: '⚠️ Note: Backups using the default system key can be opened by anyone using the same app.',
@@ -270,14 +264,7 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
         setTimeout(() => setMessage(''), 3000);
     };
 
-    const handleShareBackup = async () => {
-        const success = await autoBackup.shareBackup();
-        if (success) {
-            setIsError(false);
-            setMessage(t.share_success);
-            setTimeout(() => setMessage(''), 3000);
-        }
-    };
+
 
     const handleConfirmPasswordChange = async () => {
         const success = await autoBackup.setup(newPassword);
@@ -326,9 +313,6 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
-                        <div style={{ color: 'var(--text-secondary, #666)', fontSize: '0.75rem', marginTop: 6, opacity: 0.8 }}>
-                            {t.password_optional}
-                        </div>
                     </FormGroup>
 
                     {!password.trim() && (
@@ -393,18 +377,13 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
                                 {t.backup_now}
                             </Button>
 
-                            {autoBackup.canShare && (
-                                <Button onClick={handleShareBackup} disabled={autoBackup.isProcessing}>
-                                    📤 {t.share_backup}
-                                </Button>
-                            )}
+
 
                             <Button onClick={() => setIsChangingPassword(true)} disabled={autoBackup.isProcessing}>
                                 🔑
                             </Button>
                         </ActionGroup>
                     )}
-
                     {message && (
                         <MessageText $error={isError}>
                             {message}
