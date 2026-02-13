@@ -716,6 +716,9 @@ importers:
       '@memosuite/shared-drawing':
         specifier: workspace:*
         version: link:../shared-drawing
+      '@memosuite/shared-spreadsheet':
+        specifier: workspace:*
+        version: link:../shared-spreadsheet
       '@tiptap/core':
         specifier: ^3.19.0
         version: 3.19.0(@tiptap/pm@3.19.0)

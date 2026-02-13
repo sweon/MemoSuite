@@ -10,8 +10,9 @@ import {
 } from 'react-icons/fa';
 import { MdFormatClear, MdHorizontalRule, MdLayersClear } from 'react-icons/md';
 import { AiOutlineEnter } from 'react-icons/ai';
-import { FiPenTool } from 'react-icons/fi';
+import { FiPenTool, FiGrid } from 'react-icons/fi';
 import { Handwriting } from './extensions/Handwriting';
+import { Spreadsheet } from './extensions/Spreadsheet';
 
 const EditorWrapper = styled.div`
   border: 1px solid ${({ theme }) => theme.colors?.border || '#ccc'};
@@ -141,6 +142,7 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, cla
       StarterKit,
       Markdown,
       Handwriting,
+      Spreadsheet,
     ],
     content: value, // 초기값 설정
     onUpdate: ({ editor }) => {
@@ -177,6 +179,13 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, cla
             style={{ color: '#D55E00' }}
           >
             <FiPenTool />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => (editor.chain().focus() as any).setSpreadsheet().run()}
+            title="Spreadsheet"
+            style={{ color: '#00acc1' }}
+          >
+            <FiGrid />
           </ToolbarButton>
         </ToolbarGroup>
 
@@ -322,6 +331,6 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({ value, onChange, cla
         </ToolbarGroup>
       </Toolbar>
       <EditorContent editor={editor} />
-    </EditorWrapper>
+    </EditorWrapper >
   );
 };

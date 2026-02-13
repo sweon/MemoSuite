@@ -18,6 +18,9 @@
             ],
             "@memosuite/shared-drawing": [
                 "../shared-drawing/src/index.ts"
+            ],
+            "@memosuite/shared-spreadsheet": [
+                "../shared-spreadsheet/src/index.ts"
             ]
         }
     },
