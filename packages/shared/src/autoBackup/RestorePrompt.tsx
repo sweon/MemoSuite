@@ -117,7 +117,7 @@ interface RestorePromptProps {
 
 const translations = {
     ko: {
-        title: '데이터 복원',
+        title: '처음 시작 또는 데이터 복원',
         description: '앱 데이터가 비어 있습니다. 이전에 저장한 백업 파일로 복원하거나, 건너뛰기를 눌러 빈 상태로 시작할 수 있습니다.',
         password_placeholder: '백업 비밀번호 입력',
         select_file: '백업 파일 선택',
@@ -132,7 +132,7 @@ const translations = {
         no_file: '파일을 선택해 주세요.',
     },
     en: {
-        title: 'Restore Data',
+        title: 'Get Started or Restore Data',
         description: 'App data is empty. You can restore from a previously saved backup file. Or click Skip to start with an empty state.',
         password_placeholder: 'Enter backup password',
         select_file: 'Select Backup File',
