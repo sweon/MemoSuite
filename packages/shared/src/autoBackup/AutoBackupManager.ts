@@ -236,7 +236,7 @@ export async function downloadBackupFile(
         const fileName = `${appName}-backup-${timestamp}.json`;
 
         const a = document.createElement('a');
-        const file = new Blob([finalPayload], { type: 'application/json' });
+        const file = new Blob([finalPayload as string], { type: 'application/json' });
         a.href = URL.createObjectURL(file);
         a.download = fileName;
         document.body.appendChild(a);
