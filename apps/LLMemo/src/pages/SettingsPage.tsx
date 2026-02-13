@@ -527,6 +527,15 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
         <Section>
           <Title style={{ marginBottom: '1.5rem' }}>{t.settings.title}</Title>
           <MenuList>
+            <MenuButton onClick={() => setCurrentSubMenu('data')}>
+              <div className="icon-wrapper"><FiDatabase /></div>
+              <div className="label-wrapper">
+                <span className="title">{t.settings.data_management}</span>
+                <span className="desc">{t.settings.data_management_desc}</span>
+              </div>
+              <FiChevronRight className="chevron" />
+            </MenuButton>
+
             <MenuButton onClick={() => setCurrentSubMenu('models')}>
               <div className="icon-wrapper"><FiCpu /></div>
               <div className="label-wrapper">
@@ -536,22 +545,11 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
               <FiChevronRight className="chevron" />
             </MenuButton>
 
-
-
             <MenuButton onClick={() => setCurrentSubMenu('editor')}>
               <div className="icon-wrapper"><FiEdit3 /></div>
               <div className="label-wrapper">
                 <span className="title">{t.settings.editor}</span>
                 <span className="desc">{t.settings.editor_desc}</span>
-              </div>
-              <FiChevronRight className="chevron" />
-            </MenuButton>
-
-            <MenuButton onClick={() => setCurrentSubMenu('data')}>
-              <div className="icon-wrapper"><FiDatabase /></div>
-              <div className="label-wrapper">
-                <span className="title">{t.settings.data_management}</span>
-                <span className="desc">{t.settings.data_management_desc}</span>
               </div>
               <FiChevronRight className="chevron" />
             </MenuButton>
