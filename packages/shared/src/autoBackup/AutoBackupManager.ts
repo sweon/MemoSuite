@@ -235,7 +235,8 @@ export async function downloadBackupFile(
             encryptedContent
         }, null, 2);
 
-        const fileName = `${appName}-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        const timestamp = new Date().toISOString().replace(/T/, '-').replace(/:/g, '').split('.')[0];
+        const fileName = `${appName}-backup-${timestamp}.json`;
 
         const a = document.createElement('a');
         const file = new Blob([finalPayload], { type: 'application/json' });
