@@ -124,7 +124,7 @@ const translations = {
         title: '백업을 해주세요',
         last_backup: '마지막 백업',
         never: '없음',
-        backup_now: '다운로드',
+        backup_now: '지금 백업',
         done: '완료!',
     },
     en: {
