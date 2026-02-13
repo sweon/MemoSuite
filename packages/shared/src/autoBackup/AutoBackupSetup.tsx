@@ -147,12 +147,13 @@ interface AutoBackupSetupProps {
 const translations = {
     ko: {
         title: '자동 백업',
-        description: '브라우저 데이터가 삭제되어도 데이터를 안전하게 복구할 수 있도록 로컬 기기에 백업합니다.',
+        desktop_desc: '데이터가 자동으로 암호화되어 선택한 폴더에 동기화됩니다. 브라우저가 초기화되어도 폴더의 파일은 안전하게 유지됩니다.',
+        mobile_desc: '아래 버튼을 눌러 데이터를 암호화된 파일로 내보낼 수 있습니다. 다운로드한 파일을 보관하면 브라우저 초기화 후에도 안전하게 복구할 수 있습니다.',
         password_label: '백업 비밀번호 (선택)',
         password_placeholder: '비워두면 시스템 기본 암호 사용',
         folder_label: '백업 폴더',
         select_folder: '폴더 선택',
-        status_enabled: '자동 백업 활성화됨',
+        status_enabled: '백업 기능 활성화됨',
         status_disabled: '설정되지 않음',
         last_backup: '마지막 백업',
         never: '없음',
@@ -166,19 +167,20 @@ const translations = {
         change_password: '비밀번호 변경',
         change_folder: '폴더 변경',
         password_optional: '비밀번호 생략 시 자동으로 안전하게 관리됩니다.',
-        setup_button: '자동 백업 시작',
+        setup_button: '백업 시작하기',
         desktop_setup_alert: '자동 백업 파일을 저장할 새 폴더를 만드세요.',
         password_warning: '⚠️ 시스템 기본 암호를 사용하면 같은 앱을 가진 다른 사람도 열어볼 수 있습니다.',
         cancel: '취소',
     },
     en: {
         title: 'Auto Backup',
-        description: 'Securely backup your data to your local device. Even if browser data is cleared, your data stays safe.',
+        desktop_desc: 'Data is automatically encrypted and synced to your chosen folder. Files remain safe even if browser data is cleared.',
+        mobile_desc: 'Export your data as an encrypted file. Keep the downloaded file safe to restore even after browser data is cleared.',
         password_label: 'Backup Password (Optional)',
         password_placeholder: 'Leave blank for automatic mode',
         folder_label: 'Backup Folder',
         select_folder: 'Select Folder',
-        status_enabled: 'Auto-backup is active',
+        status_enabled: 'Backup is active',
         status_disabled: 'Not set up yet',
         last_backup: 'Last backup',
         never: 'Never',
@@ -192,7 +194,7 @@ const translations = {
         change_password: 'Change Password',
         change_folder: 'Change Folder',
         password_optional: 'If left blank, the system handles it automatically.',
-        setup_button: 'Start Auto Backup',
+        setup_button: 'Start Backup',
         desktop_setup_alert: 'Please create a new folder to save the auto-backup file.',
         password_warning: '⚠️ Note: Backups using the default system key can be opened by anyone using the same app.',
         cancel: 'Cancel',
@@ -262,7 +264,9 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
 
             {!autoBackup.isSetUp ? (
                 <SetupCard>
-                    <Description>{t.description}</Description>
+                    <Description>
+                        {autoBackup.isDesktop ? t.desktop_desc : t.mobile_desc}
+                    </Description>
 
                     <FormGroup>
                         <Label>{t.password_label}</Label>
