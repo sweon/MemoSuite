@@ -155,6 +155,8 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
                 } else {
                     success = await downloadBackupFile(appName, adapter, password);
                 }
+            } else if (canShare) {
+                success = await shareBackupFile(appName, adapter, password);
             } else {
                 success = await downloadBackupFile(appName, adapter, password);
             }

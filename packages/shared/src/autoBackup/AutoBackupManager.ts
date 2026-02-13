@@ -295,7 +295,10 @@ export async function shareBackupFile(
         const fileName = `${appName}-backup-${new Date().toISOString().slice(0, 10)}.json`;
         const file = new File([finalPayload], fileName, { type: 'application/json' });
 
-        const shareData = { files: [file] };
+        const shareData = {
+            title: `${appName.toUpperCase()} Backup`,
+            files: [file]
+        };
 
         if (navigator.canShare && navigator.canShare(shareData)) {
             await navigator.share(shareData);
