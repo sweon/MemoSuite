@@ -41,10 +41,28 @@ export interface AutoBackupState {
 }
 
 /**
+ * Detect if the current device is a mobile device (phone or tablet).
+ */
+export function isMobileDevice(): boolean {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent;
+    const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    const isTouchDevice = 'maxTouchPoints' in navigator && navigator.maxTouchPoints > 0;
+
+    // Modern iPads often use a Mac-like UA string but still have touch support.
+    // They should be treated as mobile for this feature to use manual download/share.
+    const isIPadOS = isTouchDevice && (ua.includes('Macintosh') || ua.includes('Mac Intel'));
+
+    return isMobileUserAgent || isIPadOS || (isTouchDevice && window.matchMedia('(max-width: 1024px)').matches);
+}
+
+/**
  * Check if the File System Access API (showDirectoryPicker) is available.
  * This is only available on desktop Chrome/Edge.
+ * Even if supported, we ignore it on mobile devices to use the mobile flow.
  */
 export function isFileSystemAccessSupported(): boolean {
+    if (isMobileDevice()) return false;
     return 'showDirectoryPicker' in window;
 }
 
@@ -400,13 +418,14 @@ export async function restoreFromDirectory(
  */
 export function getAutoBackupState(appName: string): AutoBackupState {
     const isDesktop = isFileSystemAccessSupported();
+    const isMobile = isMobileDevice();
     const hasDirectory = getStorageValue(appName, 'hasDirectory') === 'true';
     const lastBackup = getStorageValue(appName, 'lastBackup');
     const isEnabled = getStorageValue(appName, 'enabled') === 'true';
 
     return {
         isEnabled: isEnabled && (isDesktop ? hasDirectory : true),
-        isDesktop,
+        isDesktop: isDesktop && !isMobile,
         lastBackupTime: lastBackup,
         hasDirectoryHandle: hasDirectory,
     };
