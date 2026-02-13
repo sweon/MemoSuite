@@ -169,6 +169,7 @@ const translations = {
         setup_button: '자동 백업 시작',
         desktop_setup_alert: '자동 백업 파일을 저장할 새 폴더를 만드세요.',
         password_warning: '⚠️ 시스템 기본 암호를 사용하면 같은 앱을 가진 다른 사람도 열어볼 수 있습니다.',
+        cancel: '취소',
     },
     en: {
         title: 'Auto Backup',
@@ -194,11 +195,14 @@ const translations = {
         setup_button: 'Start Auto Backup',
         desktop_setup_alert: 'Please create a new folder to save the auto-backup file.',
         password_warning: '⚠️ Note: Backups using the default system key can be opened by anyone using the same app.',
+        cancel: 'Cancel',
     }
 };
 
 export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, language }) => {
     const [password, setPassword] = useState('');
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
     const [message, setMessage] = useState('');
     const [isError, setIsError] = useState(false);
 
@@ -232,10 +236,13 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
         }
     };
 
-    const handleUpdatePassword = () => {
-        const newPwd = prompt(t.password_placeholder);
-        if (newPwd !== null) {
-            autoBackup.setup(newPwd);
+    const handleConfirmPasswordChange = async () => {
+        const success = await autoBackup.setup(newPassword);
+        if (success) {
+            setIsChangingPassword(false);
+            setNewPassword('');
+            setMessage(t.backup_success); // Or change_success if we add one
+            setTimeout(() => setMessage(''), 3000);
         }
     };
 
@@ -301,21 +308,48 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
                         </InfoRow>
                     )}
 
-                    <ActionGroup>
-                        <Button $primary onClick={handleManualBackup} disabled={autoBackup.isProcessing}>
-                            {t.backup_now}
-                        </Button>
-
-                        {autoBackup.canShare && (
-                            <Button onClick={handleShareBackup} disabled={autoBackup.isProcessing}>
-                                📤 {t.share_backup}
+                    {isChangingPassword ? (
+                        <SetupCard style={{ marginTop: 16 }}>
+                            <FormGroup>
+                                <Label>{t.password_label}</Label>
+                                <Input
+                                    type="password"
+                                    placeholder={t.password_placeholder}
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                />
+                                {!newPassword.trim() && (
+                                    <WarningBox>
+                                        {t.password_warning}
+                                    </WarningBox>
+                                )}
+                            </FormGroup>
+                            <ActionGroup>
+                                <Button $primary onClick={handleConfirmPasswordChange} disabled={autoBackup.isProcessing}>
+                                    {t.change_password}
+                                </Button>
+                                <Button onClick={() => setIsChangingPassword(false)}>
+                                    {t.cancel}
+                                </Button>
+                            </ActionGroup>
+                        </SetupCard>
+                    ) : (
+                        <ActionGroup>
+                            <Button $primary onClick={handleManualBackup} disabled={autoBackup.isProcessing}>
+                                {t.backup_now}
                             </Button>
-                        )}
 
-                        <Button onClick={handleUpdatePassword} disabled={autoBackup.isProcessing}>
-                            🔑
-                        </Button>
-                    </ActionGroup>
+                            {autoBackup.canShare && (
+                                <Button onClick={handleShareBackup} disabled={autoBackup.isProcessing}>
+                                    📤 {t.share_backup}
+                                </Button>
+                            )}
+
+                            <Button onClick={() => setIsChangingPassword(true)} disabled={autoBackup.isProcessing}>
+                                🔑
+                            </Button>
+                        </ActionGroup>
+                    )}
 
                     {message && (
                         <MessageText $error={isError}>
