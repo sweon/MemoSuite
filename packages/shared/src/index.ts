@@ -24,7 +24,7 @@ export * from './components/PasswordModal';
 export * from './components/ThreadableList';
 export * from './components/PremiumCard';
 export * from './components/PrintSettingsModal';
-export * from './components/TouchClipboardToolbar';
+export * from './components/CopyModeOverlay';
 
 // Auto Backup
 export * from './autoBackup';

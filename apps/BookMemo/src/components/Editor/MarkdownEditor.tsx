@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLanguage, useTouchClipboard } from '@memosuite/shared';
+import { useLanguage, useCopyMode } from '@memosuite/shared';
 
 import SimpleMDE from 'react-simplemde-editor';
 import 'easymde/dist/easymde.min.css';
@@ -245,7 +245,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   const [isKeyboardDisabled, setIsKeyboardDisabled] = useState(() =>
     localStorage.getItem('memosuite_hide_keyboard') === 'true'
   );
-  const touchClipboard = useTouchClipboard(cmRef, language, onChange);
+  const copyMode = useCopyMode(value, onChange, language);
   const editingBlockRef = useRef<{ start: number; end: number } | null>(null);
 
   const handleDrawingRef = useRef<(startLine?: number, endLine?: number) => void>(() => { });
@@ -621,10 +621,10 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         className: "fa fa-keyboard-o",
         title: language === 'ko' ? "키보드 숨기기 토글" : "Toggle Hide Keyboard",
       }, {
-        name: "select-mode",
-        action: () => touchClipboard.enterMode(),
-        className: "fa fa-i-cursor",
-        title: language === 'ko' ? "선택 모드 (복사/붙여넣기)" : "Select Mode (Copy/Paste)",
+        name: "copy-mode",
+        action: () => copyMode.enterCopyMode(),
+        className: "fa fa-clipboard",
+        title: language === 'ko' ? "선택/복사 모드" : "Select/Copy Mode",
       }] : []),
       "bold", "italic", "heading", "quote", "unordered-list", "ordered-list",
       {
@@ -775,7 +775,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   }, [isKeyboardDisabled]);
   return (
     <>
-      {touchClipboard.renderToolbar()}
+      {copyMode.renderOverlay()}
       <EditorWrapper>
         <SimpleMDE
           value={value}
