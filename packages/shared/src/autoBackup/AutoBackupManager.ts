@@ -90,7 +90,7 @@ export function getStorageValue(appName: string, key: string): string | null {
  * This allows "password-less" encryption that still provides a layer of obfuscation
  * and security against accidental exposure, while remaining persistent after data wipes.
  */
-function getInternalKey(appName: string): string {
+export function getInternalKey(appName: string): string {
     return `MEMOSUITE_KEY_${appName.toUpperCase()}_FIXED_V1`;
 }
 

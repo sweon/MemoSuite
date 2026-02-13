@@ -1,5 +1,6 @@
 
 import { useState, useRef } from 'react';
+import { getInternalKey } from '../autoBackup/AutoBackupManager';
 import type { DataAdapter } from './types';
 import { downloadJSON, readJSONFile } from './utils';
 import { encryptData, decryptData } from '../utils/crypto';
@@ -46,6 +47,7 @@ export const useDataBackup = (adapter: DataAdapter, fileNamePrefix: string, t: a
                 let backupPayload: any = {
                     version: 1,
                     timestamp: new Date().toISOString(),
+                    appName: fileNamePrefix,
                     data
                 };
 
@@ -55,6 +57,7 @@ export const useDataBackup = (adapter: DataAdapter, fileNamePrefix: string, t: a
                     backupPayload = {
                         version: 1,
                         isEncrypted: true,
+                        appName: fileNamePrefix,
                         encryptedContent
                     };
                 }
@@ -95,9 +98,23 @@ export const useDataBackup = (adapter: DataAdapter, fileNamePrefix: string, t: a
                 const content = await readJSONFile(file);
 
                 if (content.isEncrypted && content.encryptedContent) {
-                    setTempData(content);
-                    setPasswordModalMode('import');
-                    setShowPasswordModal(true);
+                    // Try internal key first (for auto-backup files)
+                    const appNameForRestore = content.appName || fileNamePrefix;
+                    try {
+                        const internalKey = getInternalKey(appNameForRestore);
+                        const decryptedJSON = await decryptData(content.encryptedContent, internalKey);
+                        const data = JSON.parse(decryptedJSON);
+                        const dataToMerge = data.data || data;
+                        await adapter.mergeBackupData(dataToMerge);
+                        await confirm({ message: t.settings?.import_success || 'Import successful!', cancelText: null });
+                        window.location.reload();
+                        return;
+                    } catch (e) {
+                        // Not an auto-backup file or wrong key, proceed to password modal
+                        setTempData(content);
+                        setPasswordModalMode('import');
+                        setShowPasswordModal(true);
+                    }
                 } else {
                     const dataToMerge = content.data || content;
                     await adapter.mergeBackupData(dataToMerge);
