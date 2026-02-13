@@ -101,7 +101,7 @@ const HandwritingComponent: React.FC<NodeViewProps> = ({ node, updateAttributes 
             height: tightHeight
           });
 
-          staticCanvas.backgroundColor = null;
+          staticCanvas.backgroundColor = undefined;
           staticCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
           staticCanvas.renderAll();
 

@@ -15,6 +15,9 @@
         "paths": {
             "@memosuite/shared": [
                 "src/index.ts"
+            ],
+            "@memosuite/shared-drawing": [
+                "../shared-drawing/src/index.ts"
             ]
         }
     },
