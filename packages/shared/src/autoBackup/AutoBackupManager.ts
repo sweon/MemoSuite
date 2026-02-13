@@ -71,6 +71,15 @@ export function getStorageValue(appName: string, key: string): string | null {
 }
 
 /**
+ * Generates an internal backup key for a specific app.
+ * This allows "password-less" encryption that still provides a layer of obfuscation
+ * and security against accidental exposure, while remaining persistent after data wipes.
+ */
+function getInternalKey(appName: string): string {
+    return `MEMOSUITE_KEY_${appName.toUpperCase()}_FIXED_V1`;
+}
+
+/**
  * Store the directory handle in IndexedDB for persistence across sessions.
  * We use a dedicated IDB store separate from the app's DB.
  */
@@ -141,7 +150,7 @@ export async function writeBackupToDirectory(
     handle: FileSystemDirectoryHandle,
     appName: string,
     adapter: DataAdapter,
-    password: string
+    password?: string
 ): Promise<boolean> {
     try {
         // Verify we still have permission
@@ -158,7 +167,8 @@ export async function writeBackupToDirectory(
             data
         };
         const jsonStr = JSON.stringify(backupPayload);
-        const encryptedContent = await encryptData(jsonStr, password);
+        const activePassword = password || getActivePassword(appName);
+        const encryptedContent = await encryptData(jsonStr, activePassword);
         const finalPayload = JSON.stringify({
             version: 1,
             isEncrypted: true,
@@ -188,7 +198,7 @@ export async function writeBackupToDirectory(
 export async function downloadBackupFile(
     appName: string,
     adapter: DataAdapter,
-    password: string
+    password?: string
 ): Promise<boolean> {
     try {
         const data = await adapter.getBackupData();
@@ -198,7 +208,8 @@ export async function downloadBackupFile(
             data
         };
         const jsonStr = JSON.stringify(backupPayload);
-        const encryptedContent = await encryptData(jsonStr, password);
+        const activePassword = password || getActivePassword(appName);
+        const encryptedContent = await encryptData(jsonStr, activePassword);
         const finalPayload = JSON.stringify({
             version: 1,
             isEncrypted: true,
@@ -244,7 +255,7 @@ export function isWebShareSupported(): boolean {
 export async function shareBackupFile(
     appName: string,
     adapter: DataAdapter,
-    password: string
+    password?: string
 ): Promise<boolean> {
     try {
         const data = await adapter.getBackupData();
@@ -254,7 +265,8 @@ export async function shareBackupFile(
             data
         };
         const jsonStr = JSON.stringify(backupPayload);
-        const encryptedContent = await encryptData(jsonStr, password);
+        const activePassword = password || getActivePassword(appName);
+        const encryptedContent = await encryptData(jsonStr, activePassword);
         const finalPayload = JSON.stringify({
             version: 1,
             isEncrypted: true,
@@ -293,28 +305,60 @@ export async function shareBackupFile(
 export async function restoreFromFile(
     file: File,
     adapter: DataAdapter,
-    password: string
+    password?: string
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        const text = await file.text();
-        const content = JSON.parse(text);
+        const content = await file.text();
+        const payload = JSON.parse(content);
 
-        if (content.isEncrypted && content.encryptedContent) {
-            try {
-                const decryptedJSON = await decryptData(content.encryptedContent, password);
-                const parsed = JSON.parse(decryptedJSON);
-                const dataToMerge = parsed.data || parsed;
-                await adapter.mergeBackupData(dataToMerge);
-                return { success: true };
-            } catch {
-                return { success: false, error: 'invalid_password' };
-            }
+        let encryptedContent: string;
+        let appName = '';
+
+        if (payload.isEncrypted && payload.encryptedContent) {
+            encryptedContent = payload.encryptedContent;
+            appName = payload.appName || '';
         } else {
-            const dataToMerge = content.data || content;
-            await adapter.mergeBackupData(dataToMerge);
+            // Might be old unencrypted backup
+            await adapter.mergeBackupData(payload.data || payload);
             return { success: true };
         }
+
+        // Try to decrypt
+        let decrypted: string | null = null;
+
+        // 1. Try provided password if any
+        if (password) {
+            try {
+                decrypted = await decryptData(encryptedContent, password);
+            } catch (e) { /* ignore, try next */ }
+        }
+
+        // 2. Try internal key (automatic mode)
+        if (!decrypted && appName) {
+            try {
+                decrypted = await decryptData(encryptedContent, getInternalKey(appName));
+            } catch (e) { /* ignore, try next */ }
+        }
+
+        // 3. Try stored password
+        if (!decrypted && appName) {
+            const storedPwd = getAutoBackupPassword(appName);
+            if (storedPwd) {
+                try {
+                    decrypted = await decryptData(encryptedContent, storedPwd);
+                } catch (e) { /* ignore */ }
+            }
+        }
+
+        if (!decrypted) {
+            return { success: false, error: 'invalid_password' };
+        }
+
+        const data = JSON.parse(decrypted);
+        await adapter.mergeBackupData(data.data || data);
+        return { success: true };
     } catch (err) {
+        console.error('File restore failed:', err);
         return { success: false, error: 'invalid_file' };
     }
 }
@@ -323,22 +367,22 @@ export async function restoreFromFile(
  * Desktop: Restore from the auto-backup file in the chosen directory.
  */
 export async function restoreFromDirectory(
-    handle: FileSystemDirectoryHandle,
+    directoryHandle: FileSystemDirectoryHandle,
     appName: string,
     adapter: DataAdapter,
-    password: string
+    password?: string
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        const permStatus = await (handle as any).queryPermission({ mode: 'read' });
+        const permStatus = await (directoryHandle as any).queryPermission({ mode: 'read' });
         if (permStatus !== 'granted') {
-            const reqStatus = await (handle as any).requestPermission({ mode: 'read' });
+            const reqStatus = await (directoryHandle as any).requestPermission({ mode: 'read' });
             if (reqStatus !== 'granted') return { success: false, error: 'permission_denied' };
         }
 
         const fileName = `${appName}-autobackup.json`;
         let fileHandle: FileSystemFileHandle;
         try {
-            fileHandle = await handle.getFileHandle(fileName);
+            fileHandle = await directoryHandle.getFileHandle(fileName);
         } catch {
             return { success: false, error: 'no_backup_found' };
         }
@@ -346,6 +390,7 @@ export async function restoreFromDirectory(
         const file = await fileHandle.getFile();
         return await restoreFromFile(file, adapter, password);
     } catch (err) {
+        console.error('Directory restore failed:', err);
         return { success: false, error: 'restore_failed' };
     }
 }
@@ -357,10 +402,10 @@ export function getAutoBackupState(appName: string): AutoBackupState {
     const isDesktop = isFileSystemAccessSupported();
     const hasDirectory = getStorageValue(appName, 'hasDirectory') === 'true';
     const lastBackup = getStorageValue(appName, 'lastBackup');
-    const password = getStorageValue(appName, 'password');
+    const isEnabled = getStorageValue(appName, 'enabled') === 'true';
 
     return {
-        isEnabled: !!password && (isDesktop ? hasDirectory : true),
+        isEnabled: isEnabled && (isDesktop ? hasDirectory : true),
         isDesktop,
         lastBackupTime: lastBackup,
         hasDirectoryHandle: hasDirectory,
@@ -368,10 +413,10 @@ export function getAutoBackupState(appName: string): AutoBackupState {
 }
 
 /**
- * Store the auto-backup password (used for both desktop and mobile).
+ * Explicitly enable or disable auto-backup.
  */
-export function setAutoBackupPassword(appName: string, password: string): void {
-    setStorageValue(appName, 'password', password);
+export function setAutoBackupEnabled(appName: string, enabled: boolean): void {
+    setStorageValue(appName, 'enabled', enabled ? 'true' : 'false');
 }
 
 /**
@@ -382,13 +427,26 @@ export function getAutoBackupPassword(appName: string): string | null {
 }
 
 /**
+ * Gets the operational password: user-set one or the internal fallback.
+ */
+function getActivePassword(appName: string): string {
+    return getAutoBackupPassword(appName) || getInternalKey(appName);
+}
+
+/**
+ * Store the auto-backup password (used for both desktop and mobile).
+ */
+export function setAutoBackupPassword(appName: string, password: string | null): void {
+    setStorageValue(appName, 'password', password || '');
+}
+
+/**
  * Create an auto-backup scheduler for desktop.
  * Returns a cleanup function.
  */
 export function createDesktopAutoBackupScheduler(
     appName: string,
     adapter: DataAdapter,
-    password: string,
     onBackupComplete?: (success: boolean) => void
 ): () => void {
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -416,6 +474,7 @@ export function createDesktopAutoBackupScheduler(
                 return; // No changes
             }
 
+            const password = getActivePassword(appName);
             const success = await writeBackupToDirectory(handle, appName, adapter, password);
             if (success) {
                 lastDataHash = currentHash;
@@ -454,17 +513,19 @@ export function createDesktopAutoBackupScheduler(
 export function triggerDebouncedBackup(
     appName: string,
     adapter: DataAdapter,
-    password: string,
-    debounceTimerRef: { current: ReturnType<typeof setTimeout> | null }
+    debounceTimerRef: { current: ReturnType<typeof setTimeout> | null },
+    onBackupComplete?: (success: boolean) => void
 ): void {
     if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
     }
     debounceTimerRef.current = setTimeout(async () => {
         const handle = await getStoredDirectoryHandle(appName);
-        if (handle) {
-            await writeBackupToDirectory(handle, appName, adapter, password);
-        }
+        if (!handle) return;
+
+        const password = getActivePassword(appName);
+        const success = await writeBackupToDirectory(handle, appName, adapter, password);
+        onBackupComplete?.(success);
     }, DEBOUNCE_MS);
 }
 

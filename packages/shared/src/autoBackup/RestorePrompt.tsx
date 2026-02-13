@@ -109,8 +109,10 @@ const HiddenInput = styled.input`
 interface RestorePromptProps {
     language: string;
     onRestore: (file: File, password: string) => Promise<{ success: boolean; error?: string }>;
+    onAutoRestore?: () => Promise<{ success: boolean; error?: string }>;
     onSkip: () => void;
     isProcessing: boolean;
+    hasDirectoryHandle?: boolean;
 }
 
 const translations = {
@@ -121,8 +123,12 @@ const translations = {
         select_file: '백업 파일 선택',
         skip: '건너뛰기',
         restoring: '복원 중...',
+        restore_from_folder: '설정된 폴더에서 자동 복원',
+        restore_success: '데이터 복원 완료!',
+        restore_success_desc: '잠시 후 자동으로 앱이 새로고침됩니다.',
         invalid_password: '잘못된 비밀번호입니다.',
         invalid_file: '유효하지 않은 백업 파일입니다.',
+        no_backup_found: '백업 파일을 찾을 수 없습니다.',
         no_file: '파일을 선택해 주세요.',
     },
     en: {
@@ -132,8 +138,12 @@ const translations = {
         select_file: 'Select Backup File',
         skip: 'Skip',
         restoring: 'Restoring...',
+        restore_from_folder: 'Auto-restore from Folder',
+        restore_success: 'Restore Successful!',
+        restore_success_desc: 'The app will reload automatically in a moment.',
         invalid_password: 'Invalid password.',
         invalid_file: 'Invalid backup file.',
+        no_backup_found: 'Backup file not found.',
         no_file: 'Please select a file.',
     }
 };
@@ -141,11 +151,14 @@ const translations = {
 export const RestorePrompt: React.FC<RestorePromptProps> = ({
     language,
     onRestore,
+    onAutoRestore,
     onSkip,
-    isProcessing
+    isProcessing,
+    hasDirectoryHandle
 }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -165,60 +178,98 @@ export const RestorePrompt: React.FC<RestorePromptProps> = ({
             return;
         }
 
+        setError('');
         const result = await onRestore(selectedFile, password);
-        if (!result.success) {
+        if (result.success) {
+            setIsSuccess(true);
+        } else {
             if (result.error === 'invalid_password') {
                 setError(t.invalid_password);
             } else {
                 setError(t.invalid_file);
             }
         }
-        // If success, parent component handles reload
+    };
+
+    const handleAutoRestore = async () => {
+        setError('');
+        const result = await onAutoRestore?.();
+        if (result && result.success) {
+            setIsSuccess(true);
+        } else if (result && !result.success) {
+            if (result.error === 'no_backup_found') {
+                setError(t.no_backup_found);
+            } else if (result.error === 'invalid_password') {
+                setError(t.invalid_password);
+            } else {
+                setError(t.invalid_file);
+            }
+        }
     };
 
     return (
         <Overlay>
             <Modal>
-                <Title>{t.title}</Title>
-                <Description>{t.description}</Description>
+                {isSuccess ? (
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '3rem', marginBottom: 16 }}>✅</div>
+                        <Title>{t.restore_success}</Title>
+                        <Description>{t.restore_success_desc}</Description>
+                    </div>
+                ) : (
+                    <>
+                        <Title>{t.title}</Title>
+                        <Description>{t.description}</Description>
 
-                {error && <ErrorText>{error}</ErrorText>}
+                        {error && <ErrorText>{error}</ErrorText>}
 
-                <HiddenInput
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleFileSelect}
-                />
+                        <HiddenInput
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".json"
+                            onChange={handleFileSelect}
+                        />
 
-                <Button
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{ marginBottom: 12, width: '100%' }}
-                    disabled={isProcessing}
-                >
-                    {selectedFile ? `📄 ${selectedFile.name}` : `📁 ${t.select_file}`}
-                </Button>
+                        <Button
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{ marginBottom: 12, width: '100%' }}
+                            disabled={isProcessing}
+                        >
+                            {selectedFile ? `📄 ${selectedFile.name}` : `📁 ${t.select_file}`}
+                        </Button>
 
-                <PasswordInput
-                    type="password"
-                    placeholder={t.password_placeholder}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isProcessing}
-                />
+                        {hasDirectoryHandle && onAutoRestore && (
+                            <Button
+                                onClick={handleAutoRestore}
+                                style={{ marginBottom: 16, width: '100%', borderColor: 'var(--primary, #ef8e13)', color: 'var(--primary, #ef8e13)' }}
+                                disabled={isProcessing}
+                            >
+                                🔄 {t.restore_from_folder}
+                            </Button>
+                        )}
 
-                <ButtonGroup>
-                    <Button onClick={onSkip} disabled={isProcessing}>
-                        {t.skip}
-                    </Button>
-                    <Button
-                        $primary
-                        onClick={handleRestore}
-                        disabled={isProcessing || !selectedFile}
-                    >
-                        {isProcessing ? t.restoring : t.title}
-                    </Button>
-                </ButtonGroup>
+                        <PasswordInput
+                            type="password"
+                            placeholder={t.password_placeholder}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            disabled={isProcessing}
+                        />
+
+                        <ButtonGroup>
+                            <Button onClick={onSkip} disabled={isProcessing}>
+                                {t.skip}
+                            </Button>
+                            <Button
+                                $primary
+                                onClick={handleRestore}
+                                disabled={isProcessing || !selectedFile}
+                            >
+                                {isProcessing ? t.restoring : t.title}
+                            </Button>
+                        </ButtonGroup>
+                    </>
+                )}
             </Modal>
         </Overlay>
     );

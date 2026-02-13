@@ -1,63 +1,68 @@
 /**
- * AutoBackupSetup - Settings section for configuring auto-backup.
- * Shown in the app's Settings page.
+ * AutoBackupSetup - UI for setting up auto-backup.
  */
 
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import type { UseAutoBackupReturn } from './useAutoBackup';
 
-const Section = styled.div`
-    background: ${({ theme }) => theme.colors.surface};
-    border: 1px solid ${({ theme }) => theme.colors.border};
-    border-radius: ${({ theme }) => theme.radius.large};
+const Container = styled.div`
     padding: 20px;
+    background: ${({ theme }) => theme.colors.surface};
+    border-radius: ${({ theme }) => theme.radius.large};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+`;
+
+const Title = styled.h3`
+    margin: 0 0 12px 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+`;
+
+const StatusText = styled.div<{ $active?: boolean }>`
+    font-size: 0.85rem;
+    color: ${({ $active, theme }) => $active ? '#2ecc71' : theme.colors.textSecondary};
+    margin-bottom: 20px;
+    font-weight: 500;
+`;
+
+const SetupCard = styled.div`
+    background: ${({ theme }) => theme.colors.background};
+    padding: 24px;
+    border-radius: ${({ theme }) => theme.radius.medium};
+    border: 1px dashed ${({ theme }) => theme.colors.border};
+`;
+
+const Description = styled.p`
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    margin: 0 0 20px 0;
+`;
+
+const FormGroup = styled.div`
     margin-bottom: 16px;
 `;
 
-const SectionTitle = styled.h3`
-    margin: 0 0 12px 0;
-    font-size: 1.1rem;
-    color: ${({ theme }) => theme.colors.text};
-    display: flex;
-    align-items: center;
-    gap: 8px;
-`;
-
-const StatusText = styled.p`
-    margin: 0 0 12px 0;
-    color: ${({ theme }) => theme.colors.textSecondary};
-    font-size: 0.9rem;
-    line-height: 1.5;
-`;
-
-const StatusBadge = styled.span<{ $active?: boolean }>`
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 9999px;
-    font-size: 0.8rem;
+const Label = styled.label`
+    display: block;
+    font-size: 0.85rem;
     font-weight: 600;
-    background: ${({ $active }) => $active ? 'rgba(46, 204, 113, 0.15)' : 'rgba(231, 76, 60, 0.15)'};
-    color: ${({ $active }) => $active ? '#2ecc71' : '#e74c3c'};
-    margin-bottom: 12px;
-`;
-
-const InputGroup = styled.div`
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 6px;
+    color: ${({ theme }) => theme.colors.text};
 `;
 
 const Input = styled.input`
-    flex: 1;
-    padding: 10px 14px;
+    width: 100%;
+    padding: 10px 12px;
     border: 1px solid ${({ theme }) => theme.colors.border};
     border-radius: ${({ theme }) => theme.radius.medium};
-    background: ${({ theme }) => theme.colors.background};
+    background: ${({ theme }) => theme.colors.surface};
     color: ${({ theme }) => theme.colors.text};
     font-size: 0.95rem;
+    box-sizing: border-box;
 
     &:focus {
         outline: none;
@@ -65,20 +70,42 @@ const Input = styled.input`
     }
 `;
 
+const InfoRow = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    font-size: 0.9rem;
+
+    &:last-of-type {
+        border-bottom: none;
+    }
+`;
+
+const InfoLabel = styled.span`
+    color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+const InfoValue = styled.span`
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.text};
+`;
+
 const Button = styled.button<{ $primary?: boolean; $small?: boolean }>`
-    padding: ${({ $small }) => $small ? '8px 16px' : '10px 20px'};
+    padding: ${({ $small }) => $small ? '6px 12px' : '10px 20px'};
+    font-size: ${({ $small }) => $small ? '0.8rem' : '0.95rem'};
+    font-weight: 600;
     border: 1px solid ${({ theme, $primary }) => $primary ? theme.colors.primary : theme.colors.border};
     border-radius: ${({ theme }) => theme.radius.medium};
     background: ${({ $primary }) => $primary ? 'var(--primary, #ef8e13)' : 'transparent'};
-    color: ${({ theme, $primary }) => $primary ? '#fff' : theme.colors.text};
-    font-size: ${({ $small }) => $small ? '0.85rem' : '0.95rem'};
-    font-weight: 600;
+    color: ${({ $primary }) => $primary ? '#fff' : 'inherit'};
     cursor: pointer;
     transition: all 0.2s ease;
-    white-space: nowrap;
 
     &:hover {
         opacity: 0.9;
+        transform: translateY(-1px);
     }
 
     &:disabled {
@@ -87,29 +114,40 @@ const Button = styled.button<{ $primary?: boolean; $small?: boolean }>`
     }
 `;
 
-const InfoRow = styled.div`
+const ActionGroup = styled.div`
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 0.9rem;
-    color: ${({ theme }) => theme.colors.textSecondary};
+    gap: 8px;
+    margin-top: 12px;
 `;
+
+const MessageText = styled.div<{ $error?: boolean }>`
+    margin-top: 12px;
+    padding: 8px 12px;
+    border-radius: ${({ theme }) => theme.radius.small};
+    background: ${({ $error }) => $error ? 'rgba(231, 76, 60, 0.1)' : 'rgba(46, 204, 113, 0.1)'};
+    color: ${({ $error }) => $error ? '#e74c3c' : '#2ecc71'};
+    font-size: 0.85rem;
+`;
+
+interface AutoBackupSetupProps {
+    autoBackup: UseAutoBackupReturn;
+    language: string;
+}
 
 const translations = {
     ko: {
-        title: '🔒 자동 백업',
-        status_active: '활성',
-        status_inactive: '비활성',
-        desktop_desc: '선택한 폴더에 데이터가 자동으로 암호화되어 저장됩니다. 브라우저 데이터를 삭제해도 파일은 유지됩니다.',
-        mobile_desc: '아래 버튼을 눌러 암호화된 백업 파일을 저장하세요. 브라우저 데이터를 삭제해도 다운로드 폴더의 파일로 복원할 수 있습니다.',
-        password_placeholder: '백업 비밀번호 설정',
-        setup: '설정',
-        setup_desktop: '폴더 선택 및 설정',
-        backup_now: '지금 백업',
+        title: '자동 백업',
+        description: '브라우저 데이터가 삭제되어도 데이터를 안전하게 복구할 수 있도록 로컬 기기에 백업합니다.',
+        password_label: '백업 비밀번호 (선택)',
+        password_placeholder: '비워두면 시스템 기본 암호 사용',
+        folder_label: '백업 폴더',
+        select_folder: '폴더 선택',
+        status_enabled: '자동 백업 활성화됨',
+        status_disabled: '설정되지 않음',
         last_backup: '마지막 백업',
         never: '없음',
-        platform_desktop: '데스크톱 모드 (자동 백업)',
+        backup_now: '지금 백업',
+        platform_desktop: '데스크톱 모드 (동기화 중)',
         platform_mobile: '모바일 모드 (수동 백업)',
         backup_success: '백업 완료!',
         backup_failed: '백업 실패',
@@ -117,130 +155,157 @@ const translations = {
         share_success: '공유 완료!',
         change_password: '비밀번호 변경',
         change_folder: '폴더 변경',
+        password_optional: '비밀번호 생략 시 자동으로 안전하게 관리됩니다.',
+        setup_button: '자동 백업 시작',
+        desktop_setup_alert: '자동 백업 파일을 저장할 새 폴더를 만드세요.',
     },
     en: {
-        title: '🔒 Auto Backup',
-        status_active: 'Active',
-        status_inactive: 'Inactive',
-        desktop_desc: 'Data is automatically encrypted and saved to the selected folder. Files persist even when browser data is cleared.',
-        mobile_desc: 'Press the button below to save an encrypted backup file. You can restore from the downloaded file even after clearing browser data.',
-        password_placeholder: 'Set backup password',
-        setup: 'Set Up',
-        setup_desktop: 'Select Folder & Set Up',
-        backup_now: 'Backup Now',
+        title: 'Auto Backup',
+        description: 'Securely backup your data to your local device. Even if browser data is cleared, your data stays safe.',
+        password_label: 'Backup Password (Optional)',
+        password_placeholder: 'Leave blank for automatic mode',
+        folder_label: 'Backup Folder',
+        select_folder: 'Select Folder',
+        status_enabled: 'Auto-backup is active',
+        status_disabled: 'Not set up yet',
         last_backup: 'Last backup',
         never: 'Never',
-        platform_desktop: 'Desktop mode (auto backup)',
-        platform_mobile: 'Mobile mode (manual backup)',
+        backup_now: 'Backup Now',
+        platform_desktop: 'Desktop Mode (Syncing)',
+        platform_mobile: 'Mobile Mode (Manual)',
         backup_success: 'Backup complete!',
         backup_failed: 'Backup failed',
         share_backup: 'Share',
         share_success: 'Shared!',
         change_password: 'Change Password',
         change_folder: 'Change Folder',
+        password_optional: 'If left blank, the system handles it automatically.',
+        setup_button: 'Start Auto Backup',
+        desktop_setup_alert: 'Please create a new folder to save the auto-backup file.',
     }
 };
-
-interface AutoBackupSetupProps {
-    autoBackup: UseAutoBackupReturn;
-    language: string;
-}
 
 export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, language }) => {
     const [password, setPassword] = useState('');
     const [message, setMessage] = useState('');
+    const [isError, setIsError] = useState(false);
 
     const t = translations[language as keyof typeof translations] || translations.en;
 
-    const handleSetup = async () => {
-        if (!password.trim()) return;
-        const success = await autoBackup.setup(password.trim());
+    const handleSetup = async (pwd?: string) => {
+        setMessage('');
+        if (autoBackup.isDesktop) {
+            alert(t.desktop_setup_alert);
+        }
+
+        const success = await autoBackup.setup(pwd || '');
         if (success) {
             setPassword('');
-            setMessage('');
         }
     };
 
-    const handleBackupNow = async () => {
+    const handleManualBackup = async () => {
         const success = await autoBackup.manualBackup();
+        setIsError(!success);
         setMessage(success ? t.backup_success : t.backup_failed);
         setTimeout(() => setMessage(''), 3000);
     };
 
-    const handleShare = async () => {
+    const handleShareBackup = async () => {
         const success = await autoBackup.shareBackup();
         if (success) {
+            setIsError(false);
             setMessage(t.share_success);
             setTimeout(() => setMessage(''), 3000);
         }
     };
 
+    const handleUpdatePassword = () => {
+        const newPwd = prompt(t.password_placeholder);
+        if (newPwd !== null) {
+            autoBackup.setup(newPwd);
+        }
+    };
+
     return (
-        <Section>
-            <SectionTitle>{t.title}</SectionTitle>
+        <Container>
+            <Title>
+                <span>{autoBackup.isDesktop ? '💻' : '📱'}</span>
+                {t.title}
+            </Title>
 
-            <StatusBadge $active={autoBackup.isSetUp}>
-                {autoBackup.isSetUp ? `● ${t.status_active}` : `○ ${t.status_inactive}`}
-            </StatusBadge>
-
-            <StatusText style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: 8 }}>
-                {autoBackup.isDesktop ? t.platform_desktop : t.platform_mobile}
-            </StatusText>
-
-            <StatusText>
-                {autoBackup.isDesktop ? t.desktop_desc : t.mobile_desc}
+            <StatusText $active={autoBackup.isSetUp}>
+                {autoBackup.isSetUp ? `✅ ${t.status_enabled}` : `⚠️ ${t.status_disabled}`}
+                <div style={{ fontWeight: 400, opacity: 0.8, marginTop: 4 }}>
+                    {autoBackup.isDesktop ? t.platform_desktop : t.platform_mobile}
+                </div>
             </StatusText>
 
             {!autoBackup.isSetUp ? (
-                <>
-                    <InputGroup>
+                <SetupCard>
+                    <Description>{t.description}</Description>
+
+                    <FormGroup>
+                        <Label>{t.password_label}</Label>
                         <Input
                             type="password"
                             placeholder={t.password_placeholder}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSetup()}
                         />
-                        <Button $primary onClick={handleSetup} disabled={!password.trim() || autoBackup.isProcessing}>
-                            {autoBackup.isDesktop ? t.setup_desktop : t.setup}
-                        </Button>
-                    </InputGroup>
-                </>
+                        <div style={{ color: 'var(--text-secondary, #666)', fontSize: '0.75rem', marginTop: 6, opacity: 0.8 }}>
+                            {t.password_optional}
+                        </div>
+                    </FormGroup>
+
+                    <Button
+                        onClick={() => handleSetup(password)}
+                        $primary
+                        style={{ width: '100%', marginTop: 8 }}
+                        disabled={autoBackup.isProcessing}
+                    >
+                        {t.setup_button}
+                    </Button>
+                </SetupCard>
             ) : (
                 <>
                     <InfoRow>
-                        <span>{t.last_backup}:</span>
-                        <strong>{autoBackup.lastBackupText || t.never}</strong>
+                        <InfoLabel>{t.last_backup}</InfoLabel>
+                        <InfoValue>{autoBackup.lastBackupText || t.never}</InfoValue>
                     </InfoRow>
 
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <Button $primary onClick={handleBackupNow} disabled={autoBackup.isProcessing}>
+                    {autoBackup.isDesktop && (
+                        <InfoRow>
+                            <InfoLabel>{t.folder_label}</InfoLabel>
+                            <Button $small onClick={() => handleSetup()}>
+                                {t.change_folder}
+                            </Button>
+                        </InfoRow>
+                    )}
+
+                    <ActionGroup>
+                        <Button $primary onClick={handleManualBackup} disabled={autoBackup.isProcessing}>
                             {t.backup_now}
                         </Button>
-                        {autoBackup.canShare && !autoBackup.isDesktop && (
-                            <Button onClick={handleShare} disabled={autoBackup.isProcessing}>
+
+                        {autoBackup.canShare && (
+                            <Button onClick={handleShareBackup} disabled={autoBackup.isProcessing}>
                                 📤 {t.share_backup}
                             </Button>
                         )}
-                        {autoBackup.isDesktop && (
-                            <Button $small onClick={async () => {
-                                const pwd = prompt(language === 'ko' ? '새 비밀번호:' : 'New password:');
-                                if (pwd) {
-                                    await autoBackup.setup(pwd);
-                                }
-                            }}>
-                                {t.change_folder}
-                            </Button>
-                        )}
-                    </div>
+
+                        <Button onClick={handleUpdatePassword} disabled={autoBackup.isProcessing}>
+                            🔑
+                        </Button>
+                    </ActionGroup>
 
                     {message && (
-                        <StatusText style={{ marginTop: 8, color: message.includes('!') ? '#2ecc71' : '#e74c3c' }}>
+                        <MessageText $error={isError}>
                             {message}
-                        </StatusText>
+                        </MessageText>
                     )}
                 </>
             )}
-        </Section>
+        </Container>
     );
 };

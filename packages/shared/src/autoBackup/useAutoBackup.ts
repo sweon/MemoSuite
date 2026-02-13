@@ -20,6 +20,7 @@ import {
     getLastBackupRelativeTime,
     getStoredDirectoryHandle,
     writeBackupToDirectory,
+    setAutoBackupEnabled,
     type AutoBackupState,
 } from './AutoBackupManager';
 
@@ -46,15 +47,20 @@ export interface UseAutoBackupReturn {
     /** Whether the platform supports Web Share API with file sharing */
     canShare: boolean;
 
+    /** Whether the user has chosen to skip restoration (persists in localStorage until clear) */
+    skipRestore: boolean;
+    /** Mark restoration as skipped */
+    setSkipRestore: (skip: boolean) => void;
+
     // Actions
-    /** Set up auto-backup with a password (and directory on desktop) */
-    setup: (password: string) => Promise<boolean>;
+    /** Set up auto-backup with a password (optional) and directory (on desktop) */
+    setup: (password?: string) => Promise<boolean>;
     /** Trigger a manual backup (desktop: to directory, mobile: download) */
     manualBackup: () => Promise<boolean>;
     /** Share backup file via Web Share API (mobile) */
     shareBackup: () => Promise<boolean>;
-    /** Restore from a user-selected file */
-    restoreFromSelectedFile: (file: File, password: string) => Promise<{ success: boolean; error?: string }>;
+    /** Restore from a user-selected file with optional password */
+    restoreFromSelectedFile: (file: File, password?: string) => Promise<{ success: boolean; error?: string }>;
     /** Attempt auto-restore from desktop directory */
     autoRestore: () => Promise<{ success: boolean; error?: string }>;
     /** Refresh the state */
@@ -65,6 +71,9 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
     const [state, setState] = useState<AutoBackupState>(() => getAutoBackupState(appName));
     const [hasAppData, setHasAppData] = useState<boolean | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [skipRestore, setSkipRestoreInternal] = useState<boolean>(() => {
+        return localStorage.getItem(`MS_SKIP_RESTORE_${appName}`) === 'true';
+    });
     const cleanupRef = useRef<(() => void) | null>(null);
 
     const isDesktop = isFileSystemAccessSupported();
@@ -77,12 +86,10 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
 
     // Set up desktop auto-backup scheduler
     useEffect(() => {
-        const password = getAutoBackupPassword(appName);
-        if (isDesktop && state.isEnabled && password) {
+        if (isDesktop && state.isEnabled) {
             cleanupRef.current = createDesktopAutoBackupScheduler(
                 appName,
                 adapter,
-                password,
                 () => {
                     // Refresh state after backup
                     setState(getAutoBackupState(appName));
@@ -100,10 +107,19 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
         hasData().then(setHasAppData);
     }, [appName, hasData]);
 
-    const setup = useCallback(async (password: string): Promise<boolean> => {
+    const setSkipRestore = useCallback((skip: boolean) => {
+        setSkipRestoreInternal(skip);
+        if (skip) {
+            localStorage.setItem(`MS_SKIP_RESTORE_${appName}`, 'true');
+        } else {
+            localStorage.removeItem(`MS_SKIP_RESTORE_${appName}`);
+        }
+    }, [appName]);
+
+    const setup = useCallback(async (password?: string): Promise<boolean> => {
         setIsProcessing(true);
         try {
-            setAutoBackupPassword(appName, password);
+            setAutoBackupPassword(appName, password || null);
 
             if (isDesktop) {
                 const handle = await pickBackupDirectory(appName);
@@ -113,6 +129,7 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
                 }
             }
 
+            setAutoBackupEnabled(appName, true);
             setState(getAutoBackupState(appName));
             setIsProcessing(false);
             return true;
@@ -123,19 +140,16 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
     }, [appName, isDesktop]);
 
     const manualBackup = useCallback(async (): Promise<boolean> => {
-        const password = getAutoBackupPassword(appName);
-        if (!password) return false;
-
         setIsProcessing(true);
         try {
             let success: boolean;
+            const password = getAutoBackupPassword(appName) || undefined;
+
             if (isDesktop) {
-                // Try to use stored directory handle
                 const handle = await getStoredDirectoryHandle(appName);
                 if (handle) {
                     success = await writeBackupToDirectory(handle, appName, adapter, password);
                 } else {
-                    // Fallback to download
                     success = await downloadBackupFile(appName, adapter, password);
                 }
             } else {
@@ -152,11 +166,9 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
     }, [appName, adapter, isDesktop]);
 
     const shareBackup = useCallback(async (): Promise<boolean> => {
-        const password = getAutoBackupPassword(appName);
-        if (!password) return false;
-
         setIsProcessing(true);
         try {
+            const password = getAutoBackupPassword(appName) || undefined;
             const success = await shareBackupFile(appName, adapter, password);
             setState(getAutoBackupState(appName));
             setIsProcessing(false);
@@ -167,21 +179,19 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
         }
     }, [appName, adapter]);
 
-    const restoreFromSelectedFile = useCallback(async (file: File, password: string): Promise<{ success: boolean; error?: string }> => {
+    const restoreFromSelectedFile = useCallback(async (file: File, password?: string): Promise<{ success: boolean; error?: string }> => {
         setIsProcessing(true);
         const result = await restoreFromFile(file, adapter, password);
         setIsProcessing(false);
         if (result.success) {
             setHasAppData(true);
+            setSkipRestore(false);
         }
         return result;
-    }, [adapter]);
+    }, [adapter, setSkipRestore]);
 
     const autoRestore = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
         if (!isDesktop) return { success: false, error: 'not_supported' };
-
-        const password = getAutoBackupPassword(appName);
-        if (!password) return { success: false, error: 'no_password' };
 
         setIsProcessing(true);
         try {
@@ -191,17 +201,19 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
                 return { success: false, error: 'no_directory' };
             }
 
+            const password = getAutoBackupPassword(appName) || undefined;
             const result = await restoreFromDirectory(handle, appName, adapter, password);
             setIsProcessing(false);
             if (result.success) {
                 setHasAppData(true);
+                setSkipRestore(false);
             }
             return result;
         } catch {
             setIsProcessing(false);
             return { success: false, error: 'restore_failed' };
         }
-    }, [appName, adapter, isDesktop]);
+    }, [appName, adapter, isDesktop, setSkipRestore]);
 
     const lastBackupText = getLastBackupRelativeTime(appName, language);
 
@@ -213,6 +225,8 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
         isProcessing,
         isDesktop,
         canShare,
+        skipRestore,
+        setSkipRestore,
         setup,
         manualBackup,
         shareBackup,

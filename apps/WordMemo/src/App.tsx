@@ -1,4 +1,4 @@
-import { useLayoutEffect, useEffect, useCallback, useState } from 'react';
+import { useLayoutEffect, useEffect, useCallback } from 'react';
 import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageProvider, LockScreen, ModalProvider, useAuth, useLanguage, requestPersistence, useAutoBackup, RestorePrompt, BackupReminder } from '@memosuite/shared';
 
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -18,11 +18,13 @@ import { db } from './db';
 function AppContent() {
   const { t, language } = useLanguage();
   const { isLocked, isLoading } = useAuth();
-  const [skipRestore, setSkipRestore] = useState(false);
 
   const hasData = useCallback(async () => {
-    const count = await db.words.count();
-    return count > 0;
+    const [words, folders] = await Promise.all([
+      db.words.count(),
+      db.folders.count()
+    ]);
+    return words > 0 || folders > 1;
   }, []);
 
   const autoBackup = useAutoBackup({
@@ -104,17 +106,25 @@ function AppContent() {
             <SearchProvider>
               <HashRouter>
                 <InstallPrompt appName="WordMemo" t={t} iconPath="./pwa-192x192.png" />
-                {autoBackup.hasAppData === false && !skipRestore && (
+                {autoBackup.hasAppData === false && !autoBackup.skipRestore && (
                   <RestorePrompt
                     language={language}
                     onRestore={async (file, password) => {
                       const result = await autoBackup.restoreFromSelectedFile(file, password);
                       if (result.success) {
-                        window.location.reload();
+                        setTimeout(() => window.location.reload(), 1500);
                       }
                       return result;
                     }}
-                    onSkip={() => setSkipRestore(true)}
+                    onAutoRestore={async () => {
+                      const result = await autoBackup.autoRestore();
+                      if (result.success) {
+                        setTimeout(() => window.location.reload(), 1500);
+                      }
+                      return result;
+                    }}
+                    hasDirectoryHandle={autoBackup.state.hasDirectoryHandle}
+                    onSkip={() => autoBackup.setSkipRestore(true)}
                     isProcessing={autoBackup.isProcessing}
                   />
                 )}
