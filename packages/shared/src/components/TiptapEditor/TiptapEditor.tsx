@@ -6,7 +6,7 @@ import styled from 'styled-components';
 // import { useLanguage } from '../../i18n';
 import {
   FaBold, FaItalic, FaStrikethrough, FaCode, FaListUl, FaListOl, FaQuoteRight,
-  FaUndo, FaRedo, FaTerminal, FaPencilAlt
+  FaUndo, FaRedo, FaTerminal
 } from 'react-icons/fa';
 import { MdFormatClear, MdHorizontalRule, MdLayersClear } from 'react-icons/md';
 import { AiOutlineEnter } from 'react-icons/ai';
