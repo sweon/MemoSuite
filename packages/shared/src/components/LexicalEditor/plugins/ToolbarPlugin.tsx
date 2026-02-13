@@ -25,17 +25,17 @@ import {
     $isHeadingNode,
     HeadingTagType,
 } from "@lexical/rich-text";
-import { $setBlocksType } from "@lexical/selection";
+import { $setBlocksType, $patchStyleText, $getSelectionStyleValueForProperty } from "@lexical/selection";
 import { $getNearestNodeOfType, mergeRegister, $insertNodeToNearestRoot } from "@lexical/utils";
 import { TOGGLE_LINK_COMMAND, $isLinkNode } from "@lexical/link";
 import { INSERT_TABLE_COMMAND } from "@lexical/table";
 import { INSERT_HORIZONTAL_RULE_COMMAND } from "@lexical/react/LexicalHorizontalRuleNode";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import styled from "styled-components";
 import {
     FaBold, FaItalic, FaStrikethrough, FaCode,
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
-    FaTable, FaMinus, FaEraser
+    FaTable, FaMinus, FaEraser, FaPalette
 } from "react-icons/fa";
 import { FiPenTool } from "react-icons/fi";
 import { RiTable2 } from "react-icons/ri";
@@ -132,6 +132,20 @@ const SelectArrow = styled.div`
   border-top: 5px solid #666;
 `;
 
+const ColorPickerWrapper = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+`;
+
+const HiddenColorInput = styled.input`
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+`;
+
 export function ToolbarPlugin() {
     const [editor] = useLexicalComposerContext();
     const [canUndo, setCanUndo] = useState(false);
@@ -143,6 +157,9 @@ export function ToolbarPlugin() {
     const [isStrikethrough, setIsStrikethrough] = useState(false);
     const [isCode, setIsCode] = useState(false);
     const [isLink, setIsLink] = useState(false);
+    const [fontColor, setFontColor] = useState("#000000");
+
+    const colorInputRef = useRef<HTMLInputElement>(null);
 
     const updateToolbar = useCallback(() => {
         const selection = $getSelection();
@@ -183,6 +200,10 @@ export function ToolbarPlugin() {
             } else {
                 setIsLink(false);
             }
+
+            // Update Font Color
+            const color = $getSelectionStyleValueForProperty(selection, "color", "#000000");
+            setFontColor(color);
         }
     }, [editor]);
 
@@ -295,6 +316,25 @@ export function ToolbarPlugin() {
         });
     };
 
+    const applyStyleText = useCallback(
+        (styles: Record<string, string>) => {
+            editor.update(() => {
+                const selection = $getSelection();
+                if ($isRangeSelection(selection)) {
+                    $patchStyleText(selection, styles);
+                }
+            });
+        },
+        [editor]
+    );
+
+    const onFontColorSelect = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            applyStyleText({ color: e.target.value });
+        },
+        [applyStyleText]
+    );
+
     return (
         <ToolbarContainer>
             {/* Custom Buttons */}
@@ -396,6 +436,25 @@ export function ToolbarPlugin() {
             >
                 <FaLink />
             </ToolbarButton>
+
+            <Divider />
+
+            {/* Color Picker */}
+            <ColorPickerWrapper>
+                <ToolbarButton
+                    onClick={() => colorInputRef.current?.click()}
+                    title="Font Color"
+                    style={{ color: fontColor !== "#000000" ? fontColor : undefined }}
+                >
+                    <FaPalette />
+                </ToolbarButton>
+                <HiddenColorInput
+                    type="color"
+                    ref={colorInputRef}
+                    value={fontColor}
+                    onChange={onFontColorSelect}
+                />
+            </ColorPickerWrapper>
 
             <Divider />
 
