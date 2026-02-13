@@ -629,17 +629,19 @@
         function sharePage(e) {
             e.preventDefault();
             const t = translations[currentLang];
-            const shareData = {
-                title: t.title,
-                text: t.subtitle,
-                url: window.location.href
-            };
+            const url = window.location.href;
+            const text = t.subtitle;
+            const title = t.title;
 
             if (navigator.share) {
-                navigator.share(shareData).catch(err => console.log('Error sharing:', err));
+                navigator.share({
+                    title: title,
+                    text: text,
+                    url: url
+                }).catch(err => console.log('Error sharing:', err));
             } else {
-                navigator.clipboard.writeText(window.location.href).then(() => {
-                    alert(currentLang === 'ko' ? '공유 링크가 클립보드에 복사되었습니다.' : 'Share link copied to clipboard.');
+                navigator.clipboard.writeText(`${title}\n${text}\n${url}`).then(() => {
+                    alert(currentLang === 'ko' ? '공유 텍스트와 링크가 클립보드에 복사되었습니다.' : 'Share text and link copied to clipboard.');
                 });
             }
         }
