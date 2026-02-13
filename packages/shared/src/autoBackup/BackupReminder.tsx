@@ -82,26 +82,7 @@ const ButtonGroup = styled.div`
     align-items: center;
 `;
 
-const ShareButton = styled.button`
-    padding: 8px 14px;
-    border: none;
-    border-radius: ${({ theme }: any) => theme.radius.medium};
-    background: var(--primary, #ef8e13);
-    color: #fff;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: opacity 0.2s;
 
-    &:active {
-        opacity: 0.8;
-    }
-
-    &:disabled {
-        opacity: 0.5;
-    }
-`;
 
 const BackupButton = styled.button`
     padding: 8px 14px;
@@ -145,7 +126,6 @@ const translations = {
         last_backup: '마지막 백업',
         never: '없음',
         backup_now: '다운로드',
-        share: '공유',
         done: '완료!',
     },
     en: {
@@ -153,7 +133,6 @@ const translations = {
         last_backup: 'Last backup',
         never: 'Never',
         backup_now: 'Download',
-        share: 'Share',
         done: 'Done!',
     }
 };
@@ -226,16 +205,7 @@ export const BackupReminder: React.FC<BackupReminderProps> = ({ autoBackup, lang
         }
     };
 
-    const handleShare = async () => {
-        const success = await autoBackup.shareBackup();
-        if (success) {
-            setBackupDone(true);
-            setTimeout(() => {
-                setHiding(true);
-                setTimeout(() => setVisible(false), 300);
-            }, 1500);
-        }
-    };
+
 
     if (!visible) return null;
 
@@ -249,14 +219,7 @@ export const BackupReminder: React.FC<BackupReminderProps> = ({ autoBackup, lang
                 </Subtitle>
             </TextArea>
             <ButtonGroup>
-                {!backupDone && autoBackup.canShare && (
-                    <ShareButton
-                        onClick={handleShare}
-                        disabled={autoBackup.isProcessing}
-                    >
-                        📤 {t.share}
-                    </ShareButton>
-                )}
+
                 {!backupDone && (
                     <BackupButton
                         onClick={handleBackup}
