@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { DataAdapter } from '../data/types';
 import {
-    isFileSystemAccessSupported,
+    // isFileSystemAccessSupported,
     getAutoBackupState,
     getAutoBackupPassword,
     setAutoBackupPassword,
@@ -20,6 +20,7 @@ import {
     writeBackupToDirectory,
     setAutoBackupEnabled,
     stopAutoBackup,
+    setMobileWarningInterval,
     type AutoBackupState,
 } from './AutoBackupManager';
 
@@ -62,8 +63,9 @@ export interface UseAutoBackupReturn {
     autoRestore: () => Promise<{ success: boolean; error?: string }>;
     /** Stop auto-backup and clear all settings */
     stop: () => Promise<void>;
-    /** Refresh the state */
     refresh: () => void;
+    /** Set the mobile warning interval (days) */
+    setMobileInterval: (days: number) => void;
 }
 
 export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBackupOptions): UseAutoBackupReturn {
@@ -75,7 +77,7 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
     });
     const cleanupRef = useRef<(() => void) | null>(null);
 
-    const isDesktop = isFileSystemAccessSupported();
+    const isDesktop = state.isDesktop;
 
 
     // Check if app has data on mount
@@ -206,6 +208,11 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
 
     const lastBackupText = getLastBackupRelativeTime(appName, language);
 
+    const setMobileInterval = useCallback((days: number) => {
+        setMobileWarningInterval(appName, days);
+        refresh();
+    }, [appName, refresh]);
+
     return {
         state,
         isSetUp: state.isEnabled,
@@ -221,5 +228,6 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
         autoRestore,
         stop,
         refresh,
+        setMobileInterval,
     };
 }

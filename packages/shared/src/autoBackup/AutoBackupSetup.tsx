@@ -144,6 +144,22 @@ const MessageText = styled.div<{ $error?: boolean }>`
     font-size: 0.85rem;
 `;
 
+const Select = styled.select`
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.radius.medium};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.text};
+    font-size: 0.95rem;
+    cursor: pointer;
+
+    &:focus {
+        outline: none;
+        border-color: ${({ theme }) => theme.colors.primary};
+    }
+`;
+
 const WarningBox = styled.div`
     margin-top: 16px;
     padding: 12px;
@@ -206,6 +222,13 @@ const translations = {
         cancel: '취소',
         stop_backup: '자동 백업 중지 및 설정 초기화',
         stop_confirm: '자동 백업 설정을 모두 삭제하고 중지하시겠습니까?',
+        reminder_label: '백업 알림 주기',
+        reminder_days_1: '1일 마다',
+        reminder_days_3: '3일 마다 (기본)',
+        reminder_days_7: '7일 마다',
+        reminder_days_14: '14일 마다',
+        reminder_days_never: '알림 끄기',
+        status_warning: '백업이 오래되었습니다!',
     },
     en: {
         desktop_title: 'Auto Backup',
@@ -235,6 +258,13 @@ const translations = {
         cancel: 'Cancel',
         stop_backup: 'Stop Auto Backup & Reset Settings',
         stop_confirm: 'Are you sure you want to delete all auto-backup settings and stop?',
+        reminder_label: 'Backup Reminder',
+        reminder_days_1: 'Every 1 day',
+        reminder_days_3: 'Every 3 days (Default)',
+        reminder_days_7: 'Every 7 days',
+        reminder_days_14: 'Every 14 days',
+        reminder_days_never: 'Disable Reminder',
+        status_warning: 'Backup overdue!',
     }
 };
 
@@ -294,8 +324,8 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
                 <TitleNotice>{t.essential_notice}</TitleNotice>
             </Title>
 
-            <StatusText $active={autoBackup.isSetUp}>
-                {autoBackup.isSetUp ? `✅ ${t.status_enabled}` : `⚠️ ${t.status_disabled}`}
+            <StatusText $active={autoBackup.isSetUp || autoBackup.state.isWarning}>
+                {autoBackup.state.isWarning ? `⚠️ ${t.status_warning}` : (autoBackup.isSetUp ? `✅ ${t.status_enabled}` : `⚠️ ${t.status_disabled}`)}
                 <div style={{ fontWeight: 400, opacity: 0.8, marginTop: 4 }}>
                     {autoBackup.isDesktop ? t.platform_desktop : t.platform_mobile}
                 </div>
@@ -350,6 +380,25 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
                             <Button $small onClick={() => handleSetup()}>
                                 {t.change_folder}
                             </Button>
+                        </InfoRow>
+                    )}
+
+                    {!autoBackup.isDesktop && (
+                        <InfoRow>
+                            <InfoLabel>{t.reminder_label}</InfoLabel>
+                            <div style={{ width: '50%' }}>
+                                <Select
+                                    value={autoBackup.state.mobileWarningInterval ?? 3}
+                                    onChange={(e) => autoBackup.setMobileInterval(Number(e.target.value))}
+                                    style={{ padding: '4px 8px', fontSize: '0.85rem' }}
+                                >
+                                    <option value={1}>{t.reminder_days_1}</option>
+                                    <option value={3}>{t.reminder_days_3}</option>
+                                    <option value={7}>{t.reminder_days_7}</option>
+                                    <option value={14}>{t.reminder_days_14}</option>
+                                    <option value={0}>{t.reminder_days_never}</option>
+                                </Select>
+                            </div>
                         </InfoRow>
                     )}
 

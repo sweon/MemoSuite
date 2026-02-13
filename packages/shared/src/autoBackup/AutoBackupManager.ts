@@ -39,7 +39,11 @@ export interface AutoBackupState {
     /** Whether the directory handle is stored */
     hasDirectoryHandle: boolean;
     /** Debugging/Explicit check: is this running on mobile? */
-    isMobile?: boolean;
+    isMobile: boolean;
+    /** Mobile backup warning interval (in days) */
+    mobileWarningInterval: number;
+    /** Whether a backup warning is active (mobile only) */
+    isWarning: boolean;
 }
 
 /**
@@ -48,13 +52,20 @@ export interface AutoBackupState {
 export function isMobileDevice(): boolean {
     if (typeof navigator === 'undefined') return false;
     const ua = navigator.userAgent;
-    const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-    const isTouchDevice = 'maxTouchPoints' in navigator && navigator.maxTouchPoints > 0;
+    const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi|Tablet/i.test(ua);
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || ((navigator as any).msMaxTouchPoints > 0);
 
     // Modern iPads often use a Mac-like UA string but still have touch support.
     // They should be treated as mobile for this feature to use manual download/share.
     const isIPadOS = isTouchDevice && (ua.includes('Macintosh') || ua.includes('Mac Intel'));
-    return isMobileUserAgent || isIPadOS || (isTouchDevice && window.matchMedia('(max-width: 1024px)').matches);
+
+    // Coarse pointer means the primary input mechanism is not very precise (like a finger)
+    const isCoarsePointer = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
+    // Also consider screen size as a fallback for tablets
+    const isSmallScreen = typeof window !== 'undefined' && window.matchMedia('(max-width: 1100px)').matches;
+
+    return isMobileUserAgent || isIPadOS || isCoarsePointer || (isTouchDevice && isSmallScreen);
 }
 
 /**
@@ -368,12 +379,17 @@ export function getAutoBackupState(appName: string): AutoBackupState {
     // ignoring FileSystemAccess support. This ensures mobile UI is shown.
     const finalIsDesktop = isDesktop && !isMobile;
 
+    const interval = getMobileWarningInterval(appName);
+    const isWarning = checkMobileBackupWarning(appName, interval);
+
     return {
         isEnabled: isEnabled && (finalIsDesktop ? hasDirectory : true),
         isDesktop: finalIsDesktop,
         lastBackupTime: lastBackup,
         hasDirectoryHandle: hasDirectory,
-        isMobile: isMobile // Added for clarity/debugging if needed
+        isMobile: isMobile,
+        mobileWarningInterval: interval,
+        isWarning
     };
 }
 
@@ -421,6 +437,36 @@ function getActivePassword(appName: string): string {
  */
 export function setAutoBackupPassword(appName: string, password: string | null): void {
     setStorageValue(appName, 'password', password || '');
+}
+
+/**
+ * Get the mobile warning interval (days). Default is 3.
+ */
+export function getMobileWarningInterval(appName: string): number {
+    const val = getStorageValue(appName, 'mobileWarningInterval');
+    return val ? parseInt(val, 10) : 3;
+}
+
+/**
+ * Set the mobile warning interval (days).
+ */
+export function setMobileWarningInterval(appName: string, days: number): void {
+    setStorageValue(appName, 'mobileWarningInterval', days.toString());
+}
+
+/**
+ * Check if a mobile backup warning should be shown.
+ */
+export function checkMobileBackupWarning(appName: string, intervalDays: number): boolean {
+    if (intervalDays <= 0) return false; // Disabled
+    const lastBackup = getStorageValue(appName, 'lastBackup');
+    if (!lastBackup) return false; // Never backed up (or just set up), assume no warning until first backup? Or warn immediately? 
+    // Usually warn if too old. If never backed up and has data, maybe warn? 
+    // For now, let's stick to "if last backup exists, check time".
+
+    const diff = Date.now() - new Date(lastBackup).getTime();
+    const limit = intervalDays * 24 * 60 * 60 * 1000;
+    return diff > limit;
 }
 
 /**

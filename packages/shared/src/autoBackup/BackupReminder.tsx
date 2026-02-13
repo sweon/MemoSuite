@@ -8,7 +8,6 @@ import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import type { UseAutoBackupReturn } from './useAutoBackup';
 
-const REMINDER_THRESHOLD_DAYS = 3;
 const DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const slideUp = keyframes`
@@ -176,6 +175,13 @@ export const BackupReminder: React.FC<BackupReminderProps> = ({ autoBackup, lang
 
         // Check if last backup is older than threshold
         const lastBackup = autoBackup.state.lastBackupTime;
+        const intervalDays = autoBackup.state.mobileWarningInterval ?? 3;
+
+        if (intervalDays <= 0) {
+            setVisible(false);
+            return;
+        }
+
         if (!lastBackup) {
             // Never backed up but set up — show reminder
             setVisible(true);
@@ -183,10 +189,12 @@ export const BackupReminder: React.FC<BackupReminderProps> = ({ autoBackup, lang
         }
 
         const daysSinceBackup = (Date.now() - new Date(lastBackup).getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSinceBackup >= REMINDER_THRESHOLD_DAYS) {
+        if (daysSinceBackup >= intervalDays) {
             setVisible(true);
+        } else {
+            setVisible(false);
         }
-    }, [autoBackup.isDesktop, autoBackup.isSetUp, autoBackup.state.lastBackupTime]);
+    }, [autoBackup.isDesktop, autoBackup.isSetUp, autoBackup.state.lastBackupTime, autoBackup.state.mobileWarningInterval]);
 
     const handleDismiss = () => {
         setHiding(true);
