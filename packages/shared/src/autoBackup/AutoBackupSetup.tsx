@@ -139,6 +139,24 @@ const WarningBox = styled.div`
     line-height: 1.4;
 `;
 
+const StopButton = styled.button`
+    display: block;
+    margin: 32px auto 0;
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    font-size: 0.75rem;
+    opacity: 0.4;
+    cursor: pointer;
+    text-decoration: underline;
+    transition: opacity 0.2s;
+
+    &:hover {
+        opacity: 0.8;
+    }
+`;
+
 interface AutoBackupSetupProps {
     autoBackup: UseAutoBackupReturn;
     language: string;
@@ -171,6 +189,8 @@ const translations = {
         desktop_setup_alert: '자동 백업 파일을 저장할 새 폴더를 만드세요.',
         password_warning: '⚠️ 시스템 기본 암호를 사용하면 같은 앱을 가진 다른 사람도 열어볼 수 있습니다.',
         cancel: '취소',
+        stop_backup: '자동 백업 중지 및 설정 초기화',
+        stop_confirm: '자동 백업 설정을 모두 삭제하고 중지하시겠습니까?',
     },
     en: {
         title: 'Auto Backup',
@@ -198,6 +218,8 @@ const translations = {
         desktop_setup_alert: 'Please create a new folder to save the auto-backup file.',
         password_warning: '⚠️ Note: Backups using the default system key can be opened by anyone using the same app.',
         cancel: 'Cancel',
+        stop_backup: 'Stop Auto Backup & Reset Settings',
+        stop_confirm: 'Are you sure you want to delete all auto-backup settings and stop?',
     }
 };
 
@@ -245,6 +267,12 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
             setNewPassword('');
             setMessage(t.backup_success); // Or change_success if we add one
             setTimeout(() => setMessage(''), 3000);
+        }
+    };
+
+    const handleStop = async () => {
+        if (window.confirm(t.stop_confirm)) {
+            await autoBackup.stop();
         }
     };
 
@@ -359,6 +387,12 @@ export const AutoBackupSetup: React.FC<AutoBackupSetupProps> = ({ autoBackup, la
                         <MessageText $error={isError}>
                             {message}
                         </MessageText>
+                    )}
+
+                    {!isChangingPassword && (
+                        <StopButton onClick={handleStop}>
+                            {t.stop_backup}
+                        </StopButton>
                     )}
                 </>
             )}

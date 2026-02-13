@@ -21,6 +21,7 @@ import {
     getStoredDirectoryHandle,
     writeBackupToDirectory,
     setAutoBackupEnabled,
+    stopAutoBackup,
     type AutoBackupState,
 } from './AutoBackupManager';
 
@@ -63,6 +64,8 @@ export interface UseAutoBackupReturn {
     restoreFromSelectedFile: (file: File, password?: string) => Promise<{ success: boolean; error?: string }>;
     /** Attempt auto-restore from desktop directory */
     autoRestore: () => Promise<{ success: boolean; error?: string }>;
+    /** Stop auto-backup and clear all settings */
+    stop: () => Promise<void>;
     /** Refresh the state */
     refresh: () => void;
 }
@@ -215,6 +218,11 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
         }
     }, [appName, adapter, isDesktop, setSkipRestore]);
 
+    const stop = useCallback(async () => {
+        await stopAutoBackup(appName);
+        refresh();
+    }, [appName, refresh]);
+
     const lastBackupText = getLastBackupRelativeTime(appName, language);
 
     return {
@@ -232,6 +240,7 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
         shareBackup,
         restoreFromSelectedFile,
         autoRestore,
+        stop,
         refresh,
     };
 }

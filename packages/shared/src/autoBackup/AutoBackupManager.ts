@@ -439,6 +439,24 @@ export function setAutoBackupEnabled(appName: string, enabled: boolean): void {
 }
 
 /**
+ * Stop and clear all auto-backup settings for an app.
+ */
+export async function stopAutoBackup(appName: string): Promise<void> {
+    setAutoBackupEnabled(appName, false);
+    setStorageValue(appName, 'password', '');
+    setStorageValue(appName, 'hasDirectory', 'false');
+    setStorageValue(appName, 'lastBackup', '');
+
+    // Clear directory handle from IndexedDB
+    const dbName = `${appName}_autoBackupHandles`;
+    return new Promise((resolve) => {
+        const request = indexedDB.deleteDatabase(dbName);
+        request.onsuccess = () => resolve();
+        request.onerror = () => resolve(); // Ignore errors during deletion
+    });
+}
+
+/**
  * Get the stored auto-backup password.
  */
 export function getAutoBackupPassword(appName: string): string | null {
