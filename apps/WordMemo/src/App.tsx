@@ -20,9 +20,12 @@ function AppContent() {
   const { isLocked, isLoading } = useAuth();
 
   const hasData = useCallback(async () => {
-    const words = await db.words.count();
-    const folders = await db.folders.count();
-    return words > 0 || folders > 2;
+    const [words, folders] = await Promise.all([
+      db.words.count(),
+      db.folders.count()
+    ]);
+    // WordMemo has 1 folder by default (Home)
+    return words > 0 || folders > 1;
   }, []);
 
   const autoBackup = useAutoBackup({
