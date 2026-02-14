@@ -96,12 +96,12 @@ const ScrollContainer = styled.div`
 
 const Header = styled.div`
   margin: 0;
-  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.xl} 2px`};
+  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md} 2px`};
   background: ${({ theme }) => theme.colors.surface};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 
   @media (max-width: 768px) {
-    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.sm} 2px`};
+    padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.xs} 2px`};
   }
 
   @media print {
@@ -110,21 +110,21 @@ const Header = styled.div`
 `;
 
 const ContentPadding = styled.div`
-  padding: ${({ theme }) => `0 ${theme.spacing.xl}`};
+  padding: ${({ theme }) => `0 ${theme.spacing.md}`};
   flex: 1;
 
   @media (max-width: 768px) {
-    padding: 0 ${({ theme }) => theme.spacing.sm};
+    padding: 0 ${({ theme }) => theme.spacing.xs};
   }
 `;
 
 const CommentsWrapper = styled.div`
-  padding: ${({ theme }) => `${theme.spacing.lg} ${theme.spacing.xl}`};
+  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.md}`};
   border-top: 1px solid ${({ theme }) => theme.colors.border};
   background: ${({ theme }) => theme.colors.background};
 
   @media (max-width: 768px) {
-    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.xs};
   }
 
   @media print {
@@ -166,7 +166,7 @@ const TitleDisplay = styled.h1`
 const MetaRow = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
+  gap: ${({ theme }) => theme.spacing.sm};
   color: ${({ theme }) => theme.colors.textSecondary};
   font-size: 0.8rem;
   flex-wrap: wrap;
@@ -180,7 +180,7 @@ const HeaderRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
+  gap: ${({ theme }) => theme.spacing.sm};
 `;
 
 const GoToBottomButton = styled.button`
@@ -262,8 +262,8 @@ const CalendarIconButton = styled(FiCalendar)`
 
 const ActionBar = styled.div`
   display: flex;
-  gap: ${({ theme }) => theme.spacing.sm};
-  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.xl}`};
+  gap: ${({ theme }) => theme.spacing.xs};
+  padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.md}`};
   background: ${({ theme }) => theme.colors.surface};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   position: sticky;
@@ -271,14 +271,14 @@ const ActionBar = styled.div`
   z-index: 5;
 
   @media (max-width: 768px) {
-    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.sm}`};
+    padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.xs}`};
   }
 
   @media (max-width: 480px) {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.xs};
     height: auto;
   }
 
@@ -1226,6 +1226,12 @@ export const MemoDetail: React.FC = () => {
                             value={content}
                             onChange={setContent}
                             initialScrollPercentage={prevScrollRatio}
+                            spellCheck={localStorage.getItem('spellCheck') !== 'false'}
+                            markdownShortcuts={localStorage.getItem('editor_markdown_shortcuts') !== 'false'}
+                            autoLink={localStorage.getItem('editor_auto_link') !== 'false'}
+                            tabIndentation={localStorage.getItem('editor_tab_indentation') !== 'false'}
+                            tabSize={Number(localStorage.getItem('editor_tab_size') || '4')}
+                            fontSize={Number(localStorage.getItem('editor_font_size') || '11')}
                         />
                     </ContentPadding>
                 ) : (
@@ -1235,6 +1241,7 @@ export const MemoDetail: React.FC = () => {
                                 content={content}
                                 memoId={Number(id)}
                                 isReadOnly={isCurrentFolderReadOnly}
+                                fontSize={Number(localStorage.getItem('editor_font_size') || '11')}
                                 onEditDrawing={(json) => {
                                     fabricCheckpointRef.current = content;
                                     setEditingDrawingData(json);

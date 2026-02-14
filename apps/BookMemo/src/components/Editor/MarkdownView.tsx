@@ -15,13 +15,19 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
 
-const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-content' }) <{ $tableHeaderBg?: string }>`
-  line-height: 1.6;
+const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-content' }) <{ $tableHeaderBg?: string; $fontSize?: number }>`
+  line-height: 1.5;
   color: ${({ theme }) => theme.colors.text};
   overscroll-behavior: none;
   -webkit-user-select: text;
   user-select: text;
   -webkit-touch-callout: default;
+  font-size: ${props => props.$fontSize ? `${props.$fontSize}pt` : 'inherit'};
+
+  /* Match LexicalEditor's sizing: 1px border + 0.5rem padding */
+  padding: 0.5rem;
+  padding-left: calc(0.5rem + 1px);
+  padding-right: calc(0.5rem + 1px);
 
   h1, h2, h3, h4, h5, h6 {
     margin-top: 1.5em;
@@ -30,7 +36,8 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
   }
 
   p {
-    margin-bottom: 1em;
+    margin-bottom: 0px;
+    margin-top: 0px;
   }
 
   a {
@@ -487,13 +494,15 @@ interface MarkdownViewProps {
   tableHeaderBg?: string;
   onEditDrawing?: (json: string) => void;
   onEditSpreadsheet?: (json: string) => void;
+  fontSize?: number;
 }
 
 export const MarkdownView: React.FC<MarkdownViewProps> = ({
   content,
   tableHeaderBg,
   onEditDrawing,
-  onEditSpreadsheet
+  onEditSpreadsheet,
+  fontSize
 }) => {
   const theme = useTheme() as any;
   const isDark = theme.mode === 'dark';
@@ -503,7 +512,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
   }, [content]);
 
   return (
-    <MarkdownContainer $tableHeaderBg={tableHeaderBg}>
+    <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>
       <ReactMarkdown
         remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeRaw, rehypeKatex]}

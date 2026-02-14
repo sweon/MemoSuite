@@ -419,7 +419,7 @@ const CreateButton = styled.button`
   }
 `;
 
-export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
+export function ToolbarPlugin({ onToggleSidebar, defaultFontSize = 11 }: { onToggleSidebar?: () => void, defaultFontSize?: number }) {
     const { t } = useLanguage();
     const [editor] = useLexicalComposerContext();
     const [canUndo, setCanUndo] = useState(false);
@@ -432,7 +432,7 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
     const [isCode, setIsCode] = useState(false);
     const [isLink, setIsLink] = useState(false);
     const [fontColor, setFontColor] = useState("#000000");
-    const [fontSize, setFontSize] = useState("11pt");
+    const [fontSize, setFontSize] = useState(`${defaultFontSize}pt`);
     const [showColorMenu, setShowColorMenu] = useState(false);
     const [showTableMenu, setShowTableMenu] = useState(false);
     const tableMenuRef = useRef<HTMLDivElement>(null);
@@ -513,10 +513,10 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
             setFontColor(color);
 
             // Update Font Size
-            const fs = $getSelectionStyleValueForProperty(selection, "font-size", "11pt");
+            const fs = $getSelectionStyleValueForProperty(selection, "font-size", `${defaultFontSize}pt`);
             setFontSize(fs);
         }
-    }, [editor]);
+    }, [editor, defaultFontSize]);
 
     useEffect(() => {
         return mergeRegister(
@@ -679,9 +679,9 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
 
     const updateFontSize = useCallback(
         (increment: boolean) => {
-            const currentSize = parseInt(latestFontSize.current) || 11;
+            const currentSize = parseInt(latestFontSize.current) || defaultFontSize;
             const newSize = increment ? Math.min(99, currentSize + 1) : Math.max(1, currentSize - 1);
-            applyStyleText({ "font-size": `${newSize} pt` });
+            applyStyleText({ "font-size": `${newSize}pt` });
         },
         [applyStyleText]
     );
@@ -719,7 +719,7 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
         if (!isNaN(num)) {
             const clamped = Math.max(1, Math.min(99, num));
             editor.focus();
-            applyStyleText({ "font-size": `${clamped} pt` });
+            applyStyleText({ "font-size": `${clamped}pt` });
         }
     };
 

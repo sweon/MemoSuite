@@ -3,7 +3,7 @@ import { AppLockSettings, AutoBackupSetup, DataManagementSection, LanguageSettin
 import type { UseAutoBackupReturn } from '@memosuite/shared';
 
 import styled from 'styled-components';
-import { FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiLock, FiEdit3, FiArrowUpCircle } from 'react-icons/fi';
+import { FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiLock, FiEdit3, FiArrowUpCircle, FiChevronUp, FiChevronDown } from 'react-icons/fi';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Toast } from '../components/UI/Toast';
 import { dailyMemoAdapter } from '../utils/backupAdapter';
@@ -188,18 +188,95 @@ const HelpList = styled.ul`
 `;
 
 const TabButton = styled.button<{ active: boolean }>`
-  padding: 0.5rem 1rem;
+  padding: 6px 16px;
   border-radius: 8px;
-  border: 1px solid ${({ theme, active }) => (active ? theme.colors.primary : theme.colors.border)};
-  background: ${({ theme, active }) => (active ? theme.colors.primary : 'transparent')};
-  color: ${({ active }) => (active ? '#fff' : 'inherit')};
+  border: 2px solid ${props => props.active ? props.theme.colors.primary : props.theme.colors.border};
+  background: ${props => props.active ? props.theme.colors.primary : 'transparent'};
+  color: ${props => props.active ? '#ffffff' : props.theme.colors.text};
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.9rem;
+  min-width: 48px;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
+    background: ${props => props.active ? props.theme.colors.primary : `${props.theme.colors.primary}10`};
   }
+`;
+
+const FontSizeContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const FontSizeControls = styled.div`
+  display: flex;
+  flex-direction: column;
+  background: ${props => props.theme.colors.surface};
+  border: 1px solid ${props => props.theme.colors.border};
+  border-radius: 6px;
+  overflow: hidden;
+  width: 24px;
+  height: 36px;
+`;
+
+const SpinButton = styled.button`
+  border: none;
+  background: transparent;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: ${props => props.theme.colors.text};
+  font-size: 10px;
+  transition: background 0.1s ease;
+
+  &:first-child {
+    border-bottom: 1px solid ${props => props.theme.colors.border};
+  }
+
+  &:hover {
+    background: ${props => props.theme.colors.border};
+  }
+`;
+
+const FontSizeDisplay = styled.div`
+  display: flex;
+  align-items: center;
+  background: ${props => props.theme.colors.surface};
+  border: 1px solid ${props => props.theme.colors.border};
+  border-radius: 6px;
+  height: 36px;
+  padding: 0 10px;
+  gap: 4px;
+`;
+
+const FontSizeInput = styled.input`
+  width: 30px;
+  border: none;
+  background: transparent;
+  text-align: right;
+  font-size: 1rem;
+  font-weight: 600;
+  outline: none;
+  padding: 0;
+  color: ${props => props.theme.colors.text};
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+`;
+
+const FontSizeUnit = styled.span`
+  font-size: 0.8rem;
+  color: ${props => props.theme.colors.textSecondary || '#888'};
+  user-select: none;
 `;
 
 const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolean; onChange: () => void }> = ({ title, desc, checked, onChange }) => (
@@ -234,11 +311,15 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
   const [currentSubMenu, setCurrentSubMenu] = useState<SubMenu>('main');
 
   const [spellCheck, setSpellCheck] = useState(() => localStorage.getItem('spellCheck') !== 'false');
-  const [lineNumbers, setLineNumbers] = useState(() => localStorage.getItem('editor_line_numbers') === 'true');
-  const [tabSize, setTabSize] = useState(() => Number(localStorage.getItem('editor_tab_size')) || 4);
-  const [largeSize, setLargeSize] = useState(() => localStorage.getItem('editor_large_size') === 'true');
-  const [advancedToolbar, setAdvancedToolbar] = useState(() => localStorage.getItem('editor_advanced_toolbar') !== 'false');
+  const [markdownShortcuts, setMarkdownShortcuts] = useState(() => localStorage.getItem('editor_markdown_shortcuts') !== 'false');
+  const [autoLink, setAutoLink] = useState(() => localStorage.getItem('editor_auto_link') !== 'false');
+  const [tabIndentation, setTabIndentation] = useState(() => localStorage.getItem('editor_tab_indentation') !== 'false');
+  const [tabSize, setTabSize] = useState(() => Number(localStorage.getItem('editor_tab_size') || '4'));
+  const [fontSize, setFontSize] = useState(() => Number(localStorage.getItem('editor_font_size') || '11'));
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(() => localStorage.getItem('auto_update_enabled') === 'true');
+
+  const fontSizeIntervalRef = React.useRef<any>(null);
+  const fsTimeoutRef = React.useRef<any>(null);
 
   const {
     needRefresh: [needRefresh],
@@ -315,10 +396,22 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
     localStorage.setItem('spellCheck', String(next));
   };
 
-  const toggleLineNumbers = () => {
-    const next = !lineNumbers;
-    setLineNumbers(next);
-    localStorage.setItem('editor_line_numbers', String(next));
+  const toggleMarkdownShortcuts = () => {
+    const next = !markdownShortcuts;
+    setMarkdownShortcuts(next);
+    localStorage.setItem('editor_markdown_shortcuts', String(next));
+  };
+
+  const toggleAutoLink = () => {
+    const next = !autoLink;
+    setAutoLink(next);
+    localStorage.setItem('editor_auto_link', String(next));
+  };
+
+  const toggleTabIndentation = () => {
+    const next = !tabIndentation;
+    setTabIndentation(next);
+    localStorage.setItem('editor_tab_indentation', String(next));
   };
 
   const handleTabSizeChange = (size: number) => {
@@ -326,16 +419,46 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
     localStorage.setItem('editor_tab_size', String(size));
   };
 
-  const toggleLargeSize = () => {
-    const next = !largeSize;
-    setLargeSize(next);
-    localStorage.setItem('editor_large_size', String(next));
+  const updateFontSize = (increment: boolean) => {
+    setFontSize(prev => {
+      const next = increment ? Math.min(99, prev + 1) : Math.max(1, prev - 1);
+      localStorage.setItem('editor_font_size', String(next));
+      return next;
+    });
   };
 
-  const toggleAdvancedToolbar = () => {
-    const next = !advancedToolbar;
-    setAdvancedToolbar(next);
-    localStorage.setItem('editor_advanced_toolbar', String(next));
+  const startFontSizeInterval = (increment: boolean) => {
+    if (fontSizeIntervalRef.current || fsTimeoutRef.current) return;
+    updateFontSize(increment);
+    fsTimeoutRef.current = setTimeout(() => {
+      fontSizeIntervalRef.current = setInterval(() => {
+        updateFontSize(increment);
+      }, 80);
+    }, 500);
+  };
+
+  const stopFontSizeInterval = () => {
+    if (fontSizeIntervalRef.current) {
+      clearInterval(fontSizeIntervalRef.current);
+      fontSizeIntervalRef.current = null;
+    }
+    if (fsTimeoutRef.current) {
+      clearTimeout(fsTimeoutRef.current);
+      fsTimeoutRef.current = null;
+    }
+  };
+
+  const onFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val === "") {
+      return;
+    }
+    const num = parseInt(val);
+    if (!isNaN(num)) {
+      const clamped = Math.max(1, Math.min(99, num));
+      setFontSize(clamped);
+      localStorage.setItem('editor_font_size', String(clamped));
+    }
   };
 
   const toggleAutoUpdate = () => {
@@ -458,28 +581,29 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
             />
 
             <EditorSettingItem
-              title={t.settings.editor_line_numbers}
-              desc={t.settings.editor_line_numbers_desc}
-              checked={lineNumbers}
-              onChange={toggleLineNumbers}
+              title={t.settings.editor_markdown_shortcuts}
+              desc={t.settings.editor_markdown_shortcuts_desc}
+              checked={markdownShortcuts}
+              onChange={toggleMarkdownShortcuts}
             />
             <EditorSettingItem
-              title={t.settings.editor_large_size}
-              desc={t.settings.editor_large_size_desc}
-              checked={largeSize}
-              onChange={toggleLargeSize}
+              title={t.settings.editor_auto_link}
+              desc={t.settings.editor_auto_link_desc}
+              checked={autoLink}
+              onChange={toggleAutoLink}
             />
             <EditorSettingItem
-              title={t.settings.editor_advanced_toolbar}
-              desc={t.settings.editor_advanced_toolbar_desc}
-              checked={advancedToolbar}
-              onChange={toggleAdvancedToolbar}
+              title={t.settings.editor_tab_indentation}
+              desc={t.settings.editor_tab_indentation_desc}
+              checked={tabIndentation}
+              onChange={toggleTabIndentation}
             />
+
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '0.75rem 1rem',
+              padding: '1rem',
               background: 'var(--surface-color)',
               border: '1px solid var(--border-color)',
               borderRadius: '12px'
@@ -492,6 +616,49 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
                 <TabButton active={tabSize === 2} onClick={() => handleTabSizeChange(2)}>2</TabButton>
                 <TabButton active={tabSize === 4} onClick={() => handleTabSizeChange(4)}>4</TabButton>
               </div>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '1rem',
+              background: 'var(--surface-color)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px'
+            }}>
+              <div>
+                <span style={{ display: 'block', fontWeight: 600, fontSize: '1.05rem', marginBottom: '0.2rem' }}>{t.settings.editor_font_size}</span>
+                <span style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', opacity: 0.8 }}>{t.settings.editor_font_size_desc}</span>
+              </div>
+              <FontSizeContainer>
+                <FontSizeControls>
+                  <SpinButton
+                    
+                    onMouseDown={(e) => { e.preventDefault(); startFontSizeInterval(true); }}
+                    onMouseUp={stopFontSizeInterval}
+                    onMouseLeave={stopFontSizeInterval} onPointerUp={stopFontSizeInterval}
+                  >
+                    <FiChevronUp />
+                  </SpinButton>
+                  <SpinButton
+                    
+                    onMouseDown={(e) => { e.preventDefault(); startFontSizeInterval(false); }}
+                    onMouseUp={stopFontSizeInterval}
+                    onMouseLeave={stopFontSizeInterval} onPointerUp={stopFontSizeInterval}
+                  >
+                    <FiChevronDown />
+                  </SpinButton>
+                </FontSizeControls>
+                <FontSizeDisplay>
+                  <FontSizeInput
+                    type="text"
+                    value={fontSize}
+                    onChange={onFontSizeChange}
+                  />
+                  <FontSizeUnit>pt</FontSizeUnit>
+                </FontSizeDisplay>
+              </FontSizeContainer>
             </div>
           </div>
         </Section>

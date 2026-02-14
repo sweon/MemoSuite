@@ -1,23 +1,48 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useModal, useLanguage, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext, PrintSettingsModal } from '@memosuite/shared';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  SyncModal,
+  useModal,
+  useLanguage,
+  prepareThreadForNewItem,
+  buildThreadNavigationUrl,
+  extractThreadContext,
+  PrintSettingsModal,
+} from "@memosuite/shared";
 
-import styled from 'styled-components';
-import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type CommentDraft } from '../../db';
+import styled from "styled-components";
+import {
+  useParams,
+  useNavigate,
+  useSearchParams,
+  useOutletContext,
+  useLocation,
+} from "react-router-dom";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db, type CommentDraft } from "../../db";
 
-import { MarkdownEditor } from '../Editor/MarkdownEditor';
-import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiGitMerge, FiFolder, FiArrowUp, FiArrowDown, FiPrinter } from 'react-icons/fi';
-import { useExitGuard, ExitGuardResult } from '@memosuite/shared-drawing';
-import { FolderMoveModal } from '../FolderView/FolderMoveModal';
-import { useFolder } from '../../contexts/FolderContext';
-import { format } from 'date-fns';
-import { CommentsSection } from './CommentsSection';
-import { Toast } from '../UI/Toast';
-import { FiAlertTriangle } from 'react-icons/fi';
+import { MarkdownEditor } from "../Editor/MarkdownEditor";
+import { MarkdownView } from "../Editor/MarkdownView";
+import {
+  FiEdit2,
+  FiTrash2,
+  FiSave,
+  FiX,
+  FiShare2,
+  FiGitMerge,
+  FiFolder,
+  FiArrowUp,
+  FiArrowDown,
+  FiPrinter,
+} from "react-icons/fi";
+import { useExitGuard, ExitGuardResult } from "@memosuite/shared-drawing";
+import { FolderMoveModal } from "../FolderView/FolderMoveModal";
+import { useFolder } from "../../contexts/FolderContext";
+import { format } from "date-fns";
+import { CommentsSection } from "./CommentsSection";
+import { Toast } from "../UI/Toast";
+import { FiAlertTriangle } from "react-icons/fi";
 
-import { llmemoSyncAdapter } from '../../utils/backupAdapter';
+import { llmemoSyncAdapter } from "../../utils/backupAdapter";
 
 const MainWrapper = styled.div`
   display: flex;
@@ -48,19 +73,22 @@ const GoToTopButton = styled.button<{ $show: boolean }>`
   width: 52px;
   height: 52px;
   border-radius: 26px;
-  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryHover || theme.colors.primary})`};
+  background: ${({ theme }) =>
+    `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryHover || theme.colors.primary})`};
   color: white;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: ${({ theme }) => theme.shadows.large || '0 8px 25px rgba(0, 0, 0, 0.2)'};
+  box-shadow: ${({ theme }) =>
+    theme.shadows.large || "0 8px 25px rgba(0, 0, 0, 0.2)"};
   z-index: 10000;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   opacity: ${({ $show }) => ($show ? 1 : 0)};
-  transform: scale(${({ $show }) => ($show ? 1 : 0.5)}) translateY(${({ $show }) => ($show ? '0' : '30px')});
-  pointer-events: ${({ $show }) => ($show ? 'auto' : 'none')};
+  transform: scale(${({ $show }) => ($show ? 1 : 0.5)})
+    translateY(${({ $show }) => ($show ? "0" : "30px")});
+  pointer-events: ${({ $show }) => ($show ? "auto" : "none")};
 
   &:hover {
     transform: scale(1.1) translateY(-4px);
@@ -81,31 +109,33 @@ const GoToTopButton = styled.button<{ $show: boolean }>`
 
 const Header = styled.div`
   margin: 0;
-  padding: ${({ theme }) => `${theme.spacing.lg} ${theme.spacing.xl} ${theme.spacing.md}`};
+  padding: ${({ theme }) =>
+    `${theme.spacing.md} ${theme.spacing.md} ${theme.spacing.sm}`};
   background: ${({ theme }) => theme.colors.surface};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 
   @media (max-width: 768px) {
-    padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.sm}`};
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.xs}`};
   }
 `;
 
 const ContentPadding = styled.div`
-  padding: ${({ theme }) => `0 ${theme.spacing.xl}`};
+  padding: ${({ theme }) => `0 ${theme.spacing.md}`};
   flex: 1;
 
   @media (max-width: 768px) {
-    padding: 0 ${({ theme }) => theme.spacing.sm};
+    padding: 0 ${({ theme }) => theme.spacing.xs};
   }
 `;
 
 const CommentsWrapper = styled.div`
-  padding: ${({ theme }) => `${theme.spacing.lg} ${theme.spacing.xl}`};
+  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.md}`};
   border-top: 1px solid ${({ theme }) => theme.colors.border};
   background: ${({ theme }) => theme.colors.background};
 
   @media (max-width: 768px) {
-    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.sm}
+      ${({ theme }) => theme.spacing.xs};
   }
 `;
 
@@ -116,9 +146,9 @@ const TitleInput = styled.input`
   border: none;
   background: transparent;
   color: ${({ theme }) => theme.colors.text};
-  margin-bottom: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: ${({ theme }) => theme.spacing.xs};
   letter-spacing: -0.04em;
-  
+
   &:focus {
     outline: none;
   }
@@ -131,10 +161,11 @@ const TitleInput = styled.input`
 const TitleDisplay = styled.h1`
   font-size: 2.25rem;
   font-weight: 900;
-  margin: 0 0 ${({ theme }) => theme.spacing.sm} 0;
+  margin: 0 0 ${({ theme }) => theme.spacing.xs} 0;
   color: ${({ theme }) => theme.colors.text};
   letter-spacing: -0.04em;
-  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary})`};
+  background: ${({ theme }) =>
+    `linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary})`};
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 `;
@@ -142,7 +173,7 @@ const TitleDisplay = styled.h1`
 const MetaRow = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
+  gap: ${({ theme }) => theme.spacing.sm};
   color: ${({ theme }) => theme.colors.textSecondary};
   font-size: 0.9rem;
   flex-wrap: wrap;
@@ -153,7 +184,7 @@ const HeaderRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
+  gap: ${({ theme }) => theme.spacing.sm};
 `;
 
 const GoToBottomButton = styled.button`
@@ -201,8 +232,8 @@ const TagInput = styled.input`
 const ActionBar = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: ${({ theme }) => theme.spacing.sm};
-  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.xl}`};
+  gap: ${({ theme }) => theme.spacing.xs};
+  padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.md}`};
   background: ${({ theme }) => theme.colors.surface};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   position: sticky;
@@ -210,42 +241,57 @@ const ActionBar = styled.div`
   z-index: 5;
 
   @media (max-width: 768px) {
-    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.sm}`};
+    padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.xs}`};
   }
 
   @media (max-width: 480px) {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: ${({ theme }) => theme.spacing.sm};
+    padding: ${({ theme }) => theme.spacing.xs};
     height: auto;
   }
 `;
 
-const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel'; $mobileOrder?: number }>`
+const ActionButton = styled.button<{
+  $variant?: "primary" | "danger" | "cancel";
+  $mobileOrder?: number;
+}>`
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
   padding: 5px 10px;
   border-radius: ${({ theme }) => theme.radius.small};
-  border: 1px solid ${({ theme, $variant }) =>
-        $variant === 'primary' ? theme.colors.primary :
-            $variant === 'danger' ? theme.colors.border : theme.colors.border};
+  border: 1px solid
+    ${({ theme, $variant }) =>
+    $variant === "primary"
+      ? theme.colors.primary
+      : $variant === "danger"
+        ? theme.colors.border
+        : theme.colors.border};
   background: ${({ theme, $variant }) =>
-        $variant === 'primary' ? theme.colors.primary :
-            $variant === 'danger' ? 'transparent' : 'transparent'};
+    $variant === "primary"
+      ? theme.colors.primary
+      : $variant === "danger"
+        ? "transparent"
+        : "transparent"};
   color: ${({ theme, $variant }) =>
-        $variant === 'primary' ? '#fff' :
-            $variant === 'danger' ? theme.colors.danger :
-                $variant === 'cancel' ? theme.colors.textSecondary : theme.colors.text};
+    $variant === "primary"
+      ? "#fff"
+      : $variant === "danger"
+        ? theme.colors.danger
+        : $variant === "cancel"
+          ? theme.colors.textSecondary
+          : theme.colors.text};
   cursor: pointer;
   font-weight: 600;
   font-size: 13px;
   transition: ${({ theme }) => theme.effects.transition};
 
   @media (max-width: 480px) {
-    ${({ $mobileOrder }) => $mobileOrder !== undefined && `order: ${$mobileOrder};`}
+    ${({ $mobileOrder }) =>
+    $mobileOrder !== undefined && `order: ${$mobileOrder};`}
     &.hide-on-mobile {
       display: none !important;
     }
@@ -253,12 +299,18 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel';
 
   &:hover {
     background: ${({ theme, $variant }) =>
-        $variant === 'primary' ? theme.colors.primaryHover :
-            $variant === 'danger' ? `${theme.colors.danger}08` :
-                $variant === 'cancel' ? `${theme.colors.textSecondary}08` : theme.colors.background};
+    $variant === "primary"
+      ? theme.colors.primaryHover
+      : $variant === "danger"
+        ? `${theme.colors.danger}08`
+        : $variant === "cancel"
+          ? `${theme.colors.textSecondary}08`
+          : theme.colors.background};
     transform: translateY(-1px);
-    ${({ theme, $variant }) => $variant === 'danger' && `border-color: ${theme.colors.danger};`}
-    ${({ theme, $variant }) => $variant === 'cancel' && `border-color: ${theme.colors.textSecondary};`}
+    ${({ theme, $variant }) =>
+    $variant === "danger" && `border-color: ${theme.colors.danger};`}
+    ${({ theme, $variant }) =>
+    $variant === "cancel" && `border-color: ${theme.colors.textSecondary};`}
   }
 
   &:active {
@@ -296,767 +348,907 @@ const ModelSelect = styled.select`
 `;
 
 export const LogDetail: React.FC = () => {
-    const { id } = useParams<{ id: string }>();
-    const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const location = useLocation();
-    const { language, t } = useLanguage();
-    const { choice } = useModal();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const { language, t } = useLanguage();
+  const { choice } = useModal();
 
-    // Guard Hook
-    const { registerGuard, unregisterGuard } = useExitGuard();
-    const [showExitToast, setShowExitToast] = useState(false);
-    const lastBackPress = useRef(0);
-    const isClosingRef = useRef(false);
+  // Guard Hook
+  const { registerGuard, unregisterGuard } = useExitGuard();
+  const [showExitToast, setShowExitToast] = useState(false);
+  const lastBackPress = useRef(0);
+  const isClosingRef = useRef(false);
 
-    const isNew = id === undefined || id === 'new';
+  const isNew = id === undefined || id === "new";
 
-    const [isEditing, setIsEditing] = useState(isNew);
-    const [showGoToTop, setShowGoToTop] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
+  const [isEditing, setIsEditing] = useState(isNew);
+  const [showGoToTop, setShowGoToTop] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-    const [headerHeight, setHeaderHeight] = useState(0);
-    const actionBarRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const actionBarRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (!actionBarRef.current) return;
-        const observer = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                setHeaderHeight(entry.contentRect.height);
-            }
-        });
-        observer.observe(actionBarRef.current);
-        return () => observer.disconnect();
-    }, [isEditing]);
+  useEffect(() => {
+    if (!actionBarRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setHeaderHeight(entry.contentRect.height);
+      }
+    });
+    observer.observe(actionBarRef.current);
+    return () => observer.disconnect();
+  }, [isEditing]);
 
-    const handleStartEdit = () => {
-        setIsEditing(true);
-        window.history.pushState({ editing: true, isGuard: true }, '');
-    };
+  const handleStartEdit = () => {
+    setIsEditing(true);
+    window.history.pushState({ editing: true, isGuard: true }, "");
+  };
 
-    const currentAutosaveIdRef = useRef<number | undefined>(undefined);
+  const currentAutosaveIdRef = useRef<number | undefined>(undefined);
 
-    const [title, setTitle] = useState('');
-    const [content, setContent] = useState('');
-    const [tags, setTags] = useState(''); // Comma separated for editing
-    const [modelId, setModelId] = useState<number | undefined>(undefined);
-    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
-    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [tags, setTags] = useState(""); // Comma separated for editing
+  const [modelId, setModelId] = useState<number | undefined>(undefined);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-    const {
-        currentFolderId
-    } = useFolder();
+  const { currentFolderId } = useFolder();
 
-    const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
-    const commentDraftRef = useRef<CommentDraft | null>(null);
-    useEffect(() => { commentDraftRef.current = commentDraft; }, [commentDraft]);
-    const restoredIdRef = useRef<string | null>(null);
-    const loadedIdRef = useRef<string | null>(null);
+  const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
+  const commentDraftRef = useRef<CommentDraft | null>(null);
+  useEffect(() => {
+    commentDraftRef.current = commentDraft;
+  }, [commentDraft]);
+  const restoredIdRef = useRef<string | null>(null);
+  const loadedIdRef = useRef<string | null>(null);
 
-    const log = useLiveQuery(
-        () => {
-            if (!id || id === 'new') return undefined;
-            const numericId = Number(id);
-            if (isNaN(numericId)) return undefined;
-            return db.logs.get(numericId);
-        },
-        [id]
-    );
+  const log = useLiveQuery(() => {
+    if (!id || id === "new") return undefined;
+    const numericId = Number(id);
+    if (isNaN(numericId)) return undefined;
+    return db.logs.get(numericId);
+  }, [id]);
 
-    const { setIsDirty, setAppIsEditing, setSidebarOpen, isSidebarOpen } = useOutletContext<{
-        setIsDirty: (d: boolean) => void;
-        setAppIsEditing: (e: boolean) => void;
-        setSidebarOpen: (open: boolean) => void;
-        isSidebarOpen: boolean;
+  const { setIsDirty, setAppIsEditing, setSidebarOpen, isSidebarOpen } =
+    useOutletContext<{
+      setIsDirty: (d: boolean) => void;
+      setAppIsEditing: (e: boolean) => void;
+      setSidebarOpen: (open: boolean) => void;
+      isSidebarOpen: boolean;
     }>() || {};
 
-    const hasDraftChanges = !!commentDraft;
-    const isCurrentlyDirty = !!(isNew
-        ? (title.trim() || content.trim() || tags.trim() || hasDraftChanges)
-        : (!!log && (
-            (title || '').trim() !== (log.title || '').trim() ||
-            (content || '') !== (log.content || '') ||
-            (tags || '').trim() !== (log.tags.join(', ') || '').trim() ||
-            (modelId || null) !== (log.modelId || null) ||
-            hasDraftChanges
-        )));
+  const hasDraftChanges = !!commentDraft;
+  const isCurrentlyDirty = !!(isNew
+    ? title.trim() || content.trim() || tags.trim() || hasDraftChanges
+    : !!log &&
+    ((title || "").trim() !== (log.title || "").trim() ||
+      (content || "") !== (log.content || "") ||
+      (tags || "").trim() !== (log.tags.join(", ") || "").trim() ||
+      (modelId || null) !== (log.modelId || null) ||
+      hasDraftChanges));
 
-    useEffect(() => {
-        loadedIdRef.current = null;
-        setTitle('');
-        setContent('');
-        setTags('');
-        setCommentDraft(null);
-        setIsEditing(id === undefined || id === 'new');
-        isClosingRef.current = false;
-    }, [id]);
+  useEffect(() => {
+    loadedIdRef.current = null;
+    setTitle("");
+    setContent("");
+    setTags("");
+    setCommentDraft(null);
+    setIsEditing(id === undefined || id === "new");
+    isClosingRef.current = false;
+  }, [id]);
 
-    useEffect(() => {
-        if (id && id !== 'new') {
-            localStorage.setItem('llmemo_last_log_id', id);
-        }
-    }, [id]);
+  useEffect(() => {
+    if (id && id !== "new") {
+      localStorage.setItem("llmemo_last_log_id", id);
+    }
+  }, [id]);
 
-    useEffect(() => {
-        if (isEditing) {
-            const guardId = 'log-edit-guard';
-            registerGuard(guardId, () => {
-                if (isShareModalOpen || isFolderMoveModalOpen) {
-                    return ExitGuardResult.CONTINUE;
-                }
-
-                if (isClosingRef.current || !isCurrentlyDirty) {
-                    setIsEditing(false);
-                    currentAutosaveIdRef.current = undefined;
-                    restoredIdRef.current = null;
-                    return ExitGuardResult.ALLOW_NAVIGATION;
-                }
-
-                const now = Date.now();
-                if (now - lastBackPress.current < 2000) {
-                    isClosingRef.current = true;
-                    setIsEditing(false);
-                    currentAutosaveIdRef.current = undefined;
-                    restoredIdRef.current = null;
-                    return ExitGuardResult.ALLOW_NAVIGATION;
-                } else {
-                    lastBackPress.current = now;
-                    setShowExitToast(true);
-                    return ExitGuardResult.PREVENT_NAVIGATION;
-                }
-            });
-
-            return () => unregisterGuard(guardId);
-        }
-    }, [isEditing, isCurrentlyDirty, registerGuard, unregisterGuard, isShareModalOpen, isFolderMoveModalOpen]);
-
-    useEffect(() => {
-        if (setIsDirty) setIsDirty(isEditing || hasDraftChanges);
-        if (setAppIsEditing) setAppIsEditing(isEditing);
-        return () => {
-            if (setIsDirty) setIsDirty(false);
-            if (setAppIsEditing) setAppIsEditing(false);
-        };
-    }, [isEditing, hasDraftChanges, setIsDirty, setAppIsEditing]);
-
-    const handleGoToTop = () => {
-        containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    const handleGoToBottom = () => {
-        if (containerRef.current) {
-            containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' });
-        }
-    };
-
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-
-        const handleScroll = () => {
-            setShowGoToTop(container.scrollTop > 300);
-        };
-
-        container.addEventListener('scroll', handleScroll);
-        return () => container.removeEventListener('scroll', handleScroll);
-    }, [log]);
-
-    const models = useLiveQuery(() => db.models.orderBy('order').toArray());
-
-    useEffect(() => {
-        let isCurrent = true;
-
-        if (id && log && log.id !== Number(id)) return;
-
-        if (log && log.id === Number(id) && loadedIdRef.current !== id) {
-            const loadData = async () => {
-                const tagsStr = log.tags.join(', ');
-
-                const existing = await db.autosaves
-                    .where('originalId')
-                    .equals(Number(id))
-                    .reverse()
-                    .sortBy('createdAt');
-
-                if (!isCurrent) return;
-
-                let initialTitle = log.title;
-                let initialContent = log.content;
-                let initialTagsStr = tagsStr;
-                let initialModelId = log.modelId;
-                let initialCommentDraft: CommentDraft | null = null;
-
-                if (existing.length > 0) {
-                    const draft = existing[0];
-                    initialTitle = draft.title;
-                    initialContent = draft.content;
-                    initialTagsStr = draft.tags.join(', ');
-                    initialModelId = draft.modelId;
-                    initialCommentDraft = draft.commentDraft || null;
-
-                    currentAutosaveIdRef.current = draft.id;
-                    restoredIdRef.current = id || null;
-                }
-
-                setTitle(initialTitle);
-                setContent(initialContent);
-                setTags(initialTagsStr);
-                setModelId(initialModelId);
-                setCommentDraft(initialCommentDraft);
-
-                lastSavedState.current = {
-                    title: initialTitle,
-                    content: initialContent,
-                    tags: initialTagsStr,
-                    modelId: initialModelId,
-                    commentDraft: initialCommentDraft
-                };
-                loadedIdRef.current = id || null;
-            };
-            loadData();
+  useEffect(() => {
+    if (isEditing) {
+      const guardId = "log-edit-guard";
+      registerGuard(guardId, () => {
+        if (isShareModalOpen || isFolderMoveModalOpen) {
+          return ExitGuardResult.CONTINUE;
         }
 
-        if (log) {
-            const shouldEdit = searchParams.get('edit') === 'true';
-            if (shouldEdit && !isEditing) {
-                setIsEditing(true);
-                const params = new URLSearchParams(searchParams);
-                params.delete('edit');
-                const search = params.toString();
-                navigate({
-                    pathname: location.pathname,
-                    search: search ? `?${search}` : '',
-                }, { replace: true, state: { editing: true, isGuard: true } });
-            }
-
-            const checkExistingAutosave = async () => {
-                if (!isEditing && !shouldEdit && !searchParams.get('comment') && searchParams.get('restore') !== 'true') return;
-                if (isEditing && restoredIdRef.current === id) return;
-
-                const existing = await db.autosaves
-                    .where('originalId')
-                    .equals(Number(id))
-                    .reverse()
-                    .sortBy('createdAt');
-
-                if (!isCurrent) return;
-
-                if (existing.length > 0) {
-                    const draft = existing[0];
-                    const hasLogChanges = draft.content !== log.content || draft.title !== log.title;
-                    const hasCommentDraft = !!draft.commentDraft;
-
-                    if (hasLogChanges || hasCommentDraft) {
-                        setTitle(draft.title);
-                        setContent(draft.content);
-                        const tagsStr = draft.tags.join(', ');
-                        setTags(tagsStr);
-                        setModelId(draft.modelId);
-                        if (draft.commentDraft) {
-                            setCommentDraft(draft.commentDraft);
-                        }
-
-                        lastSavedState.current = {
-                            title: draft.title,
-                            content: draft.content,
-                            tags: tagsStr,
-                            modelId: draft.modelId,
-                            commentDraft: draft.commentDraft || null
-                        };
-                    }
-                }
-                if (isEditing) restoredIdRef.current = id || null;
-            };
-            checkExistingAutosave();
-        } else if (isNew && loadedIdRef.current !== 'new') {
-            const threadContext = extractThreadContext(searchParams);
-            setTitle('');
-            setContent('');
-            setTags(threadContext?.inheritedTags?.join(', ') || '');
-            setCommentDraft(null);
-            setIsEditing(true);
-            loadedIdRef.current = 'new';
-            setModelId(threadContext?.inheritedModelId || undefined);
-
-            const checkNewAutosave = async () => {
-                const latest = await db.autosaves
-                    .filter(a => a.originalId === undefined)
-                    .reverse()
-                    .sortBy('createdAt');
-
-                if (!isCurrent) return;
-
-                if (latest.length > 0) {
-                    const draft = latest[0];
-                    if (draft.content.trim() || draft.title.trim() || draft.commentDraft) {
-                        setTitle(draft.title);
-                        setContent(draft.content);
-                        const tagsStr = draft.tags.join(', ');
-                        setTags(tagsStr);
-                        setModelId(draft.modelId);
-                        if (draft.commentDraft) {
-                            setCommentDraft(draft.commentDraft);
-                        }
-
-                        lastSavedState.current = {
-                            title: draft.title,
-                            content: draft.content,
-                            tags: tagsStr,
-                            modelId: draft.modelId,
-                            commentDraft: draft.commentDraft || null
-                        };
-                    }
-                }
-            };
-            checkNewAutosave();
+        if (isClosingRef.current || !isCurrentlyDirty) {
+          setIsEditing(false);
+          currentAutosaveIdRef.current = undefined;
+          restoredIdRef.current = null;
+          return ExitGuardResult.ALLOW_NAVIGATION;
         }
 
-        return () => { isCurrent = false; };
-    }, [log, isNew, id, searchParams, isEditing, location.pathname, navigate]);
-
-    useEffect(() => {
-        if (isNew && !modelId && models && models.length > 0) {
-            setModelId(models[0].id);
-        }
-    }, [isNew, modelId, models]);
-
-    const lastSavedState = useRef({ title, content, tags, modelId, commentDraft });
-
-    const currentStateRef = useRef({ title, content, tags, modelId, commentDraft });
-    useEffect(() => {
-        currentStateRef.current = { title, content, tags, modelId, commentDraft };
-    }, [title, content, tags, modelId, commentDraft]);
-
-    useEffect(() => {
-        const isEditingAnything = isEditing || !!commentDraft;
-        if (!isEditingAnything) return;
-
-        const interval = setInterval(async () => {
-            const { title: cTitle, content: cContent, tags: cTags, modelId: cModelId, commentDraft: cCommentDraft } = currentStateRef.current;
-            const currentTagArray = cTags.split(',').map(t => t.trim()).filter(Boolean);
-            const lastTagArray = lastSavedState.current.tags.split(',').map(t => t.trim()).filter(Boolean);
-
-            const hasChanged = cTitle !== lastSavedState.current.title ||
-                cContent !== lastSavedState.current.content ||
-                String(cModelId) !== String(lastSavedState.current.modelId) ||
-                JSON.stringify(currentTagArray) !== JSON.stringify(lastTagArray) ||
-                JSON.stringify(cCommentDraft) !== JSON.stringify(lastSavedState.current.commentDraft);
-
-            if (!hasChanged) return;
-            if (!cTitle.trim() && !cContent.trim() && !cCommentDraft) return;
-
-            const numericOriginalId = id ? Number(id) : undefined;
-
-            if (numericOriginalId && !currentAutosaveIdRef.current) {
-                await db.autosaves.where('originalId').equals(numericOriginalId).delete();
-            }
-
-            const autosaveData: any = {
-                originalId: numericOriginalId,
-                title: cTitle,
-                content: cContent,
-                tags: currentTagArray,
-                modelId: cModelId ? Number(cModelId) : undefined,
-                commentDraft: cCommentDraft || undefined,
-                createdAt: new Date()
-            };
-
-            if (currentAutosaveIdRef.current) {
-                autosaveData.id = currentAutosaveIdRef.current;
-            }
-
-            const newId = await db.autosaves.put(autosaveData);
-            currentAutosaveIdRef.current = newId;
-            lastSavedState.current = { title: cTitle, content: cContent, tags: cTags, modelId: cModelId, commentDraft: cCommentDraft };
-
-            const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();
-            if (allAutosaves.length > 20) {
-                const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
-                await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
-            }
-        }, 7000);
-
-        return () => clearInterval(interval);
-    }, [id, isEditing, !!commentDraft]);
-
-    const handleSave = async (overrideTitle?: string, overrideContent?: string, _overrideSearch?: string, overrideState?: any) => {
-        const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
-        const now = new Date();
-        const currentContent = overrideContent !== undefined ? overrideContent : content;
-        const currentTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
-        const untitled = t.log_detail.untitled;
-
-        const isCurrentlyUntitled = !currentTitle || currentTitle === untitled;
-
-        let finalTitle = currentTitle;
-        if (isCurrentlyUntitled) {
-            const contentFallback = currentContent.split('\n')[0].replace(/[#*`\s]/g, ' ').trim().substring(0, 50);
-            finalTitle = contentFallback || untitled;
-        }
-
-        if (id && id !== 'new') {
-            await db.logs.update(Number(id), {
-                title: finalTitle,
-                content: currentContent,
-                tags: tagArray,
-                modelId: modelId ? Number(modelId) : undefined,
-                updatedAt: now
-            });
-
-            await db.autosaves.where('originalId').equals(Number(id)).delete();
-            currentAutosaveIdRef.current = undefined;
-            restoredIdRef.current = null;
-
-            if (searchParams.get('edit')) {
-                navigate(`/log/${id}`, { replace: true });
-            }
+        const now = Date.now();
+        if (now - lastBackPress.current < 2000) {
+          isClosingRef.current = true;
+          setIsEditing(false);
+          currentAutosaveIdRef.current = undefined;
+          restoredIdRef.current = null;
+          return ExitGuardResult.ALLOW_NAVIGATION;
         } else {
-            const threadContext = extractThreadContext(searchParams);
-
-            const newId = await db.logs.add({
-                folderId: threadContext?.inheritedFolderId ?? currentFolderId ?? undefined,
-                title: finalTitle,
-                content: currentContent,
-                tags: threadContext?.inheritedTags || tagArray,
-                modelId: modelId ? Number(modelId) : (threadContext?.inheritedModelId || undefined),
-                threadId: threadContext?.threadId ?? undefined,
-                threadOrder: threadContext?.threadOrder ?? undefined,
-                createdAt: now,
-                updatedAt: now
-            });
-
-            await db.autosaves.filter(a => a.originalId === undefined).delete();
-            currentAutosaveIdRef.current = undefined;
-            restoredIdRef.current = null;
-
-            navigate(`/log/${newId}`, { replace: true, state: overrideState });
+          lastBackPress.current = now;
+          setShowExitToast(true);
+          return ExitGuardResult.PREVENT_NAVIGATION;
         }
+      });
+
+      return () => unregisterGuard(guardId);
+    }
+  }, [
+    isEditing,
+    isCurrentlyDirty,
+    registerGuard,
+    unregisterGuard,
+    isShareModalOpen,
+    isFolderMoveModalOpen,
+  ]);
+
+  useEffect(() => {
+    if (setIsDirty) setIsDirty(isEditing || hasDraftChanges);
+    if (setAppIsEditing) setAppIsEditing(isEditing);
+    return () => {
+      if (setIsDirty) setIsDirty(false);
+      if (setAppIsEditing) setAppIsEditing(false);
+    };
+  }, [isEditing, hasDraftChanges, setIsDirty, setAppIsEditing]);
+
+  const handleGoToTop = () => {
+    containerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleGoToBottom = () => {
+    if (containerRef.current) {
+      containerRef.current.scrollTo({
+        top: containerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      setShowGoToTop(container.scrollTop > 300);
     };
 
-    const handleExit = async () => {
-        if (!isCurrentlyDirty) {
-            currentAutosaveIdRef.current = undefined;
-            restoredIdRef.current = null;
-            isClosingRef.current = true;
-            setIsEditing(false);
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [log]);
 
-            if (isNew) {
-                navigate('/', { replace: true });
-            } else if (searchParams.get('edit')) {
-                navigate(`/log/${id}`, { replace: true });
-            } else {
-                window.history.back();
-            }
-            return;
+  const models = useLiveQuery(() => db.models.orderBy("order").toArray());
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    if (id && log && log.id !== Number(id)) return;
+
+    if (log && log.id === Number(id) && loadedIdRef.current !== id) {
+      const loadData = async () => {
+        const tagsStr = log.tags.join(", ");
+
+        const existing = await db.autosaves
+          .where("originalId")
+          .equals(Number(id))
+          .reverse()
+          .sortBy("createdAt");
+
+        if (!isCurrent) return;
+
+        let initialTitle = log.title;
+        let initialContent = log.content;
+        let initialTagsStr = tagsStr;
+        let initialModelId = log.modelId;
+        let initialCommentDraft: CommentDraft | null = null;
+
+        if (existing.length > 0) {
+          const draft = existing[0];
+          initialTitle = draft.title;
+          initialContent = draft.content;
+          initialTagsStr = draft.tags.join(", ");
+          initialModelId = draft.modelId;
+          initialCommentDraft = draft.commentDraft || null;
+
+          currentAutosaveIdRef.current = draft.id;
+          restoredIdRef.current = id || null;
         }
 
-        const result = await (choice as any)({
-            message: language === 'ko' ? "저장되지 않은 변경사항이 있습니다. 어떻게 할까요?" : "You have unsaved changes. What would you like to do?",
-            confirmText: language === 'ko' ? "저장 및 종료" : "Save and Exit",
-            neutralText: language === 'ko' ? "저장하지 않고 종료" : "Exit without Saving",
-            cancelText: language === 'ko' ? "취소" : "Cancel"
-        });
+        setTitle(initialTitle);
+        setContent(initialContent);
+        setTags(initialTagsStr);
+        setModelId(initialModelId);
+        setCommentDraft(initialCommentDraft);
 
-        if (result === 'confirm') {
-            await handleSave();
-            isClosingRef.current = true;
-            setIsEditing(false);
-            if (isNew) {
-                navigate('/', { replace: true });
-            } else if (searchParams.get('edit')) {
-                navigate(`/log/${id}`, { replace: true });
-            } else {
-                window.history.back();
-            }
-        } else if (result === 'neutral') {
-            if (id && id !== 'new') {
-                await db.autosaves.where('originalId').equals(Number(id)).delete();
-            } else {
-                await db.autosaves.filter(a => a.originalId === undefined).delete();
-            }
-            currentAutosaveIdRef.current = undefined;
-            restoredIdRef.current = null;
-            isClosingRef.current = true;
-            setIsEditing(false);
-
-            if (isNew) {
-                navigate('/', { replace: true });
-            } else {
-                if (log) {
-                    setTitle(log.title);
-                    setContent(log.content);
-                    setTags(log.tags.join(', '));
-                    setModelId(log.modelId);
-                    setCommentDraft(null);
-                }
-                if (searchParams.get('edit')) {
-                    navigate(`/log/${id}`, { replace: true });
-                } else {
-                    window.history.back();
-                }
-            }
-        }
-    };
-
-    const handleDelete = async () => {
-        if (!id) return;
-        const result = await (choice as any)({
-            message: language === 'ko' ? "이 로그를 어떻게 삭제하시겠습니까?" : "How would you like to delete this log?",
-            confirmText: language === 'ko' ? "전체 스레드 삭제" : "Delete entire thread",
-            neutralText: language === 'ko' ? "이 로그만 삭제" : "Delete only this log",
-            cancelText: language === 'ko' ? "취소" : "Cancel"
-        });
-
-        if (result === 'confirm') {
-            await performDeleteThread();
-        } else if (result === 'neutral') {
-            await performDeleteLogOnly();
-        }
-    };
-
-    const performDeleteLogOnly = async () => {
-        if (!id) return;
-        const logToDelete = await db.logs.get(Number(id));
-        if (!logToDelete) return;
-
-        setIsDeleting(true);
-        try {
-            await db.logs.delete(Number(id));
-            await db.comments.where('logId').equals(Number(id)).delete();
-            await db.autosaves.where('originalId').equals(Number(id)).delete();
-
-            const remainingInThread = await db.logs.where('threadId').equals(logToDelete.threadId || -1).toArray();
-            if (remainingInThread.length > 0) {
-                const sorted = remainingInThread.sort((a, b) => (b.threadOrder || 0) - (a.threadOrder || 0));
-                navigate(`/log/${sorted[0].id}`);
-            } else {
-                navigate('/');
-            }
-        } catch (err) {
-            console.error(err);
-            setIsDeleting(false);
-        }
-    };
-
-    const performDeleteThread = async () => {
-        if (!id) return;
-        const logToDelete = await db.logs.get(Number(id));
-        if (!logToDelete || !logToDelete.threadId) return;
-
-        setIsDeleting(true);
-        try {
-            const threadLogs = await db.logs.where('threadId').equals(logToDelete.threadId).toArray();
-            const threadLogIds = threadLogs.map(l => l.id!);
-
-            await db.logs.bulkDelete(threadLogIds);
-            for (const logId of threadLogIds) {
-                await db.comments.where('logId').equals(logId).delete();
-                await db.autosaves.where('originalId').equals(logId).delete();
-            }
-            navigate('/');
-        } catch (err) {
-            console.error(err);
-            setIsDeleting(false);
-        }
-    };
-
-    const handleAddThread = async () => {
-        if (!id || !log) return;
-
-        try {
-            const context = await prepareThreadForNewItem({
-                currentItem: log,
-                currentId: Number(id),
-                table: db.logs
-            });
-
-            const url = buildThreadNavigationUrl('/log/new', context, { edit: 'true' });
-            navigate(url, { replace: true, state: { isGuard: true } });
-        } catch (error) {
-            console.error("Failed to add thread:", error);
-        }
-    };
-
-    const handlePrint = () => {
-        setIsPrintModalOpen(true);
-    };
-
-    const currentModelName = models?.find(m => m.id === modelId)?.name || t.log_detail.untitled_model;
-
-    if (isDeleting || (!isNew && !log)) {
-        if (isDeleting) return null;
-        return <ScrollContainer>{t.log_detail.loading}</ScrollContainer>;
+        lastSavedState.current = {
+          title: initialTitle,
+          content: initialContent,
+          tags: initialTagsStr,
+          modelId: initialModelId,
+          commentDraft: initialCommentDraft,
+        };
+        loadedIdRef.current = id || null;
+      };
+      loadData();
     }
 
-    return (
-        <MainWrapper>
-            <ScrollContainer
-                ref={containerRef}
-                style={{ '--sticky-offset': headerHeight ? `${headerHeight}px` : undefined } as React.CSSProperties}
-            >
-                <Header>
-                    {isEditing ? (
-                        <TitleInput
-                            value={title}
-                            onChange={e => setTitle(e.target.value)}
-                            placeholder={t.log_detail.title_placeholder}
-                            autoFocus
-                        />
-                    ) : (
-                        <TitleDisplay>{title || t.log_detail.untitled}</TitleDisplay>
-                    )}
+    if (log) {
+      const shouldEdit = searchParams.get("edit") === "true";
+      if (shouldEdit && !isEditing) {
+        setIsEditing(true);
+        const params = new URLSearchParams(searchParams);
+        params.delete("edit");
+        const search = params.toString();
+        navigate(
+          {
+            pathname: location.pathname,
+            search: search ? `?${search}` : "",
+          },
+          { replace: true, state: { editing: true, isGuard: true } },
+        );
+      }
 
-                    <HeaderRow>
-                        <MetaRow>
-                            {isEditing ? (
-                                <>
-                                    <ModelSelect
-                                        value={modelId || ''}
-                                        onChange={e => setModelId(Number(e.target.value))}
-                                    >
-                                        {models?.map(m => (
-                                            <option key={m.id} value={m.id}>{m.name}</option>
-                                        ))}
-                                    </ModelSelect>
-                                    <TagInput
-                                        value={tags}
-                                        onChange={e => setTags(e.target.value)}
-                                        placeholder={t.log_detail.tags_placeholder}
-                                    />
-                                </>
-                            ) : (
-                                <>
-                                    <span>{currentModelName}</span>
-                                    <span>•</span>
-                                    <span>{log && format(log.createdAt, language === 'ko' ? 'yyyy. MM. dd.' : 'yyyy-MM-dd')}</span>
-                                    {log && log.tags.length > 0 && (
-                                        <>
-                                            <span>•</span>
-                                            <span>{log.tags.join(', ')}</span>
-                                        </>
-                                    )}
-                                </>
-                            )}
-                        </MetaRow>
-                        {!isEditing && <GoToBottomButton title={t.log_detail.go_to_bottom} onClick={handleGoToBottom}><FiArrowDown /></GoToBottomButton>}
-                    </HeaderRow>
-                </Header>
+      const checkExistingAutosave = async () => {
+        if (
+          !isEditing &&
+          !shouldEdit &&
+          !searchParams.get("comment") &&
+          searchParams.get("restore") !== "true"
+        )
+          return;
+        if (isEditing && restoredIdRef.current === id) return;
 
-                <ActionBar ref={actionBarRef}>
-                    {isEditing ? (
-                        <>
-                            <ActionButton $variant="primary" onClick={() => handleSave()}>
-                                <FiSave size={16} />
-                                <span className="hide-on-mobile">{t.log_detail.save}</span>
-                            </ActionButton>
-                            <ActionButton onClick={handleExit}>
-                                <FiX size={16} />
-                                <span className="hide-on-mobile">{t.log_detail.exit}</span>
-                            </ActionButton>
-                        </>
-                    ) : (
-                        <>
-                            <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
-                                <FiEdit2 size={16} />
-                                <span className="hide-on-mobile">{t.log_detail.edit}</span>
-                            </ActionButton>
-                            <ActionButton onClick={handleAddThread} $mobileOrder={2}>
-                                <FiGitMerge size={16} />
-                                <span className="hide-on-mobile">{t.log_detail.add_thread}</span>
-                            </ActionButton>
-                            <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={3}>
-                                <FiFolder size={16} />
-                                <span className="hide-on-mobile">{t.log_detail.move_folder}</span>
-                            </ActionButton>
-                            <ActionButton onClick={() => setIsShareModalOpen(true)} $mobileOrder={4}>
-                                <FiShare2 size={16} />
-                                <span className="hide-on-mobile">{t.log_detail.share}</span>
-                            </ActionButton>
-                            <ActionButton onClick={handlePrint} className="hide-on-mobile">
-                                <FiPrinter size={16} />
-                                <span>{t.log_detail.print || "Print"}</span>
-                            </ActionButton>
-                            <ActionButton $variant="danger" onClick={handleDelete} $mobileOrder={5}>
-                                <FiTrash2 size={16} />
-                                <span className="hide-on-mobile">{t.log_detail.delete}</span>
-                            </ActionButton>
-                        </>
-                    )}
-                </ActionBar>
+        const existing = await db.autosaves
+          .where("originalId")
+          .equals(Number(id))
+          .reverse()
+          .sortBy("createdAt");
 
-                <ContentPadding>
-                    {isEditing ? (
-                        <MarkdownEditor
-                            value={content}
-                            onChange={setContent}
-                            onToggleSidebar={() => setSidebarOpen?.(!isSidebarOpen)}
-                        />
-                    ) : (
-                        <MarkdownView
-                            content={content}
-                        />
-                    )}
-                </ContentPadding>
+        if (!isCurrent) return;
 
-                {!isEditing && !isNew && log && (
-                    <CommentsWrapper>
-                        <CommentsSection logId={Number(id)} />
-                    </CommentsWrapper>
-                )}
-                <PrintSettingsModal
-                    isOpen={isPrintModalOpen}
-                    onClose={() => setIsPrintModalOpen(false)}
-                    appName="LLMemo"
-                    language={language}
-                    title={title}
-                />
-            </ScrollContainer>
+        if (existing.length > 0) {
+          const draft = existing[0];
+          const hasLogChanges =
+            draft.content !== log.content || draft.title !== log.title;
+          const hasCommentDraft = !!draft.commentDraft;
 
-            <GoToTopButton
-                $show={showGoToTop}
-                onClick={handleGoToTop}
-                title={t.log_detail.go_to_top}
-            >
-                <FiArrowUp size={24} />
-            </GoToTopButton>
+          if (hasLogChanges || hasCommentDraft) {
+            setTitle(draft.title);
+            setContent(draft.content);
+            const tagsStr = draft.tags.join(", ");
+            setTags(tagsStr);
+            setModelId(draft.modelId);
+            if (draft.commentDraft) {
+              setCommentDraft(draft.commentDraft);
+            }
 
-            {isShareModalOpen && (
-                <SyncModal
-                    isOpen={isShareModalOpen}
-                    onClose={() => setIsShareModalOpen(false)}
-                    adapter={llmemoSyncAdapter}
-                    initialItemId={log?.id}
-                    t={t}
-                    language={language}
-                />
+            lastSavedState.current = {
+              title: draft.title,
+              content: draft.content,
+              tags: tagsStr,
+              modelId: draft.modelId,
+              commentDraft: draft.commentDraft || null,
+            };
+          }
+        }
+        if (isEditing) restoredIdRef.current = id || null;
+      };
+      checkExistingAutosave();
+    } else if (isNew && loadedIdRef.current !== "new") {
+      const threadContext = extractThreadContext(searchParams);
+      setTitle("");
+      setContent("");
+      setTags(threadContext?.inheritedTags?.join(", ") || "");
+      setCommentDraft(null);
+      setIsEditing(true);
+      loadedIdRef.current = "new";
+      setModelId(threadContext?.inheritedModelId || undefined);
+
+      const checkNewAutosave = async () => {
+        const latest = await db.autosaves
+          .filter((a) => a.originalId === undefined)
+          .reverse()
+          .sortBy("createdAt");
+
+        if (!isCurrent) return;
+
+        if (latest.length > 0) {
+          const draft = latest[0];
+          if (
+            draft.content.trim() ||
+            draft.title.trim() ||
+            draft.commentDraft
+          ) {
+            setTitle(draft.title);
+            setContent(draft.content);
+            const tagsStr = draft.tags.join(", ");
+            setTags(tagsStr);
+            setModelId(draft.modelId);
+            if (draft.commentDraft) {
+              setCommentDraft(draft.commentDraft);
+            }
+
+            lastSavedState.current = {
+              title: draft.title,
+              content: draft.content,
+              tags: tagsStr,
+              modelId: draft.modelId,
+              commentDraft: draft.commentDraft || null,
+            };
+          }
+        }
+      };
+      checkNewAutosave();
+    }
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [log, isNew, id, searchParams, isEditing, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (isNew && !modelId && models && models.length > 0) {
+      setModelId(models[0].id);
+    }
+  }, [isNew, modelId, models]);
+
+  const lastSavedState = useRef({
+    title,
+    content,
+    tags,
+    modelId,
+    commentDraft,
+  });
+
+  const currentStateRef = useRef({
+    title,
+    content,
+    tags,
+    modelId,
+    commentDraft,
+  });
+  useEffect(() => {
+    currentStateRef.current = { title, content, tags, modelId, commentDraft };
+  }, [title, content, tags, modelId, commentDraft]);
+
+  useEffect(() => {
+    const isEditingAnything = isEditing || !!commentDraft;
+    if (!isEditingAnything) return;
+
+    const interval = setInterval(async () => {
+      const {
+        title: cTitle,
+        content: cContent,
+        tags: cTags,
+        modelId: cModelId,
+        commentDraft: cCommentDraft,
+      } = currentStateRef.current;
+      const currentTagArray = cTags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const lastTagArray = lastSavedState.current.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const hasChanged =
+        cTitle !== lastSavedState.current.title ||
+        cContent !== lastSavedState.current.content ||
+        String(cModelId) !== String(lastSavedState.current.modelId) ||
+        JSON.stringify(currentTagArray) !== JSON.stringify(lastTagArray) ||
+        JSON.stringify(cCommentDraft) !==
+        JSON.stringify(lastSavedState.current.commentDraft);
+
+      if (!hasChanged) return;
+      if (!cTitle.trim() && !cContent.trim() && !cCommentDraft) return;
+
+      const numericOriginalId = id ? Number(id) : undefined;
+
+      if (numericOriginalId && !currentAutosaveIdRef.current) {
+        await db.autosaves
+          .where("originalId")
+          .equals(numericOriginalId)
+          .delete();
+      }
+
+      const autosaveData: any = {
+        originalId: numericOriginalId,
+        title: cTitle,
+        content: cContent,
+        tags: currentTagArray,
+        modelId: cModelId ? Number(cModelId) : undefined,
+        commentDraft: cCommentDraft || undefined,
+        createdAt: new Date(),
+      };
+
+      if (currentAutosaveIdRef.current) {
+        autosaveData.id = currentAutosaveIdRef.current;
+      }
+
+      const newId = await db.autosaves.put(autosaveData);
+      currentAutosaveIdRef.current = newId;
+      lastSavedState.current = {
+        title: cTitle,
+        content: cContent,
+        tags: cTags,
+        modelId: cModelId,
+        commentDraft: cCommentDraft,
+      };
+
+      const allAutosaves = await db.autosaves.orderBy("createdAt").toArray();
+      if (allAutosaves.length > 20) {
+        const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
+        await db.autosaves.bulkDelete(toDelete.map((a) => a.id!));
+      }
+    }, 7000);
+
+    return () => clearInterval(interval);
+  }, [id, isEditing, !!commentDraft]);
+
+  const handleSave = async (
+    overrideTitle?: string,
+    overrideContent?: string,
+    _overrideSearch?: string,
+    overrideState?: any,
+  ) => {
+    const tagArray = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const now = new Date();
+    const currentContent =
+      overrideContent !== undefined ? overrideContent : content;
+    const currentTitle = (
+      overrideTitle !== undefined ? overrideTitle : title
+    ).trim();
+    const untitled = t.log_detail.untitled;
+
+    const isCurrentlyUntitled = !currentTitle || currentTitle === untitled;
+
+    let finalTitle = currentTitle;
+    if (isCurrentlyUntitled) {
+      const contentFallback = currentContent
+        .split("\n")[0]
+        .replace(/[#*`\s]/g, " ")
+        .trim()
+        .substring(0, 50);
+      finalTitle = contentFallback || untitled;
+    }
+
+    if (id && id !== "new") {
+      await db.logs.update(Number(id), {
+        title: finalTitle,
+        content: currentContent,
+        tags: tagArray,
+        modelId: modelId ? Number(modelId) : undefined,
+        updatedAt: now,
+      });
+
+      await db.autosaves.where("originalId").equals(Number(id)).delete();
+      currentAutosaveIdRef.current = undefined;
+      restoredIdRef.current = null;
+
+      if (searchParams.get("edit")) {
+        navigate(`/log/${id}`, { replace: true });
+      }
+    } else {
+      const threadContext = extractThreadContext(searchParams);
+
+      const newId = await db.logs.add({
+        folderId:
+          threadContext?.inheritedFolderId ?? currentFolderId ?? undefined,
+        title: finalTitle,
+        content: currentContent,
+        tags: threadContext?.inheritedTags || tagArray,
+        modelId: modelId
+          ? Number(modelId)
+          : threadContext?.inheritedModelId || undefined,
+        threadId: threadContext?.threadId ?? undefined,
+        threadOrder: threadContext?.threadOrder ?? undefined,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.autosaves.filter((a) => a.originalId === undefined).delete();
+      currentAutosaveIdRef.current = undefined;
+      restoredIdRef.current = null;
+
+      navigate(`/log/${newId}`, { replace: true, state: overrideState });
+    }
+  };
+
+  const handleExit = async () => {
+    if (!isCurrentlyDirty) {
+      currentAutosaveIdRef.current = undefined;
+      restoredIdRef.current = null;
+      isClosingRef.current = true;
+      setIsEditing(false);
+
+      if (isNew) {
+        navigate("/", { replace: true });
+      } else if (searchParams.get("edit")) {
+        navigate(`/log/${id}`, { replace: true });
+      } else {
+        window.history.back();
+      }
+      return;
+    }
+
+    const result = await (choice as any)({
+      message:
+        language === "ko"
+          ? "저장되지 않은 변경사항이 있습니다. 어떻게 할까요?"
+          : "You have unsaved changes. What would you like to do?",
+      confirmText: language === "ko" ? "저장 및 종료" : "Save and Exit",
+      neutralText:
+        language === "ko" ? "저장하지 않고 종료" : "Exit without Saving",
+      cancelText: language === "ko" ? "취소" : "Cancel",
+    });
+
+    if (result === "confirm") {
+      await handleSave();
+      isClosingRef.current = true;
+      setIsEditing(false);
+      if (isNew) {
+        navigate("/", { replace: true });
+      } else if (searchParams.get("edit")) {
+        navigate(`/log/${id}`, { replace: true });
+      } else {
+        window.history.back();
+      }
+    } else if (result === "neutral") {
+      if (id && id !== "new") {
+        await db.autosaves.where("originalId").equals(Number(id)).delete();
+      } else {
+        await db.autosaves.filter((a) => a.originalId === undefined).delete();
+      }
+      currentAutosaveIdRef.current = undefined;
+      restoredIdRef.current = null;
+      isClosingRef.current = true;
+      setIsEditing(false);
+
+      if (isNew) {
+        navigate("/", { replace: true });
+      } else {
+        if (log) {
+          setTitle(log.title);
+          setContent(log.content);
+          setTags(log.tags.join(", "));
+          setModelId(log.modelId);
+          setCommentDraft(null);
+        }
+        if (searchParams.get("edit")) {
+          navigate(`/log/${id}`, { replace: true });
+        } else {
+          window.history.back();
+        }
+      }
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    const result = await (choice as any)({
+      message:
+        language === "ko"
+          ? "이 로그를 어떻게 삭제하시겠습니까?"
+          : "How would you like to delete this log?",
+      confirmText:
+        language === "ko" ? "전체 스레드 삭제" : "Delete entire thread",
+      neutralText:
+        language === "ko" ? "이 로그만 삭제" : "Delete only this log",
+      cancelText: language === "ko" ? "취소" : "Cancel",
+    });
+
+    if (result === "confirm") {
+      await performDeleteThread();
+    } else if (result === "neutral") {
+      await performDeleteLogOnly();
+    }
+  };
+
+  const performDeleteLogOnly = async () => {
+    if (!id) return;
+    const logToDelete = await db.logs.get(Number(id));
+    if (!logToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await db.logs.delete(Number(id));
+      await db.comments.where("logId").equals(Number(id)).delete();
+      await db.autosaves.where("originalId").equals(Number(id)).delete();
+
+      const remainingInThread = await db.logs
+        .where("threadId")
+        .equals(logToDelete.threadId || -1)
+        .toArray();
+      if (remainingInThread.length > 0) {
+        const sorted = remainingInThread.sort(
+          (a, b) => (b.threadOrder || 0) - (a.threadOrder || 0),
+        );
+        navigate(`/log/${sorted[0].id}`);
+      } else {
+        navigate("/");
+      }
+    } catch (err) {
+      console.error(err);
+      setIsDeleting(false);
+    }
+  };
+
+  const performDeleteThread = async () => {
+    if (!id) return;
+    const logToDelete = await db.logs.get(Number(id));
+    if (!logToDelete || !logToDelete.threadId) return;
+
+    setIsDeleting(true);
+    try {
+      const threadLogs = await db.logs
+        .where("threadId")
+        .equals(logToDelete.threadId)
+        .toArray();
+      const threadLogIds = threadLogs.map((l) => l.id!);
+
+      await db.logs.bulkDelete(threadLogIds);
+      for (const logId of threadLogIds) {
+        await db.comments.where("logId").equals(logId).delete();
+        await db.autosaves.where("originalId").equals(logId).delete();
+      }
+      navigate("/");
+    } catch (err) {
+      console.error(err);
+      setIsDeleting(false);
+    }
+  };
+
+  const handleAddThread = async () => {
+    if (!id || !log) return;
+
+    try {
+      const context = await prepareThreadForNewItem({
+        currentItem: log,
+        currentId: Number(id),
+        table: db.logs,
+      });
+
+      const url = buildThreadNavigationUrl("/log/new", context, {
+        edit: "true",
+      });
+      navigate(url, { replace: true, state: { isGuard: true } });
+    } catch (error) {
+      console.error("Failed to add thread:", error);
+    }
+  };
+
+  const handlePrint = () => {
+    setIsPrintModalOpen(true);
+  };
+
+  const currentModelName =
+    models?.find((m) => m.id === modelId)?.name || t.log_detail.untitled_model;
+
+  if (isDeleting || (!isNew && !log)) {
+    if (isDeleting) return null;
+    return <ScrollContainer>{t.log_detail.loading}</ScrollContainer>;
+  }
+
+  return (
+    <MainWrapper>
+      <ScrollContainer
+        ref={containerRef}
+        style={
+          {
+            "--sticky-offset": headerHeight ? `${headerHeight}px` : undefined,
+          } as React.CSSProperties
+        }
+      >
+        <Header>
+          {isEditing ? (
+            <TitleInput
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={t.log_detail.title_placeholder}
+              autoFocus
+            />
+          ) : (
+            <TitleDisplay>{title || t.log_detail.untitled}</TitleDisplay>
+          )}
+
+          <HeaderRow>
+            <MetaRow>
+              {isEditing ? (
+                <>
+                  <ModelSelect
+                    value={modelId || ""}
+                    onChange={(e) => setModelId(Number(e.target.value))}
+                  >
+                    {models?.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </ModelSelect>
+                  <TagInput
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                    placeholder={t.log_detail.tags_placeholder}
+                  />
+                </>
+              ) : (
+                <>
+                  <span>{currentModelName}</span>
+                  <span>•</span>
+                  <span>
+                    {log &&
+                      format(
+                        log.createdAt,
+                        language === "ko" ? "yyyy. MM. dd." : "yyyy-MM-dd",
+                      )}
+                  </span>
+                  {log && log.tags.length > 0 && (
+                    <>
+                      <span>•</span>
+                      <span>{log.tags.join(", ")}</span>
+                    </>
+                  )}
+                </>
+              )}
+            </MetaRow>
+            {!isEditing && (
+              <GoToBottomButton
+                title={t.log_detail.go_to_bottom}
+                onClick={handleGoToBottom}
+              >
+                <FiArrowDown />
+              </GoToBottomButton>
             )}
+          </HeaderRow>
+        </Header>
 
-            {isFolderMoveModalOpen && log?.id && (
-                <FolderMoveModal
-                    memoId={log.id}
-                    currentFolderId={log.folderId || null}
-                    onClose={() => setIsFolderMoveModalOpen(false)}
-                    onSuccess={(msg) => setToastMessage(msg)}
-                />
-            )}
+        <ActionBar ref={actionBarRef}>
+          {isEditing ? (
+            <>
+              <ActionButton $variant="primary" onClick={() => handleSave()}>
+                <FiSave size={16} />
+                <span className="hide-on-mobile">{t.log_detail.save}</span>
+              </ActionButton>
+              <ActionButton onClick={handleExit}>
+                <FiX size={16} />
+                <span className="hide-on-mobile">{t.log_detail.exit}</span>
+              </ActionButton>
+            </>
+          ) : (
+            <>
+              <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
+                <FiEdit2 size={16} />
+                <span className="hide-on-mobile">{t.log_detail.edit}</span>
+              </ActionButton>
+              <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                <FiGitMerge size={16} />
+                <span className="hide-on-mobile">
+                  {t.log_detail.add_thread}
+                </span>
+              </ActionButton>
+              <ActionButton
+                onClick={() => setIsFolderMoveModalOpen(true)}
+                $mobileOrder={3}
+              >
+                <FiFolder size={16} />
+                <span className="hide-on-mobile">
+                  {t.log_detail.move_folder}
+                </span>
+              </ActionButton>
+              <ActionButton
+                onClick={() => setIsShareModalOpen(true)}
+                $mobileOrder={4}
+              >
+                <FiShare2 size={16} />
+                <span className="hide-on-mobile">{t.log_detail.share}</span>
+              </ActionButton>
+              <ActionButton onClick={handlePrint} className="hide-on-mobile">
+                <FiPrinter size={16} />
+                <span>{t.log_detail.print || "Print"}</span>
+              </ActionButton>
+              <ActionButton
+                $variant="danger"
+                onClick={handleDelete}
+                $mobileOrder={5}
+              >
+                <FiTrash2 size={16} />
+                <span className="hide-on-mobile">{t.log_detail.delete}</span>
+              </ActionButton>
+            </>
+          )}
+        </ActionBar>
 
-            {toastMessage && (
-                <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-            )}
+        <ContentPadding>
+          {isEditing ? (
+            <MarkdownEditor
+              value={content}
+              onChange={setContent}
+              onToggleSidebar={() => setSidebarOpen?.(!isSidebarOpen)}
+              spellCheck={localStorage.getItem("spellCheck") !== "false"}
+              markdownShortcuts={
+                localStorage.getItem("editor_markdown_shortcuts") !== "false"
+              }
+              autoLink={localStorage.getItem("editor_auto_link") !== "false"}
+              tabIndentation={
+                localStorage.getItem("editor_tab_indentation") !== "false"
+              }
+              tabSize={Number(localStorage.getItem("editor_tab_size") || "4")}
+              fontSize={Number(localStorage.getItem("editor_font_size") || "11")}
+            />
+          ) : (
+            <MarkdownView
+              content={content}
+              fontSize={Number(localStorage.getItem('editor_font_size') || '11')}
+            />
+          )}
+        </ContentPadding>
 
-            {showExitToast && (
-                <Toast
-                    variant="warning"
-                    position="centered"
-                    icon={<FiAlertTriangle size={14} />}
-                    message={t.log_detail.exit_warning || "Press back again to exit"}
-                    onClose={() => setShowExitToast(false)}
-                    duration={2000}
-                />
-            )}
-        </MainWrapper>
-    );
+        {!isEditing && !isNew && log && (
+          <CommentsWrapper>
+            <CommentsSection logId={Number(id)} />
+          </CommentsWrapper>
+        )}
+        <PrintSettingsModal
+          isOpen={isPrintModalOpen}
+          onClose={() => setIsPrintModalOpen(false)}
+          appName="LLMemo"
+          language={language}
+          title={title}
+        />
+      </ScrollContainer>
+
+      <GoToTopButton
+        $show={showGoToTop}
+        onClick={handleGoToTop}
+        title={t.log_detail.go_to_top}
+      >
+        <FiArrowUp size={24} />
+      </GoToTopButton>
+
+      {isShareModalOpen && (
+        <SyncModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          adapter={llmemoSyncAdapter}
+          initialItemId={log?.id}
+          t={t}
+          language={language}
+        />
+      )}
+
+      {isFolderMoveModalOpen && log?.id && (
+        <FolderMoveModal
+          memoId={log.id}
+          currentFolderId={log.folderId || null}
+          onClose={() => setIsFolderMoveModalOpen(false)}
+          onSuccess={(msg) => setToastMessage(msg)}
+        />
+      )}
+
+      {toastMessage && (
+        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      )}
+
+      {showExitToast && (
+        <Toast
+          variant="warning"
+          position="centered"
+          icon={<FiAlertTriangle size={14} />}
+          message={t.log_detail.exit_warning || "Press back again to exit"}
+          onClose={() => setShowExitToast(false)}
+          duration={2000}
+        />
+      )}
+    </MainWrapper>
+  );
 };

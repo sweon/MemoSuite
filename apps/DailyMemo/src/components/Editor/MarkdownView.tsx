@@ -1,7 +1,5 @@
 import React from 'react';
-import { useLanguage, metadataCache } from '@memosuite/shared';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Comment } from '../../db';
+import { useLanguage } from '@memosuite/shared';
 
 import ReactMarkdown from 'react-markdown';
 
@@ -16,9 +14,7 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
-import { FiArrowDown, FiExternalLink, FiMaximize, FiSettings, FiSun, FiVolume2, FiX } from 'react-icons/fi';
-
-import { FaYoutube } from 'react-icons/fa';
+import { FiMaximize, FiSun, FiVolume2, FiX } from 'react-icons/fi';
 
 
 const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => {
@@ -119,55 +115,31 @@ const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => v
   );
 };
 
-const JumpBackButton = styled.button`
-  position: absolute;
-  top: -34px;
-  right: 0;
-  z-index: 1000;
-  background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)'};
-  color: ${({ theme }) => theme.colors.primary};
-  border: 1px solid ${({ theme }) => theme.colors.primary}40;
-  padding: 5px 12px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: all 0.23s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(8px);
 
-  &:hover {
-    transform: translateY(-1px);
-    background: ${({ theme }) => theme.colors.primary};
-    color: white;
-    box-shadow: 0 4px 12px ${({ theme }) => theme.colors.primary}40;
-  }
 
-  &:active {
-    transform: translateY(0);
-  }
-`;
-
-const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-content' }) <{ $tableHeaderBg?: string }>`
-  line-height: 1.6;
+const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-content' }) <{ $tableHeaderBg?: string; $fontSize?: number }>`
+  line-height: 1.5;
   color: ${({ theme }) => theme.colors.text};
   overscroll-behavior: none;
   -webkit-user-select: text;
   user-select: text;
   -webkit-touch-callout: default;
-
-
-  h1, h2, h3, h4, h5, h6 {
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-    font-weight: 600;
-  }
+  font-size: ${props => props.$fontSize ? `${props.$fontSize}pt` : 'inherit'};
+  
+  /* Match LexicalEditor's sizing: 1px border + 0.5rem padding */
+  padding: 0.5rem;
+  padding-left: calc(0.5rem + 1px);
+  padding-right: calc(0.5rem + 1px);
 
   p {
-    margin-bottom: 1em;
+    margin-bottom: 0px;
+    margin-top: 0px;
   }
+
+  h1 { font-size: 1.8em; font-weight: 700; margin: 0.5em 0; }
+  h2 { font-size: 1.5em; font-weight: 700; margin: 0.5em 0; }
+  h3 { font-size: 1.25em; font-weight: 700; margin: 0.5em 0; }
+  h4, h5, h6 { font-size: 1.1em; font-weight: 700; margin: 0.5em 0; }
 
   a {
     color: ${({ theme }) => theme.colors.primary};
@@ -744,7 +716,7 @@ const WebPreview = ({ url }: { url: string }) => {
   );
 };
 
-const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: string; startTimestamp?: number; memoId?: number; isShort?: boolean }) => {
+const YouTubePlayer = ({ videoId, startTimestamp, isShort }: { videoId: string; startTimestamp?: number; memoId?: number; isShort?: boolean }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const playerRef = React.useRef<any>(null);
   const intervalRef = React.useRef<any>(null);
@@ -767,11 +739,11 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
 
   const toastTimerRef = React.useRef<any>(null);
   const clickTimerRef = React.useRef<any>(null);
-  const ccClickTimerRef = React.useRef<any>(null);
+
   const [isFullScreen, setIsFullScreen] = React.useState(false);
   const [isMouseIdle, setIsMouseIdle] = React.useState(false);
   const mouseIdleTimerRef = React.useRef<any>(null);
-  const [isMobilePortrait, setIsMobilePortrait] = React.useState(false);
+
   const [brightness, setBrightness] = React.useState(1);
   const [brightnessToast, setBrightnessToast] = React.useState<number | null>(null);
 
@@ -785,1249 +757,557 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
   } | null>(null);
   const touchTypeRef = React.useRef<'none' | 'vertical' | 'horizontal'>('none');
 
-  React.useEffect(() => {
-    const checkPortrait = () => {
-      // Typically consider mobile as width < 768
-      setIsMobilePortrait(window.innerWidth < 768 && window.innerHeight > window.innerWidth);
-    };
-    checkPortrait();
-    window.addEventListener('resize', checkPortrait);
-    return () => window.removeEventListener('resize', checkPortrait);
-  }, []);
 
 
   const applyCaptionStyles = React.useCallback((overrideFontSize?: number) => {
     const player = playerRef.current;
-    if (!player || !player.setOption) return;
-    try {
-      const fontSize = overrideFontSize !== undefined ? overrideFontSize : ccFontSize;
-      player.setOption('captions', 'backgroundOpacity', 0);
-      player.setOption('captions', 'windowOpacity', 0);
-      player.setOption('captions', 'fontSize', fontSize);
-    } catch (e) { }
-  }, [ccFontSize]);
+    if (!player) return;
 
-  React.useEffect(() => {
-    const handleFullScreenChange = () => {
-      setIsFullScreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullScreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
-  }, []);
+    const size = overrideFontSize !== undefined ? overrideFontSize : ccFontSize;
 
-  // Handle cursor auto-hide in fullscreen
-  React.useEffect(() => {
-    const handleMouseMove = () => {
-      if (!isFullScreen) return;
-      setIsMouseIdle(false);
-      if (mouseIdleTimerRef.current) clearTimeout(mouseIdleTimerRef.current);
-      mouseIdleTimerRef.current = setTimeout(() => {
-        setIsMouseIdle(true);
-      }, 3000);
-    };
-
-    if (isFullScreen) {
-      document.addEventListener('mousemove', handleMouseMove);
-      setIsMouseIdle(false);
-      mouseIdleTimerRef.current = setTimeout(() => setIsMouseIdle(true), 3000);
-    } else {
-      setIsMouseIdle(false);
-      if (mouseIdleTimerRef.current) clearTimeout(mouseIdleTimerRef.current);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      if (mouseIdleTimerRef.current) clearTimeout(mouseIdleTimerRef.current);
-    };
-  }, [isFullScreen]);
-
-  React.useEffect(() => {
-    isMounted.current = true;
-
-    const savedTime = localStorage.getItem(`yt_progress_${videoId}`);
-    const resumeTime = savedTime ? parseInt(savedTime) : 0;
-
-    // Priority: Explicit URL timestamp > Saved progress
-    const startSeconds = startTimestamp !== undefined ? startTimestamp : (resumeTime > 10 ? resumeTime - 2 : resumeTime);
-
-    const initPlayer = () => {
-      if (!isMounted.current || !containerRef.current || playerRef.current) return;
-
+    // Use a small delay to ensure YT has processed the font update
+    setTimeout(() => {
       try {
-        const YT = (window as any).YT;
-        if (!YT || !YT.Player) return;
-
-        playerRef.current = new YT.Player(containerRef.current, {
-          videoId,
-          host: 'https://www.youtube-nocookie.com',
-          playerVars: {
-            start: startSeconds,
-            origin: window.location.origin,
-            modestbranding: 1,
-            enablejsapi: 1,
-            rel: 0,
-            controls: 0,
-            iv_load_policy: 3,
-            fs: 1,
-            disablekb: 1,
-            cc_load_policy: 0
-          },
-          events: {
-            onReady: () => {
-              if (isMounted.current) {
-                setIsReady(true);
-                if (playerRef.current.getDuration) setDuration(playerRef.current.getDuration());
-                if (!ACTIVE_YT_VIDEO_ID) ACTIVE_YT_VIDEO_ID = videoId;
-
-                // Set default caption styles to transparent background
-                setTimeout(() => {
-                  applyCaptionStyles();
-                }, 1500);
-
-                // Auto-enable English ASR if no manual En tracks exist (likely an English video)
-                const player = playerRef.current;
-                setTimeout(() => {
-                  try {
-                    const tryAutoEnable = () => {
-                      if (!isMounted.current || !player.getOption) return false;
-                      const tracks = player.getOption('captions', 'tracklist') || [];
-
-                      // Check for manual English tracks
-                      const hasManualEn = tracks.some((t: any) =>
-                        (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) &&
-                        t.kind !== 'asr' && !t.languageCode?.startsWith('a.')
-                      );
-
-                      // Check for ASR English tracks
-                      const asrEn = tracks.find((t: any) =>
-                        (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) &&
-                        (t.kind === 'asr' || t.languageCode?.startsWith('a.'))
-                      );
-
-                      if (!hasManualEn && asrEn) {
-                        player.setOption('captions', 'track', { languageCode: asrEn.languageCode });
-                        setActiveTrackCode(asrEn.languageCode);
-                        setIsCaptionsOn(true);
-                        setTimeout(() => {
-                          if (isMounted.current) applyCaptionStyles();
-                        }, 500);
-                        return true;
-                      }
-                      return false;
-                    };
-
-                    // Initial try + retries since metadata can be slow
-                    if (!tryAutoEnable()) {
-                      setTimeout(() => { if (isMounted.current && !tryAutoEnable()) setTimeout(() => isMounted.current && tryAutoEnable(), 2000); }, 1000);
-                    }
-                  } catch (e) { }
-                }, 1500);
-              }
-            },
-            onStateChange: (event: any) => {
-              if (!isMounted.current) return;
-              setIsPlaying(event.data === 1);
-              if (event.data === 1) { // playing
-                ACTIVE_YT_VIDEO_ID = videoId;
-                if (!intervalRef.current) {
-                  intervalRef.current = setInterval(() => {
-                    if (playerRef.current && playerRef.current.getCurrentTime) {
-                      const time = playerRef.current.getCurrentTime();
-                      setCurrentTime(time);
-                      const t = Math.floor(time);
-                      if (t > 0) {
-                        localStorage.setItem(`yt_progress_${videoId}`, String(t));
-                        localStorage.setItem(`yt_last_active`, JSON.stringify({ videoId, time: t, timestamp: Date.now() }));
-                      }
-                    }
-                  }, 500); // Faster updates for progress bar
-                }
-              } else { // paused/ended/etc
-                if (intervalRef.current) {
-                  clearInterval(intervalRef.current);
-                  intervalRef.current = null;
-                }
-                if (playerRef.current && playerRef.current.getCurrentTime) {
-                  const currentTime = Math.floor(playerRef.current.getCurrentTime());
-                  if (currentTime > 0) {
-                    localStorage.setItem(`yt_progress_${videoId}`, String(currentTime));
-                    localStorage.setItem(`yt_last_active`, JSON.stringify({ videoId, time: currentTime, timestamp: Date.now() }));
-                  }
-                }
-              }
-            },
-            onError: () => {
-              if (isMounted.current) setHasError(true);
-            }
-          }
-        });
-      } catch (err) {
-        console.error('YT init fail', err);
-        if (isMounted.current) setHasError(true);
-      }
-    };
-
-    const handleAPIReady = () => {
-      if (isMounted.current) initPlayer();
-    };
-
-    const checkAndInit = () => {
-      if ((window as any).YT && (window as any).YT.Player) {
-        initPlayer();
-      } else {
-        if (!(window as any).onYouTubeIframeAPIReady) {
-          (window as any).onYouTubeIframeAPIReady = () => {
-            window.dispatchEvent(new CustomEvent('youtubeAPIReady'));
-          };
-
-          if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-            const tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
-            const firstScriptTag = document.getElementsByTagName('script')[0];
-            firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+        const iframe = containerRef.current?.querySelector('iframe');
+        if (iframe) {
+          // YT internal: captions style can be adjusted via player options
+          player.setOption('captions', 'fontSize', size);
+          // Force a small update to reflect
+          if (isPlaying) {
+            player.pauseVideo();
+            player.playVideo();
           }
         }
-        window.addEventListener('youtubeAPIReady', handleAPIReady);
+      } catch (e) {
+        console.warn('Failed to apply caption styles', e);
       }
-    };
+    }, 50);
+  }, [ccFontSize, isPlaying]);
 
-    checkAndInit();
-
-    return () => {
-      isMounted.current = false;
-      if (videoId) YT_PLAYERS.delete(videoId);
-      if (ACTIVE_YT_VIDEO_ID === videoId) ACTIVE_YT_VIDEO_ID = null;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      window.removeEventListener('youtubeAPIReady', handleAPIReady);
-
-      if (playerRef.current) {
-        try {
-          if (playerRef.current.destroy) {
-            playerRef.current.destroy();
-          }
-        } catch (e) {
-          // cleanup fail is okay
-        }
-        playerRef.current = null;
-      }
-    };
-  }, [videoId, startTimestamp]);
-
-  const [jumpedCommentId, setJumpedCommentId] = React.useState<number | null>(null);
-  const { language, t } = useLanguage();
-
-  const comments = useLiveQuery(
-    () => (memoId ? db.comments.where('memoId').equals(memoId).sortBy('createdAt') : [] as Comment[]),
-    [memoId]
-  );
-
-  const videoComments = React.useMemo(() => {
-    if (!comments) return [];
-    return comments.filter(c => c.content.includes(videoId));
-  }, [comments, videoId]);
-
-  const lastVideoCommentId = videoComments.length > 0 ? videoComments[videoComments.length - 1].id : null;
-
-  React.useEffect(() => {
-    const handleJump = (e: any) => {
-      if (e.detail?.videoId === videoId) {
-        setJumpedCommentId(e.detail.commentId);
-        ACTIVE_YT_VIDEO_ID = videoId;
-      } else {
-        setJumpedCommentId(null);
-      }
-    };
-    window.addEventListener('yt-jump-success', handleJump);
-    return () => window.removeEventListener('yt-jump-success', handleJump);
-  }, [videoId]);
-
-  const handleReturn = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (jumpedCommentId !== null) {
-      window.dispatchEvent(new CustomEvent('return-to-comment', { detail: { commentId: jumpedCommentId } }));
-      setJumpedCommentId(null);
-    }
-  };
-
-  const scrollToLastComment = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (lastVideoCommentId) {
-      window.dispatchEvent(new CustomEvent('return-to-comment', { detail: { commentId: lastVideoCommentId } }));
-    } else {
-      // Scroll to the end of ALL comments if none for this video
-      const lastId = (comments && comments.length > 0) ? comments[comments.length - 1].id : -1;
-      window.dispatchEvent(new CustomEvent('return-to-comment', { detail: { commentId: lastId } }));
-    }
-  };
-
-  React.useEffect(() => {
-    if (isReady && playerRef.current && videoId) {
-      YT_PLAYERS.set(videoId, playerRef.current);
-      if (!ACTIVE_YT_VIDEO_ID) ACTIVE_YT_VIDEO_ID = videoId;
-    }
-  }, [isReady, videoId]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${String(secs).padStart(2, '0')}`;
-  };
-
-  const containerId = `yt-player-container-${videoId}`;
-
-  const fetchTracks = (retries = 3) => {
+  const loadCCTracks = React.useCallback(() => {
     const player = playerRef.current;
-    if (!player || !player.getOption) return;
+    if (!player) return;
 
     try {
       const tracks = player.getOption('captions', 'tracklist') || [];
+      const current = player.getOption('captions', 'track') || {};
       setCCTracks(tracks);
-
-      const currentTrack = player.getOption('captions', 'track');
-      console.log('[YT] Current track for dropdown:', currentTrack);
-
-      if (currentTrack?.translationLanguage?.languageCode === 'ko') {
-        setActiveTrackCode('ko-auto');
-      } else if (currentTrack?.languageCode) {
-        // Find if this language code is in tracks
-        const hasExact = tracks.some((t: any) => t.languageCode === currentTrack.languageCode);
-
-        // Logical check for "en-force" (English auto-gen)
-        const isEnglish = currentTrack.languageCode.includes('en') || currentTrack.languageCode.startsWith('a.en');
-
-        if (!hasExact && isEnglish) {
-          setActiveTrackCode('en-force');
-        } else {
-          setActiveTrackCode(currentTrack.languageCode);
-        }
-      } else if (isCaptionsOn && activeTrackCode !== 'off') {
-        // Keep our local state if player is briefly uncertain
-        // This helps when module is just loaded
-      } else {
-        setActiveTrackCode('off');
-      }
-
-      if (tracks.length === 0 && retries > 0) {
-        setTimeout(() => fetchTracks(retries - 1), 500);
-      }
-    } catch (err) {
-      if (retries > 0) setTimeout(() => fetchTracks(retries - 1), 500);
+      setActiveTrackCode(current.languageCode || 'off');
+    } catch (e) {
+      console.warn('Failed to load CC tracks', e);
     }
-  };
+  }, []);
 
-  const toggleCaptions = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
+  const setCCTrack = React.useCallback((trackCode: string) => {
     const player = playerRef.current;
     if (!player) return;
 
     try {
-      if (isCaptionsOn) {
+      isSwitchingCCTrack.current = true;
+      if (trackCode === 'off') {
         player.unloadModule('captions');
         setIsCaptionsOn(false);
-        setActiveTrackCode('off');
       } else {
         player.loadModule('captions');
+        player.setOption('captions', 'track', { languageCode: trackCode });
         setIsCaptionsOn(true);
-        setTimeout(() => {
-          const currentTrack = player.getOption('captions', 'track');
-          if (currentTrack?.languageCode) {
-            setActiveTrackCode(currentTrack.languageCode);
-          }
-          applyCaptionStyles();
-        }, 500);
+        applyCaptionStyles();
       }
-    } catch (err) {
-      console.error('Captions toggle failed', err);
+      setActiveTrackCode(trackCode);
+
+      // Reset switching flag after a delay
+      const timer = setTimeout(() => {
+        isSwitchingCCTrack.current = false;
+      }, 500);
+      ccTimersRef.current.push(timer);
+    } catch (e) {
+      console.warn('Failed to set CC track', e);
+      isSwitchingCCTrack.current = false;
     }
-    ACTIVE_YT_VIDEO_ID = videoId;
+  }, [applyCaptionStyles]);
+
+  const updateCCFontSize = React.useCallback((delta: number) => {
+    setCCFontSize(prev => {
+      const next = Math.max(-2, Math.min(3, prev + delta));
+      applyCaptionStyles(next);
+      return next;
+    });
+  }, [applyCaptionStyles]);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onPlayerReady = (event: any) => {
+      if (!isMounted.current) return;
+      setIsReady(true);
+      setDuration(event.target.getDuration());
+      loadCCTracks();
+      // Apply initial font size preference (usually 0 is default)
+      applyCaptionStyles(0);
+
+      // Ensure start timestamp if provided
+      if (startTimestamp) event.target.seekTo(startTimestamp, true);
+    };
+
+    const onPlayerStateChange = (event: any) => {
+      if (!isMounted.current) return;
+      setIsPlaying(event.data === (window as any).YT.PlayerState.PLAYING);
+      if (event.data === (window as any).YT.PlayerState.PLAYING) {
+        ACTIVE_YT_VIDEO_ID = videoId;
+      } else if (event.data === (window as any).YT.PlayerState.ENDED) {
+        if (ACTIVE_YT_VIDEO_ID === videoId) ACTIVE_YT_VIDEO_ID = null;
+      }
+    };
+
+    const initPlayer = () => {
+      playerRef.current = new (window as any).YT.Player(container, {
+        videoId,
+        playerVars: {
+          autoplay: 0,
+          modestbranding: 1,
+          rel: 0,
+          playsinline: 1,
+          controls: 0, // We use custom controls
+          fs: 0,
+          disablekb: 1,
+          iv_load_policy: 3,
+          cc_load_policy: 0 // We handle CC manually
+        },
+        events: {
+          onReady: onPlayerReady,
+          onStateChange: onPlayerStateChange,
+          onError: () => setHasError(true)
+        }
+      });
+      YT_PLAYERS.set(videoId, playerRef.current);
+    };
+
+    if (!(window as any).YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+      (window as any).onYouTubeIframeAPIReady = initPlayer;
+    } else if ((window as any).YT.Player) {
+      initPlayer();
+    }
+
+    return () => {
+      isMounted.current = false;
+      if (playerRef.current) playerRef.current.destroy();
+      YT_PLAYERS.delete(videoId);
+      if (ACTIVE_YT_VIDEO_ID === videoId) ACTIVE_YT_VIDEO_ID = null;
+    };
+  }, [videoId, startTimestamp, applyCaptionStyles, loadCCTracks]);
+
+  // Sync current time
+  React.useEffect(() => {
+    if (!isReady) return;
+    intervalRef.current = setInterval(() => {
+      if (playerRef.current && isPlaying) {
+        setCurrentTime(playerRef.current.getCurrentTime());
+      }
+    }, 500);
+    return () => clearInterval(intervalRef.current);
+  }, [isReady, isPlaying]);
+
+  const handlePlayPause = () => {
+    if (!playerRef.current) return;
+    if (isPlaying) {
+      playerRef.current.pauseVideo();
+    } else {
+      playerRef.current.playVideo();
+    }
   };
 
-  const toggleCCSettings = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
+  const handleSeek = (time: number) => {
+    if (!playerRef.current) return;
+    playerRef.current.seekTo(time, true);
+    setCurrentTime(time);
+  };
+
+  const showToast = (val: number, setter: (v: number | null) => void) => {
+    setter(val);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setter(null), 1000);
+  };
+
+  const handleToggleFullScreen = () => {
+    if (!containerRef.current) return;
+    if (!isFullScreen) {
+      if (containerRef.current.parentElement?.requestFullscreen) {
+        containerRef.current.parentElement.requestFullscreen();
+      } else if ((containerRef.current.parentElement as any).webkitRequestFullscreen) {
+        (containerRef.current.parentElement as any).webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    const handleFSChange = () => {
+      setIsFullScreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFSChange);
+    document.addEventListener('webkitfullscreenchange', handleFSChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFSChange);
+      document.removeEventListener('webkitfullscreenchange', handleFSChange);
+    };
+  }, []);
+
+  const handleMouseMove = () => {
+    setIsMouseIdle(false);
+    if (mouseIdleTimerRef.current) clearTimeout(mouseIdleTimerRef.current);
+    mouseIdleTimerRef.current = setTimeout(() => setIsMouseIdle(true), 3000);
+  };
+
+
+
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleTouchStartCustom = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
     const player = playerRef.current;
     if (!player) return;
 
-    if (!isCCSettingsOpen) {
-      fetchTracks();
-    }
-    setIsCCSettingsOpen(!isCCSettingsOpen);
-    ACTIVE_YT_VIDEO_ID = videoId;
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      vol: player.getVolume(),
+      bright: brightness,
+      currentTime: player.getCurrentTime(),
+      side: touch.clientX < window.innerWidth / 2 ? 'left' : 'right'
+    };
+    touchTypeRef.current = 'none';
   };
 
-  const toggleFullScreen = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    ACTIVE_YT_VIDEO_ID = videoId;
-    const elem = document.getElementById(containerId);
-    if (!elem) return;
+  const handleTouchMoveCustom = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchStartRef.current.x;
+    const dy = touch.clientY - touchStartRef.current.y;
 
-    if (!document.fullscreenElement) {
-      elem.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
+    if (touchTypeRef.current === 'none') {
+      if (Math.abs(dx) > 10) touchTypeRef.current = 'horizontal';
+      else if (Math.abs(dy) > 10) touchTypeRef.current = 'vertical';
+    }
+
+    if (touchTypeRef.current === 'vertical') {
+      const delta = -(dy / window.innerHeight) * 100;
+      if (touchStartRef.current.side === 'right') {
+        // Volume
+        const next = Math.max(0, Math.min(100, touchStartRef.current.vol + delta));
+        playerRef.current.setVolume(next);
+        showToast(Math.round(next), setVolumeToast);
+      } else {
+        // Brightness
+        const next = Math.max(0.2, Math.min(1.5, touchStartRef.current.bright + (delta / 50)));
+        setBrightness(next);
+        showToast(Math.round(((next - 0.2) / 1.3) * 100), setBrightnessToast);
+      }
+    } else if (touchTypeRef.current === 'horizontal') {
+      const delta = (dx / window.innerWidth) * duration * 0.5;
+      const next = Math.max(0, Math.min(duration, touchStartRef.current.currentTime + delta));
+      playerRef.current.seekTo(next, true);
+      setCurrentTime(next);
+    }
+  };
+
+  const handleDoubleTap = (side: 'left' | 'right') => {
+    const player = playerRef.current;
+    if (!player) return;
+    const delta = side === 'left' ? -10 : 10;
+    const next = Math.max(0, Math.min(duration, player.getCurrentTime() + delta));
+    player.seekTo(next, true);
+    setCurrentTime(next);
+  };
+
+  const handleContainerClick = (e: React.MouseEvent) => {
+    const now = Date.now();
+    const side = e.clientX < window.innerWidth / 2 ? 'left' : 'right';
+
+    if (clickTimerRef.current && (now - clickTimerRef.current.time < 300)) {
+      clearTimeout(clickTimerRef.current.timer);
+      clickTimerRef.current = null;
+      handleDoubleTap(side);
     } else {
-      document.exitFullscreen();
+      const timer = setTimeout(() => {
+        handlePlayPause();
+        clickTimerRef.current = null;
+      }, 300);
+      clickTimerRef.current = { time: now, timer };
     }
   };
 
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '')) return;
-      if (document.activeElement?.closest('.CodeMirror')) return;
 
-      if (ACTIVE_YT_VIDEO_ID !== videoId) return;
-
-      const player = playerRef.current;
-      if (!player) return;
-
-      const key = e.key.toLowerCase();
-
-      // Play/Pause: 'k' or 'Space'
-      if (key === 'k' || e.key === ' ') {
-        if (e.key === ' ' && !isFullScreen) return;
-        e.preventDefault();
-        if (isPlaying) player.pauseVideo();
-        else player.playVideo();
-      }
-      // Fullscreen: 'f'
-      else if (key === 'f') {
-        e.preventDefault();
-        toggleFullScreen();
-      }
-      // Subtitles: 'c'
-      else if (key === 'c') {
-        e.preventDefault();
-        toggleCaptions();
-      }
-      // Mute/Unmute: 'm'
-      else if (key === 'm') {
-        e.preventDefault();
-        if (player.isMuted()) {
-          player.unMute();
-        } else {
-          player.mute();
-        }
-      }
-      // Forward/Backward
-      else if (key === 'j' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        const skip = key === 'j' ? 10 : 5;
-        const target = Math.max(0, player.getCurrentTime() - skip);
-        setCurrentTime(target);
-        player.seekTo(target, true);
-      }
-      else if (key === 'l' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        const skip = key === 'l' ? 10 : 5;
-        const target = Math.min(player.getDuration(), player.getCurrentTime() + skip);
-        setCurrentTime(target);
-        player.seekTo(target, true);
-      }
-      // Volume
-      else if (e.key === 'ArrowUp') {
-        if (!isFullScreen) return;
-        e.preventDefault();
-        const newVol = Math.min(100, player.getVolume() + 5);
-        player.setVolume(newVol);
-        setVolumeToast(newVol);
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = setTimeout(() => {
-          if (isMounted.current) setVolumeToast(null);
-        }, 1000);
-      }
-      else if (e.key === 'ArrowDown') {
-        if (!isFullScreen) return;
-        e.preventDefault();
-        const newVol = Math.max(0, player.getVolume() - 5);
-        player.setVolume(newVol);
-        setVolumeToast(newVol);
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = setTimeout(() => {
-          if (isMounted.current) setVolumeToast(null);
-        }, 1000);
-      }
-      // Home / End
-      else if (e.key === 'Home') {
-        if (!isFullScreen) return;
-        e.preventDefault();
-        const target = 0;
-        setCurrentTime(target);
-        player.seekTo(target, true);
-      }
-      else if (e.key === 'End') {
-        if (!isFullScreen) return;
-        e.preventDefault();
-        const target = player.getDuration();
-        setCurrentTime(target);
-        player.seekTo(target, true);
-      }
-      // Percent Jump: 0-9
-      else if (/^[0-9]$/.test(e.key)) {
-        e.preventDefault();
-        const percent = parseInt(e.key) * 10;
-        const target = (player.getDuration() * percent) / 100;
-        setCurrentTime(target);
-        player.seekTo(target, true);
-      }
-      // Playback Speed: Shift + > ('.') and Shift + < (',')
-      else if (e.key === '>' || e.key === '<') {
-        e.preventDefault();
-        const rates = player.getAvailablePlaybackRates();
-        const currentRate = player.getPlaybackRate();
-        const currentIndex = rates.indexOf(currentRate);
-
-        let newRate = currentRate;
-        if (e.key === '>') {
-          if (currentIndex < rates.length - 1) {
-            newRate = rates[currentIndex + 1];
-            player.setPlaybackRate(newRate);
-          }
-        } else {
-          if (currentIndex > 0) {
-            newRate = rates[currentIndex - 1];
-            player.setPlaybackRate(newRate);
-          }
-        }
-
-        // Show toast
-        setPlaybackRateToast(newRate);
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = setTimeout(() => {
-          if (isMounted.current) setPlaybackRateToast(null);
-        }, 1000);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, isCaptionsOn, videoId, language]);
-
-  const wrapperRef = React.useRef<HTMLDivElement>(null);
-  const [scale, setScale] = React.useState(1);
-
-  React.useEffect(() => {
-    if (!wrapperRef.current?.parentElement) return;
-    const updateScale = () => {
-      if (!wrapperRef.current?.parentElement) return;
-      const containerWidth = wrapperRef.current.parentElement.offsetWidth;
-      if (containerWidth > 0) {
-        // Method 44: Force YouTube into 'Mini-Player' mode (< 400px)
-        // At this width, YouTube disables the large 'More videos' shelf on pause
-        setScale(containerWidth / 380);
-      }
-    };
-
-    const observer = new ResizeObserver(updateScale);
-    observer.observe(wrapperRef.current.parentElement);
-    updateScale();
-    return () => observer.disconnect();
-  }, []);
-
-  if (hasError) {
-    return (
-      <div style={{ borderRadius: '4px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-        <iframe
-          width="100%"
-          height="315"
-          src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&iv_load_policy=3${startTimestamp ? `&start=${startTimestamp}` : ''}`}
-          title="YouTube Video Fallback"
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
-    );
-  }
+  if (hasError) return null;
 
   return (
-    <div style={{
-      position: 'relative',
-      margin: '16px 0',
-      marginTop: (jumpedCommentId !== null || memoId) ? '40px' : '16px',
-      transition: 'margin-top 0.3s ease'
-    }}>
+    <div
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      style={{
+        width: isShort ? '320px' : '100%',
+        aspectRatio: isShort ? '9/16' : '16/9',
+        margin: '2rem auto',
+        background: '#000',
+        borderRadius: isFullScreen ? '0' : '16px',
+        overflow: 'hidden',
+        position: 'relative',
+        boxShadow: isFullScreen ? 'none' : '0 20px 40px rgba(0,0,0,0.4)',
+        filter: `brightness(${brightness})`,
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        maxWidth: isShort ? '320px' : '1000px',
+        zIndex: isFullScreen ? 10000 : 1,
+        touchAction: 'none'
+      }}
+      onTouchStart={handleTouchStartCustom}
+      onTouchMove={handleTouchMoveCustom}
+      onClick={handleContainerClick}
+    >
+      <div id={`yt-player-${videoId}`} style={{ width: '100%', height: '100%', pointerEvents: 'none' }} />
+
+      {/* Overlay Toasts */}
+      {(volumeToast !== null || brightnessToast !== null) && (
+        <div style={{
+          position: 'absolute',
+          top: '20%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.7)',
+          padding: '12px 24px',
+          borderRadius: '30px',
+          color: 'white',
+          fontSize: '14px',
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          zIndex: 100
+        }}>
+          {volumeToast !== null ? <FiVolume2 /> : <FiSun />}
+          {volumeToast !== null ? volumeToast : brightnessToast}%
+        </div>
+      )}
+
+      {/* Controls Overlay */}
       <div style={{
         position: 'absolute',
-        top: '-34px',
-        right: 0,
+        bottom: 0, left: 0, right: 0,
+        padding: '2rem 1.5rem 1rem',
+        background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
+        opacity: isMouseIdle && isPlaying ? 0 : 1,
+        transition: 'opacity 0.4s',
         display: 'flex',
-        gap: '8px',
-        zIndex: 10
+        flexDirection: 'column',
+        gap: '0.8rem',
+        zIndex: 50
       }}>
-        {jumpedCommentId !== null && (
-          <JumpBackButton onClick={handleReturn} title={t.comments.scroll_to_comment} style={{ position: 'static' }}>
-            <FiArrowDown /> {language === 'ko' ? '댓글로 돌아가기' : 'Back to Comment'}
-          </JumpBackButton>
-        )}
-        {memoId && (
-          <JumpBackButton onClick={scrollToLastComment} title={lastVideoCommentId ? (language === 'ko' ? '댓글 있음' : 'Comments exist') : (language === 'ko' ? '댓글로 가기' : 'Go to comment')} style={{ position: 'static' }}>
-            <FiArrowDown /> {lastVideoCommentId ? (language === 'ko' ? '댓글 있음' : 'Comments exist') : (language === 'ko' ? '댓글로 가기' : 'Go to comment')}
-          </JumpBackButton>
-        )}
-      </div>
-      <div
-        id={`yt-player-container-${videoId}`}
-        style={{
-          position: 'relative',
-          paddingBottom: isFullScreen ? 0 : '56.25%',
-          height: isFullScreen ? '100%' : 0,
-          overflow: 'hidden',
-          borderRadius: isFullScreen ? 0 : '4px',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-          background: '#000',
-          display: isFullScreen ? 'flex' : 'block',
-          alignItems: isFullScreen ? 'center' : 'initial',
-          justifyContent: isFullScreen ? 'center' : 'initial',
-          cursor: (isFullScreen && isMouseIdle) ? 'none' : 'auto'
-        }}>
-        {/* Brightness Overlay */}
-        {isFullScreen && (
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'black',
-            opacity: 1 - brightness,
-            pointerEvents: 'none',
-            zIndex: 15
-          }} />
-        )}
-        {!isReady && (
-          <div style={{
-            position: 'absolute',
-            top: 0, left: 0, right: 0, bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffffff',
-            fontSize: '11px',
-            background: '#111',
-            zIndex: 1
+        {/* Progress Bar */}
+        <div style={{ position: 'relative', width: '100%', height: '4px', cursor: 'pointer' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const pct = x / rect.width;
+            handleSeek(pct * duration);
           }}>
-            YouTube Loading...
-          </div>
-        )}
-        <div
-          ref={wrapperRef}
-          style={{
-            position: isFullScreen ? 'relative' : 'absolute',
-            top: 0,
-            left: 0,
-            width: isFullScreen ? (isShort && isMobilePortrait ? '100vw' : 'min(100vw, calc(100vh * 16 / 9))') : '380px',
-            height: isFullScreen ? (isShort && isMobilePortrait ? '100vh' : 'min(100vh, calc(100vw * 9 / 16))') : '214px',
-            transform: isFullScreen ? 'none' : `scale(${scale})`,
-            transformOrigin: 'top left',
-            pointerEvents: 'none'
-          }}
-        >
-          <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+          <div style={{ position: 'absolute', width: '100%', height: '100%', background: 'rgba(255,255,255,0.2)', borderRadius: '2px' }} />
+          <div style={{ position: 'absolute', width: `${(currentTime / duration) * 100}%`, height: '100%', background: '#ef8e13', borderRadius: '2px', transition: 'width 0.1s linear' }} />
+          <div style={{
+            position: 'absolute',
+            left: `${(currentTime / duration) * 100}%`,
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '12px', height: '12px',
+            background: '#fff',
+            borderRadius: '50%',
+            boxShadow: '0 0 10px rgba(0,0,0,0.5)',
+            display: isMouseIdle ? 'none' : 'block'
+          }} />
         </div>
 
-        {/* Interaction Layer */}
-        {isReady && (
-          <div
-            onClick={() => {
-              if (isCCSettingsOpen) {
-                setIsCCSettingsOpen(false);
-                return;
-              }
-
-              if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-              clickTimerRef.current = setTimeout(() => {
-                ACTIVE_YT_VIDEO_ID = videoId;
-                isPlaying ? playerRef.current?.pauseVideo() : playerRef.current?.playVideo();
-                clickTimerRef.current = null;
-              }, 250);
-            }}
-            onDoubleClick={() => {
-              if (clickTimerRef.current) {
-                clearTimeout(clickTimerRef.current);
-                clickTimerRef.current = null;
-              }
-              toggleFullScreen();
-            }}
-            style={{
-              position: 'absolute',
-              top: 0, left: 0, right: 0, bottom: 0,
-              zIndex: 10,
-              cursor: (isFullScreen && isMouseIdle) ? 'none' : 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              background: 'transparent',
-              touchAction: isFullScreen ? 'none' : 'auto',
-              WebkitTapHighlightColor: 'transparent',
-              transition: 'none'
-            }}
-            onTouchStart={(e) => {
-              if (!isFullScreen) return;
-              const touch = e.touches[0];
-              const rect = e.currentTarget.getBoundingClientRect();
-              const x = touch.clientX - rect.left;
-
-              touchStartRef.current = {
-                x: touch.clientX,
-                y: touch.clientY,
-                vol: playerRef.current?.getVolume() || 0,
-                bright: brightness,
-                currentTime: playerRef.current?.getCurrentTime() || 0,
-                side: x < rect.width / 2 ? 'left' : 'right'
-              };
-              touchTypeRef.current = 'none';
-            }
-            }
-            onTouchMove={(e) => {
-              if (!isFullScreen || !touchStartRef.current) return;
-              const touch = e.touches[0];
-              const dx = touch.clientX - touchStartRef.current.x;
-              const dy = touch.clientY - touchStartRef.current.y;
-
-              if (touchTypeRef.current === 'none') {
-                if (Math.abs(dx) > 10) touchTypeRef.current = 'horizontal';
-                else if (Math.abs(dy) > 10) touchTypeRef.current = 'vertical';
-              }
-
-              if (touchTypeRef.current === 'horizontal') {
-                // Seek logic: 1 pixel = 0.5 seconds (adjust sensitivity)
-                const seekDelta = dx * 0.5;
-                const target = Math.max(0, Math.min(duration, touchStartRef.current.currentTime + seekDelta));
-                setCurrentTime(target);
-                playerRef.current?.seekTo(target, true);
-              } else if (touchTypeRef.current === 'vertical') {
-                if (touchStartRef.current.side === 'right') {
-                  // Volume logic: swipe up (dy negative) increases volume
-                  const volDelta = -dy * 0.5;
-                  const newVol = Math.max(0, Math.min(100, touchStartRef.current.vol + volDelta));
-                  playerRef.current?.setVolume(newVol);
-                  setVolumeToast(Math.round(newVol));
-                  if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-                  toastTimerRef.current = setTimeout(() => setVolumeToast(null), 1500);
-                } else {
-                  // Brightness logic
-                  const brightDelta = -dy * 0.005;
-                  const newBright = Math.max(0.1, Math.min(1, touchStartRef.current.bright + brightDelta));
-                  setBrightness(newBright);
-                  setBrightnessToast(newBright);
-                  if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-                  toastTimerRef.current = setTimeout(() => setBrightnessToast(null), 1500);
-                }
-              }
-            }}
-            onTouchEnd={() => {
-              touchStartRef.current = null;
-              touchTypeRef.current = 'none';
-            }}
-          >
-            {/* Subtitle Settings Overlay */}
-            {isCCSettingsOpen && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  position: 'absolute',
-                  bottom: '50px',
-                  right: '12px',
-                  background: 'rgba(28, 28, 28, 0.95)',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  width: '240px',
-                  zIndex: 100,
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  backdropFilter: 'blur(10px)',
-                  color: '#fff',
-                  fontSize: '13px'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
-                    <FiSettings size={14} />
-                    {language === 'ko' ? '자막 설정' : 'Caption Settings'}
-                  </div>
-                  <button
-                    onClick={() => setIsCCSettingsOpen(false)}
-                    style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '4px' }}
-                  >
-                    <FiX size={16} />
-                  </button>
-                </div>
-
-                {/* Tracks Selection - Dropdown */}
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {language === 'ko' ? '언어 선택' : 'Language'}
-                  </div>
-                  <select
-                    value={activeTrackCode}
-                    onChange={(e) => {
-                      const code = e.target.value;
-                      setActiveTrackCode(code);
-                      isSwitchingCCTrack.current = true;
-
-                      ccTimersRef.current.forEach(t => clearTimeout(t));
-                      ccTimersRef.current = [];
-
-                      if (code === 'off') {
-                        playerRef.current?.unloadModule('captions');
-                        setIsCaptionsOn(false);
-                        isSwitchingCCTrack.current = false;
-                      } else {
-                        if (!isCaptionsOn) {
-                          playerRef.current?.loadModule('captions');
-                          setIsCaptionsOn(true);
-                        }
-
-                        const currentTrack = playerRef.current?.getOption('captions', 'track');
-                        const wasTranslating = !!currentTrack?.translationLanguage?.languageCode;
-
-                        if (code === 'ko-auto') {
-                          setTimeout(() => {
-                            const tracks = playerRef.current?.getOption('captions', 'tracklist') || [];
-                            const enTrack = tracks.find((t: any) => t.languageCode?.includes('en')) || tracks[0] || { languageCode: 'en' };
-                            playerRef.current?.setOption('captions', 'track', {
-                              languageCode: enTrack.languageCode,
-                              translationLanguage: { languageCode: 'ko' }
-                            });
-                            applyCaptionStyles();
-                            setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500);
-                          }, 100);
-                        } else if (code === 'en-force') {
-                          if (wasTranslating) {
-                            playerRef.current?.unloadModule('captions');
-                            playerRef.current?.loadModule('captions');
-                          }
-                          setTimeout(() => {
-                            const tracks = playerRef.current?.getOption('captions', 'tracklist') || [];
-                            const enTrack = tracks.find((t: any) => (t.kind === 'asr' || t.languageCode?.startsWith('a.')) && t.languageCode?.includes('en')) ||
-                              tracks.find((t: any) => t.languageCode?.includes('en')) || { languageCode: 'en' };
-                            playerRef.current?.setOption('captions', 'track', { languageCode: enTrack.languageCode });
-                            applyCaptionStyles();
-                            setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500);
-                          }, wasTranslating ? 300 : 100);
-                        } else {
-                          if (wasTranslating) {
-                            playerRef.current?.unloadModule('captions');
-                            playerRef.current?.loadModule('captions');
-                          }
-                          setTimeout(() => {
-                            playerRef.current?.setOption('captions', 'track', { languageCode: code });
-                            applyCaptionStyles();
-                            setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500);
-                          }, wasTranslating ? 300 : 100);
-                        }
-                      }
-                      setIsCCSettingsOpen(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      color: '#fff',
-                      padding: '6px 8px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      outline: 'none',
-                      cursor: 'pointer',
-                      appearance: 'none',
-                      WebkitAppearance: 'none'
-                    }}
-                  >
-                    <option value="" disabled>{language === 'ko' ? '언어 선택' : 'Language'}</option>
-                    <option value="off" style={{ background: '#1c1c1c' }}>{language === 'ko' ? '자막 끄기' : 'Captions Off'}</option>
-                    {ccTracks.map((track: any) => {
-                      const isAsr = track.kind === 'asr' || track.languageCode?.startsWith('a.');
-                      return (
-                        <option
-                          key={`${track.languageCode}-${track.kind}`}
-                          value={track.languageCode}
-                          style={{ background: '#1c1c1c' }}
-                        >
-                          {track.displayName} {isAsr ? `(${language === 'ko' ? '자동 생성' : 'auto-generated'})` : ''}
-                        </option>
-                      );
-                    })}
-                    {!ccTracks.some((t: any) => t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) && (
-                      <option value="en-force" style={{ background: '#1c1c1c' }}>
-                        {language === 'ko' ? '영어 (자동 생성)' : 'English (Auto-generated)'}
-                      </option>
-                    )}
-                    {!ccTracks.some((t: any) => t.languageCode === 'ko' || t.languageCode === 'ko-KR') && (
-                      <option value="ko-auto" style={{ background: '#1c1c1c' }}>
-                        {language === 'ko' ? '한국어 (자동 번역)' : 'Korean (auto-translate)'}
-                      </option>
-                    )}
-                  </select>
-                </div>
-
-                {/* Font Size */}
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {language === 'ko' ? '글자 크기' : 'Font Size'}
-                  </div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    {[
-                      { label: '50%', val: -1 },
-                      { label: '100%', val: 0 },
-                      { label: '150%', val: 1 },
-                      { label: '200%', val: 2 },
-                      { label: '300%', val: 3 }
-                    ].map(size => {
-                      const isActive = ccFontSize === size.val;
-                      return (
-                        <button
-                          key={size.val}
-                          onClick={() => {
-                            setCCFontSize(size.val);
-                            applyCaptionStyles(size.val);
-                          }}
-                          style={{
-                            flex: 1,
-                            padding: '5px 0',
-                            background: isActive ? 'rgba(239, 142, 19, 0.2)' : 'rgba(255,255,255,0.08)',
-                            border: isActive ? '1px solid #ef8e13' : '1px solid transparent',
-                            borderRadius: '4px',
-                            color: isActive ? '#ef8e13' : '#ddd',
-                            fontSize: '10px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
-                          onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-                        >
-                          {size.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Speed Toast Notification */}
-            {playbackRateToast !== null && (
-              <div style={{
-                position: 'absolute',
-                top: '20%',
-                background: 'rgba(0,0,0,0.7)',
-                color: '#fff',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                pointerEvents: 'none',
-                zIndex: 20
-              }}>
-                {playbackRateToast}x
-              </div>
-            )}
-            {/* Volume Toast Notification */}
-            {volumeToast !== null && (
-              <div style={{
-                position: 'absolute',
-                top: '20%',
-                background: 'rgba(0,0,0,0.7)',
-                color: '#fff',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                pointerEvents: 'none',
-                zIndex: 20,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <FiVolume2 size={16} /> {volumeToast}%
-              </div>
-            )}
-
-            {/* Brightness Toast Notification */}
-            {brightnessToast !== null && (
-              <div style={{
-                position: 'absolute',
-                top: '20%',
-                background: 'rgba(0,0,0,0.7)',
-                color: '#fff',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                pointerEvents: 'none',
-                zIndex: 20,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <FiSun size={16} /> {Math.round(brightnessToast * 100)}%
-              </div>
-            )}
-
-            {/* Control Bar - Using opacity to avoid flicker on play/pause */}
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: 'absolute',
-                bottom: 0, left: 0, right: 0,
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 12px',
-                gap: '12px',
-                color: '#fff',
-                cursor: 'default',
-                opacity: isPlaying ? 0 : 1,
-                pointerEvents: isPlaying ? 'none' : 'auto',
-                transition: 'opacity 0.2s ease',
-                background: 'linear-gradient(transparent, rgba(0,0,0,0.5))',
-                zIndex: 20
-              }}
+        {/* Bottom Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
+              style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}
             >
-              <input
-                type="range"
-                min={0}
-                max={duration || 100}
-                value={currentTime}
-                onChange={(e) => {
-                  const time = parseFloat(e.target.value);
-                  setCurrentTime(time);
-                  ACTIVE_YT_VIDEO_ID = videoId;
-                  playerRef.current?.seekTo(time);
-                }}
-                style={{
-                  flex: 1,
-                  height: '3px',
-                  cursor: 'pointer',
-                  accentColor: '#ef8e13'
-                }}
-              />
-              <div style={{ fontSize: '11px', fontFamily: 'monospace', minWidth: '75px', textAlign: 'right' }}>
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </div>
+              {isPlaying ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+              )}
+            </button>
 
-              <a
-                href={`https://www.youtube.com/watch?v=${videoId}${currentTime > 0 ? `&t=${Math.floor(currentTime)}` : ''}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '10px',
-                  color: isMobilePortrait ? '#ff0000' : '#ddd',
-                  textDecoration: 'none',
-                  padding: isMobilePortrait ? '4px' : '4px 8px',
-                  borderRadius: '4px',
-                  background: 'rgba(255,255,255,0.1)',
-                  whiteSpace: 'nowrap',
-                  marginLeft: '4px',
-                  transition: 'all 0.2s'
-                }}
-                title={language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
-              >
-                {isMobilePortrait ? (
-                  <FaYoutube size={18} />
-                ) : (
-                  <>
-                    <FiExternalLink size={12} />
-                    {language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}
-                  </>
-                )}
-              </a>
-
-
-              <button
-                onClick={(e) => {
-                  if (ccClickTimerRef.current) clearTimeout(ccClickTimerRef.current);
-                  ccClickTimerRef.current = setTimeout(() => {
-                    toggleCaptions(e);
-                    ccClickTimerRef.current = null;
-                  }, 500); // 500ms delay to distinguish dblclick
-                }}
-                onDoubleClick={(e) => {
-                  if (ccClickTimerRef.current) {
-                    clearTimeout(ccClickTimerRef.current);
-                    ccClickTimerRef.current = null;
-                  }
-                  toggleCCSettings(e);
-                }}
-                title={language === 'ko' ? '자막 (더블클릭: 설정)' : 'Subtitles (Double-click: Settings)'}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: isCaptionsOn ? '#ef8e13' : '#ddd',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px',
-                  marginLeft: '4px',
-                  transition: 'color 0.2s'
-                }}
-              >
-                <div style={{
-                  border: `1.5px solid ${isCaptionsOn ? '#ef8e13' : '#ddd'}`,
-                  borderRadius: '2px',
-                  padding: '1px 3px',
-                  fontSize: '9px',
-                  fontWeight: 'bold',
-                  lineHeight: 1,
-                  color: isCaptionsOn ? '#ef8e13' : '#ddd',
-                  transition: 'all 0.2s'
-                }}>
-                  CC
-                </div>
-              </button>
-
-              <button
-                onClick={toggleFullScreen}
-                title={language === 'ko' ? '전체 화면' : 'Full Screen'}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#ddd',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px',
-                  marginLeft: '4px'
-                }}
-              >
-                <FiMaximize size={16} />
-              </button>
+            <div style={{ fontSize: '13px', fontWeight: 500, fontFamily: 'monospace', opacity: 0.9 }}>
+              {formatTime(currentTime)} / {formatTime(duration)}
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
-const YoutubePlaylistView = ({ playlistId }: { playlistId: string }) => {
-  const [playlistVideos, setPlaylistVideos] = React.useState<{ id: string, title: string }[]>([]);
-  const [loading, setLoading] = React.useState(true);
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const rates = [1, 1.25, 1.5, 2, 0.5, 0.75];
+                const current = playerRef.current?.getPlaybackRate() || 1;
+                const next = rates[(rates.indexOf(current) + 1) % rates.length];
+                playerRef.current?.setPlaybackRate(next);
+                setPlaybackRateToast(next);
+                setTimeout(() => setPlaybackRateToast(null), 1500);
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: '#fff',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              {playbackRateToast ? `${playbackRateToast}x` : 'SPEED'}
+            </button>
 
-  React.useEffect(() => {
-    setLoading(true);
-    // Attempt to fetch playlist page to extract video titles
-    const fetchPlaylist = async () => {
-      try {
-        setLoading(true);
-        const targetUrl = `https://www.youtube.com/playlist?list=${playlistId}`;
-
-        // Use multiple proxies in parallel for maximum speed
-        const html = await Promise.any([
-          fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`).then(res => res.ok ? res.text() : Promise.reject()),
-          fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`).then(res => res.ok ? res.text() : Promise.reject()),
-          fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`)
-            .then(res => res.ok ? res.json() : Promise.reject())
-            .then(data => data.contents || Promise.reject())
-        ]);
-
-        const videos: { id: string, title: string }[] = [];
-        // Enhanced regex to match both formats (runs and simpleText)
-        const regex = /"videoId":"([a-zA-Z0-9_-]{11})".*?"title":\{(?:[^}]*?"runs":\[\{"text":"(.*?)"\}\]|"simpleText":"(.*?)"\})/g;
-        let match;
-        const seen = new Set();
-        while ((match = regex.exec(html)) !== null) {
-          const id = match[1];
-          let title = match[2] || match[3] || '영상 제목 없음';
-          title = title.replace(/\\u0026/g, '&').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-          if (!seen.has(id)) {
-            seen.add(id);
-            videos.push({ id, title });
-          }
-        }
-
-        // Absolute fallback: if still zero, just search for videoIds alone
-        if (videos.length === 0) {
-          const idRegex = /"videoId":"([a-zA-Z0-9_-]{11})"/g;
-          let m;
-          while ((m = idRegex.exec(html)) !== null) {
-            const id = m[1];
-            if (!seen.has(id)) {
-              seen.add(id);
-              videos.push({ id, title: '영상 제목 없음' });
-            }
-          }
-        }
-
-        if (videos.length > 0) {
-          setPlaylistVideos(videos);
-        }
-      } catch (e) {
-        console.error('Playlist fetch failed', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPlaylist();
-  }, [playlistId]);
-
-  if (loading) {
-    return <div style={{ margin: '16px 0', padding: '12px', color: '#868e96', fontSize: '14px', border: '1px solid #e9ecef', borderRadius: '8px' }}>loading playlist...</div>;
-  }
-
-  if (playlistVideos.length > 0) {
-    return (
-      <div style={{ margin: '16px 0', padding: '12px', border: '1px solid #e9ecef', borderRadius: '8px' }}>
-        <div style={{ marginBottom: '12px', fontWeight: 600, fontSize: '14px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>
-          Playlist ({playlistVideos.length})
-        </div>
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {playlistVideos.map((v, i) => (
-            <li key={v.id} style={{ marginBottom: '8px', fontSize: '14px' }}>
-              <a
-                href={`https://www.youtube.com/watch?v=${v.id}&list=${playlistId}&index=${i + 1}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ textDecoration: 'none', color: '#065fd4', display: 'flex', gap: '8px', alignItems: 'baseline' }}
+            {/* CC Button */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsCCSettingsOpen(!isCCSettingsOpen);
+                }}
+                style={{
+                  background: isCaptionsOn ? '#ef8e13' : 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: isCaptionsOn ? '#000' : '#fff',
+                  width: '28px', height: '28px',
+                  borderRadius: '6px',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
               >
-                <span style={{ color: '#868e96', minWidth: '24px', fontSize: '12px' }}>{i + 1}.</span>
-                <span style={{ lineHeight: '1.4' }}>{v.title}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  }
+                CC
+              </button>
 
-  return (
-    <div style={{ margin: '16px 0', padding: '12px', border: '1px solid #e9ecef', borderRadius: '8px' }}>
-      <div style={{ marginBottom: '8px', fontSize: '14px' }}>
-        Unable to extract videos list.
+              {isCCSettingsOpen && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '40px',
+                  right: 0,
+                  background: 'rgba(0,0,0,0.9)',
+                  backdropFilter: 'blur(10px)',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  width: '180px',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                  zIndex: 100
+                }} onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700 }}>Captions</span>
+                    <button onClick={() => setIsCCSettingsOpen(false)} style={{ background: 'none', border: 'none', color: '#fff' }}><FiX /></button>
+                  </div>
+
+                  {/* Size control in CC menu */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span style={{ fontSize: '10px', color: '#888' }}>Size</span>
+                    <button onClick={() => updateCCFontSize(-1)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', width: '20px' }}>-</button>
+                    <span style={{ fontSize: '11px', flex: 1, textAlign: 'center' }}>{ccFontSize + 3}</span>
+                    <button onClick={() => updateCCFontSize(1)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '4px', width: '20px' }}>+</button>
+                  </div>
+
+                  <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                    <button
+                      onClick={() => setCCTrack('off')}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '6px 8px',
+                        background: activeTrackCode === 'off' ? 'rgba(239, 142, 19, 0.2)' : 'none',
+                        border: 'none',
+                        color: activeTrackCode === 'off' ? '#ef8e13' : '#fff',
+                        fontSize: '12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Off
+                    </button>
+                    {ccTracks.map(track => (
+                      <button
+                        key={track.languageCode}
+                        onClick={() => setCCTrack(track.languageCode)}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '6px 8px',
+                          background: activeTrackCode === track.languageCode ? 'rgba(239, 142, 19, 0.2)' : 'none',
+                          border: 'none',
+                          color: activeTrackCode === track.languageCode ? '#ef8e13' : '#fff',
+                          fontSize: '12px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          marginTop: '2px'
+                        }}
+                      >
+                        {track.baseUrl ? track.languageName : `${track.languageName} (Auto)`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={(e) => { e.stopPropagation(); handleToggleFullScreen(); }}
+              style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}
+            >
+              <FiMaximize size={18} />
+            </button>
+          </div>
+        </div>
       </div>
-      <a
-        href={`https://www.youtube.com/playlist?list=${playlistId}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ color: '#065fd4', textDecoration: 'none', fontSize: '14px' }}
-      >
-        Open Playlist on YouTube ↗
-      </a>
     </div>
   );
 };
+
 
 interface MarkdownViewProps {
   content: string;
   memoId?: number;
+  isReadOnly?: boolean;
   tableHeaderBg?: string;
   onEditDrawing?: (json: string) => void;
   onEditSpreadsheet?: (json: string) => void;
-  isComment?: boolean;
-  isReadOnly?: boolean;
+  fontSize?: number;
 }
 
-export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
+export const MarkdownView: React.FC<MarkdownViewProps> = ({
   content,
   memoId,
+  isReadOnly = false,
   tableHeaderBg,
   onEditDrawing,
   onEditSpreadsheet,
-  isComment,
-  isReadOnly
+  fontSize
 }) => {
   const theme = useTheme() as any;
   const isDark = theme.mode === 'dark';
@@ -2036,183 +1316,90 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
     return content.replace(/^\\newpage\s*$/gm, '<div class="page-break"></div>');
   }, [content]);
 
-  const components = React.useMemo(() => ({
-    a: ({ href, children, ...props }: any) => {
-      try {
-        if (!href) return <a {...props}>{children}</a>;
-
-        let cleanHref = href;
-        try {
-          cleanHref = decodeURIComponent(href);
-        } catch (e) { }
-
-        // Clean common HTML entities
-        cleanHref = (cleanHref || '')
-          .replace(/&amp;/g, '&')
-          .replace(/&#38;/g, '&')
-          .replace(/&#x26;/g, '&');
-
-        const isYoutube =
-          (cleanHref.includes('youtube.com') ||
-            cleanHref.includes('youtu.be')) && !isComment;
-
-        if (isYoutube) {
-          let videoId = '';
-          let timestamp = 0;
-
-          // 1. Check for 'v=' parameter anywhere in query string
-          const vParamMatch = cleanHref.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-
-          if (vParamMatch && vParamMatch[1]) {
-            videoId = vParamMatch[1];
-          } else {
-            // 2. Check for path-based IDs (youtu.be, embed, shorts, v)
-            const pathMatch = cleanHref.match(/(?:youtu\.be\/|embed\/|shorts\/|v\/)([a-zA-Z0-9_-]{11})/);
-            if (pathMatch && pathMatch[1]) {
-              videoId = pathMatch[1];
-            }
-          }
-
-          const tMatch = cleanHref.match(/[?&]t=(\d+)/);
-          if (tMatch && tMatch[1]) {
-            timestamp = parseInt(tMatch[1]);
-          }
-
-          if (videoId) {
-            return (
-              <div key={videoId} style={{ margin: '16px 0' }}>
-                <YouTubePlayer
-                  videoId={videoId}
-                  startTimestamp={timestamp > 0 ? timestamp : undefined}
-                  memoId={memoId}
-                  isShort={cleanHref.includes('shorts/')}
-                />
-              </div>
-            );
-          } else {
-            // Check for playlist ID if video ID is missing
-            let playlistId = '';
-            const listMatch = cleanHref.match(/[?&]list=([a-zA-Z0-9_-]+)/);
-            if (listMatch) playlistId = listMatch[1];
-            else {
-              const showMatch = cleanHref.match(/\/show\/([a-zA-Z0-9_-]+)/);
-              if (showMatch) playlistId = showMatch[1];
-            }
-
-            if (playlistId) {
-              // Remove 'VL' prefix if present
-              if (playlistId.startsWith('VL')) {
-                playlistId = playlistId.substring(2);
-              }
-              return <YoutubePlaylistView playlistId={playlistId} />;
-            }
-          }
-        }
-
-        // General Web Preview for standalone links (links that match children or are on their own)
-        const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
-        if (isStandalone && href.startsWith('http')) {
-          return <WebPreview url={href} />;
-        }
-
-        return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
-      } catch (err) {
-        console.error('Link render error', err);
-        return <a href={href} {...props}>{children}</a>;
-      }
-    },
-    img: ({ src, alt }: any) => {
-      try {
-        const meta = metadataCache.get(src || '');
-        if (meta) {
-          return (
-            <img
-              src={src}
-              alt={alt}
-              width={meta.width}
-              height={meta.height}
-              style={{
-                aspectRatio: `${meta.width} / ${meta.height}`,
-                height: 'auto',
-                maxWidth: '100%',
-                display: 'block',
-                margin: '1em auto'
-              }}
-            />
-          );
-        }
-        return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px', display: 'block', margin: '1em auto' }} />;
-      } catch (err) {
-        return <img src={src} alt={alt} style={{ maxWidth: '100%' }} />;
-      }
-    },
-    pre: ({ children, ...props }: any) => {
-      try {
-        const child = Array.isArray(children) ? children[0] : children;
-        if (React.isValidElement(child) &&
-          (child.props as any).className?.includes('language-fabric')) {
-          return <>{children}</>;
-        }
-        if (React.isValidElement(child) &&
-          (child.props as any).className?.includes('language-spreadsheet')) {
-          return <>{children}</>;
-        }
-        return <div {...props}>{children}</div>;
-      } catch (err) {
-        return <pre {...props}>{children}</pre>;
-      }
-    },
-    code: ({ node, inline, className, children, ...props }: any) => {
-      try {
-        const match = /language-(\w+)/.exec(className || '');
-        const language = match ? match[1] : '';
-        const json = String(children).replace(/\n$/, '');
-
-        if (!inline && language === 'fabric') {
-          return <FabricPreview json={json} onClick={!isReadOnly && onEditDrawing ? () => onEditDrawing(json) : undefined} />;
-        }
-
-        if (!inline && language === 'spreadsheet') {
-          return <SpreadsheetPreview json={json} onClick={!isReadOnly && onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
-        }
-
-        if (!inline) {
-          return (
-            <SyntaxHighlighter
-              style={isDark ? vscDarkPlus : vs}
-              language={language || 'text'}
-              PreTag="div"
-              {...props}
-            >
-              {json}
-            </SyntaxHighlighter>
-          );
-        }
-
-        return <code className={className} {...props}>{children}</code>;
-      } catch (err) {
-        return <code className={className} {...props}>{children}</code>;
-      }
-    }
-  }), [onEditDrawing, onEditSpreadsheet, isDark]);
-
   return (
-    <MarkdownContainer $tableHeaderBg={tableHeaderBg} >
+    <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>
       <ReactMarkdown
         remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
         rehypePlugins={[rehypeRaw, rehypeKatex]}
         remarkRehypeOptions={{ allowDangerousHtml: true }}
-        components={components}
+        components={{
+          pre: ({ children, ...props }: any) => {
+            const child = Array.isArray(children) ? children[0] : children;
+            if (React.isValidElement(child) &&
+              (child.props as any).className?.includes('language-fabric')) {
+              return <>{children}</>;
+            }
+            if (React.isValidElement(child) &&
+              (child.props as any).className?.includes('language-spreadsheet')) {
+              return <>{children}</>;
+            }
+            return <div {...props}>{children}</div>;
+          },
+          code({ node, inline, className, children, ...props }: any) {
+            const match = /language-(\w+)/.exec(className || '');
+            const language = match ? match[1] : '';
+            const json = String(children).replace(/\n$/, '');
+
+            if (!inline && language === 'fabric') {
+              return <FabricPreview json={json} onClick={!isReadOnly && onEditDrawing ? () => onEditDrawing(json) : undefined} />;
+            }
+
+            if (!inline && language === 'spreadsheet') {
+              return <SpreadsheetPreview json={json} onClick={!isReadOnly && onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
+            }
+
+            if (!inline && language === 'web') {
+              try {
+                const url = json.trim();
+                new URL(url); // basic check
+                return <WebPreview url={url} />;
+              } catch (e) {
+                return <code className={className} {...props}>{children}</code>;
+              }
+            }
+
+            if (!inline && (language === 'youtube' || language === 'yt')) {
+              try {
+                let videoId = '';
+                const parts = json.split('\n');
+                const rawUrl = parts[0].trim();
+                const startParam = parts.find(p => p.startsWith('start='))?.split('=')[1];
+                const startTimestamp = startParam ? parseInt(startParam) : undefined;
+                const isShort = parts.some(p => p.includes('short'));
+
+                if (rawUrl.includes('youtube.com/watch?v=')) {
+                  videoId = new URL(rawUrl).searchParams.get('v') || '';
+                } else if (rawUrl.includes('youtu.be/')) {
+                  videoId = rawUrl.split('youtu.be/')[1].split('?')[0];
+                } else if (rawUrl.includes('youtube.com/shorts/')) {
+                  videoId = rawUrl.split('youtube.com/shorts/')[1].split('?')[0];
+                } else {
+                  videoId = rawUrl; // fallback assumes literal videoId
+                }
+
+                if (videoId) return <YouTubePlayer videoId={videoId} startTimestamp={startTimestamp} memoId={memoId} isShort={isShort} />;
+              } catch (e) { }
+            }
+
+            if (!inline) {
+              return (
+                <SyntaxHighlighter
+                  style={isDark ? vscDarkPlus : vs}
+                  language={language || 'text'}
+                  PreTag="div"
+                  {...props}
+                >
+                  {json}
+                </SyntaxHighlighter>
+              );
+            }
+
+            return <code className={className} {...props}>{children}</code>;
+          }
+        }}
       >
         {processedContent}
       </ReactMarkdown>
-    </MarkdownContainer >
+    </MarkdownContainer>
   );
-}, (prev, next) => {
-  // Only re-render if the content or visual style actually changes.
-  // We ignore functional props (onEditDrawing, etc) because they are typically
-  // inline-defined in parents and would otherwise trigger unnecessary re-renders
-  // and remounts of heavy components like YouTube players.
-  return prev.content === next.content &&
-    prev.tableHeaderBg === next.tableHeaderBg;
-});
+};

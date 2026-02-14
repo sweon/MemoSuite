@@ -15,7 +15,7 @@ import { HorizontalRulePlugin } from "@lexical/react/LexicalHorizontalRulePlugin
 import { AutoLinkPlugin } from "@lexical/react/LexicalAutoLinkPlugin";
 import { ClearEditorPlugin } from "@lexical/react/LexicalClearEditorPlugin";
 import { TRANSFORMERS, CHECK_LIST } from "@lexical/markdown";
-import type { Transformer } from "@lexical/markdown";
+import type { Transformer, TextMatchTransformer } from "@lexical/markdown";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
@@ -27,8 +27,8 @@ import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/m
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
-import { $nodesOfType, ParagraphNode } from "lexical";
-import type { LexicalNode, EditorState } from "lexical";
+import { $nodesOfType, ParagraphNode, $isTextNode, $createTextNode } from "lexical";
+import type { LexicalNode, EditorState, TextNode } from "lexical";
 
 import { HandwritingNode, $createHandwritingNode } from "./nodes/HandwritingNode";
 import { SpreadsheetNode, $createSpreadsheetNode } from "./nodes/SpreadsheetNode";
@@ -87,15 +87,15 @@ const EditorContainer = styled.div`
   container-type: inline-size;
 `;
 
-const Content = styled(ContentEditable)`
+const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number }>`
   min-height: 300px;
   max-height: 600px;
   outline: none;
-  padding: 1rem;
+  padding: 0.5rem;
   padding-bottom: 5rem; /* Large bottom padding for easy clicking below last node */
-  tab-size: 2;
+  tab-size: ${props => props.$tabSize || 4};
   overflow-y: auto;
-  font-size: calc(1.85cqi);
+  font-size: ${props => props.$fontSize ? `${props.$fontSize}pt` : 'calc(1.85cqi)'};
   line-height: 1.5;
 
   @container (min-width: 21cm) {
@@ -108,13 +108,13 @@ const Content = styled(ContentEditable)`
     overflow: hidden;
     position: absolute;
     text-overflow: ellipsis;
-    top: 50px;
-    left: 1rem;
-    font-size: calc(1.85cqi);
+    top: 0px;
+    left: 0rem;
+    font-size: ${props => props.$fontSize ? `${props.$fontSize}pt` : 'calc(1.85cqi)'};
     user-select: none;
     display: inline-block;
     pointer-events: none;
-    padding: 1rem;
+    padding: 0.5rem;
   }
 
   .editor-paragraph {
@@ -330,8 +330,45 @@ const COLLAPSIBLE_TRANSFORMER: Transformer = {
   type: "element",
 };
 
-const ALL_TRANSFORMERS: Transformer[] = [CHECK_LIST, IMAGE_TRANSFORMER, COLLAPSIBLE_TRANSFORMER, ...TRANSFORMERS];
-const EXPORT_TRANSFORMERS: Transformer[] = [CHECK_LIST, IMAGE_TRANSFORMER, COLLAPSIBLE_TRANSFORMER, ...TRANSFORMERS];
+const STYLE_TRANSFORMER: TextMatchTransformer = {
+  dependencies: [],
+  export: (node, exportChildren, exportFormat) => {
+    if ($isTextNode(node)) {
+      const style = node.getStyle();
+      if (style) {
+        const textContent = node.getTextContent();
+        return `<span style="${style}">${textContent}</span>`;
+      }
+    }
+    return null;
+  },
+  importRegExp: /<span style="([^"]+)">([^<]+)<\/span>/,
+  regExp: /<span style="([^"]+)">([^<]+)<\/span>/,
+  replace: (textNode, match) => {
+    const style = match[1];
+    const content = match[2];
+    const node = $createTextNode(content);
+    node.setStyle(style);
+    textNode.replace(node);
+  },
+  trigger: "<",
+  type: "text-match",
+};
+
+const ALL_TRANSFORMERS: Transformer[] = [
+  CHECK_LIST,
+  IMAGE_TRANSFORMER,
+  COLLAPSIBLE_TRANSFORMER,
+  STYLE_TRANSFORMER,
+  ...TRANSFORMERS,
+];
+const EXPORT_TRANSFORMERS: Transformer[] = [
+  CHECK_LIST,
+  IMAGE_TRANSFORMER,
+  COLLAPSIBLE_TRANSFORMER,
+  STYLE_TRANSFORMER,
+  ...TRANSFORMERS,
+];
 
 function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const [editor] = useLexicalComposerContext();
@@ -379,9 +416,27 @@ export interface LexicalEditorProps {
   placeholder?: string;
   initialScrollPercentage?: number;
   onToggleSidebar?: () => void;
+  spellCheck?: boolean;
+  markdownShortcuts?: boolean;
+  autoLink?: boolean;
+  tabIndentation?: boolean;
+  tabSize?: number;
+  fontSize?: number;
 }
 
-export const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, className, placeholder, onToggleSidebar }) => {
+export const LexicalEditor: React.FC<LexicalEditorProps> = ({
+  value,
+  onChange,
+  className,
+  placeholder,
+  onToggleSidebar,
+  spellCheck = true,
+  markdownShortcuts = true,
+  autoLink = true,
+  tabIndentation = true,
+  tabSize = 4,
+  fontSize = 11
+}) => {
   const initialConfig = {
     namespace: "MemoSuiteEditor",
     theme: MemoSuiteTheme,
@@ -412,24 +467,24 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, c
   return (
     <EditorContainer className={className}>
       <LexicalComposer initialConfig={initialConfig}>
-        <ToolbarPlugin onToggleSidebar={onToggleSidebar} />
+        <ToolbarPlugin onToggleSidebar={onToggleSidebar} defaultFontSize={fontSize} />
         <div className="editor-inner" style={{ position: 'relative' }}>
           <RichTextPlugin
-            contentEditable={<Content />}
+            contentEditable={<Content spellCheck={spellCheck} $tabSize={tabSize} $fontSize={fontSize} />}
             placeholder={
               <div className="editor-placeholder">{placeholder}</div>
             }
             ErrorBoundary={LexicalErrorBoundary}
           />
           <HistoryPlugin />
-          <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />
+          {markdownShortcuts && <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />}
           <ListPlugin />
           <LinkPlugin />
-          <AutoLinkPlugin matchers={MATCHERS} />
+          {autoLink && <AutoLinkPlugin matchers={MATCHERS} />}
           <CheckListPlugin />
           <TablePlugin />
           <TableResizerPlugin />
-          <TabIndentationPlugin />
+          {tabIndentation && <TabIndentationPlugin />}
           <HorizontalRulePlugin />
           <ClearEditorPlugin />
           <ListMaxIndentLevelPlugin maxDepth={7} />
