@@ -478,6 +478,26 @@ export function ToolbarPlugin(props: {
     const lineHeightMenuRef = useRef<HTMLDivElement>(null);
     const alignMenuRef = useRef<HTMLDivElement>(null);
     const indentMenuRef = useRef<HTMLDivElement>(null);
+    // tableMenuRef will now point to the wrapper div
+
+    // Menu alignment state
+    const [menuAlignments, setMenuAlignments] = useState({
+        color: false,
+        align: true,
+        lineHeight: true,
+        indent: true,
+        table: true
+    });
+
+    const updateMenuAlignment = (key: keyof typeof menuAlignments, ref: React.RefObject<any>) => {
+        if (ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            // If the element is past the horizontal center of the screen, align right
+            const shouldAlignRight = rect.left > (window.innerWidth / 2);
+            setMenuAlignments(prev => ({ ...prev, [key]: shouldAlignRight }));
+        }
+    };
+
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -907,7 +927,10 @@ export function ToolbarPlugin(props: {
             <ColorPickerWrapper ref={colorMenuRef}>
                 <Tooltip content={t.toolbar.font_color}>
                     <ToolbarButton
-                        onClick={() => setShowColorMenu(!showColorMenu)}
+                        onClick={() => {
+                            updateMenuAlignment('color', colorMenuRef);
+                            setShowColorMenu(!showColorMenu);
+                        }}
                         className={showColorMenu ? "is-active" : ""}
                         title={t.toolbar.font_color}
                         style={{ color: fontColor !== "#000000" ? fontColor : undefined }}
@@ -917,7 +940,7 @@ export function ToolbarPlugin(props: {
                 </Tooltip>
 
                 {showColorMenu && (
-                    <ColorMenu>
+                    <ColorMenu $rightAlign={menuAlignments.color}>
                         <ColorGrid>
                             {COLOR_PALETTE.map((row, rowIndex) => (
                                 <ColorRow key={`row - ${rowIndex} `}>
@@ -984,12 +1007,12 @@ export function ToolbarPlugin(props: {
             {/* Alignments Dropdown */}
             <ColorPickerWrapper ref={alignMenuRef}>
                 <Tooltip content={t.toolbar.alignment}>
-                    <ToolbarButton onClick={() => setShowAlignMenu(!showAlignMenu)} title={t.toolbar.alignment}>
+                    <ToolbarButton onClick={() => { updateMenuAlignment('align', alignMenuRef); setShowAlignMenu(!showAlignMenu); }} title={t.toolbar.alignment}>
                         <FaAlignLeft />
                     </ToolbarButton>
                 </Tooltip>
                 {showAlignMenu && (
-                    <FormatMenu $rightAlign style={{ minWidth: '120px' }}>
+                    <FormatMenu $rightAlign={menuAlignments.align} style={{ minWidth: '120px' }}>
                         <FormatOption onClick={() => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left"); setShowAlignMenu(false); }}>
                             <FaAlignLeft style={{ marginRight: '8px' }} /> {t.toolbar.align.left}
                         </FormatOption>
@@ -1009,12 +1032,12 @@ export function ToolbarPlugin(props: {
 
             <ColorPickerWrapper ref={lineHeightMenuRef}>
                 <Tooltip content={t.toolbar.line_spacing}>
-                    <ToolbarButton onClick={() => setShowLineHeightMenu(!showLineHeightMenu)} title={t.toolbar.line_spacing}>
+                    <ToolbarButton onClick={() => { updateMenuAlignment('lineHeight', lineHeightMenuRef); setShowLineHeightMenu(!showLineHeightMenu); }} title={t.toolbar.line_spacing}>
                         <RiLineHeight />
                     </ToolbarButton>
                 </Tooltip>
                 {showLineHeightMenu && (
-                    <FormatMenu $rightAlign>
+                    <FormatMenu $rightAlign={menuAlignments.lineHeight}>
                         {LINE_H_OPTIONS.map(height => (
                             <FormatOption key={height} onClick={() => {
                                 applyStyleText({ 'line-height': height });
@@ -1029,12 +1052,12 @@ export function ToolbarPlugin(props: {
 
             <ColorPickerWrapper ref={indentMenuRef}>
                 <Tooltip content={t.toolbar.indent}>
-                    <ToolbarButton onClick={() => setShowIndentMenu(!showIndentMenu)} title={t.toolbar.indent}>
+                    <ToolbarButton onClick={() => { updateMenuAlignment('indent', indentMenuRef); setShowIndentMenu(!showIndentMenu); }} title={t.toolbar.indent}>
                         <RiIndentIncrease />
                     </ToolbarButton>
                 </Tooltip>
                 {showIndentMenu && (
-                    <FormatMenu $rightAlign style={{ minWidth: '140px' }}>
+                    <FormatMenu $rightAlign={menuAlignments.indent} style={{ minWidth: '140px' }}>
                         <FormatOption onClick={() => { editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }}>
                             <RiIndentIncrease style={{ marginRight: '8px' }} /> {t.toolbar.indent_options.indent}
                         </FormatOption>
@@ -1047,10 +1070,10 @@ export function ToolbarPlugin(props: {
 
             {/* Insert Nodes */}
             {/* Table */}
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }} ref={tableMenuRef}>
                 <Tooltip content={t.toolbar.table}>
                     <ToolbarButton
-                        onClick={() => setShowTableMenu(!showTableMenu)}
+                        onClick={() => { updateMenuAlignment('table', tableMenuRef); setShowTableMenu(!showTableMenu); }}
                         className={showTableMenu ? "is-active" : ""}
                     >
                         <FaTable />
@@ -1058,7 +1081,7 @@ export function ToolbarPlugin(props: {
                 </Tooltip>
 
                 {showTableMenu && (
-                    <TableInsertMenu $rightAlign ref={tableMenuRef}>
+                    <TableInsertMenu $rightAlign={menuAlignments.table}>
                         <MenuTitle>{t.toolbar.table_menu.title}</MenuTitle>
                         <InputGroup>
                             <label>{t.toolbar.table_menu.rows}</label>
