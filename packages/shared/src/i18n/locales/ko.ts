@@ -20,5 +20,58 @@ export const ko = {
         import: "가져오기",
         reset_confirm: "이 언어에 대한 새 비어있는 번역을 만드시겠습니까?",
         import_match_only: "일치하는 키만 가져오기 (권장)",
+    },
+    toolbar: {
+        toggle_sidebar: "사이드바 토글",
+        handwriting: "필기",
+        spreadsheet: "스프레드시트",
+        undo: "실행 취소 (Ctrl+Z)",
+        redo: "다시 실행 (Ctrl+Y)",
+        normal: "일반",
+        h1: "제목 1",
+        h2: "제목 2",
+        h3: "제목 3",
+        bullet_list: "글머리 기호 목록",
+        numbered_list: "번호 매기기 목록",
+        check_list: "체크리스트",
+        quote: "인용구",
+        bold: "굵게 (Ctrl+B)",
+        italic: "기울임꼴 (Ctrl+I)",
+        underline: "밑줄 (Ctrl+U)",
+        strikethrough: "취소선",
+        font_size: "글자 크기",
+        font_color: "글자 색상",
+        inline_code: "인라인 코드",
+        link: "링크",
+        image: "이미지 삽입",
+        collapsible: "접기 (상세 내용)",
+        alignment: "정렬",
+        line_spacing: "줄 간격",
+        indent: "들여쓰기 옵션",
+        table: "표 삽입",
+        horizontal_rule: "구분선",
+        clear: "모든 내용 지우기",
+        table_menu: {
+            title: "표 삽입",
+            rows: "행",
+            columns: "열",
+            header_row: "제목 행",
+            header_column: "제목 열",
+            create: "표 만들기"
+        },
+        align: {
+            left: "왼쪽 정렬",
+            center: "가운데 정렬",
+            right: "오른쪽 정렬",
+            justify: "양쪽 정렬"
+        },
+        indent_options: {
+            indent: "들여쓰기 (Tab)",
+            outdent: "내어쓰기 (Shift+Tab)"
+        },
+        custom_color: "사용자 지정 색상",
+        image_prompt: "이미지 URL을 입력하세요:",
+        collapsible_prompt: "제목을 입력하세요:",
+        collapsible_default_title: "상세 내용"
     }
 };

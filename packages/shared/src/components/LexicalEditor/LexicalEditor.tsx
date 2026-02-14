@@ -27,14 +27,17 @@ import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/m
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
-import { $nodesOfType } from "lexical";
+import { $nodesOfType, ParagraphNode } from "lexical";
 import type { LexicalNode } from "lexical";
 
 import { HandwritingNode, $createHandwritingNode, $isHandwritingNode } from "./nodes/HandwritingNode";
 import { SpreadsheetNode, $createSpreadsheetNode, $isSpreadsheetNode } from "./nodes/SpreadsheetNode";
+import { ImageNode, $createImageNode, $isImageNode } from "./nodes/ImageNode";
+import { CollapsibleNode, $createCollapsibleNode, $isCollapsibleNode } from "./nodes/CollapsibleNode";
 
 import { ToolbarPlugin } from "./plugins/ToolbarPlugin";
 import { ListMaxIndentLevelPlugin } from "./plugins/ListMaxIndentLevelPlugin";
+import { TableResizerPlugin } from "./plugins/TableResizerPlugin";
 
 const URL_REGEX =
   /((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/;
@@ -73,35 +76,41 @@ const MATCHERS = [
 
 const EditorContainer = styled.div`
   position: relative;
-  line-height: 1.6;
-  font-weight: 400;
   text-align: left;
   border-radius: 8px;
-  background: ${(props: any) => props.theme.colors?.surface || "#fff"};
-  color: ${(props: any) => props.theme.colors?.text || "#333"};
-  border: 1px solid ${(props: any) => props.theme.colors?.border || "#eee"};
+  background: #1e1e1e; /* Deep dark background */
+  color: #d4d4d4; /* Soft muted text */
+  border: 1px solid #333;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  container-type: inline-size;
 `;
 
 const Content = styled(ContentEditable)`
-  min-height: 150px;
+  min-height: 300px;
   max-height: 600px;
   outline: none;
   padding: 1rem;
+  padding-bottom: 5rem; /* Large bottom padding for easy clicking below last node */
   tab-size: 2;
   overflow-y: auto;
+  font-size: calc(1.85cqi);
+  line-height: 1.5;
+
+  @container (min-width: 21cm) {
+    /* Optional: cap the scaling if desired, or keep it perfectly relative */
+  }
   
   /* Theme Styles */
   .editor-placeholder {
-    color: #999;
+    color: #666;
     overflow: hidden;
     position: absolute;
     text-overflow: ellipsis;
     top: 50px;
     left: 1rem;
-    font-size: 15px;
+    font-size: calc(1.85cqi);
     user-select: none;
     display: inline-block;
     pointer-events: none;
@@ -110,20 +119,21 @@ const Content = styled(ContentEditable)`
 
   .editor-paragraph {
     margin: 0;
-    margin-bottom: 8px;
+    margin-bottom: 0px;
     position: relative;
+    color: #d4d4d4;
   }
   
-  .editor-heading-h1 { font-size: 1.8em; font-weight: 700; margin: 0.5em 0; }
-  .editor-heading-h2 { font-size: 1.5em; font-weight: 700; margin: 0.5em 0; }
-  .editor-heading-h3 { font-size: 1.25em; font-weight: 700; margin: 0.5em 0; }
+  .editor-heading-h1 { font-size: 1.8em; font-weight: 700; margin: 0.5em 0; color: #fff; }
+  .editor-heading-h2 { font-size: 1.5em; font-weight: 700; margin: 0.5em 0; color: #eee; }
+  .editor-heading-h3 { font-size: 1.25em; font-weight: 700; margin: 0.5em 0; color: #ddd; }
   
   .editor-quote {
     margin: 1em 0;
     margin-left: 0;
     font-size: 15px;
-    color: #666;
-    border-left: 4px solid #ddd;
+    color: #aaa;
+    border-left: 4px solid #444;
     padding-left: 16px;
     font-style: italic;
   }
@@ -143,7 +153,8 @@ const Content = styled(ContentEditable)`
   .editor-text-underlineStrikethrough { text-decoration: underline line-through; }
   
   .editor-text-code {
-    background-color: #f0f2f5;
+    background-color: #2d2d2d;
+    color: #ce9178; /* Muted orange for code */
     padding: 2px 4px;
     border-radius: 4px;
     font-family: 'Fira Code', Menlo, Consolas, Monaco, monospace;
@@ -151,7 +162,8 @@ const Content = styled(ContentEditable)`
   }
   
   .editor-code {
-    background-color: #f8f9fa;
+    background-color: #252526;
+    color: #d4d4d4;
     font-family: 'Fira Code', Menlo, Consolas, Monaco, monospace;
     display: block;
     padding: 16px;
@@ -161,7 +173,7 @@ const Content = styled(ContentEditable)`
     border-radius: 8px;
     overflow-x: auto;
     position: relative;
-    border: 1px solid #eee;
+    border: 1px solid #333;
   }
 
   .editor-link {
@@ -175,14 +187,24 @@ const Content = styled(ContentEditable)`
     border-collapse: collapse;
     width: 100%;
     margin: 16px 0;
+    border: 1px solid #333;
+    /* Remove table-layout: fixed to allow resizer to control widths */
   }
   th, td {
-    border: 1px solid #ddd;
+    border: 1px solid #333;
     padding: 8px;
     text-align: left;
+    color: #d4d4d4;
+    word-break: break-word; /* Enable wrapping within cells */
+    overflow-wrap: break-word;
+    min-width: 40px;
   }
   th {
-    background-color: #f2f2f2;
+    background-color: #2d2d2d;
+    font-weight: 600;
+  }
+  td {
+    background-color: #1e1e1e;
   }
 
   /* Checklist Styles */
@@ -211,9 +233,9 @@ const Content = styled(ContentEditable)`
     left: 4px;
     position: absolute;
     display: block;
-    border: 1px solid #999;
+    border: 1px solid #555;
     border-radius: 2px;
-    background: #fff;
+    background: #2d2d2d;
     transition: all 0.2s ease;
   }
 
@@ -240,37 +262,76 @@ const Content = styled(ContentEditable)`
   .editor-listitem-checked {
     color: #999;
   }
+
+  /* Collapsible Styles */
+  .editor-collapsible {
+    border-radius: 6px;
+    padding: 0 12px;
+    margin: 8px 0;
+    transition: all 0.2s ease;
+    background: #252526; /* Darker neutral background */
+    border: 1px solid #333;
+
+    summary {
+      padding: 8px 0;
+      cursor: pointer;
+      font-weight: 600;
+      color: #9cdcfe; /* Soft blue for titles in dark mode */
+      outline: none;
+      user-select: none;
+      font-size: 0.9rem;
+      
+      &::-webkit-details-marker {
+        margin-right: 8px;
+        color: #555;
+      }
+    }
+
+    /* Target the content area */
+    & > *:not(summary) {
+      margin-bottom: 12px;
+    }
+  }
 `;
 
-const ALL_TRANSFORMERS = [CHECK_LIST, ...TRANSFORMERS];
+const IMAGE_TRANSFORMER: Transformer = {
+  dependencies: [ImageNode],
+  export: (node: LexicalNode) => {
+    if ($isImageNode(node)) {
+      return `![${node.__altText}](${node.__src})`;
+    }
+    return null;
+  },
+  regExp: /!\[([^\]]*)\]\(([^)]*)\)/,
+  replace: (textNode: any, match: any) => {
+    const [, altText, src] = match;
+    const imageNode = $createImageNode({ src, altText });
+    textNode.replace(imageNode);
+  },
+  type: "text-match",
+};
 
-const EXPORT_TRANSFORMERS: Transformer[] = [
-  {
-    dependencies: [HandwritingNode],
-    export: (node: LexicalNode) => {
-      if ($isHandwritingNode(node)) {
-        return "```fabric\n" + node.getData() + "\n```";
-      }
-      return null;
-    },
-    regExp: /dummy/,
-    replace: () => { },
-    type: "element",
+const COLLAPSIBLE_TRANSFORMER: Transformer = {
+  dependencies: [CollapsibleNode],
+  export: (node: LexicalNode) => {
+    if ($isCollapsibleNode(node)) {
+      const children = (node as any).getChildren();
+      const content = children.map((n: any) => n.getTextContent()).join('\n');
+      return `:::collapse ${node.__title}\n${content}\n:::`;
+    }
+    return null;
   },
-  {
-    dependencies: [SpreadsheetNode],
-    export: (node: LexicalNode) => {
-      if ($isSpreadsheetNode(node)) {
-        return "```spreadsheet\n" + node.getData() + "\n```";
-      }
-      return null;
-    },
-    regExp: /dummy/,
-    replace: () => { },
-    type: "element",
+  regExp: /^:::collapse\s*(.*)$/,
+  replace: (textNode: any, match: any) => {
+    const title = match[1]?.trim() || "Details";
+    const node = $createCollapsibleNode(true, title);
+    textNode.replace(node);
   },
-  ...ALL_TRANSFORMERS,
-];
+  type: "element",
+};
+
+const ALL_TRANSFORMERS: Transformer[] = [CHECK_LIST, IMAGE_TRANSFORMER, COLLAPSIBLE_TRANSFORMER, ...TRANSFORMERS];
+const EXPORT_TRANSFORMERS: Transformer[] = [CHECK_LIST, IMAGE_TRANSFORMER, COLLAPSIBLE_TRANSFORMER, ...TRANSFORMERS];
 
 function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const [editor] = useLexicalComposerContext();
@@ -317,9 +378,10 @@ export interface LexicalEditorProps {
   className?: string; // For styled-components extension
   placeholder?: string;
   initialScrollPercentage?: number;
+  onToggleSidebar?: () => void;
 }
 
-export const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, className, placeholder }) => {
+export const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, className, placeholder, onToggleSidebar }) => {
   const initialConfig = {
     namespace: "MemoSuiteEditor",
     theme: MemoSuiteTheme,
@@ -327,6 +389,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, c
       console.error(error);
     },
     nodes: [
+      ParagraphNode,
       HeadingNode,
       QuoteNode,
       ListNode,
@@ -340,14 +403,16 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, c
       LinkNode,
       HorizontalRuleNode,
       HandwritingNode,
-      SpreadsheetNode
+      SpreadsheetNode,
+      ImageNode,
+      CollapsibleNode
     ]
   };
 
   return (
     <EditorContainer className={className}>
       <LexicalComposer initialConfig={initialConfig}>
-        <ToolbarPlugin />
+        <ToolbarPlugin onToggleSidebar={onToggleSidebar} />
         <div className="editor-inner" style={{ position: 'relative' }}>
           <RichTextPlugin
             contentEditable={<Content />}
@@ -363,6 +428,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({ value, onChange, c
           <AutoLinkPlugin matchers={MATCHERS} />
           <CheckListPlugin />
           <TablePlugin />
+          <TableResizerPlugin />
           <TabIndentationPlugin />
           <HorizontalRulePlugin />
           <ClearEditorPlugin />

@@ -20,5 +20,58 @@ export const en = {
         import: "Import",
         reset_confirm: "Create new empty translation for this language?",
         import_match_only: "Import only matching keys (recommended)",
+    },
+    toolbar: {
+        toggle_sidebar: "Toggle Sidebar",
+        handwriting: "Handwriting",
+        spreadsheet: "Spreadsheet",
+        undo: "Undo (Ctrl+Z)",
+        redo: "Redo (Ctrl+Y)",
+        normal: "Normal",
+        h1: "Heading 1",
+        h2: "Heading 2",
+        h3: "Heading 3",
+        bullet_list: "Bullet List",
+        numbered_list: "Numbered List",
+        check_list: "Check List",
+        quote: "Quote",
+        bold: "Bold (Ctrl+B)",
+        italic: "Italic (Ctrl+I)",
+        underline: "Underline (Ctrl+U)",
+        strikethrough: "Strikethrough",
+        font_size: "Font Size",
+        font_color: "Font Color",
+        inline_code: "Inline Code",
+        link: "Link",
+        image: "Insert Image",
+        collapsible: "Collapsible (Details)",
+        alignment: "Alignment",
+        line_spacing: "Line Spacing",
+        indent: "Indent Options",
+        table: "Insert Table",
+        horizontal_rule: "Horizontal Rule",
+        clear: "Clear All Content",
+        table_menu: {
+            title: "Insert Table",
+            rows: "Rows",
+            columns: "Columns",
+            header_row: "Header Row",
+            header_column: "Header Column",
+            create: "Create Table"
+        },
+        align: {
+            left: "Left Align",
+            center: "Center Align",
+            right: "Right Align",
+            justify: "Justify Align"
+        },
+        indent_options: {
+            indent: "Indent (Tab)",
+            outdent: "Outdent (Shift+Tab)"
+        },
+        custom_color: "Custom Color",
+        image_prompt: "Enter image URL:",
+        collapsible_prompt: "Enter title:",
+        collapsible_default_title: "Details"
     }
 };

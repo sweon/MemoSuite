@@ -25,7 +25,8 @@ export * from './components/ThreadableList';
 export * from './components/PremiumCard';
 export * from './components/PrintSettingsModal';
 export * from './components/CopyModeOverlay';
-export * from './components/TiptapEditor/TiptapEditor';
+export * from './components/Tooltip';
+export * from './components/LexicalEditor/LexicalEditor';
 
 // Auto Backup
 export * from './autoBackup';
