@@ -35,6 +35,7 @@ import { TOGGLE_LINK_COMMAND, $isLinkNode } from "@lexical/link";
 import { INSERT_TABLE_COMMAND } from "@lexical/table";
 import { INSERT_HORIZONTAL_RULE_COMMAND } from "@lexical/react/LexicalHorizontalRuleNode";
 import { useCallback, useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import styled from "styled-components";
 import {
     FaBold, FaItalic, FaStrikethrough, FaCode,
@@ -50,17 +51,20 @@ import { $createCollapsibleNode } from "../nodes/CollapsibleNode";
 import { Tooltip } from "../../Tooltip";
 import { useLanguage } from "../../../i18n";
 
-const ToolbarContainer = styled.div`
+const ToolbarContainer = styled.div<{ $isPortaled?: boolean; $top?: number }>`
   display: flex;
   gap: 1.5px;
-  padding: 4px 6px;
-  border-bottom: 1px solid ${(props: any) => props.theme.colors?.border || "#eee"};
-  background: ${(props: any) => props.theme.colors?.surface || "#fff"};
+  padding: ${props => props.$isPortaled ? '0' : '4px 6px'};
+  border-bottom: ${props => props.$isPortaled ? 'none' : `1px solid ${props.theme.colors?.border || "#eee"}`};
+  background: ${props => props.$isPortaled ? 'transparent' : (props.theme.colors?.surface || "#fff")};
   flex-wrap: wrap;
   align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  
+  ${props => !props.$isPortaled && `
+    position: sticky;
+    top: ${props.$top || 0}px;
+    z-index: 10;
+  `}
 `;
 
 const ToolbarButton = styled.button`
@@ -448,6 +452,12 @@ export function ToolbarPlugin({ onToggleSidebar, defaultFontSize = 11 }: { onTog
     const [showLineHeightMenu, setShowLineHeightMenu] = useState(false);
     const [showAlignMenu, setShowAlignMenu] = useState(false);
     const [showIndentMenu, setShowIndentMenu] = useState(false);
+    const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+    useEffect(() => {
+        const target = document.getElementById("lexical-toolbar-portal");
+        if (target) setPortalTarget(target);
+    }, []);
 
     const colorInputRef = useRef<HTMLInputElement>(null);
     const colorMenuRef = useRef<HTMLDivElement>(null);
@@ -730,8 +740,8 @@ export function ToolbarPlugin({ onToggleSidebar, defaultFontSize = 11 }: { onTog
         [applyStyleText]
     );
 
-    return (
-        <ToolbarContainer>
+    const toolbarContent = (
+        <ToolbarContainer $isPortaled={!!portalTarget}>
             {/* Sidebar Toggle */}
             {onToggleSidebar && (
                 <Tooltip content={t.toolbar.toggle_sidebar}>
@@ -1098,4 +1108,10 @@ export function ToolbarPlugin({ onToggleSidebar, defaultFontSize = 11 }: { onTog
             </Tooltip>
         </ToolbarContainer>
     );
+
+    if (portalTarget) {
+        return createPortal(toolbarContent, portalTarget);
+    }
+
+    return toolbarContent;
 }

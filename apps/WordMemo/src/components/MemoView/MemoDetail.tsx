@@ -1531,6 +1531,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
               <ActionButton $variant="cancel" onClick={handleExit}>
                 <FiX size={14} /> {t.word_detail.exit}
               </ActionButton>
+              <div id="lexical-toolbar-portal" style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', marginLeft: '8px', borderLeft: '1px solid #eee', paddingLeft: '8px' }} />
               <ActionButton onClick={handleRandomWord}>
                 <FiList size={14} /> {t.word_detail.random_word}
               </ActionButton>

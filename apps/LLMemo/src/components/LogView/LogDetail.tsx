@@ -1123,6 +1123,7 @@ export const LogDetail: React.FC = () => {
                 <FiX size={16} />
                 <span className="hide-on-mobile">{t.log_detail.exit}</span>
               </ActionButton>
+              <div id="lexical-toolbar-portal" style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', marginLeft: '8px', borderLeft: '1px solid #eee', paddingLeft: '8px' }} />
             </>
           ) : (
             <>
