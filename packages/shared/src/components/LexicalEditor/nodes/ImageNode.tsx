@@ -9,7 +9,6 @@ import type {
     SerializedLexicalNode,
     Spread,
 } from "lexical";
-import React from "react";
 import styled from "styled-components";
 
 const ImageWrapper = styled.div`

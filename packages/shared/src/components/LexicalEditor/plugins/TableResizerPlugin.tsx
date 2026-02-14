@@ -1,13 +1,9 @@
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
     $getNearestNodeFromDOMNode,
-    $getSelection,
-    $isRangeSelection,
-    COMMAND_PRIORITY_LOW,
-    LexicalEditor,
 } from "lexical";
-import { $isTableCellNode, TableCellNode } from "@lexical/table";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { $isTableCellNode } from "@lexical/table";
+import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import styled from "styled-components";
 

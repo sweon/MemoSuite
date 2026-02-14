@@ -13,9 +13,8 @@ import {
     $insertNodes,
     INDENT_CONTENT_COMMAND,
     OUTDENT_CONTENT_COMMAND,
-    EditorState,
 } from "lexical";
-import type { LexicalEditor, RangeSelection, NodeKey } from "lexical";
+import type { EditorState } from "lexical";
 import {
     $isListNode,
     ListNode,
@@ -28,8 +27,8 @@ import {
     $createHeadingNode,
     $createQuoteNode,
     $isHeadingNode,
-    HeadingTagType,
 } from "@lexical/rich-text";
+import type { HeadingTagType } from "@lexical/rich-text";
 import { $setBlocksType, $patchStyleText, $getSelectionStyleValueForProperty } from "@lexical/selection";
 import { $getNearestNodeOfType, mergeRegister, $insertNodeToNearestRoot } from "@lexical/utils";
 import { TOGGLE_LINK_COMMAND, $isLinkNode } from "@lexical/link";
@@ -43,7 +42,7 @@ import {
     FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown
 } from "react-icons/fa";
 import { FiPenTool, FiSidebar } from "react-icons/fi";
-import { RiTable2, RiFontSize, RiLineHeight, RiIndentIncrease, RiIndentDecrease, RiMarkPenLine } from "react-icons/ri";
+import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
 import { $createHandwritingNode } from "../nodes/HandwritingNode";
 import { $createSpreadsheetNode } from "../nodes/SpreadsheetNode";
 import { $createImageNode } from "../nodes/ImageNode";
@@ -100,54 +99,6 @@ const ToolbarButton = styled.button`
   }
 `;
 
-const Divider = styled.div`
-  width: 1px;
-  height: 20px;
-  background-color: ${(props: any) => props.theme.colors?.border || "#eee"};
-  margin: 0 4px;
-`;
-
-const DropdownContainer = styled.div`
-  position: relative;
-  display: flex;
-  align-items: center;
-`;
-
-const DropdownMenu = styled.div<{ $visible: boolean }>`
-  display: ${(props: any) => (props.$visible ? "flex" : "none")};
-  position: absolute;
-  top: 100%;
-  left: 0;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  padding: 4px;
-  z-index: 100;
-  flex-direction: column;
-  min-width: 120px;
-  max-width: 90vw;
-  margin-top: 4px;
-`;
-
-const DropdownItem = styled.button`
-  padding: 6px 10px;
-  background: transparent;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  text-align: left;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.1s ease;
-  white-space: nowrap;
-
-  &:hover {
-    background: #f0f2f5;
-  }
-`;
 
 const SelectWrapper = styled.div`
 position: relative;
@@ -209,18 +160,6 @@ min-width: 160px;
 margin-top: 4px;
 `;
 
-const ColorPickerContainer = styled.div`
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 200;
-  background: white;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  margin-top: 4px;
-`;
 
 const ColorGrid = styled.div`
   display: grid;
@@ -235,32 +174,32 @@ gap: 4px;
 `;
 
 const FormatMenu = styled.div<{ $rightAlign?: boolean }>`
-position: absolute;
-top: 100 %;
+  position: absolute;
+  top: 100%;
   ${props => props.$rightAlign ? 'right: 0;' : 'left: 0;'}
-background: #fff;
-border: 1px solid #ddd;
-border - radius: 6px;
-padding: 4px 0;
-z - index: 100;
-box - shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-min - width: 80px;
-max - width: 90vw;
-margin - top: 4px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 4px 0;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 80px;
+  max-width: 90vw;
+  margin-top: 4px;
 `;
 
 const FormatOption = styled.div`
-padding: 8px 16px;
-cursor: pointer;
-font - size: 13px;
-color: #444;
-transition: background 0.2s ease;
-white - space: nowrap;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #444;
+  transition: background 0.2s ease;
+  white-space: nowrap;
 
-    &:hover {
+  &:hover {
     background: #f0f2f5;
     color: #000;
-}
+  }
 `;
 
 const FontSizeContainer = styled.div`
@@ -493,9 +432,7 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
     const [isCode, setIsCode] = useState(false);
     const [isLink, setIsLink] = useState(false);
     const [fontColor, setFontColor] = useState("#000000");
-    const [highlightColor, setHighlightColor] = useState("transparent");
     const [fontSize, setFontSize] = useState("11pt");
-    const [fontFamily, setFontFamily] = useState("Arial");
     const [showColorMenu, setShowColorMenu] = useState(false);
     const [showTableMenu, setShowTableMenu] = useState(false);
     const tableMenuRef = useRef<HTMLDivElement>(null);
@@ -508,18 +445,13 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
     useEffect(() => {
         latestFontSize.current = fontSize;
     }, [fontSize]);
-    const [showFontSizeMenu, setShowFontSizeMenu] = useState(false);
     const [showLineHeightMenu, setShowLineHeightMenu] = useState(false);
-    const [showHighlightMenu, setShowHighlightMenu] = useState(false);
     const [showAlignMenu, setShowAlignMenu] = useState(false);
     const [showIndentMenu, setShowIndentMenu] = useState(false);
 
     const colorInputRef = useRef<HTMLInputElement>(null);
-    const highlightInputRef = useRef<HTMLInputElement>(null);
     const colorMenuRef = useRef<HTMLDivElement>(null);
-    const fontSizeMenuRef = useRef<HTMLDivElement>(null);
     const lineHeightMenuRef = useRef<HTMLDivElement>(null);
-    const highlightMenuRef = useRef<HTMLDivElement>(null);
     const alignMenuRef = useRef<HTMLDivElement>(null);
     const indentMenuRef = useRef<HTMLDivElement>(null);
 
@@ -527,9 +459,7 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as Node;
             if (colorMenuRef.current && !colorMenuRef.current.contains(target)) setShowColorMenu(false);
-            if (fontSizeMenuRef.current && !fontSizeMenuRef.current.contains(target)) setShowFontSizeMenu(false);
             if (lineHeightMenuRef.current && !lineHeightMenuRef.current.contains(target)) setShowLineHeightMenu(false);
-            if (highlightMenuRef.current && !highlightMenuRef.current.contains(target)) setShowHighlightMenu(false);
             if (alignMenuRef.current && !alignMenuRef.current.contains(target)) setShowAlignMenu(false);
             if (indentMenuRef.current && !indentMenuRef.current.contains(target)) setShowIndentMenu(false);
             if (tableMenuRef.current && !tableMenuRef.current.contains(target)) setShowTableMenu(false);

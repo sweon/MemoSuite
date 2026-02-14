@@ -27,11 +27,11 @@ import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/m
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
-import { $nodesOfType, ParagraphNode, EditorState } from "lexical";
-import type { LexicalNode } from "lexical";
+import { $nodesOfType, ParagraphNode } from "lexical";
+import type { LexicalNode, EditorState } from "lexical";
 
-import { HandwritingNode, $createHandwritingNode, $isHandwritingNode } from "./nodes/HandwritingNode";
-import { SpreadsheetNode, $createSpreadsheetNode, $isSpreadsheetNode } from "./nodes/SpreadsheetNode";
+import { HandwritingNode, $createHandwritingNode } from "./nodes/HandwritingNode";
+import { SpreadsheetNode, $createSpreadsheetNode } from "./nodes/SpreadsheetNode";
 import { ImageNode, $createImageNode, $isImageNode } from "./nodes/ImageNode";
 import { CollapsibleNode, $createCollapsibleNode, $isCollapsibleNode } from "./nodes/CollapsibleNode";
 

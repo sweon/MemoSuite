@@ -1,5 +1,5 @@
-import { ElementNode, LexicalNode, NodeKey, SerializedElementNode, Spread, EditorConfig } from "lexical";
-import React from "react";
+import { ElementNode } from "lexical";
+import type { LexicalNode, NodeKey, SerializedElementNode, Spread } from "lexical";
 
 export type SerializedCollapsibleNode = Spread<
     {
@@ -27,7 +27,7 @@ export class CollapsibleNode extends ElementNode {
         this.__title = title;
     }
 
-    createDOM(config: EditorConfig): HTMLElement {
+    createDOM(): HTMLElement {
         const details = document.createElement("details");
         if (this.__open) {
             details.open = true;
