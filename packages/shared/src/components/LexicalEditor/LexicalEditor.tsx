@@ -422,6 +422,13 @@ export interface LexicalEditorProps {
   tabIndentation?: boolean;
   tabSize?: number;
   fontSize?: number;
+  onSave?: () => void;
+  onExit?: () => void;
+  onDelete?: () => void;
+  saveLabel?: string;
+  exitLabel?: string;
+  deleteLabel?: string;
+  saveDisabled?: boolean;
 }
 
 export const LexicalEditor: React.FC<LexicalEditorProps> = ({
@@ -435,7 +442,14 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   autoLink = true,
   tabIndentation = true,
   tabSize = 4,
-  fontSize = 11
+  fontSize = 11,
+  onSave,
+  onExit,
+  onDelete,
+  saveLabel,
+  exitLabel,
+  deleteLabel,
+  saveDisabled
 }) => {
   const initialConfig = {
     namespace: "MemoSuiteEditor",
@@ -467,7 +481,17 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   return (
     <EditorContainer className={className}>
       <LexicalComposer initialConfig={initialConfig}>
-        <ToolbarPlugin onToggleSidebar={onToggleSidebar} defaultFontSize={fontSize} />
+        <ToolbarPlugin
+          onToggleSidebar={onToggleSidebar}
+          defaultFontSize={fontSize}
+          onSave={onSave}
+          onExit={onExit}
+          onDelete={onDelete}
+          saveLabel={saveLabel}
+          exitLabel={exitLabel}
+          deleteLabel={deleteLabel}
+          saveDisabled={saveDisabled}
+        />
         <div className="editor-inner" style={{ position: 'relative' }}>
           <RichTextPlugin
             contentEditable={<Content spellCheck={spellCheck} $tabSize={tabSize} $fontSize={fontSize} />}

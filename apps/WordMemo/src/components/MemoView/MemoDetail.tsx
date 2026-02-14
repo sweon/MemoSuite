@@ -30,8 +30,6 @@ import { wordMemoSyncAdapter } from "../../utils/backupAdapter";
 import {
   FiEdit2,
   FiTrash2,
-  FiSave,
-  FiX,
   FiShare2,
   FiBookOpen,
   FiCoffee,
@@ -1517,20 +1515,6 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
         <ActionBar ref={actionBarRef}>
           {isEditing ? (
             <>
-              <ActionButton
-                $variant="primary"
-                onClick={() => handleSave()}
-                disabled={!isCurrentlyDirty}
-                style={{
-                  opacity: !isCurrentlyDirty ? 0.5 : 1,
-                  cursor: !isCurrentlyDirty ? "not-allowed" : "pointer",
-                }}
-              >
-                <FiSave size={14} /> {t.word_detail.save}
-              </ActionButton>
-              <ActionButton $variant="cancel" onClick={handleExit}>
-                <FiX size={14} /> {t.word_detail.exit}
-              </ActionButton>
               <div id="lexical-toolbar-portal" style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', marginLeft: '8px', borderLeft: '1px solid #eee', paddingLeft: '8px' }} />
               <ActionButton onClick={handleRandomWord}>
                 <FiList size={14} /> {t.word_detail.random_word}
@@ -1639,6 +1623,13 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
               }
               tabSize={Number(localStorage.getItem("editor_tab_size") || "4")}
               fontSize={Number(localStorage.getItem("editor_font_size") || "11")}
+              onSave={() => handleSave()}
+              onExit={handleExit}
+              onDelete={!isNew ? handleDelete : undefined}
+              saveLabel={t.word_detail.save}
+              exitLabel={t.word_detail.exit}
+              deleteLabel={t.word_detail.delete}
+              saveDisabled={!isCurrentlyDirty}
             />
           </ContentPadding>
         ) : (

@@ -42,7 +42,7 @@ import {
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
     FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown
 } from "react-icons/fa";
-import { FiPenTool, FiSidebar } from "react-icons/fi";
+import { FiPenTool, FiSidebar, FiSave, FiX, FiTrash2 } from "react-icons/fi";
 import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
 import { $createHandwritingNode } from "../nodes/HandwritingNode";
 import { $createSpreadsheetNode } from "../nodes/SpreadsheetNode";
@@ -423,7 +423,18 @@ const CreateButton = styled.button`
   }
 `;
 
-export function ToolbarPlugin({ onToggleSidebar, defaultFontSize = 11 }: { onToggleSidebar?: () => void, defaultFontSize?: number }) {
+export function ToolbarPlugin(props: {
+    onToggleSidebar?: () => void,
+    defaultFontSize?: number,
+    onSave?: () => void,
+    onExit?: () => void,
+    onDelete?: () => void,
+    saveLabel?: string,
+    exitLabel?: string,
+    deleteLabel?: string,
+    saveDisabled?: boolean
+}) {
+    const { onToggleSidebar, defaultFontSize = 11 } = props;
     const { t } = useLanguage();
     const [editor] = useLexicalComposerContext();
     const [canUndo, setCanUndo] = useState(false);
@@ -441,6 +452,9 @@ export function ToolbarPlugin({ onToggleSidebar, defaultFontSize = 11 }: { onTog
     const [showTableMenu, setShowTableMenu] = useState(false);
     const tableMenuRef = useRef<HTMLDivElement>(null);
     const [tableConfig, setTableConfig] = useState({ rows: "3", columns: "3", headerRow: true, headerColumn: false });
+
+    // Destructure new props
+    const { onSave, onExit, onDelete, saveLabel, exitLabel, deleteLabel } = props;
 
     const fontSizeIntervalRef = useRef<any>(null);
     const fsTimeoutRef = useRef<any>(null);
@@ -1106,6 +1120,34 @@ export function ToolbarPlugin({ onToggleSidebar, defaultFontSize = 11 }: { onTog
                     <FaEraser />
                 </ToolbarButton>
             </Tooltip>
+
+            {/* App Actions */}
+            {props.onSave && (
+                <Tooltip content={props.saveLabel || "Save"}>
+                    <ToolbarButton
+                        onClick={props.onSave}
+                        title={props.saveLabel || "Save"}
+                        disabled={props.saveDisabled}
+                        style={{ opacity: props.saveDisabled ? 0.5 : 1, cursor: props.saveDisabled ? 'not-allowed' : 'pointer' }}
+                    >
+                        <FiSave size={16} />
+                    </ToolbarButton>
+                </Tooltip>
+            )}
+            {props.onExit && (
+                <Tooltip content={props.exitLabel || "Exit"}>
+                    <ToolbarButton onClick={props.onExit} title={props.exitLabel || "Exit"}>
+                        <FiX size={16} />
+                    </ToolbarButton>
+                </Tooltip>
+            )}
+            {props.onDelete && (
+                <Tooltip content={props.deleteLabel || "Delete"}>
+                    <ToolbarButton onClick={props.onDelete} title={props.deleteLabel || "Delete"} style={{ color: '#d32f2f' }}>
+                        <FiTrash2 size={16} />
+                    </ToolbarButton>
+                </Tooltip>
+            )}
         </ToolbarContainer>
     );
 

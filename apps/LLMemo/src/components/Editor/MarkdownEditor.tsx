@@ -14,6 +14,13 @@ interface MarkdownEditorProps {
   tabIndentation?: boolean;
   tabSize?: number;
   fontSize?: number;
+  onSave?: () => void;
+  onExit?: () => void;
+  onDelete?: () => void;
+  saveLabel?: string;
+  exitLabel?: string;
+  deleteLabel?: string;
+  saveDisabled?: boolean; // Add saveDisabled prop
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
@@ -28,7 +35,14 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   autoLink,
   tabIndentation,
   tabSize,
-  fontSize
+  fontSize,
+  onSave,
+  onExit,
+  onDelete,
+  saveLabel,
+  exitLabel,
+  deleteLabel,
+  saveDisabled // Destructure saveDisabled
 }) => {
   return (
     <LexicalEditor
@@ -44,6 +58,13 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       tabIndentation={tabIndentation}
       tabSize={tabSize}
       fontSize={fontSize}
+      onSave={onSave}
+      onExit={onExit}
+      onDelete={onDelete}
+      saveLabel={saveLabel}
+      exitLabel={exitLabel}
+      deleteLabel={deleteLabel}
+      saveDisabled={saveDisabled} // Pass saveDisabled
     />
   );
 };

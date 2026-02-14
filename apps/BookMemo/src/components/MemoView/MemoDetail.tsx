@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiSave, FiX, FiShare2, FiArrowLeft, FiCalendar, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiFolder, FiPrinter } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiShare2, FiArrowLeft, FiCalendar, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiFolder, FiPrinter } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -1231,26 +1231,7 @@ export const MemoDetail: React.FC = () => {
                 <ActionBar ref={actionBarRef}>
                     {isEditing ? (
                         <>
-                            <ActionButton
-                                $variant="primary"
-                                onClick={() => handleSave()}
-                                disabled={!isCurrentlyDirty || (!!quote.trim() && !pageNumber)}
-                                style={{
-                                    opacity: (!isCurrentlyDirty || (!!quote.trim() && !pageNumber)) ? 0.5 : 1,
-                                    cursor: (!isCurrentlyDirty || (!!quote.trim() && !pageNumber)) ? 'not-allowed' : 'pointer'
-                                }}
-                            >
-                                <FiSave size={14} /> {t.memo_detail.save}
-                            </ActionButton>
-                            <ActionButton $variant="cancel" onClick={handleExit}>
-                                <FiX size={14} /> {t.memo_detail.exit}
-                            </ActionButton>
                             <div id="lexical-toolbar-portal" style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', marginLeft: '8px', borderLeft: '1px solid #eee', paddingLeft: '8px' }} />
-                            {!isNew && (
-                                <ActionButton $variant="danger" onClick={handleDelete}>
-                                    <FiTrash2 size={14} /> {t.memo_detail.delete}
-                                </ActionButton>
-                            )}
                         </>
                     ) : (
                         <>
@@ -1305,6 +1286,13 @@ export const MemoDetail: React.FC = () => {
                             tabIndentation={localStorage.getItem('editor_tab_indentation') !== 'false'}
                             tabSize={Number(localStorage.getItem('editor_tab_size') || '4')}
                             fontSize={Number(localStorage.getItem('editor_font_size') || '11')}
+                            onSave={() => handleSave()}
+                            onExit={handleExit}
+                            onDelete={!isNew ? handleDelete : undefined}
+                            saveLabel={t.memo_detail.save}
+                            exitLabel={t.memo_detail.exit}
+                            deleteLabel={t.memo_detail.delete}
+                            saveDisabled={!isCurrentlyDirty || (!!quote.trim() && !pageNumber)}
                         />
                     </ContentPadding>
                 ) : (

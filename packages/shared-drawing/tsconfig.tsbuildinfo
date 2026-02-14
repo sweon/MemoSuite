@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/translations.ts","./src/components/confirmmodal.tsx","./src/components/fabriccanvasmodal.tsx","./src/components/pdfpageselector.tsx","./src/contexts/exitguardcontext.tsx","./src/contexts/languagecontext.tsx","./src/utils/background.ts","./src/utils/device.ts","./src/utils/storage.ts"],"version":"5.9.3"}

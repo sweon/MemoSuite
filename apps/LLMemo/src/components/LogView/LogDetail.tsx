@@ -25,8 +25,6 @@ import { MarkdownView } from "../Editor/MarkdownView";
 import {
   FiEdit2,
   FiTrash2,
-  FiSave,
-  FiX,
   FiShare2,
   FiGitMerge,
   FiFolder,
@@ -1115,14 +1113,6 @@ export const LogDetail: React.FC = () => {
         <ActionBar ref={actionBarRef}>
           {isEditing ? (
             <>
-              <ActionButton $variant="primary" onClick={() => handleSave()}>
-                <FiSave size={16} />
-                <span className="hide-on-mobile">{t.log_detail.save}</span>
-              </ActionButton>
-              <ActionButton onClick={handleExit}>
-                <FiX size={16} />
-                <span className="hide-on-mobile">{t.log_detail.exit}</span>
-              </ActionButton>
               <div id="lexical-toolbar-portal" style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', marginLeft: '8px', borderLeft: '1px solid #eee', paddingLeft: '8px' }} />
             </>
           ) : (
@@ -1185,6 +1175,10 @@ export const LogDetail: React.FC = () => {
               }
               tabSize={Number(localStorage.getItem("editor_tab_size") || "4")}
               fontSize={Number(localStorage.getItem("editor_font_size") || "11")}
+              onSave={() => handleSave()}
+              onExit={handleExit}
+              saveLabel={t.log_detail.save}
+              exitLabel={t.log_detail.exit}
             />
           ) : (
             <MarkdownView
