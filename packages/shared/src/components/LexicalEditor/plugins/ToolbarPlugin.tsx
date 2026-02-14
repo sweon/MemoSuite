@@ -40,7 +40,7 @@ import styled from "styled-components";
 import {
     FaBold, FaItalic, FaStrikethrough, FaCode,
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
-    FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown
+    FaTable, FaMinus, FaTrash, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown
 } from "react-icons/fa";
 import { FiPenTool, FiSidebar } from "react-icons/fi";
 import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
@@ -1103,7 +1103,7 @@ export function ToolbarPlugin({ onToggleSidebar, defaultFontSize = 11 }: { onTog
                     onClick={() => editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined)}
                     title={t.toolbar.clear}
                 >
-                    <FaEraser />
+                    <FaTrash />
                 </ToolbarButton>
             </Tooltip>
         </ToolbarContainer>
