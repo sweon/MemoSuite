@@ -454,7 +454,7 @@ export function ToolbarPlugin(props: {
     const [tableConfig, setTableConfig] = useState({ rows: "3", columns: "3", headerRow: true, headerColumn: false });
 
     // Destructure new props
-    const { onSave, onExit, onDelete, saveLabel, exitLabel, deleteLabel } = props;
+
 
     const fontSizeIntervalRef = useRef<any>(null);
     const fsTimeoutRef = useRef<any>(null);
