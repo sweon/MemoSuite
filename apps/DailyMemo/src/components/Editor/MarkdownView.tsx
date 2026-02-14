@@ -1294,6 +1294,7 @@ interface MarkdownViewProps {
   content: string;
   memoId?: number;
   isReadOnly?: boolean;
+  isComment?: boolean;
   tableHeaderBg?: string;
   onEditDrawing?: (json: string) => void;
   onEditSpreadsheet?: (json: string) => void;

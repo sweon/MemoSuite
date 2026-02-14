@@ -28,7 +28,7 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
 import { $nodesOfType, ParagraphNode, $isTextNode, $createTextNode } from "lexical";
-import type { LexicalNode, EditorState, TextNode } from "lexical";
+import type { LexicalNode, EditorState } from "lexical";
 
 import { HandwritingNode, $createHandwritingNode } from "./nodes/HandwritingNode";
 import { SpreadsheetNode, $createSpreadsheetNode } from "./nodes/SpreadsheetNode";
@@ -332,7 +332,7 @@ const COLLAPSIBLE_TRANSFORMER: Transformer = {
 
 const STYLE_TRANSFORMER: TextMatchTransformer = {
   dependencies: [],
-  export: (node, exportChildren, exportFormat) => {
+  export: (node) => {
     if ($isTextNode(node)) {
       const style = node.getStyle();
       if (style) {
