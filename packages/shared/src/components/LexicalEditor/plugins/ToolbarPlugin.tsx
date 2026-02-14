@@ -203,133 +203,133 @@ const FormatOption = styled.div`
 `;
 
 const FontSizeContainer = styled.div`
-display: flex;
-align - items: center;
-gap: 4px;
-margin: 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 4px;
 `;
 
 const FontSizeDisplay = styled.div`
-display: flex;
-align - items: center;
-background: ${(props: any) => props.theme.colors?.surface || "#fff"};
-border: 1px solid ${(props: any) => props.theme.colors?.border || "#eee"};
-border - radius: 4px;
-height: 28px;
-padding: 0 4px;
-cursor: text;
+  display: flex;
+  align-items: center;
+  background: ${(props: any) => props.theme.colors?.surface || "#fff"};
+  border: 1px solid ${(props: any) => props.theme.colors?.border || "#eee"};
+  border-radius: 4px;
+  height: 28px;
+  padding: 0 4px;
+  cursor: text;
 
-  &: focus - within {
-    border - color: ${(props: any) => props.theme.colors?.primary || "#007bff"};
-}
+  &:focus-within {
+    border-color: ${(props: any) => props.theme.colors?.primary || "#007bff"};
+  }
 `;
 
 const FontSizeInput = styled.input`
-width: 20px;
-border: none;
-background: transparent;
-text - align: right;
-font - size: 13px;
-font - weight: 500;
-outline: none;
-padding: 0;
-color: ${(props: any) => props.theme.colors?.text || "#444"};
+  width: 20px;
+  border: none;
+  background: transparent;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  padding: 0;
+  color: ${(props: any) => props.theme.colors?.text || "#444"};
 
-  &:: -webkit - inner - spin - button,
-  &:: -webkit - outer - spin - button {
-    -webkit - appearance: none;
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
     margin: 0;
-}
+  }
 `;
 
 const FontSizeUnit = styled.span`
-font - size: 11px;
-color: #888;
-margin - left: 2px;
-user - select: none;
+  font-size: 11px;
+  color: #888;
+  margin-left: 2px;
+  user-select: none;
 `;
 
 const FontSizeControls = styled.div`
-display: flex;
-flex - direction: column;
-background: #eee;
-border - radius: 6px;
-overflow: hidden;
-width: 18px;
-height: 28px;
+  display: flex;
+  flex-direction: column;
+  background: #eee;
+  border-radius: 6px;
+  overflow: hidden;
+  width: 18px;
+  height: 28px;
 `;
 
 const SpinButton = styled.button`
-border: none;
-background: transparent;
-width: 100 %;
-flex: 1;
-display: flex;
-align - items: center;
-justify - content: center;
-cursor: pointer;
-color: #666;
-font - size: 8px;
-transition: background 0.1s ease;
+  border: none;
+  background: transparent;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #666;
+  font-size: 8px;
+  transition: background 0.1s ease;
 
-  &: first - child {
-    border - bottom: 0.5px solid #ccc;
-}
+  &:first-child {
+    border-bottom: 0.5px solid #ccc;
+  }
 
   &:hover {
     background: #e0e0e0;
     color: #333;
-}
+  }
   
   &:active {
     background: #d0d0d0;
-}
+  }
 `;
 
 const LINE_H_OPTIONS = ["1.0", "1.2", "1.5", "1.8", "2.0"];
 
 const ColorOption = styled.div<{ color: string }>`
-width: 18px;
-height: 18px;
-background - color: ${props => props.color};
-border: 1px solid #eee;
-border - radius: 3px;
-cursor: pointer;
-transition: all 0.1s ease;
+  width: 18px;
+  height: 18px;
+  background-color: ${props => props.color};
+  border: 1px solid #eee;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.1s ease;
 
   &:hover {
     transform: scale(1.15);
-    border - color: #666;
-    box - shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+    border-color: #666;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
 `;
 
 const CustomColorBtn = styled.button`
-display: flex;
-align - items: center;
-justify - content: center;
-gap: 6px;
-padding: 6px;
-border: 1px solid #eee;
-border - radius: 4px;
-background: #f8f9fa;
-font - size: 11px;
-font - weight: 500;
-cursor: pointer;
-color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  background: #f8f9fa;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #555;
   
   &:hover {
     background: #f0f2f5;
     color: #333;
-}
+  }
 `;
 
 const HiddenColorInput = styled.input`
-position: absolute;
-opacity: 0;
-width: 0;
-height: 0;
-pointer - events: none;
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 `;
 
 const COLOR_PALETTE = [
@@ -346,77 +346,77 @@ const COLOR_PALETTE = [
 ];
 
 const TableInsertMenu = styled.div<{ $rightAlign?: boolean }>`
-position: absolute;
-top: 100 %;
+  position: absolute;
+  top: 100%;
   ${props => props.$rightAlign ? 'right: 0;' : 'left: 0;'}
-z - index: 100;
-background: white;
-border: 1px solid #ddd;
-border - radius: 8px;
-padding: 16px;
-box - shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-width: 180px;
-max - width: 90vw;
-display: flex;
-flex - direction: column;
-gap: 12px;
+  z-index: 100;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 180px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 `;
 
 const MenuTitle = styled.div`
-font - size: 14px;
-font - weight: 700;
-color: #333;
-margin - bottom: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 4px;
 `;
 
 const InputGroup = styled.div`
-display: flex;
-justify - content: space - between;
-align - items: center;
-  
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
   label {
-    font - size: 13px;
+    font-size: 13px;
     color: #666;
-}
-  
+  }
+
   input {
     width: 60px;
     padding: 4px 8px;
     border: 1px solid #ddd;
-    border - radius: 4px;
-    font - size: 13px;
-}
+    border-radius: 4px;
+    font-size: 13px;
+  }
 `;
 
 const CheckboxGroup = styled.div`
   label {
     display: flex;
-    align - items: center;
+    align-items: center;
     gap: 8px;
-    font - size: 13px;
+    font-size: 13px;
     color: #666;
     cursor: pointer;
-}
-  
+  }
+
   input {
     cursor: pointer;
-}
+  }
 `;
 
 const CreateButton = styled.button`
-background: ${(props: any) => props.theme.colors?.primary || "#007bff"};
-color: white;
-border: none;
-border - radius: 4px;
-padding: 8px;
-font - size: 13px;
-font - weight: 600;
-cursor: pointer;
-transition: opacity 0.2s;
-  
+  background: ${(props: any) => props.theme.colors?.primary || "#007bff"};
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2;
+
   &:hover {
     opacity: 0.9;
-}
+  }
 `;
 
 export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
