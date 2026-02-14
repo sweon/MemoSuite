@@ -18,7 +18,7 @@ export class CollapsibleNode extends ElementNode {
     }
 
     static clone(node: CollapsibleNode): CollapsibleNode {
-        return new CollapsibleNode(node.__open, node.__title, node.__key);
+        return new CollapsibleNode(node.__open, node.__title, node.getKey());
     }
 
     constructor(open: boolean, title: string = "Details", key?: NodeKey) {
@@ -70,7 +70,7 @@ export class CollapsibleNode extends ElementNode {
     }
 
     setOpen(open: boolean): void {
-        const writable = this.getWritable();
+        const writable = this.getWritable() as CollapsibleNode;
         writable.__open = open;
     }
 
@@ -79,7 +79,7 @@ export class CollapsibleNode extends ElementNode {
     }
 
     setTitle(title: string): void {
-        const writable = this.getWritable();
+        const writable = this.getWritable() as CollapsibleNode;
         writable.__title = title;
     }
 

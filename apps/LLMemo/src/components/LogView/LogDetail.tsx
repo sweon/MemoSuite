@@ -366,9 +366,11 @@ export const LogDetail: React.FC = () => {
         [id]
     );
 
-    const { setIsDirty, setAppIsEditing } = useOutletContext<{
+    const { setIsDirty, setAppIsEditing, setSidebarOpen, isSidebarOpen } = useOutletContext<{
         setIsDirty: (d: boolean) => void;
         setAppIsEditing: (e: boolean) => void;
+        setSidebarOpen: (open: boolean) => void;
+        isSidebarOpen: boolean;
     }>() || {};
 
     const hasDraftChanges = !!commentDraft;
@@ -990,6 +992,7 @@ export const LogDetail: React.FC = () => {
                         <MarkdownEditor
                             value={content}
                             onChange={setContent}
+                            onToggleSidebar={() => setSidebarOpen?.(!isSidebarOpen)}
                         />
                     ) : (
                         <MarkdownView

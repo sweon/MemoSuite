@@ -31,7 +31,7 @@ export class HandwritingNode extends DecoratorNode<JSX.Element> {
     }
 
     static clone(node: HandwritingNode): HandwritingNode {
-        return new HandwritingNode(node.__data, node.__key);
+        return new HandwritingNode(node.__data, node.getKey());
     }
 
     static importJSON(serializedNode: SerializedHandwritingNode): HandwritingNode {
@@ -68,7 +68,7 @@ export class HandwritingNode extends DecoratorNode<JSX.Element> {
     }
 
     setData(data: string): void {
-        const writable = this.getWritable();
+        const writable = this.getWritable() as HandwritingNode;
         writable.__data = data;
     }
 

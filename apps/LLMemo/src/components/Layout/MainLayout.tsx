@@ -289,7 +289,14 @@ export const MainLayout: React.FC = () => {
             <h3>LLMemo</h3>
           </MobileHeader>
           {(!isMobile || (location.pathname !== '/' && location.pathname !== '/index.html')) && (
-            <Outlet context={{ setIsDirty, setAppIsEditing, movingLogId, setMovingLogId }} />
+            <Outlet context={{
+              setIsDirty,
+              setAppIsEditing,
+              movingLogId,
+              setMovingLogId,
+              isSidebarOpen,
+              setSidebarOpen
+            }} />
           )}
         </ContentWrapper>
       </Container>

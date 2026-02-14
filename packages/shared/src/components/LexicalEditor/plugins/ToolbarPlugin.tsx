@@ -13,7 +13,9 @@ import {
     $insertNodes,
     INDENT_CONTENT_COMMAND,
     OUTDENT_CONTENT_COMMAND,
+    EditorState,
 } from "lexical";
+import type { LexicalEditor, RangeSelection, NodeKey } from "lexical";
 import {
     $isListNode,
     ListNode,
@@ -98,235 +100,297 @@ const ToolbarButton = styled.button`
   }
 `;
 
-const SelectWrapper = styled.div`
+const Divider = styled.div`
+  width: 1px;
+  height: 20px;
+  background-color: ${(props: any) => props.theme.colors?.border || "#eee"};
+  margin: 0 4px;
+`;
+
+const DropdownContainer = styled.div`
   position: relative;
   display: flex;
   align-items: center;
-  margin: 0;
+`;
+
+const DropdownMenu = styled.div<{ $visible: boolean }>`
+  display: ${(props: any) => (props.$visible ? "flex" : "none")};
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  z-index: 100;
+  flex-direction: column;
+  min-width: 120px;
+  max-width: 90vw;
+  margin-top: 4px;
+`;
+
+const DropdownItem = styled.button`
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.1s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: #f0f2f5;
+  }
+`;
+
+const SelectWrapper = styled.div`
+position: relative;
+display: flex;
+align-items: center;
+margin: 0;
 `;
 
 const BlockSelect = styled.select`
-  appearance: none;
-  padding: 4px 28px 4px 10px;
-  border-radius: 6px;
-  border: 1px solid #eee;
-  outline: none;
-  font-size: 13px;
-  background: #f8f9fa;
-  color: #444;
-  cursor: pointer;
-  font-weight: 500;
-  min-width: 90px;
-  transition: all 0.2s ease;
+appearance: none;
+padding: 4px 28px 4px 10px;
+border-radius: 6px;
+border: 1px solid #eee;
+outline: none;
+font-size: 13px;
+background: #f8f9fa;
+color: #444;
+cursor: pointer;
+font-weight: 500;
+min-width: 90px;
+transition: all 0.2s ease;
 
   &:hover {
     background: #f0f2f5;
     border-color: #ddd;
-  }
+}
 `;
 
 const SelectArrow = styled.div`
-  position: absolute;
-  right: 10px;
-  pointer-events: none;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid #666;
+position: absolute;
+right: 10px;
+pointer-events: none;
+border-left: 4px solid transparent;
+border-right: 4px solid transparent;
+border-top: 5px solid #666;
 `;
 
 const ColorPickerWrapper = styled.div`
-  position: relative;
-  display: flex;
-  align-items: center;
+position: relative;
+display: flex;
+align-items: center;
 `;
 
 const ColorMenu = styled.div<{ $rightAlign?: boolean }>`
+position: absolute;
+top: 100%;
+  ${props => props.$rightAlign ? 'right: 0;' : 'left: 0;'}
+background: white;
+border: 1px solid #ddd;
+border-radius: 8px;
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+padding: 10px;
+z-index: 101; /* Slightly higher than others */
+display: flex;
+max-width: 90vw; /* Safety on mobile */
+flex-direction: column;
+gap: 10px;
+min-width: 160px;
+margin-top: 4px;
+`;
+
+const ColorPickerContainer = styled.div`
   position: absolute;
   top: 100%;
-  ${props => props.$rightAlign ? 'right: 0;' : 'left: 0;'}
+  left: 0;
+  z-index: 200;
   background: white;
+  padding: 10px;
   border: 1px solid #ddd;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  padding: 10px;
-  z-index: 101; /* Slightly higher than others */
-  display: flex;
-  max-width: 90vw; /* Safety on mobile */
-  flex-direction: column;
-  gap: 10px;
-  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   margin-top: 4px;
 `;
 
 const ColorGrid = styled.div`
   display: grid;
-  grid-template-rows: repeat(10, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 4px;
 `;
 
 const ColorRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 4px;
+display: grid;
+grid-template-columns: repeat(6, 1fr);
+gap: 4px;
 `;
 
 const FormatMenu = styled.div<{ $rightAlign?: boolean }>`
-  position: absolute;
-  top: 100%;
+position: absolute;
+top: 100 %;
   ${props => props.$rightAlign ? 'right: 0;' : 'left: 0;'}
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 4px 0;
-  z-index: 100;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  min-width: 80px;
-  max-width: 90vw;
-  margin-top: 4px;
+background: #fff;
+border: 1px solid #ddd;
+border - radius: 6px;
+padding: 4px 0;
+z - index: 100;
+box - shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+min - width: 80px;
+max - width: 90vw;
+margin - top: 4px;
 `;
 
 const FormatOption = styled.div`
-    padding: 8px 16px;
-    cursor: pointer;
-    font-size: 13px;
-    color: #444;
-    transition: background 0.2s ease;
-    white-space: nowrap;
+padding: 8px 16px;
+cursor: pointer;
+font - size: 13px;
+color: #444;
+transition: background 0.2s ease;
+white - space: nowrap;
 
     &:hover {
-        background: #f0f2f5;
-        color: #000;
-    }
+    background: #f0f2f5;
+    color: #000;
+}
 `;
 
 const FontSizeContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin: 0 4px;
+display: flex;
+align - items: center;
+gap: 4px;
+margin: 0 4px;
 `;
 
 const FontSizeDisplay = styled.div`
-  display: flex;
-  align-items: center;
-  background: ${(props: any) => props.theme.colors?.surface || "#fff"};
-  border: 1px solid ${(props: any) => props.theme.colors?.border || "#eee"};
-  border-radius: 4px;
-  height: 28px;
-  padding: 0 4px;
-  cursor: text;
+display: flex;
+align - items: center;
+background: ${(props: any) => props.theme.colors?.surface || "#fff"};
+border: 1px solid ${(props: any) => props.theme.colors?.border || "#eee"};
+border - radius: 4px;
+height: 28px;
+padding: 0 4px;
+cursor: text;
 
-  &:focus-within {
-    border-color: ${(props: any) => props.theme.colors?.primary || "#007bff"};
-  }
+  &: focus - within {
+    border - color: ${(props: any) => props.theme.colors?.primary || "#007bff"};
+}
 `;
 
 const FontSizeInput = styled.input`
-  width: 20px;
-  border: none;
-  background: transparent;
-  text-align: right;
-  font-size: 13px;
-  font-weight: 500;
-  outline: none;
-  padding: 0;
-  color: ${(props: any) => props.theme.colors?.text || "#444"};
+width: 20px;
+border: none;
+background: transparent;
+text - align: right;
+font - size: 13px;
+font - weight: 500;
+outline: none;
+padding: 0;
+color: ${(props: any) => props.theme.colors?.text || "#444"};
 
-  &::-webkit-inner-spin-button,
-  &::-webkit-outer-spin-button {
-    -webkit-appearance: none;
+  &:: -webkit - inner - spin - button,
+  &:: -webkit - outer - spin - button {
+    -webkit - appearance: none;
     margin: 0;
-  }
+}
 `;
 
 const FontSizeUnit = styled.span`
-  font-size: 11px;
-  color: #888;
-  margin-left: 2px;
-  user-select: none;
+font - size: 11px;
+color: #888;
+margin - left: 2px;
+user - select: none;
 `;
 
 const FontSizeControls = styled.div`
-  display: flex;
-  flex-direction: column;
-  background: #eee;
-  border-radius: 6px;
-  overflow: hidden;
-  width: 18px;
-  height: 28px;
+display: flex;
+flex - direction: column;
+background: #eee;
+border - radius: 6px;
+overflow: hidden;
+width: 18px;
+height: 28px;
 `;
 
 const SpinButton = styled.button`
-  border: none;
-  background: transparent;
-  width: 100%;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #666;
-  font-size: 8px;
-  transition: background 0.1s ease;
+border: none;
+background: transparent;
+width: 100 %;
+flex: 1;
+display: flex;
+align - items: center;
+justify - content: center;
+cursor: pointer;
+color: #666;
+font - size: 8px;
+transition: background 0.1s ease;
 
-  &:first-child {
-    border-bottom: 0.5px solid #ccc;
-  }
+  &: first - child {
+    border - bottom: 0.5px solid #ccc;
+}
 
   &:hover {
     background: #e0e0e0;
     color: #333;
-  }
+}
   
   &:active {
     background: #d0d0d0;
-  }
+}
 `;
 
 const LINE_H_OPTIONS = ["1.0", "1.2", "1.5", "1.8", "2.0"];
 
 const ColorOption = styled.div<{ color: string }>`
-  width: 18px;
-  height: 18px;
-  background-color: ${props => props.color};
-  border: 1px solid #eee;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: all 0.1s ease;
+width: 18px;
+height: 18px;
+background - color: ${props => props.color};
+border: 1px solid #eee;
+border - radius: 3px;
+cursor: pointer;
+transition: all 0.1s ease;
 
   &:hover {
     transform: scale(1.15);
-    border-color: #666;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
+    border - color: #666;
+    box - shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
 `;
 
 const CustomColorBtn = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  background: #f8f9fa;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  color: #555;
+display: flex;
+align - items: center;
+justify - content: center;
+gap: 6px;
+padding: 6px;
+border: 1px solid #eee;
+border - radius: 4px;
+background: #f8f9fa;
+font - size: 11px;
+font - weight: 500;
+cursor: pointer;
+color: #555;
   
   &:hover {
     background: #f0f2f5;
     color: #333;
-  }
+}
 `;
 
 const HiddenColorInput = styled.input`
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
+position: absolute;
+opacity: 0;
+width: 0;
+height: 0;
+pointer - events: none;
 `;
 
 const COLOR_PALETTE = [
@@ -343,77 +407,77 @@ const COLOR_PALETTE = [
 ];
 
 const TableInsertMenu = styled.div<{ $rightAlign?: boolean }>`
-  position: absolute;
-  top: 100%;
+position: absolute;
+top: 100 %;
   ${props => props.$rightAlign ? 'right: 0;' : 'left: 0;'}
-  z-index: 100;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  width: 180px;
-  max-width: 90vw;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+z - index: 100;
+background: white;
+border: 1px solid #ddd;
+border - radius: 8px;
+padding: 16px;
+box - shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+width: 180px;
+max - width: 90vw;
+display: flex;
+flex - direction: column;
+gap: 12px;
 `;
 
 const MenuTitle = styled.div`
-  font-size: 14px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 4px;
+font - size: 14px;
+font - weight: 700;
+color: #333;
+margin - bottom: 4px;
 `;
 
 const InputGroup = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+display: flex;
+justify - content: space - between;
+align - items: center;
   
   label {
-    font-size: 13px;
+    font - size: 13px;
     color: #666;
-  }
+}
   
   input {
     width: 60px;
     padding: 4px 8px;
     border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 13px;
-  }
+    border - radius: 4px;
+    font - size: 13px;
+}
 `;
 
 const CheckboxGroup = styled.div`
   label {
     display: flex;
-    align-items: center;
+    align - items: center;
     gap: 8px;
-    font-size: 13px;
+    font - size: 13px;
     color: #666;
     cursor: pointer;
-  }
+}
   
   input {
     cursor: pointer;
-  }
+}
 `;
 
 const CreateButton = styled.button`
-  background: ${(props: any) => props.theme.colors?.primary || "#007bff"};
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
+background: ${(props: any) => props.theme.colors?.primary || "#007bff"};
+color: white;
+border: none;
+border - radius: 4px;
+padding: 8px;
+font - size: 13px;
+font - weight: 600;
+cursor: pointer;
+transition: opacity 0.2s;
   
   &:hover {
     opacity: 0.9;
-  }
+}
 `;
 
 export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
@@ -431,10 +495,12 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
     const [fontColor, setFontColor] = useState("#000000");
     const [highlightColor, setHighlightColor] = useState("transparent");
     const [fontSize, setFontSize] = useState("11pt");
+    const [fontFamily, setFontFamily] = useState("Arial");
     const [showColorMenu, setShowColorMenu] = useState(false);
     const [showTableMenu, setShowTableMenu] = useState(false);
     const tableMenuRef = useRef<HTMLDivElement>(null);
     const [tableConfig, setTableConfig] = useState({ rows: "3", columns: "3", headerRow: true, headerColumn: false });
+
     const fontSizeIntervalRef = useRef<any>(null);
     const fsTimeoutRef = useRef<any>(null);
     const latestFontSize = useRef(fontSize);
@@ -524,14 +590,14 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
 
     useEffect(() => {
         return mergeRegister(
-            editor.registerUpdateListener(({ editorState }) => {
+            editor.registerUpdateListener(({ editorState }: { editorState: EditorState }) => {
                 editorState.read(() => {
                     updateToolbar();
                 });
             }),
             editor.registerCommand(
                 CAN_UNDO_COMMAND,
-                (payload) => {
+                (payload: boolean) => {
                     setCanUndo(payload);
                     return false;
                 },
@@ -539,8 +605,8 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
             ),
             editor.registerCommand(
                 CAN_REDO_COMMAND,
-                (payload) => {
-                    if (payload) setCanRedo(payload);
+                (payload: boolean) => {
+                    setCanRedo(payload);
                     return false;
                 },
                 1
@@ -685,7 +751,7 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
         (increment: boolean) => {
             const currentSize = parseInt(latestFontSize.current) || 11;
             const newSize = increment ? Math.min(99, currentSize + 1) : Math.max(1, currentSize - 1);
-            applyStyleText({ "font-size": `${newSize}pt` });
+            applyStyleText({ "font-size": `${newSize} pt` });
         },
         [applyStyleText]
     );
@@ -723,7 +789,7 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
         if (!isNaN(num)) {
             const clamped = Math.max(1, Math.min(99, num));
             editor.focus();
-            applyStyleText({ "font-size": `${clamped}pt` });
+            applyStyleText({ "font-size": `${clamped} pt` });
         }
     };
 
@@ -900,7 +966,7 @@ export function ToolbarPlugin({ onToggleSidebar }: { onToggleSidebar?: () => voi
                     <ColorMenu>
                         <ColorGrid>
                             {COLOR_PALETTE.map((row, rowIndex) => (
-                                <ColorRow key={`row-${rowIndex}`}>
+                                <ColorRow key={`row - ${rowIndex} `}>
                                     {row.map(color => (
                                         <ColorOption
                                             key={color}

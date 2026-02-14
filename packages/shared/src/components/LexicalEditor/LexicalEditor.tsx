@@ -27,7 +27,7 @@ import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/m
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
-import { $nodesOfType, ParagraphNode } from "lexical";
+import { $nodesOfType, ParagraphNode, EditorState } from "lexical";
 import type { LexicalNode } from "lexical";
 
 import { HandwritingNode, $createHandwritingNode, $isHandwritingNode } from "./nodes/HandwritingNode";
@@ -344,7 +344,7 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
         $convertFromMarkdownString(value, ALL_TRANSFORMERS);
 
         const codeNodes = $nodesOfType(CodeNode);
-        codeNodes.forEach(node => {
+        codeNodes.forEach((node: CodeNode) => {
           const lang = node.getLanguage();
           if (lang === "fabric") {
             const data = node.getTextContent();
@@ -362,7 +362,7 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
 
   return (
     <OnChangePlugin
-      onChange={(editorState) => {
+      onChange={(editorState: EditorState) => {
         editorState.read(() => {
           const markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
           onChange(markdown);

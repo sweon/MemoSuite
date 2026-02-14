@@ -47,7 +47,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     }
 
     static clone(node: ImageNode): ImageNode {
-        return new ImageNode(node.__src, node.__altText, node.__width, node.__height, node.__key);
+        return new ImageNode(node.__src, node.__altText, node.__width, node.__height, node.getKey());
     }
 
     static importJSON(serializedNode: SerializedImageNode): ImageNode {
@@ -115,7 +115,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
 
     static importDOM(): DOMConversionMap | null {
         return {
-            img: (domNode: HTMLElement) => ({
+            img: (_domNode: HTMLElement) => ({
                 conversion: convertImageElement,
                 priority: 0,
             }),

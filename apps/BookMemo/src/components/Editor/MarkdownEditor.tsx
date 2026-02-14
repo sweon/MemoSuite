@@ -1,5 +1,5 @@
 import React from 'react';
-import { TiptapEditor } from '@memosuite/shared';
+import { LexicalEditor } from '@memosuite/shared';
 
 interface MarkdownEditorProps {
   value: string;
@@ -10,12 +10,13 @@ interface MarkdownEditorProps {
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   value,
   onChange,
-  ...props
+  initialScrollPercentage
 }) => {
-  // initialScrollPercentage is not yet supported in TiptapEditor
-  const { initialScrollPercentage: _ } = props as any;
-
   return (
-    <TiptapEditor value={value} onChange={onChange} />
+    <LexicalEditor
+      value={value}
+      onChange={onChange}
+      initialScrollPercentage={initialScrollPercentage}
+    />
   );
 };

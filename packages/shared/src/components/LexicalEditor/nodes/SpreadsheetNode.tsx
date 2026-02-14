@@ -30,7 +30,7 @@ export class SpreadsheetNode extends DecoratorNode<JSX.Element> {
     }
 
     static clone(node: SpreadsheetNode): SpreadsheetNode {
-        return new SpreadsheetNode(node.__data, node.__key);
+        return new SpreadsheetNode(node.__data, node.getKey());
     }
 
     static importJSON(serializedNode: SerializedSpreadsheetNode): SpreadsheetNode {
@@ -67,7 +67,7 @@ export class SpreadsheetNode extends DecoratorNode<JSX.Element> {
     }
 
     setData(data: string): void {
-        const writable = this.getWritable();
+        const writable = this.getWritable() as SpreadsheetNode;
         writable.__data = data;
     }
 
