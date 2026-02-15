@@ -2977,9 +2977,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
 
                 // 3. Decision: Forward to Fabric or Absorb?
+                // 3. Decision: Forward to Fabric or Absorb?
                 const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen() && !isPalmEvent(e);
                 if (isPen || allowTouch) {
                     if (isPen) {
+                        // CRITICAL: User Requirement - Do NOT draw if pressure is 0.
+                        // However, we must allow if it's a Barrel Button (Eraser) action, which might report 0 pressure on some devices.
+                        // But here, isBarrelButton is false (as per logic flow above).
+                        if (e.pressure === 0) {
+                            return;
+                        }
                         abortActiveStroke();
                     }
 
@@ -3008,6 +3015,67 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     ((e.buttons & 32) === 32) ||
                     (isPen && barrelHoverPreCheckRef.current);
                 setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Mods: [${e.altKey ? 'A' : ''}${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.metaKey ? 'M' : ''}], HovBtn: ${barrelHoverPreCheckRef.current ? 'YES' : 'NO'}, Barrel: ${isBarrelButton ? 'YES' : 'NO'}`);
+
+                // CRITICAL FIX: S Pen transmits eraser usage as pointermove with buttons=1 if button was pressed during hover.
+                // If we detect this state (Barrel=YES via HovBtn + Buttons=1) AND Pressure is 0, we must FORCE eraser initialization.
+                if (isBarrelButton && !barrelButtonErasingRef.current && (e.buttons & 1) === 1 && isPen && e.pressure === 0) {
+                    // Check if we need to start the eraser session
+                    const currentTool = activeToolRef.current;
+                    if (currentTool !== 'eraser_pixel' && currentTool !== 'eraser_object') {
+
+                        // Start Eraser Logic (duplicated from onPointerDown for this special case)
+                        const eraserType = lastUsedEraserRef.current;
+                        if (eraserType === 'eraser_pixel') {
+                            const overlay = (canvas as any).__overlayEl;
+                            const upperCanvasEl = (canvas as any).upperCanvasEl;
+                            savedBrushStateRef.current = {
+                                brush: canvas.freeDrawingBrush,
+                                isDrawingMode: !!canvas.isDrawingMode,
+                                freeDrawingCursor: canvas.freeDrawingCursor || 'crosshair',
+                                defaultCursor: canvas.defaultCursor || 'default',
+                                hoverCursor: canvas.hoverCursor || 'default',
+                                overlayCursor: overlay?.style?.cursor || 'default',
+                                upperCanvasOpacity: upperCanvasEl?.style?.opacity || '1',
+                            };
+
+                            const eraserBrush = new fabric.PencilBrush(canvas);
+                            const currentBrushSize = canvas.freeDrawingBrush ? canvas.freeDrawingBrush.width : 8;
+                            eraserBrush.width = currentBrushSize * 4;
+                            eraserBrush.color = 'black';
+                            // @ts-ignore
+                            eraserBrush.globalCompositeOperation = 'source-over'; // Will be set to dest-out by path:created or renderHook
+                            (eraserBrush as any).decimate = 0.5;
+
+                            canvas.freeDrawingBrush = eraserBrush;
+                            canvas.isDrawingMode = true;
+                            canvas.freeDrawingCursor = 'none';
+                            canvas.defaultCursor = 'none';
+                            canvas.hoverCursor = 'none';
+                            if (overlay) overlay.style.cursor = 'none';
+                            if (upperCanvasEl) upperCanvasEl.style.opacity = '0.01';
+
+                            barrelButtonErasingRef.current = true;
+                            activePointers.set(id, getEvtPos(e)); // Ensure we track it
+                            forwardedPointers.add(id);
+                            forwardToFabric('__onMouseDown', e); // Force start
+                        } else {
+                            // Object Eraser
+                            barrelButtonErasingRef.current = true;
+                            savedBrushStateRef.current = {
+                                brush: canvas.freeDrawingBrush,
+                                isDrawingMode: !!canvas.isDrawingMode,
+                                freeDrawingCursor: canvas.freeDrawingCursor || 'crosshair',
+                                defaultCursor: canvas.defaultCursor || 'default',
+                                hoverCursor: canvas.hoverCursor || 'default',
+                                overlayCursor: ((canvas as any).__overlayEl || {}).style?.cursor || 'default',
+                                upperCanvasOpacity: ((canvas as any).upperCanvasEl || {}).style?.opacity || '1',
+                            };
+                            activePointers.set(id, getEvtPos(e));
+                            forwardedPointers.add(id);
+                            // Object erasing happens in the move handler below
+                        }
+                    }
+                }
 
 
                 if (activePointers.has(id)) {
