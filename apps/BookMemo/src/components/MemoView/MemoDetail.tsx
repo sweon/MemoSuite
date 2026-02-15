@@ -10,7 +10,7 @@ import { useFolder } from '../../contexts/FolderContext';
 
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiShare2, FiArrowLeft, FiCalendar, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiFolder, FiPrinter } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiShare2, FiArrowLeft, FiCalendar, FiGitMerge, FiArrowRightCircle, FiArrowUp, FiArrowDown, FiFolder, FiPrinter, FiCopy } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { CommentsSection } from './CommentsSection';
 
@@ -1006,6 +1006,53 @@ export const MemoDetail: React.FC = () => {
         }
     };
 
+    const handleCopy = async () => {
+        if (!memo || !id) return;
+
+        try {
+            const context = await prepareThreadForNewItem({
+                currentItem: memo,
+                currentId: Number(id),
+                table: db.memos
+            });
+
+            const now = new Date();
+            const newId = await db.memos.add({
+                bookId: memo.bookId,
+                folderId: memo.folderId,
+                pageNumber: memo.pageNumber,
+                quote: memo.quote,
+                title: memo.title,
+                content: memo.content,
+                tags: [...memo.tags],
+                createdAt: now,
+                updatedAt: now,
+                type: memo.type,
+                threadId: context.threadId,
+                threadOrder: context.threadOrder,
+                order: memo.order,
+                parentId: memo.parentId
+            });
+
+            // Copy comments
+            const comments = await db.comments.where('memoId').equals(Number(id)).toArray();
+            for (const comment of comments) {
+                await db.comments.add({
+                    memoId: newId,
+                    content: comment.content,
+                    createdAt: now,
+                    updatedAt: now
+                });
+            }
+
+            const targetBookId = bookId ? Number(bookId) : memo.bookId;
+            navigate(`/book/${targetBookId}/memo/${newId}`);
+        } catch (error) {
+            console.error("Failed to copy memo:", error);
+            await confirm("Failed to copy memo. Please try again.");
+        }
+    };
+
     const handleDelete = async () => {
         if (!id) return;
         setIsDeleteModalOpen(true);
@@ -1245,6 +1292,9 @@ export const MemoDetail: React.FC = () => {
                             )}
                             <ActionButton onClick={() => setIsFolderMoveModalOpen(true)} $mobileOrder={4}>
                                 <FiFolder size={14} /> {language === 'ko' ? '폴더 이동' : 'Folder'}
+                            </ActionButton>
+                            <ActionButton onClick={handleCopy} $mobileOrder={5.5}>
+                                <FiCopy size={14} /> {t.memo_detail.copy}
                             </ActionButton>
                             <ActionButton
                                 $variant={movingMemoId === Number(id) ? "primary" : undefined}

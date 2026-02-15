@@ -36,6 +36,7 @@ import {
   FiArrowUp,
   FiArrowDown,
   FiPrinter,
+  FiCopy,
 } from "react-icons/fi";
 import { format } from "date-fns";
 import { CommentsSection } from "./CommentsSection";
@@ -389,7 +390,7 @@ const ResponsiveGroup = styled.div`
   display: flex;
   flex-direction: row;
   width: 100%;
-  gap: 1rem;
+  gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
 
@@ -1189,10 +1190,48 @@ export const MemoDetail: React.FC = () => {
       navigate(url, { replace: true, state: { isGuard: true } });
     } catch (error) {
       console.error("Failed to add thread:", error);
-      await confirm({
-        message: "Failed to add thread. Please try again.",
-        cancelText: null,
+      await confirm("Failed to add thread. Please try again.");
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!memo || !id) return;
+
+    try {
+      const context = await prepareThreadForNewItem({
+        currentItem: memo,
+        currentId: Number(id),
+        table: db.memos,
       });
+
+      const now = new Date();
+      const newId = await db.memos.add({
+        folderId: memo.folderId,
+        title: memo.title,
+        content: memo.content,
+        tags: [...memo.tags],
+        createdAt: now,
+        updatedAt: now,
+        type: memo.type,
+        threadId: context.threadId,
+        threadOrder: context.threadOrder
+      });
+
+      // Copy comments
+      const comments = await db.comments.where('memoId').equals(Number(id)).toArray();
+      for (const comment of comments) {
+        await db.comments.add({
+          memoId: newId,
+          content: comment.content,
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+
+      navigate(`/memo/${newId}`);
+    } catch (error) {
+      console.error("Failed to copy memo:", error);
+      await confirm("Failed to copy memo. Please try again.");
     }
   };
 
@@ -1439,6 +1478,9 @@ export const MemoDetail: React.FC = () => {
                 </ActionButton>
               </ButtonGroup>
               <ButtonGroup $flex={1}>
+                <ActionButton onClick={handleCopy} $mobileOrder={5.5}>
+                  <FiCopy size={14} /> {t.memo_detail.copy}
+                </ActionButton>
                 <ActionButton
                   $variant={movingMemoId === Number(id) ? "primary" : undefined}
                   onClick={() => {

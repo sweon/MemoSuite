@@ -193,6 +193,7 @@ export const translations = {
             share_memo: "Share",
             move: "Move",
             moving: "Moving...",
+            copy: "Copy",
             empty_state_title: "Select a book or create a new one",
             autosave_restore_confirm: "Found an unsaved draft. Restore it?"
         },
@@ -586,6 +587,7 @@ export const translations = {
             share_memo: "공유",
             move: "이동",
             moving: "이동 중...",
+            copy: "복사",
             empty_state_title: "책을 선택하거나 새로 만드세요",
             autosave_restore_confirm: "저장되지 않은 초안이 있습니다. 복구하시겠습니까?"
         },

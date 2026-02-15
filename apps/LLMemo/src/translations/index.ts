@@ -205,6 +205,7 @@ export const translations = {
             share_log: "Share",
             move: "Move",
             moving: "Moving...",
+            copy: "Copy",
             empty_state_title: "Select a log or create a new one"
         },
         comments: {
@@ -505,6 +506,7 @@ export const translations = {
             share_log: "공유",
             move: "이동",
             moving: "이동 중...",
+            copy: "복사",
             empty_state_title: "로그를 선택하거나 새로 만드세요"
         },
         comments: {

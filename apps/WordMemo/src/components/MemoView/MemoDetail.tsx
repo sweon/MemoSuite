@@ -42,6 +42,7 @@ import {
   FiArrowUp,
   FiArrowDown,
   FiPrinter,
+  FiCopy,
 } from "react-icons/fi";
 import {
   useExitGuard,
@@ -239,7 +240,7 @@ const ResponsiveGroup = styled.div`
   display: flex;
   flex-direction: row;
   width: 100%;
-  gap: 1rem;
+  gap: 0.5rem;
   align-items: center;
   flex-wrap: wrap;
 
@@ -1222,10 +1223,49 @@ export const MemoDetail: React.FC = () => {
       navigate(url, { replace: true, state: { isGuard: true } });
     } catch (error) {
       console.error("Failed to add thread:", error);
-      await confirm({
-        message: "Failed to add thread. Please try again.",
-        cancelText: null,
+      await confirm("Failed to add thread. Please try again.");
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!word || !id) return;
+
+    try {
+      const context = await prepareThreadForNewItem({
+        currentItem: word,
+        currentId: Number(id),
+        table: db.words,
       });
+
+      const now = new Date();
+      const newId = await db.words.add({
+        title: word.title,
+        content: word.content,
+        tags: [...word.tags],
+        sourceId: word.sourceId,
+        createdAt: now,
+        updatedAt: now,
+        isStarred: word.isStarred,
+        threadId: context.threadId,
+        threadOrder: context.threadOrder,
+        folderId: word.folderId
+      });
+
+      // Copy comments
+      const comments = await db.comments.where("wordId").equals(Number(id)).toArray();
+      for (const comment of comments) {
+        await db.comments.add({
+          wordId: newId,
+          content: comment.content,
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+
+      navigate(`/memo/${newId}`);
+    } catch (error) {
+      console.error("Failed to copy word:", error);
+      await confirm("Failed to copy word. Please try again.");
     }
   };
 
@@ -1553,6 +1593,9 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     <FiEdit2 size={13} /> {t.word_detail.edit || "Edit"}
                   </ActionButton>
                 )}
+                <ActionButton onClick={handleCopy} $mobileOrder={5.5}>
+                  <FiCopy size={14} /> {t.word_detail.copy}
+                </ActionButton>
                 <ActionButton
                   $variant={movingWordId === Number(id) ? "primary" : undefined}
                   onClick={() => {

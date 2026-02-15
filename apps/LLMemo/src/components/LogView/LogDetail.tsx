@@ -31,6 +31,8 @@ import {
   FiArrowUp,
   FiArrowDown,
   FiPrinter,
+  FiCopy,
+  FiArrowRightCircle,
 } from "react-icons/fi";
 import { useExitGuard, ExitGuardResult } from "@memosuite/shared-drawing";
 import { FolderMoveModal } from "../FolderView/FolderMoveModal";
@@ -413,12 +415,14 @@ export const LogDetail: React.FC = () => {
     return db.logs.get(numericId);
   }, [id]);
 
-  const { setIsDirty, setAppIsEditing, setSidebarOpen, isSidebarOpen } =
+  const { setIsDirty, setAppIsEditing, setSidebarOpen, isSidebarOpen, movingLogId, setMovingLogId } =
     useOutletContext<{
       setIsDirty: (d: boolean) => void;
       setAppIsEditing: (e: boolean) => void;
       setSidebarOpen: (open: boolean) => void;
       isSidebarOpen: boolean;
+      movingLogId?: number | null;
+      setMovingLogId?: (id: number | null) => void;
     }>() || {};
 
   const hasDraftChanges = !!commentDraft;
@@ -1025,6 +1029,47 @@ export const LogDetail: React.FC = () => {
     }
   };
 
+  const handleCopy = async () => {
+    if (!log || !id) return;
+
+    try {
+      const context = await prepareThreadForNewItem({
+        currentItem: log,
+        currentId: Number(id),
+        table: db.logs,
+      });
+
+      const now = new Date();
+      const newId = await db.logs.add({
+        folderId: log.folderId,
+        title: log.title,
+        content: log.content,
+        tags: [...log.tags],
+        modelId: log.modelId,
+        createdAt: now,
+        updatedAt: now,
+        threadId: context.threadId,
+        threadOrder: context.threadOrder
+      });
+
+      // Copy comments
+      const comments = await db.comments.where('logId').equals(Number(id)).toArray();
+      for (const comment of comments) {
+        await db.comments.add({
+          logId: newId,
+          content: comment.content,
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+
+      navigate(`/log/${newId}`);
+    } catch (error) {
+      console.error("Failed to copy log:", error);
+      await confirm("Failed to copy log. Please try again.");
+    }
+  };
+
   const handlePrint = () => {
     setIsPrintModalOpen(true);
   };
@@ -1134,6 +1179,26 @@ export const LogDetail: React.FC = () => {
                 <FiFolder size={16} />
                 <span className="hide-on-mobile">
                   {t.log_detail.move_folder}
+                </span>
+              </ActionButton>
+              <ActionButton onClick={handleCopy} $mobileOrder={4.5}>
+                <FiCopy size={16} />
+                <span className="hide-on-mobile">{t.log_detail.copy}</span>
+              </ActionButton>
+              <ActionButton
+                $variant={movingLogId === Number(id) ? "primary" : undefined}
+                onClick={() => {
+                  if (movingLogId === Number(id)) {
+                    setMovingLogId?.(null);
+                  } else {
+                    setMovingLogId?.(Number(id));
+                  }
+                }}
+                $mobileOrder={4.6}
+              >
+                <FiArrowRightCircle size={16} />
+                <span className="hide-on-mobile">
+                  {movingLogId === Number(id) ? t.log_detail.moving : t.log_detail.move}
                 </span>
               </ActionButton>
               <ActionButton
