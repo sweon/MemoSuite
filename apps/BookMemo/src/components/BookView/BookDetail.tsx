@@ -8,7 +8,7 @@ import { db } from '../../db';
 import { FiEdit2, FiEdit3, FiTrash2, FiRotateCcw, FiMaximize, FiChevronLeft, FiChevronRight, FiFolder } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { BookMoveModal } from '../FolderView/BookMoveModal';
-import { useFolder } from '../../contexts/FolderContext';
+
 import {
   Line,
   XAxis,
@@ -57,7 +57,7 @@ const Header = styled.div`
 
 const BookTitle = styled.h1`
   margin: 0 0 0.25rem 0;
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   color: ${({ theme }) => theme.colors.text};
 `;
 const MetaInfo = styled.div`
@@ -169,7 +169,7 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' 
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: ${({ theme }) => theme.radius.small};
   border: 1px solid ${({ theme, $variant }) =>
     $variant === 'primary' ? theme.colors.primary :
@@ -183,7 +183,7 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'danger' | 'cancel' 
         $variant === 'cancel' ? theme.colors.textSecondary : theme.colors.text};
   cursor: pointer;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   transition: ${({ theme }) => theme.effects.transition};
 
   &:hover {
@@ -304,10 +304,8 @@ export const BookDetail: React.FC = () => {
   const [hoveredGlobalMemo, setHoveredGlobalMemo] = useState<{ data: any, top: number, left: number } | null>(null);
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const { theme } = useColorTheme();
-  const {
-    currentFolder
-  } = useFolder();
-  const isReadOnly = currentFolder?.isReadOnly || false;
+
+
   const [isBookMoveModalOpen, setIsBookMoveModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { setIsDirty, setAppIsEditing } = useOutletContext<{ setIsDirty: (d: boolean) => void; setAppIsEditing: (e: boolean) => void }>() || {};
@@ -670,25 +668,19 @@ export const BookDetail: React.FC = () => {
             </MetaInfo>
           )}
 
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
-            {!isReadOnly && (
-              <ActionButton $variant="primary" onClick={() => navigate(`/book/${book.id}/new`, { state: { isGuard: true } })}>
-                <FiEdit3 size={14} /> {t.book_detail.write_memo}
-              </ActionButton>
-            )}
+          <div style={{ display: 'flex', gap: '4px', marginBottom: '1.5rem' }}>
+            <ActionButton $variant="primary" onClick={() => navigate(`/book/${book.id}/new`, { state: { isGuard: true } })}>
+              <FiEdit3 size={14} /> {t.book_detail.write_memo}
+            </ActionButton>
             <ActionButton onClick={() => setIsBookMoveModalOpen(true)}>
               <FiFolder size={14} /> {language === 'ko' ? '이동' : 'Move'}
             </ActionButton>
-            {!isReadOnly && (
-              <ActionButton onClick={() => navigate(`/book/${book.id}/edit`, { state: { isGuard: true } })}>
-                <FiEdit2 size={14} /> {t.book_detail.edit_book}
-              </ActionButton>
-            )}
-            {!isReadOnly && (
-              <ActionButton $variant="danger" onClick={handleDelete}>
-                <FiTrash2 size={14} /> {t.book_detail.delete_book}
-              </ActionButton>
-            )}
+            <ActionButton onClick={() => navigate(`/book/${book.id}/edit`, { state: { isGuard: true } })}>
+              <FiEdit2 size={14} /> {t.book_detail.edit_book}
+            </ActionButton>
+            <ActionButton $variant="danger" onClick={handleDelete}>
+              <FiTrash2 size={14} /> {t.book_detail.delete_book}
+            </ActionButton>
           </div>
 
           <ProgressSection>
