@@ -1335,7 +1335,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     } | null>(null);
     handleActualClose.current = propsOnClose;
 
-    const [debugInfo, setDebugInfo] = useState<string>('');
+
 
     const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
     const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
@@ -7087,22 +7087,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     </div>
                 )
             }
-            {debugInfo && (
-                <div style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    right: '10px',
-                    backgroundColor: 'rgba(0,0,0,0.7)',
-                    color: 'white',
-                    padding: '5px 10px',
-                    borderRadius: '5px',
-                    fontSize: '12px',
-                    zIndex: 20000,
-                    pointerEvents: 'none'
-                }}>
-                    {debugInfo}
-                </div>
-            )}
+
         </ModalOverlay >
     );
 };
