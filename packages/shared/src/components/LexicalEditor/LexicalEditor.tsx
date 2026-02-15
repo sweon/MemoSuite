@@ -78,9 +78,9 @@ const EditorContainer = styled.div`
   position: relative;
   text-align: left;
   border-radius: 8px;
-  background: #1e1e1e; /* Deep dark background */
-  color: #d4d4d4; /* Soft muted text */
-  border: 1px solid #333;
+  background: ${(props: any) => props.theme.colors?.background || '#1e1e1e'};
+  color: ${(props: any) => props.theme.colors?.text || '#d4d4d4'};
+  border: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -104,7 +104,7 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
   
   /* Theme Styles */
   .editor-placeholder {
-    color: #666;
+    color: ${(props: any) => props.theme.colors?.textSecondary || '#666'};
     overflow: hidden;
     position: absolute;
     text-overflow: ellipsis;
@@ -121,19 +121,19 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     margin: 0;
     margin-bottom: 0px;
     position: relative;
-    color: #d4d4d4;
+    color: ${(props: any) => props.theme.colors?.text || '#d4d4d4'};
   }
   
-  .editor-heading-h1 { font-size: 1.8em; font-weight: 700; margin: 0.5em 0; color: #fff; }
-  .editor-heading-h2 { font-size: 1.5em; font-weight: 700; margin: 0.5em 0; color: #eee; }
-  .editor-heading-h3 { font-size: 1.25em; font-weight: 700; margin: 0.5em 0; color: #ddd; }
+  .editor-heading-h1 { font-size: 1.8em; font-weight: 700; margin: 0.5em 0; color: ${(props: any) => props.theme.colors?.text || '#fff'}; }
+  .editor-heading-h2 { font-size: 1.5em; font-weight: 700; margin: 0.5em 0; color: ${(props: any) => props.theme.colors?.text || '#eee'}; }
+  .editor-heading-h3 { font-size: 1.25em; font-weight: 700; margin: 0.5em 0; color: ${(props: any) => props.theme.colors?.text || '#ddd'}; }
   
   .editor-quote {
     margin: 1em 0;
     margin-left: 0;
     font-size: 15px;
-    color: #aaa;
-    border-left: 4px solid #444;
+    color: ${(props: any) => props.theme.colors?.textSecondary || '#aaa'};
+    border-left: 4px solid ${(props: any) => props.theme.colors?.border || '#444'};
     padding-left: 16px;
     font-style: italic;
   }
@@ -153,8 +153,8 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
   .editor-text-underlineStrikethrough { text-decoration: underline line-through; }
   
   .editor-text-code {
-    background-color: #2d2d2d;
-    color: #ce9178; /* Muted orange for code */
+    background-color: ${(props: any) => props.theme.colors?.surface || '#2d2d2d'};
+    color: ${(props: any) => props.theme.colors?.primary || '#ce9178'};
     padding: 2px 4px;
     border-radius: 4px;
     font-family: 'Fira Code', Menlo, Consolas, Monaco, monospace;
@@ -162,8 +162,8 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
   }
   
   .editor-code {
-    background-color: #252526;
-    color: #d4d4d4;
+    background-color: ${(props: any) => props.theme.colors?.surface || '#252526'};
+    color: ${(props: any) => props.theme.colors?.text || '#d4d4d4'};
     font-family: 'Fira Code', Menlo, Consolas, Monaco, monospace;
     display: block;
     padding: 16px;
@@ -173,7 +173,7 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     border-radius: 8px;
     overflow-x: auto;
     position: relative;
-    border: 1px solid #333;
+    border: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
   }
 
   .editor-link {
@@ -187,24 +187,24 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     border-collapse: collapse;
     width: 100%;
     margin: 16px 0;
-    border: 1px solid #333;
+    border: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
     /* Remove table-layout: fixed to allow resizer to control widths */
   }
   th, td {
-    border: 1px solid #333;
+    border: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
     padding: 8px;
     text-align: left;
-    color: #d4d4d4;
+    color: ${(props: any) => props.theme.colors?.text || '#d4d4d4'};
     word-break: break-word; /* Enable wrapping within cells */
     overflow-wrap: break-word;
     min-width: 40px;
   }
   th {
-    background-color: #2d2d2d;
+    background-color: ${(props: any) => props.theme.colors?.surface || '#2d2d2d'};
     font-weight: 600;
   }
   td {
-    background-color: #1e1e1e;
+    background-color: ${(props: any) => props.theme.colors?.background || '#1e1e1e'};
   }
 
   /* Checklist Styles */
@@ -233,9 +233,9 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     left: 4px;
     position: absolute;
     display: block;
-    border: 1px solid #555;
+    border: 1px solid ${(props: any) => props.theme.colors?.border || '#555'};
     border-radius: 2px;
-    background: #2d2d2d;
+    background: ${(props: any) => props.theme.colors?.surface || '#2d2d2d'};
     transition: all 0.2s ease;
   }
 
@@ -260,7 +260,7 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
   }
 
   .editor-listitem-checked {
-    color: #999;
+    color: ${(props: any) => props.theme.colors?.textSecondary || '#999'};
   }
 
   /* Collapsible Styles */
@@ -278,14 +278,14 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
       padding: 8px 0;
       cursor: pointer;
       font-weight: 600;
-      color: #9cdcfe; /* Soft blue for titles in dark mode */
+      color: ${(props: any) => props.theme.colors?.primary || '#9cdcfe'};
       outline: none;
       user-select: none;
       font-size: 0.9rem;
       
       &::-webkit-details-marker {
         margin-right: 8px;
-        color: #555;
+        color: ${(props: any) => props.theme.colors?.textSecondary || '#555'};
       }
     }
 
