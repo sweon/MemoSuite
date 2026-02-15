@@ -203,9 +203,16 @@ export const translations = {
             untitled: "Untitled",
             unknown_model: "Unknown",
             share_log: "Share",
+            share: "Share",
             move: "Move",
+            move_folder: "Folder",
             moving: "Moving...",
             copy: "Copy",
+            print: "Print",
+            untitled_model: "Unknown",
+            go_to_top: "Go to top",
+            go_to_bottom: "Go to bottom",
+            exit_warning: "Press back again to exit",
             empty_state_title: "Select a log or create a new one"
         },
         comments: {
@@ -504,9 +511,16 @@ export const translations = {
             untitled: "제목 없음",
             unknown_model: "알 수 없음",
             share_log: "공유",
+            share: "공유",
             move: "이동",
+            move_folder: "폴더 이동",
             moving: "이동 중...",
             copy: "복사",
+            print: "인쇄",
+            untitled_model: "알 수 없음",
+            go_to_top: "맨 위로",
+            go_to_bottom: "맨 아래로",
+            exit_warning: "한 번 더 뒤로가기를 누르면 종료됩니다",
             empty_state_title: "로그를 선택하거나 새로 만드세요"
         },
         comments: {
