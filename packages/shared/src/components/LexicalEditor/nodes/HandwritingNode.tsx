@@ -76,6 +76,10 @@ export class HandwritingNode extends DecoratorNode<JSX.Element> {
         return this.__data;
     }
 
+    getTextContent(): string {
+        return `\n\`\`\`fabric\n${this.__data}\n\`\`\`\n`;
+    }
+
     decorate(): JSX.Element {
         return (
             <Suspense fallback={null}>

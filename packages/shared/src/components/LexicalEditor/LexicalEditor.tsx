@@ -25,13 +25,13 @@ import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { MemoSuiteTheme } from "./themes/MemoSuiteTheme";
 import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import styled from "styled-components";
 import { $nodesOfType, ParagraphNode, $isTextNode, $createTextNode, $createParagraphNode } from "lexical";
 import type { LexicalNode, EditorState } from "lexical";
 
-import { HandwritingNode, $createHandwritingNode } from "./nodes/HandwritingNode";
-import { SpreadsheetNode, $createSpreadsheetNode } from "./nodes/SpreadsheetNode";
+import { HandwritingNode, $createHandwritingNode, $isHandwritingNode } from "./nodes/HandwritingNode";
+import { SpreadsheetNode, $createSpreadsheetNode, $isSpreadsheetNode } from "./nodes/SpreadsheetNode";
 import { ImageNode, $createImageNode, $isImageNode } from "./nodes/ImageNode";
 import { CollapsibleNode, $createCollapsibleNode, $isCollapsibleNode } from "./nodes/CollapsibleNode";
 
@@ -358,10 +358,38 @@ const STYLE_TRANSFORMER: TextMatchTransformer = {
   type: "text-match",
 };
 
+const SPREADSHEET_TRANSFORMER: Transformer = {
+  dependencies: [SpreadsheetNode],
+  export: (node: LexicalNode) => {
+    if ($isSpreadsheetNode(node)) {
+      return "```spreadsheet\n" + node.getData() + "\n```";
+    }
+    return null;
+  },
+  regExp: /^```spreadsheet$/,
+  replace: () => { },
+  type: "element",
+};
+
+const HANDWRITING_TRANSFORMER: Transformer = {
+  dependencies: [HandwritingNode],
+  export: (node: LexicalNode) => {
+    if ($isHandwritingNode(node)) {
+      return "```fabric\n" + (node as HandwritingNode).getData() + "\n```";
+    }
+    return null;
+  },
+  regExp: /^```fabric$/,
+  replace: () => { },
+  type: "element",
+};
+
 const ALL_TRANSFORMERS: Transformer[] = [
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
+  SPREADSHEET_TRANSFORMER,
+  HANDWRITING_TRANSFORMER,
   STYLE_TRANSFORMER,
   ...TRANSFORMERS,
 ];
@@ -369,6 +397,8 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
+  SPREADSHEET_TRANSFORMER,
+  HANDWRITING_TRANSFORMER,
   STYLE_TRANSFORMER,
   ...TRANSFORMERS,
 ];
@@ -484,7 +514,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   deleteLabel,
   saveDisabled
 }) => {
-  const initialConfig = {
+  const initialConfig = useMemo(() => ({
     namespace: "MemoSuiteEditor",
     theme: MemoSuiteTheme,
     onError(error: Error) {
@@ -509,7 +539,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       ImageNode,
       CollapsibleNode
     ]
-  };
+  }), []);
 
   return (
     <EditorContainer className={className}>

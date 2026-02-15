@@ -172,7 +172,8 @@ export default function SpreadsheetComponent({
         setIsModalOpen(true);
     };
 
-    const handleSave = (json: string) => {
+    const handleSave = (data: any) => {
+        const json = typeof data === 'string' ? data : JSON.stringify(data);
         editor.update(() => {
             const node = $getNodeByKey(nodeKey);
             if ($isSpreadsheetNode(node)) {
@@ -232,7 +233,9 @@ export default function SpreadsheetComponent({
             {isModalOpen && (
                 <SpreadsheetModal
                     isOpen={isModalOpen}
-                    initialData={data}
+                    initialData={(() => {
+                        try { return data ? JSON.parse(data) : undefined; } catch { return undefined; }
+                    })()}
                     onSave={handleSave}
                     onClose={handleClose}
                     language={language as any}
