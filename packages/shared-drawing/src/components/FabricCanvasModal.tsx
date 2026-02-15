@@ -2869,7 +2869,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     (isPen && (e.button === 5 || e.button === 2 || (e.buttons & 2) === 2)) ||
                     ((e.buttons & 32) === 32);
 
-                setDebugInfo(`Type: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pen: ${isPen ? 'Yes' : 'No'}, Barrel: ${isBarrelButton ? 'ACTIVE' : 'No'}`);
+                setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Barrel: ${isBarrelButton ? 'YES' : 'NO'}`);
 
                 const currentTool = activeToolRef.current;
 
@@ -2986,6 +2986,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const id = e.pointerId;
                 const isPen = isPenEvent(e);
 
+                // Debug info for move (shows hover state if pressure is 0)
+                const isBarrelButton =
+                    (isPen && (e.button === 5 || e.button === 2 || (e.buttons & 2) === 2)) ||
+                    ((e.buttons & 32) === 32);
+                setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Barrel: ${isBarrelButton ? 'YES' : 'NO'}`);
+
+
                 if (activePointers.has(id)) {
                     activePointers.set(id, getEvtPos(e));
                 }
@@ -3093,6 +3100,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             const onPointerUp = (e: any) => {
                 const id = e.pointerId;
+                setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}`);
+
                 if (id === penPointerId) {
                     penPointerId = -1;
                     lastPenTime = Date.now();
