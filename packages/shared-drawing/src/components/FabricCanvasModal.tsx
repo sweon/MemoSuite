@@ -2862,12 +2862,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 // 2. Barrel Button Eraser Detection
                 // Stylus barrel button: button === 5 (standard) or button === 2 with pen pointerType
                 // Also check e.buttons bitmask (32 = barrel/eraser, 2 = right/barrel)
-                const isBarrelButton = isPen && (
-                    e.button === 5 ||
-                    e.button === 2 ||
-                    (e.buttons & 32) === 32 ||
-                    (e.buttons & 2) === 2
-                );
+                // AND IMPORTANTLY: check pure bitmask regardless of pointerType to catch edge cases
+                const isBarrelButton =
+                    (isPen && (e.button === 5 || e.button === 2 || (e.buttons & 2) === 2)) ||
+                    ((e.buttons & 32) === 32);
                 const currentTool = activeToolRef.current;
 
                 if (isBarrelButton && currentTool !== 'eraser_pixel' && currentTool !== 'eraser_object') {
@@ -2907,6 +2905,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                         barrelButtonErasingRef.current = true;
                         abortActiveStroke();
+
+                        e.preventDefault();
+                        e.stopPropagation();
 
                         forwardedPointers.add(id);
                         forwardToFabric('__onMouseDown', e);
@@ -2956,6 +2957,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         canvas.requestRenderAll();
 
                         // Mark this pointer as barrel-object-erasing (for move handler)
+                        e.preventDefault();
+                        e.stopPropagation();
                         forwardedPointers.add(id);
                         return;
                     }
@@ -3041,6 +3044,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 if (isPen || (allowTouch && !isMultiTouching)) {
                     // Handle barrel button object eraser drag
                     if (barrelButtonErasingRef.current && lastUsedEraserRef.current === 'eraser_object' && forwardedPointers.has(id)) {
+                        e.preventDefault();
+                        e.stopPropagation();
                         // Directly remove objects under pointer (don't forward to Fabric)
                         const pointer = canvas.getPointer(e);
                         const bSize = canvas.freeDrawingBrush ? canvas.freeDrawingBrush.width : 8;
@@ -3110,6 +3115,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 // Handle barrel button eraser cleanup
                 if (barrelButtonErasingRef.current && forwardedPointers.has(id)) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     const eraserType = lastUsedEraserRef.current;
 
                     if (eraserType === 'eraser_pixel') {
