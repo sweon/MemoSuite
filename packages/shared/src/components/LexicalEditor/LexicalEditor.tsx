@@ -27,7 +27,7 @@ import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/m
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
-import { $nodesOfType, ParagraphNode, $isTextNode, $createTextNode } from "lexical";
+import { $nodesOfType, ParagraphNode, $isTextNode, $createTextNode, $createParagraphNode } from "lexical";
 import type { LexicalNode, EditorState } from "lexical";
 
 import { HandwritingNode, $createHandwritingNode } from "./nodes/HandwritingNode";
@@ -269,8 +269,10 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     padding: 0 12px;
     margin: 8px 0;
     transition: all 0.2s ease;
-    background: #252526; /* Darker neutral background */
-    border: 1px solid #333;
+    background: ${(props: any) => props.theme.colors?.surface || '#252526'};
+    border: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
+    word-break: break-word;
+    overflow-wrap: break-word;
 
     summary {
       padding: 8px 0;
@@ -315,12 +317,13 @@ const COLLAPSIBLE_TRANSFORMER: Transformer = {
   dependencies: [CollapsibleNode],
   export: (node: LexicalNode) => {
     if ($isCollapsibleNode(node)) {
-      const children = (node as any).getChildren();
+      const children = (node as CollapsibleNode).getChildren();
       const content = children.map((n: any) => n.getTextContent()).join('\n');
-      return `:::collapse ${node.__title}\n${content}\n:::`;
+      return `:::collapse ${(node as CollapsibleNode).getTitle()}\n${content}\n:::`;
     }
     return null;
   },
+  // regExp is kept for live-typing shortcuts via MarkdownShortcutPlugin
   regExp: /^:::collapse\s*(.*)$/,
   replace: (textNode: any, match: any) => {
     const title = match[1]?.trim() || "Details";
@@ -378,12 +381,42 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
     if (isFirstRender.current) {
       isFirstRender.current = false;
       editor.update(() => {
-        $convertFromMarkdownString(value, ALL_TRANSFORMERS);
+        // Pre-process: Convert :::collapse fenced blocks into temporary code blocks.
+        // Lexical's ElementTransformer is line-based and cannot handle multi-line
+        // fenced blocks. Code blocks ARE natively multi-line, so we piggyback on them.
+        const collapsibleBlocks: Array<{ title: string, content: string }> = [];
+        const preprocessed = value.replace(
+          /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
+          (_, title, content) => {
+            const idx = collapsibleBlocks.length;
+            collapsibleBlocks.push({ title: title.trim() || 'Details', content });
+            return '```__collapse_' + idx + '\n' + content + '\n```';
+          }
+        );
 
+        $convertFromMarkdownString(preprocessed, ALL_TRANSFORMERS);
+
+        // Post-process: Convert temporary code blocks and other special nodes
         const codeNodes = $nodesOfType(CodeNode);
         codeNodes.forEach((node: CodeNode) => {
           const lang = node.getLanguage();
-          if (lang === "fabric") {
+          if (lang?.startsWith('__collapse_')) {
+            const idx = parseInt(lang.substring('__collapse_'.length));
+            const block = collapsibleBlocks[idx];
+            if (block) {
+              const collapsibleNode = $createCollapsibleNode(true, block.title);
+              const textContent = node.getTextContent();
+              const lines = textContent.split('\n');
+              for (const line of lines) {
+                const paragraph = $createParagraphNode();
+                if (line) {
+                  paragraph.append($createTextNode(line));
+                }
+                collapsibleNode.append(paragraph);
+              }
+              node.replace(collapsibleNode);
+            }
+          } else if (lang === "fabric") {
             const data = node.getTextContent();
             const hwNode = $createHandwritingNode(data);
             node.replace(hwNode);
