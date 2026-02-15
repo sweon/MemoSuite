@@ -140,7 +140,7 @@ const CommentsWrapper = styled.div`
 `;
 
 const TitleInput = styled.input`
-  font-size: 2.25rem;
+  font-size: 1.75rem;
   font-weight: 800;
   width: 100%;
   border: none;
@@ -159,7 +159,7 @@ const TitleInput = styled.input`
 `;
 
 const TitleDisplay = styled.h1`
-  font-size: 2.25rem;
+  font-size: 1.75rem;
   font-weight: 900;
   margin: 0 0 ${({ theme }) => theme.spacing.xs} 0;
   color: ${({ theme }) => theme.colors.text};
