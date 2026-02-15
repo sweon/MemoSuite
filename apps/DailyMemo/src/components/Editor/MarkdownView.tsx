@@ -1163,7 +1163,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
           applyCaptionStyles();
         }, 500);
       }
-    } catch (err) { }
+    } catch (e) { }
     ACTIVE_YT_VIDEO_ID = videoId;
   };
 
@@ -1179,7 +1179,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
     ACTIVE_YT_VIDEO_ID = videoId;
     const elem = document.getElementById(containerId);
     if (!elem) return;
-    if (!document.fullscreenElement) elem.requestFullscreen().catch(err => { });
+    if (!document.fullscreenElement) elem.requestFullscreen().catch(() => { });
     else document.exitFullscreen();
   };
 
