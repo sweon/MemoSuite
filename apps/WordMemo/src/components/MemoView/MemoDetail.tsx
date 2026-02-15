@@ -240,7 +240,7 @@ const ResponsiveGroup = styled.div`
   display: flex;
   flex-direction: row;
   width: 100%;
-  gap: 0.5rem;
+  gap: 4px;
   align-items: center;
   flex-wrap: wrap;
 
@@ -251,7 +251,7 @@ const ResponsiveGroup = styled.div`
 
 const ButtonGroup = styled.div<{ $flex?: number }>`
   display: flex;
-  gap: 0.5rem;
+  gap: 4px;
   align-items: center;
   ${({ $flex }) => $flex !== undefined && `flex: ${$flex};`}
 
@@ -268,7 +268,7 @@ const ActionButton = styled.button<{
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: ${({ theme }) => theme.radius.small};
   border: 1px solid
     ${({ theme, $variant }) =>
@@ -295,7 +295,7 @@ const ActionButton = styled.button<{
           : theme.colors.text};
   cursor: pointer;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   transition: ${({ theme }) => theme.effects.transition};
 
   @media (max-width: 480px) {
