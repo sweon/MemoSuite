@@ -2902,9 +2902,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         const eraserBrush = new fabric.PencilBrush(canvas);
                         const currentBrushSize = canvas.freeDrawingBrush ? canvas.freeDrawingBrush.width : 8;
                         eraserBrush.width = currentBrushSize * 4;
-                        eraserBrush.color = 'black';
+                        eraserBrush.color = 'white'; // Use white to prevent black artifacts
                         // @ts-ignore
-                        eraserBrush.globalCompositeOperation = 'source-over';
+                        eraserBrush.globalCompositeOperation = 'destination-out';
+                        (eraserBrush as any).decimate = 0.5;
                         (eraserBrush as any).decimate = 0.5;
 
                         canvas.freeDrawingBrush = eraserBrush;
@@ -3041,9 +3042,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                             const eraserBrush = new fabric.PencilBrush(canvas);
                             const currentBrushSize = canvas.freeDrawingBrush ? canvas.freeDrawingBrush.width : 8;
                             eraserBrush.width = currentBrushSize * 4;
-                            eraserBrush.color = 'black';
+                            eraserBrush.color = 'white'; // Use white to prevent black artifacts
                             // @ts-ignore
-                            eraserBrush.globalCompositeOperation = 'source-over'; // Will be set to dest-out by path:created or renderHook
+                            eraserBrush.globalCompositeOperation = 'destination-out';
                             (eraserBrush as any).decimate = 0.5;
 
                             canvas.freeDrawingBrush = eraserBrush;
@@ -3058,6 +3059,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                             activePointers.set(id, getEvtPos(e)); // Ensure we track it
                             forwardedPointers.add(id);
                             forwardToFabric('__onMouseDown', e); // Force start
+                            return; // Stop further processing
                         } else {
                             // Object Eraser
                             barrelButtonErasingRef.current = true;
@@ -3073,6 +3075,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                             activePointers.set(id, getEvtPos(e));
                             forwardedPointers.add(id);
                             // Object erasing happens in the move handler below
+                            return; // Stop further processing
                         }
                     }
                 }
