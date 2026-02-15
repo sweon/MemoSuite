@@ -2917,7 +2917,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 const currentTool = activeToolRef.current;
 
-                if (isBarrelButton && currentTool !== 'eraser_pixel' && currentTool !== 'eraser_object') {
+                if (isBarrelButton && !barrelButtonErasingRef.current && currentTool !== 'eraser_pixel' && currentTool !== 'eraser_object') {
                     const eraserType = lastUsedEraserRef.current;
 
                     if (eraserType === 'eraser_pixel') {
@@ -3217,9 +3217,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     forwardToFabric('__onMouseMove', e);
 
                     // Force re-render during barrel-button pixel erasing for real-time feedback
-                    if (barrelButtonErasingRef.current && lastUsedEraserRef.current === 'eraser_pixel') {
-                        canvas.requestRenderAll();
-                    }
+                    // Force re-render during barrel-button pixel erasing for real-time feedback
+                    // REMOVED: This causes severe lag. The brush draws on top context anyway.
+                    // if (barrelButtonErasingRef.current && lastUsedEraserRef.current === 'eraser_pixel') {
+                    //     canvas.requestRenderAll();
+                    // }
 
                     // Immediate cursor sync: since the overlay captures the mouse, we must
                     // reflect whatever cursor Fabric decided to show on the upperCanvas.
