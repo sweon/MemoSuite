@@ -2908,7 +2908,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const isBarrelButton =
                     (isPen && (e.button === 5 || e.button === 2 || (e.buttons & 2) === 2)) ||
                     ((e.buttons & 32) === 32) ||
-                    (isPen && barrelHoverPreCheckRef.current);
+                    // CRITICAL: Only trust hover-pre-check if pressure is 0.
+                    // If pressure > 0, we are drawing, so we expect actual button flags.
+                    (isPen && barrelHoverPreCheckRef.current && e.pressure === 0);
 
                 // setDebugInfo removed
 
@@ -2925,15 +2927,20 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         // Save current state
                         const overlay = (canvas as any).__overlayEl;
                         const upperCanvasEl = (canvas as any).upperCanvasEl;
-                        savedBrushStateRef.current = {
-                            brush: canvas.freeDrawingBrush,
-                            isDrawingMode: !!canvas.isDrawingMode,
-                            freeDrawingCursor: canvas.freeDrawingCursor || 'crosshair',
-                            defaultCursor: canvas.defaultCursor || 'default',
-                            hoverCursor: canvas.hoverCursor || 'default',
-                            overlayCursor: overlay ? overlay.style.cursor : 'default',
-                            upperCanvasOpacity: upperCanvasEl ? upperCanvasEl.style.opacity : '1',
-                        };
+
+                        // CRITICAL: Only save state if not already saved!
+                        // If we overwrite it while already in eraser mode, we save the ERASE brush as the restore target.
+                        if (!savedBrushStateRef.current) {
+                            savedBrushStateRef.current = {
+                                brush: canvas.freeDrawingBrush,
+                                isDrawingMode: !!canvas.isDrawingMode,
+                                freeDrawingCursor: canvas.freeDrawingCursor || 'crosshair',
+                                defaultCursor: canvas.defaultCursor || 'default',
+                                hoverCursor: canvas.hoverCursor || 'default',
+                                overlayCursor: overlay ? overlay.style.cursor : 'default',
+                                upperCanvasOpacity: upperCanvasEl ? upperCanvasEl.style.opacity : '1',
+                            };
+                        }
 
                         // Switch to pixel eraser brush (no React state change!)
                         const eraserBrush = new fabric.PencilBrush(canvas);
@@ -2967,15 +2974,17 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         barrelButtonErasingRef.current = true;
                         // Don't forward to Fabric; we handle object removal directly
                         // Store a minimal state backup for cleanup
-                        savedBrushStateRef.current = {
-                            brush: canvas.freeDrawingBrush,
-                            isDrawingMode: !!canvas.isDrawingMode,
-                            freeDrawingCursor: canvas.freeDrawingCursor || 'crosshair',
-                            defaultCursor: canvas.defaultCursor || 'default',
-                            hoverCursor: canvas.hoverCursor || 'default',
-                            overlayCursor: ((canvas as any).__overlayEl || {}).style?.cursor || 'default',
-                            upperCanvasOpacity: ((canvas as any).upperCanvasEl || {}).style?.opacity || '1',
-                        };
+                        if (!savedBrushStateRef.current) {
+                            savedBrushStateRef.current = {
+                                brush: canvas.freeDrawingBrush,
+                                isDrawingMode: !!canvas.isDrawingMode,
+                                freeDrawingCursor: canvas.freeDrawingCursor || 'crosshair',
+                                defaultCursor: canvas.defaultCursor || 'default',
+                                hoverCursor: canvas.hoverCursor || 'default',
+                                overlayCursor: ((canvas as any).__overlayEl || {}).style?.cursor || 'default',
+                                upperCanvasOpacity: ((canvas as any).upperCanvasEl || {}).style?.opacity || '1',
+                            };
+                        }
 
                         abortActiveStroke();
 
@@ -3046,6 +3055,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     } else {
                         barrelHoverPreCheckRef.current = false;
                     }
+                } else if (!isPen || e.buttons === 0) {
+                    // Force reset if buttons are 0
+                    barrelHoverPreCheckRef.current = false;
                 }
 
                 const isBarrelButton =
@@ -3239,6 +3251,15 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     penPointerId = -1;
                     lastPenTime = Date.now();
                 }
+
+                // Reset hover check on up
+                barrelHoverPreCheckRef.current = false;
+
+                // Reset hover check on up
+                barrelHoverPreCheckRef.current = false;
+
+                // Reset hover check on up
+                barrelHoverPreCheckRef.current = false;
 
                 activePointers.delete(id);
 
