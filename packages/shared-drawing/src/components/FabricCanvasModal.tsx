@@ -2874,7 +2874,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         const upperCanvasEl = (canvas as any).upperCanvasEl;
                         savedBrushStateRef.current = {
                             brush: canvas.freeDrawingBrush,
-                            isDrawingMode: canvas.isDrawingMode,
+                            isDrawingMode: !!canvas.isDrawingMode,
                             freeDrawingCursor: canvas.freeDrawingCursor || 'crosshair',
                             defaultCursor: canvas.defaultCursor || 'default',
                             hoverCursor: canvas.hoverCursor || 'default',
@@ -2912,7 +2912,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         // Store a minimal state backup for cleanup
                         savedBrushStateRef.current = {
                             brush: canvas.freeDrawingBrush,
-                            isDrawingMode: canvas.isDrawingMode,
+                            isDrawingMode: !!canvas.isDrawingMode,
                             freeDrawingCursor: canvas.freeDrawingCursor || 'crosshair',
                             defaultCursor: canvas.defaultCursor || 'default',
                             hoverCursor: canvas.hoverCursor || 'default',
