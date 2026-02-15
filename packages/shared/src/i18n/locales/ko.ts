@@ -71,6 +71,9 @@ export const ko = {
         },
         custom_color: "사용자 지정 색상",
         image_prompt: "이미지 URL을 입력하세요:",
+        youtube: "유튜브 동영상 삽입",
+        youtube_prompt: "유튜브 URL을 입력하세요:",
+        youtube_invalid: "유효하지 않은 유튜브 URL입니다. youtube.com 또는 youtu.be URL을 입력해주세요.",
         collapsible_prompt: "제목을 입력하세요:",
         collapsible_default_title: "상세 내용"
     }

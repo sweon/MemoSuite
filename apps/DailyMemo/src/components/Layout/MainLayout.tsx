@@ -876,7 +876,7 @@ export const MainLayout: React.FC = () => {
             if (playlistData) {
               title = playlistData.title;
               if (playlistData.items.length > 0) {
-                content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                content = playlistData.items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
               } else {
                 content = cleaned; // Fallback to just the URL if items failed but it's a playlist
               }
@@ -980,7 +980,7 @@ export const MainLayout: React.FC = () => {
                 const playlistData = await fetchYoutubePlaylistData(cleaned);
                 if (playlistData) {
                   identifiedTitle = playlistData.title;
-                  finalContent = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                  finalContent = playlistData.items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
                 }
               } finally {
                 setIsPlaylistExtracting(false);
@@ -1102,7 +1102,7 @@ export const MainLayout: React.FC = () => {
                     const playlistData = await fetchYoutubePlaylistData(cleaned);
                     if (playlistData) {
                       title = playlistData.title;
-                      content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                      content = playlistData.items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
                     }
                   } finally {
                     setIsPlaylistExtracting(false);
@@ -1218,7 +1218,7 @@ export const MainLayout: React.FC = () => {
                   const playlistData = await fetchYoutubePlaylistData(cleaned);
                   if (playlistData) {
                     title = playlistData.title;
-                    content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                    content = playlistData.items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
                   }
                 } finally {
                   setIsPlaylistExtracting(false);
@@ -1318,7 +1318,7 @@ export const MainLayout: React.FC = () => {
                   const playlistData = await fetchYoutubePlaylistData(cleaned);
                   if (playlistData) {
                     title = playlistData.title;
-                    content = playlistData.items.map(item => `${item.title}\nhttps://www.youtube.com/watch?v=${item.videoId}`).join('\n\n');
+                    content = playlistData.items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
                   }
                 } finally {
                   setIsPlaylistExtracting(false);

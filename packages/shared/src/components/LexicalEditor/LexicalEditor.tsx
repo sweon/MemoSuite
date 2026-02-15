@@ -34,10 +34,12 @@ import { HandwritingNode, $createHandwritingNode, $isHandwritingNode } from "./n
 import { SpreadsheetNode, $createSpreadsheetNode, $isSpreadsheetNode } from "./nodes/SpreadsheetNode";
 import { ImageNode, $createImageNode, $isImageNode } from "./nodes/ImageNode";
 import { CollapsibleNode, $createCollapsibleNode, $isCollapsibleNode } from "./nodes/CollapsibleNode";
+import { YouTubeNode, $createYouTubeNode, $isYouTubeNode, extractYouTubeVideoId } from "./nodes/YouTubeNode";
 
 import { ToolbarPlugin } from "./plugins/ToolbarPlugin";
 import { ListMaxIndentLevelPlugin } from "./plugins/ListMaxIndentLevelPlugin";
 import { TableResizerPlugin } from "./plugins/TableResizerPlugin";
+import { YouTubePastePlugin } from "./plugins/YouTubePastePlugin";
 
 const URL_REGEX =
   /((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/;
@@ -384,12 +386,40 @@ const HANDWRITING_TRANSFORMER: Transformer = {
   type: "element",
 };
 
+const YOUTUBE_TRANSFORMER: Transformer = {
+  dependencies: [YouTubeNode],
+  export: (node: LexicalNode) => {
+    if ($isYouTubeNode(node)) {
+      const lines: string[] = [];
+      const rawUrl = (node as YouTubeNode).getRawUrl();
+      if (rawUrl) {
+        lines.push(rawUrl);
+      } else {
+        lines.push(`https://www.youtube.com/watch?v=${(node as YouTubeNode).getVideoId()}`);
+      }
+      const start = (node as YouTubeNode).getStartTimestamp();
+      if (start) {
+        lines.push(`start=${start}`);
+      }
+      if ((node as YouTubeNode).getIsShort()) {
+        lines.push('short');
+      }
+      return "```youtube\n" + lines.join('\n') + "\n```";
+    }
+    return null;
+  },
+  regExp: /^```youtube$/,
+  replace: () => { },
+  type: "element",
+};
+
 const ALL_TRANSFORMERS: Transformer[] = [
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
   SPREADSHEET_TRANSFORMER,
   HANDWRITING_TRANSFORMER,
+  YOUTUBE_TRANSFORMER,
   STYLE_TRANSFORMER,
   ...TRANSFORMERS,
 ];
@@ -399,6 +429,7 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
   COLLAPSIBLE_TRANSFORMER,
   SPREADSHEET_TRANSFORMER,
   HANDWRITING_TRANSFORMER,
+  YOUTUBE_TRANSFORMER,
   STYLE_TRANSFORMER,
   ...TRANSFORMERS,
 ];
@@ -454,6 +485,18 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
             const data = node.getTextContent();
             const shNode = $createSpreadsheetNode(data);
             node.replace(shNode);
+          } else if (lang === "youtube" || lang === "yt") {
+            const text = node.getTextContent();
+            const parts = text.split('\n').map(l => l.trim()).filter(Boolean);
+            const rawUrl = parts[0] || '';
+            const info = extractYouTubeVideoId(rawUrl);
+            if (info) {
+              const startParam = parts.find(p => p.startsWith('start='));
+              const startTimestamp = startParam ? parseInt(startParam.split('=')[1]) : info.startTimestamp;
+              const isShort = parts.some(p => p.includes('short')) || info.isShort;
+              const ytNode = $createYouTubeNode(info.videoId, startTimestamp, isShort, rawUrl);
+              node.replace(ytNode);
+            }
           }
         });
       });
@@ -537,7 +580,8 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       HandwritingNode,
       SpreadsheetNode,
       ImageNode,
-      CollapsibleNode
+      CollapsibleNode,
+      YouTubeNode
     ]
   }), []);
 
@@ -574,6 +618,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
           {tabIndentation && <TabIndentationPlugin />}
           <HorizontalRulePlugin />
           <ClearEditorPlugin />
+          <YouTubePastePlugin />
           <ListMaxIndentLevelPlugin maxDepth={7} />
           <AutoFocusPlugin />
           <MarkdownSyncPlugin value={value} onChange={onChange} />

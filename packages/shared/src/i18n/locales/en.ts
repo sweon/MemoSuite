@@ -71,6 +71,9 @@ export const en = {
         },
         custom_color: "Custom Color",
         image_prompt: "Enter image URL:",
+        youtube: "Insert YouTube Video",
+        youtube_prompt: "Enter YouTube URL:",
+        youtube_invalid: "Invalid YouTube URL. Please enter a valid youtube.com or youtu.be URL.",
         collapsible_prompt: "Enter title:",
         collapsible_default_title: "Details"
     }
