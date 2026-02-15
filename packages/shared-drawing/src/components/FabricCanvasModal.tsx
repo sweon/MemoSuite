@@ -2810,6 +2810,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
             };
 
+
             const abortActiveStroke = () => {
                 // Abort any current drawing immediately
                 (canvas as any)._isCurrentlyDrawing = false;
@@ -2828,6 +2829,42 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 canvas.requestRenderAll();
             };
+
+            const cleanupBarrelEraser = (e: any, id: number) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const eraserType = lastUsedEraserRef.current;
+
+                if (eraserType === 'eraser_pixel') {
+                    // Let Fabric finalize the stroke (path:created will mark it as eraser)
+                    forwardToFabric('__onMouseUp', e);
+                }
+                // For object eraser, no Fabric event was forwarded, nothing to finalize
+
+                forwardedPointers.delete(id);
+
+                // Restore saved state
+                const saved = savedBrushStateRef.current;
+                if (saved) {
+                    if (saved.brush) canvas.freeDrawingBrush = saved.brush;
+                    canvas.isDrawingMode = saved.isDrawingMode;
+                    canvas.freeDrawingCursor = saved.freeDrawingCursor;
+                    canvas.defaultCursor = saved.defaultCursor;
+                    canvas.hoverCursor = saved.hoverCursor;
+
+                    const overlay = (canvas as any).__overlayEl;
+                    if (overlay) overlay.style.cursor = saved.overlayCursor;
+
+                    const upperCanvasEl = (canvas as any).upperCanvasEl;
+                    if (upperCanvasEl) upperCanvasEl.style.opacity = saved.upperCanvasOpacity;
+
+                    savedBrushStateRef.current = null;
+                }
+
+                barrelButtonErasingRef.current = false;
+                canvas.requestRenderAll();
+            };
+
 
             const onPointerDown = (e: any) => {
                 const id = e.pointerId;
@@ -2873,7 +2910,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     ((e.buttons & 32) === 32) ||
                     (isPen && barrelHoverPreCheckRef.current);
 
-                setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Mods: [${e.altKey ? 'A' : ''}${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.metaKey ? 'M' : ''}], HovBtn: ${barrelHoverPreCheckRef.current ? 'YES' : 'NO'}, Barrel: ${isBarrelButton ? 'YES' : 'NO'}`);
+                // setDebugInfo removed
 
                 // Reset hover check on down
                 barrelHoverPreCheckRef.current = false;
@@ -3015,7 +3052,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     (isPen && (e.button === 5 || e.button === 2 || (e.buttons & 2) === 2)) ||
                     ((e.buttons & 32) === 32) ||
                     (isPen && barrelHoverPreCheckRef.current);
-                setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Mods: [${e.altKey ? 'A' : ''}${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.metaKey ? 'M' : ''}], HovBtn: ${barrelHoverPreCheckRef.current ? 'YES' : 'NO'}, Barrel: ${isBarrelButton ? 'YES' : 'NO'}`);
+                // setDebugInfo removed
+
+                // SAFEGUARD: If we are in barrel erasing mode but the button is no longer pressed (hovering), exit immediately.
+                if (barrelButtonErasingRef.current && e.buttons === 0) {
+                    cleanupBarrelEraser(e, id);
+                    return;
+                }
 
                 // CRITICAL FIX: S Pen transmits eraser usage as pointermove with buttons=1 if button was pressed during hover.
                 // If we detect this state (Barrel=YES via HovBtn + Buttons=1) AND Pressure is 0, we must FORCE eraser initialization.
@@ -3188,7 +3231,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             const onPointerUp = (e: any) => {
                 const id = e.pointerId;
-                setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Mods: [${e.altKey ? 'A' : ''}${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.metaKey ? 'M' : ''}]`);
+                // setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Mods: [${e.altKey ? 'A' : ''}${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.metaKey ? 'M' : ''}]`);
 
                 if (id === penPointerId) {
                     penPointerId = -1;
@@ -3217,38 +3260,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 // Handle barrel button eraser cleanup
                 if (barrelButtonErasingRef.current && forwardedPointers.has(id)) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const eraserType = lastUsedEraserRef.current;
-
-                    if (eraserType === 'eraser_pixel') {
-                        // Let Fabric finalize the stroke (path:created will mark it as eraser)
-                        forwardToFabric('__onMouseUp', e);
-                    }
-                    // For object eraser, no Fabric event was forwarded, nothing to finalize
-
-                    forwardedPointers.delete(id);
-
-                    // Restore saved state
-                    const saved = savedBrushStateRef.current;
-                    if (saved) {
-                        if (saved.brush) canvas.freeDrawingBrush = saved.brush;
-                        canvas.isDrawingMode = saved.isDrawingMode;
-                        canvas.freeDrawingCursor = saved.freeDrawingCursor;
-                        canvas.defaultCursor = saved.defaultCursor;
-                        canvas.hoverCursor = saved.hoverCursor;
-
-                        const overlay = (canvas as any).__overlayEl;
-                        if (overlay) overlay.style.cursor = saved.overlayCursor;
-
-                        const upperCanvasEl = (canvas as any).upperCanvasEl;
-                        if (upperCanvasEl) upperCanvasEl.style.opacity = saved.upperCanvasOpacity;
-
-                        savedBrushStateRef.current = null;
-                    }
-
-                    barrelButtonErasingRef.current = false;
-                    canvas.requestRenderAll();
+                    cleanupBarrelEraser(e, id);
                     return;
                 }
 
