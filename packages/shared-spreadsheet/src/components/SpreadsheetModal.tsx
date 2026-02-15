@@ -1,4 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+// @ts-ignore
+import { createPortal } from 'react-dom';
 import { Workbook, type WorkbookInstance } from "@fortune-sheet/react";
 import "@fortune-sheet/react/dist/index.css";
 import styled from 'styled-components';
@@ -496,7 +498,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <>
       <ModalOverlay onClick={(e) => e.stopPropagation()}>
         <ModalContent onClick={(e) => e.stopPropagation()}>
@@ -619,6 +621,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
           </ConfirmDialog>
         </Backdrop>
       )}
-    </>
+    </>,
+    document.body
   );
 };
