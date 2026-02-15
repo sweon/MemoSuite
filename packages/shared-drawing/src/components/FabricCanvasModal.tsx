@@ -2861,7 +2861,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 // 2. Barrel Button Eraser Detection
                 // Stylus barrel button: button === 5 (standard) or button === 2 with pen pointerType
-                const isBarrelButton = isPen && (e.button === 5 || (e.button === 2 && e.pointerType === 'pen'));
+                // Also check e.buttons bitmask (32 = barrel/eraser, 2 = right/barrel)
+                const isBarrelButton = isPen && (
+                    e.button === 5 ||
+                    e.button === 2 ||
+                    (e.buttons & 32) === 32 ||
+                    (e.buttons & 2) === 2
+                );
                 const currentTool = activeToolRef.current;
 
                 if (isBarrelButton && currentTool !== 'eraser_pixel' && currentTool !== 'eraser_object') {
