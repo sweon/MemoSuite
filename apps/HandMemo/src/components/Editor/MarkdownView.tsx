@@ -342,8 +342,7 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
 
 const PREVIEW_CACHE = new Map<string, string>();
 // Global registry for YT players to enable internal seeking
-const YT_PLAYERS = new Map<string, any>();
-let ACTIVE_YT_VIDEO_ID: string | null = null;
+
 
 
 const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: () => void }) => {
@@ -775,6 +774,9 @@ const WebPreview = ({ url }: { url: string }) => {
     </div>
   );
 };
+
+const YT_PLAYERS = new Map<string, any>();
+let ACTIVE_YT_VIDEO_ID: string | null = null;
 
 const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: string; startTimestamp?: number; memoId?: number; isShort?: boolean }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);

@@ -313,8 +313,7 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
 const PREVIEW_CACHE = new Map<string, string>();
 
 // Global registry for YT players to enable internal seeking
-const YT_PLAYERS = new Map<string, any>();
-let ACTIVE_YT_VIDEO_ID: string | null = null;
+
 
 
 
@@ -781,6 +780,8 @@ const JumpBackButton = styled.button`
 `;
 
 // Global registry for YT players to enable internal seeking
+
+
 const YT_PLAYERS = new Map<string, any>();
 let ACTIVE_YT_VIDEO_ID: string | null = null;
 
@@ -801,7 +802,7 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: 
   const [activeTrackCode, setActiveTrackCode] = React.useState<string>('off');
   const [ccFontSize, setCCFontSize] = React.useState(0);
   const [volumeToast, setVolumeToast] = React.useState<number | null>(null);
-  const [isStarted, setIsStarted] = React.useState(false);
+  
 
   const ccTimersRef = React.useRef<any[]>([]);
   const isSwitchingCCTrack = React.useRef(false);
@@ -1408,6 +1409,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
   content,
   memoId,
   isReadOnly = false,
+  isComment = false,
   tableHeaderBg,
   onEditDrawing,
   onEditSpreadsheet,
@@ -1457,7 +1459,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
         const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
         if (isStandalone && href.startsWith('http')) return <WebPreview url={href} />;
         return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
-      } catch (err) { return <a href={href} {...props}>{children}</a>; }
+      } catch (e) { return <a href={href} {...props}>{children}</a>; }
     },
     img: ({ src, alt }: any) => {
       try {
@@ -1466,7 +1468,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
           return (<img src={src} alt={alt} width={meta.width} height={meta.height} style={{ aspectRatio: `${meta.width} / ${meta.height}`, height: 'auto', maxWidth: '100%', display: 'block', margin: '1em auto' }} />);
         }
         return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px', display: 'block', margin: '1em auto' }} />;
-      } catch (err) { return <img src={src} alt={alt} style={{ maxWidth: '100%' }} />; }
+      } catch (e) { return <img src={src} alt={alt} style={{ maxWidth: '100%' }} />; }
     },
     pre: ({ children, ...props }: any) => {
       try {
@@ -1474,7 +1476,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
         if (React.isValidElement(child) && (child.props as any).className?.includes('language-fabric')) return <>{children}</>;
         if (React.isValidElement(child) && (child.props as any).className?.includes('language-spreadsheet')) return <>{children}</>;
         return <div {...props}>{children}</div>;
-      } catch (err) { return <pre {...props}>{children}</pre>; }
+      } catch (e) { return <pre {...props}>{children}</pre>; }
     },
     code: ({ node, inline, className, children, ...props }: any) => {
       try {
@@ -1499,7 +1501,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
         }
         if (!inline) return (<SyntaxHighlighter style={isDark ? vscDarkPlus : vs} language={language || 'text'} PreTag="div" {...props}>{json}</SyntaxHighlighter>);
         return <code className={className} {...props}>{children}</code>;
-      } catch (err) { return <code className={className} {...props}>{children}</code>; }
+      } catch (e) { return <code className={className} {...props}>{children}</code>; }
     }
   }), [onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment]);
 return (

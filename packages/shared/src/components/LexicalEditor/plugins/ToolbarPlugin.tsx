@@ -49,7 +49,7 @@ import { $createHandwritingNode } from "../nodes/HandwritingNode";
 import { $createSpreadsheetNode } from "../nodes/SpreadsheetNode";
 import { $createImageNode } from "../nodes/ImageNode";
 import { $createCollapsibleNode } from "../nodes/CollapsibleNode";
-import { $createYouTubeNode, extractYouTubeVideoId, isYouTubeUrl } from "../nodes/YouTubeNode";
+import { $createYouTubeNode, extractYouTubeVideoId } from "../nodes/YouTubeNode";
 import { Tooltip } from "../../Tooltip";
 import { useLanguage } from "../../../i18n";
 
