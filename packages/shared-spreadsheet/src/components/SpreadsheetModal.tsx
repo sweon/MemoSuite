@@ -233,12 +233,14 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
   const [mountKey, setMountKey] = useState(() => uuidv4());
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [savedToastVisible, setSavedToastVisible] = useState(false);
 
   // Use a ref to track if we've pushed our history state
   const historyStatePushedRef = useRef(false);
   const mountTimeRef = useRef(Date.now());
   const isInternalCloseRef = useRef(false);
+  const isInitialLoadRef = useRef(false);
 
   const [workbookData, setWorkbookData] = useState<any[]>(() => {
     if (initialData && Array.isArray(initialData) && initialData.length > 0) {
@@ -275,14 +277,24 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
       const stateId = `spreadsheet-${Date.now()}`;
       window.history.pushState({ spreadsheetOpen: true, id: stateId }, '');
       historyStatePushedRef.current = true;
+
+      setIsDirty(false);
     }
   }, [isOpen]);
 
   // Clicking "Cancel" or "X" button
   const handleClose = useCallback((e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (!isDirty) {
+      if (historyStatePushedRef.current) {
+        window.history.back();
+        historyStatePushedRef.current = false;
+      }
+      onClose();
+      return;
+    }
     setIsExitConfirmOpen(true);
-  }, []);
+  }, [isDirty, onClose]);
 
   // Back button event listener
   useEffect(() => {
@@ -355,6 +367,16 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
 
       setWorkbookData(newData);
       setMountKey(uuidv4());
+
+      // Temporarily ignore changes during initial load
+      isInitialLoadRef.current = true;
+      setIsDirty(false);
+
+      setTimeout(() => {
+        isInitialLoadRef.current = false;
+        // Ensure clean state if no user interaction
+        setIsDirty(false);
+      }, 1000);
     }
   }, [isOpen]); // Only run when isOpen changes, ignore initialData while open to prevent re-mount
 
@@ -402,6 +424,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
           dataToSave = workbookData;
         }
         await onSave(dataToSave);
+        setIsDirty(false);
         setSavedToastVisible(true);
         setTimeout(() => setSavedToastVisible(false), 500);
       }
@@ -463,8 +486,12 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
   }, []);
 
   const handleChange = useCallback((data: any) => {
+    // Ignore changes during initial load
+    if (isInitialLoadRef.current) return;
+
     if (data && Array.isArray(data)) {
       setWorkbookData(data);
+      setIsDirty(true);
     }
   }, []);
 

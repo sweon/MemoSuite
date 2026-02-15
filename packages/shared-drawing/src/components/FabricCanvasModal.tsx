@@ -1364,6 +1364,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
 
                 // User initiated back navigation (hardware back button)
+                if (historyIndexRef.current === lastSavedIndexRef.current) {
+                    isClosingRef.current = true;
+                    handleActualClose.current();
+                    return 'ALLOW' as any;
+                }
+
                 setIsExitConfirmOpen(true);
                 return 'PREVENT' as any;
             });
@@ -2037,7 +2043,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     };
     const historyRef = useRef<HistoryAction[]>([]);
     const historyIndexRef = useRef(-1);
-    const lastSavedIndexRef = useRef(0);
+    const lastSavedIndexRef = useRef(-1);
     const isUndoRedoRef = useRef(false); // Prevent saving during undo/redo
     const objectIdMapRef = useRef<WeakMap<fabric.Object, string>>(new WeakMap()); // Track object IDs
     const nextObjectIdRef = useRef(1); // Counter for unique IDs
@@ -3149,6 +3155,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     canvas.renderAll();
                     syncScrollToViewport();
                     saveHistory(); // Snapshot initial loaded state
+
+                    // Mark as clean/saved after initial load
+                    lastSavedIndexRef.current = historyIndexRef.current;
                 });
             } catch (e) {
                 console.error("Failed to load fabric JSON", e);
