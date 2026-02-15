@@ -785,7 +785,11 @@ const JumpBackButton = styled.button`
 const YT_PLAYERS = new Map<string, any>();
 let ACTIVE_YT_VIDEO_ID: string | null = null;
 
-const YouTubePlayer = ({ videoId, startTimestamp, memoId, isShort }: { videoId: string; startTimestamp?: number; memoId?: number; isShort?: boolean }) => {
+const YouTubePlayer = ({ videoId, startTimestamp, memoId,
+  wordTitle,
+  studyMode, isShort }: { videoId: string; startTimestamp?: number; memoId?: number;
+  wordTitle?: string;
+  studyMode?: string; isShort?: boolean }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const playerRef = React.useRef<any>(null);
   const intervalRef = React.useRef<any>(null);
@@ -1397,6 +1401,8 @@ const YoutubePlaylistView = ({ playlistId }: { playlistId: string }) => {
 interface MarkdownViewProps {
   content: string;
   memoId?: number;
+  wordTitle?: string;
+  studyMode?: string;
   isReadOnly?: boolean;
   isComment?: boolean;
   tableHeaderBg?: string;
@@ -1408,6 +1414,8 @@ interface MarkdownViewProps {
 export const MarkdownView: React.FC<MarkdownViewProps> = ({
   content,
   memoId,
+  wordTitle,
+  studyMode,
   isReadOnly = false,
   isComment = false,
   tableHeaderBg,
@@ -1503,7 +1511,9 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
         return <code className={className} {...props}>{children}</code>;
       } catch (e) { return <code className={className} {...props}>{children}</code>; }
     }
-  }), [onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment]);
+  }), [onEditDrawing, onEditSpreadsheet, isDark, memoId,
+  wordTitle,
+  studyMode, isReadOnly, isComment]);
 return (
     <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>
       <ReactMarkdown
