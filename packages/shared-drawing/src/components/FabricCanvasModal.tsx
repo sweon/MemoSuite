@@ -1321,6 +1321,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const lastUsedEraserRef = useRef<'eraser_pixel' | 'eraser_object'>('eraser_pixel');
     // True while the stylus barrel button is held down and we're in temporary eraser mode
     const barrelButtonErasingRef = useRef(false);
+    // Tracks if the barrel button was pressed during hover (before touch), crucial for S Pen
+    const barrelHoverPreCheckRef = useRef(false);
     // Stores the brush/canvas state before barrel-button eraser activation so we can restore it
     const savedBrushStateRef = useRef<{
         brush: fabric.BaseBrush | null;
@@ -2865,11 +2867,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 // Stylus barrel button: button === 5 (standard) or button === 2 with pen pointerType
                 // Also check e.buttons bitmask (32 = barrel/eraser, 2 = right/barrel)
                 // AND IMPORTANTLY: check pure bitmask regardless of pointerType to catch edge cases
+                // PLUS: Check if we detected the button during the hover phase (S Pen quirks)
                 const isBarrelButton =
                     (isPen && (e.button === 5 || e.button === 2 || (e.buttons & 2) === 2)) ||
-                    ((e.buttons & 32) === 32);
+                    ((e.buttons & 32) === 32) ||
+                    (isPen && barrelHoverPreCheckRef.current);
 
-                setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Mods: [${e.altKey ? 'A' : ''}${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.metaKey ? 'M' : ''}], Barrel: ${isBarrelButton ? 'YES' : 'NO'}`);
+                setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Mods: [${e.altKey ? 'A' : ''}${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.metaKey ? 'M' : ''}], HovBtn: ${barrelHoverPreCheckRef.current ? 'YES' : 'NO'}, Barrel: ${isBarrelButton ? 'YES' : 'NO'}`);
+
+                // Reset hover check on down
+                barrelHoverPreCheckRef.current = false;
 
                 const currentTool = activeToolRef.current;
 
@@ -2987,10 +2994,20 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const isPen = isPenEvent(e);
 
                 // Debug info for move (shows hover state if pressure is 0)
+                // S Pen Detection: If hovering (no active pointers yet) and buttons == 1, it's the barrel button!
+                if (isPen && !activePointers.has(id)) {
+                    if ((e.buttons & 1) === 1 || (e.buttons & 32) === 32 || (e.buttons & 2) === 2) {
+                        barrelHoverPreCheckRef.current = true;
+                    } else {
+                        barrelHoverPreCheckRef.current = false;
+                    }
+                }
+
                 const isBarrelButton =
                     (isPen && (e.button === 5 || e.button === 2 || (e.buttons & 2) === 2)) ||
-                    ((e.buttons & 32) === 32);
-                setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Mods: [${e.altKey ? 'A' : ''}${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.metaKey ? 'M' : ''}], Barrel: ${isBarrelButton ? 'YES' : 'NO'}`);
+                    ((e.buttons & 32) === 32) ||
+                    (isPen && barrelHoverPreCheckRef.current);
+                setDebugInfo(`Evt: ${e.type}, Ptr: ${e.pointerType}, Btn: ${e.button}, Btns: ${e.buttons}, Pres: ${e.pressure?.toFixed(2)}, Mods: [${e.altKey ? 'A' : ''}${e.ctrlKey ? 'C' : ''}${e.shiftKey ? 'S' : ''}${e.metaKey ? 'M' : ''}], HovBtn: ${barrelHoverPreCheckRef.current ? 'YES' : 'NO'}, Barrel: ${isBarrelButton ? 'YES' : 'NO'}`);
 
 
                 if (activePointers.has(id)) {
