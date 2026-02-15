@@ -19,6 +19,8 @@ import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/sh
 import { FiArrowDown, FiExternalLink, FiMaximize, FiSettings, FiSun, FiVolume2, FiX } from 'react-icons/fi';
 import { FaYoutube } from 'react-icons/fa';
 
+const PLAYLIST_DATA_CACHE = new Map<string, any>();
+
 const REMARK_PLUGINS = [remarkMath, remarkGfm, remarkBreaks];
 const REHYPE_PLUGINS = [rehypeRaw, rehypeKatex];
 
@@ -1949,6 +1951,11 @@ const YoutubePlaylistView = React.memo(({ playlistId }: { playlistId: string }) 
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
+    if (PLAYLIST_DATA_CACHE.has(playlistId)) {
+      setPlaylistVideos(PLAYLIST_DATA_CACHE.get(playlistId));
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     // Attempt to fetch playlist page to extract video titles
     const fetchPlaylist = async () => {
@@ -2079,8 +2086,13 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
     onEditSpreadsheet,
     fontSize
 }) => {
-    const theme = useTheme() as any;
-    const isDark = theme.mode === 'dark';
+  const theme = useTheme() as any;
+  const isDark = theme.mode === 'dark';
+  const stateRef = React.useRef({ onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment });
+  stateRef.current = { onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment };
+  
+
+    
 
     const processedContent = React.useMemo(() => {
         let result = content;
@@ -2110,7 +2122,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
 
                 const isYoutube =
                     (cleanHref.includes('youtube.com') ||
-                        cleanHref.includes('youtu.be')) && !isComment;
+                        cleanHref.includes('youtu.be')) && !stateRef.current.isComment;
 
                 if (isYoutube) {
                     let videoId = '';
@@ -2136,11 +2148,11 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
 
                     if (videoId) {
                         return (
-                            <div key={videoId} style={{ margin: '16px 0' }}>
-                                <YouTubePlayer
+                            <div key={`yt-wrap-${videoId}`} style={{ margin: '16px 0' }}>
+                                <YouTubePlayer key={`yt-${videoId}`}
                                     videoId={videoId}
                                     startTimestamp={timestamp > 0 ? timestamp : undefined}
-                                    memoId={memoId}
+                                    memoId={stateRef.current.memoId}
                                     isShort={cleanHref.includes('shorts/')}
                                 />
                             </div>
@@ -2160,7 +2172,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
                             if (playlistId.startsWith('VL')) {
                                 playlistId = playlistId.substring(2);
                             }
-                            return <YoutubePlaylistView playlistId={playlistId} />;
+                            return <YoutubePlaylistView key={`pl-${playlistId}`} playlistId={playlistId} />;
                         }
                     }
                 }
@@ -2168,7 +2180,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
                 // General Web Preview for standalone links (links that match children or are on their own)
                 const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
                 if (isStandalone && href.startsWith('http')) {
-                    return <WebPreview url={href} />;
+                    return <WebPreview key={`web-${href}`} url={href} />;
                 }
 
                 return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
@@ -2225,18 +2237,18 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
                 const json = String(children).replace(/\n$/, '');
 
                 if (!inline && language === 'fabric') {
-                    return <FabricPreview json={json} onClick={!isReadOnly && onEditDrawing ? () => onEditDrawing(json) : undefined} />;
+                    return <FabricPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditDrawing ? () => stateRef.current.onEditDrawing(json) : undefined} />;
                 }
 
                 if (!inline && language === 'spreadsheet') {
-                    return <SpreadsheetPreview json={json} onClick={!isReadOnly && onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
+                    return <SpreadsheetPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditSpreadsheet ? () => stateRef.current.onEditSpreadsheet(json) : undefined} />;
                 }
 
                 if (!inline && language === 'web') {
                     try {
                         const url = json.trim();
                         new URL(url); // basic check
-                        return <WebPreview url={url} />;
+                        return <WebPreview key={`web-${url}`} url={url} />;
                     } catch (e) {
                         return <code className={className} {...props}>{children}</code>;
                     }
@@ -2261,14 +2273,14 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
                             videoId = rawUrl; // fallback assumes literal videoId
                         }
 
-                        if (videoId) return <YouTubePlayer videoId={videoId} startTimestamp={startTimestamp} memoId={memoId} isShort={isShort} />;
+                        if (videoId) return <YouTubePlayer key={`yt-${videoId}`} videoId={videoId} startTimestamp={startTimestamp} memoId={stateRef.current.memoId} isShort={isShort} />;
                     } catch (e) { }
                 }
 
                 if (!inline) {
                     return (
                         <SyntaxHighlighter
-                            style={isDark ? vscDarkPlus : vs}
+                            style={stateRef.current.isDark ? vscDarkPlus : vs}
                             language={language || 'text'}
                             PreTag="div"
                             {...props}
@@ -2283,9 +2295,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
                 return <code className={className} {...props}>{children}</code>;
             }
         }
-    }), [onEditDrawing, onEditSpreadsheet, isDark, memoId,
-  
-   isReadOnly, isComment]);
+    }), []);
 
     return (
         <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>

@@ -19,6 +19,8 @@ import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/sh
 import { FiMaximize, FiSun, FiVolume2, FiX , FiArrowDown, FiExternalLink, FiSettings} from 'react-icons/fi';
 import { FaYoutube } from 'react-icons/fa';
 
+const PLAYLIST_DATA_CACHE = new Map<string, any>();
+
 const REMARK_PLUGINS = [remarkMath, remarkGfm, remarkBreaks];
 const REHYPE_PLUGINS = [rehypeRaw, rehypeKatex];
 
@@ -1346,6 +1348,11 @@ const YoutubePlaylistView = React.memo(({ playlistId }: { playlistId: string }) 
   const [playlistVideos, setPlaylistVideos] = React.useState<{ id: string, title: string }[]>([]);
   const [loading, setLoading] = React.useState(true);
   React.useEffect(() => {
+    if (PLAYLIST_DATA_CACHE.has(playlistId)) {
+      setPlaylistVideos(PLAYLIST_DATA_CACHE.get(playlistId));
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const fetchPlaylist = async () => {
       try {
@@ -1367,7 +1374,10 @@ const YoutubePlaylistView = React.memo(({ playlistId }: { playlistId: string }) 
           const idRegex = /"videoId":"([a-zA-Z0-9_-]{11})"/g; let m;
           while ((m = idRegex.exec(html)) !== null) { if (!seen.has(m[1])) { seen.add(m[1]); videos.push({ id: m[1], title: '영상 제목 없음' }); } }
         }
-        if (videos.length > 0) setPlaylistVideos(videos);
+        if (videos.length > 0) {
+          setPlaylistVideos(videos);
+          PLAYLIST_DATA_CACHE.set(playlistId, videos);
+        }
       } catch (e) { } finally { setLoading(false); }
     };
     fetchPlaylist();
@@ -1405,6 +1415,11 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
 }) => {
   const theme = useTheme() as any;
   const isDark = theme.mode === 'dark';
+  const stateRef = React.useRef({ onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment });
+  stateRef.current = { onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment };
+  
+
+  
 
   const processedContent = React.useMemo(() => {
     let result = content;
@@ -1423,7 +1438,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
         let cleanHref = href;
         try { cleanHref = decodeURIComponent(href); } catch (e) { }
         cleanHref = (cleanHref || '').replace(/&amp;/g, '&').replace(/&#38;/g, '&').replace(/&#x26;/g, '&');
-        const isYoutube = (cleanHref.includes('youtube.com') || cleanHref.includes('youtu.be')) && !isComment;
+        const isYoutube = (cleanHref.includes('youtube.com') || cleanHref.includes('youtu.be')) && !stateRef.current.isComment;
         if (isYoutube) {
           let videoId = ''; let timestamp = 0;
           const vParamMatch = cleanHref.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
@@ -1434,17 +1449,17 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
           }
           const tMatch = cleanHref.match(/[?&]t=(\d+)/);
           if (tMatch && tMatch[1]) timestamp = parseInt(tMatch[1]);
-          if (videoId) return (<div key={videoId} style={{ margin: '16px 0' }}><YouTubePlayer videoId={videoId} startTimestamp={timestamp > 0 ? timestamp : undefined} memoId={memoId} isShort={cleanHref.includes('shorts/')} /></div>);
+          if (videoId) return (<div key={`yt-wrap-${videoId}`} style={{ margin: '16px 0' }}><YouTubePlayer key={`yt-${videoId}`} videoId={videoId} startTimestamp={timestamp > 0 ? timestamp : undefined} memoId={stateRef.current.memoId} isShort={cleanHref.includes('shorts/')} /></div>);
           else {
             let playlistId = '';
             const listMatch = cleanHref.match(/[?&]list=([a-zA-Z0-9_-]+)/);
             if (listMatch) playlistId = listMatch[1];
             else { const showMatch = cleanHref.match(/\/show\/([a-zA-Z0-9_-]+)/); if (showMatch) playlistId = showMatch[1]; }
-            if (playlistId) { if (playlistId.startsWith('VL')) playlistId = playlistId.substring(2); return <YoutubePlaylistView playlistId={playlistId} />; }
+            if (playlistId) { if (playlistId.startsWith('VL')) playlistId = playlistId.substring(2); return <YoutubePlaylistView key={`pl-${playlistId}`} playlistId={playlistId} />; }
           }
         }
         const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
-        if (isStandalone && href.startsWith('http')) return <WebPreview url={href} />;
+        if (isStandalone && href.startsWith('http')) return <WebPreview key={`web-${href}`} url={href} />;
         return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
       } catch (e) { return <a href={href} {...props}>{children}</a>; }
     },
@@ -1470,9 +1485,9 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
         const match = /language-(\w+)/.exec(className || '');
         const language = match ? match[1] : '';
         const json = String(children).replace(/\n$/, '');
-        if (!inline && language === 'fabric') return <FabricPreview json={json} onClick={!isReadOnly && onEditDrawing ? () => onEditDrawing(json) : undefined} />;
-        if (!inline && language === 'spreadsheet') return <SpreadsheetPreview json={json} onClick={!isReadOnly && onEditSpreadsheet ? () => onEditSpreadsheet(json) : undefined} />;
-        if (!inline && language === 'web') { try { const url = json.trim(); new URL(url); return <WebPreview url={url} />; } catch (e) { return <code className={className} {...props}>{children}</code>; } }
+        if (!inline && language === 'fabric') return <FabricPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditDrawing ? () => stateRef.current.onEditDrawing(json) : undefined} />;
+        if (!inline && language === 'spreadsheet') return <SpreadsheetPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditSpreadsheet ? () => stateRef.current.onEditSpreadsheet(json) : undefined} />;
+        if (!inline && language === 'web') { try { const url = json.trim(); new URL(url); return <WebPreview key={`web-${url}`} url={url} />; } catch (e) { return <code className={className} {...props}>{children}</code>; } }
         if (!inline && (language === 'youtube' || language === 'yt')) {
           try {
             let videoId = ''; const parts = json.split('\n'); const rawUrl = parts[0].trim();
@@ -1483,16 +1498,14 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
             else if (rawUrl.includes('youtu.be/')) videoId = rawUrl.split('youtu.be/')[1].split('?')[0];
             else if (rawUrl.includes('youtube.com/shorts/')) videoId = rawUrl.split('youtube.com/shorts/')[1].split('?')[0];
             else videoId = rawUrl;
-            if (videoId) return <YouTubePlayer videoId={videoId} startTimestamp={startTimestamp} memoId={memoId} isShort={isShort} />;
+            if (videoId) return <YouTubePlayer key={`yt-${videoId}`} videoId={videoId} startTimestamp={startTimestamp} memoId={stateRef.current.memoId} isShort={isShort} />;
           } catch (e) { }
         }
-        if (!inline) return (<SyntaxHighlighter style={isDark ? vscDarkPlus : vs} language={language || 'text'} PreTag="div" {...props}>{json}</SyntaxHighlighter>);
+        if (!inline) return (<SyntaxHighlighter style={stateRef.current.isDark ? vscDarkPlus : vs} language={language || 'text'} PreTag="div" {...props}>{json}</SyntaxHighlighter>);
         return <code className={className} {...props}>{children}</code>;
       } catch (e) { return <code className={className} {...props}>{children}</code>; }
     }
-  }), [onEditDrawing, onEditSpreadsheet, isDark, memoId,
-  
-   isReadOnly, isComment]);
+  }), []);
 return (
     <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>
       <ReactMarkdown
