@@ -19,6 +19,9 @@ import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/sh
 import { FiArrowDown, FiExternalLink, FiMaximize, FiSettings, FiSun, FiVolume2, FiX } from 'react-icons/fi';
 import { FaYoutube } from 'react-icons/fa';
 
+const REMARK_PLUGINS = [remarkMath, remarkGfm, remarkBreaks];
+const REHYPE_PLUGINS = [rehypeRaw, rehypeKatex];
+
 
 const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => void }> = ({ children, onClick }) => {
   const [isTwoFingers, setIsTwoFingers] = React.useState(false);
@@ -513,7 +516,7 @@ const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: (
   );
 });
 
-const SpreadsheetPreview = ({ json, onClick }: { json: string; onClick?: () => void }) => {
+const SpreadsheetPreview = React.memo(({ json, onClick }: { json: string; onClick?: () => void }) => {
   const { language } = useLanguage();
   try {
     const data = JSON.parse(json);
@@ -649,9 +652,9 @@ const SpreadsheetPreview = ({ json, onClick }: { json: string; onClick?: () => v
   } catch (e) {
     return <div style={{ color: 'red', fontSize: '12px' }}>Failed to render spreadsheet preview</div>;
   }
-};
+});
 
-const WebPreview = ({ url }: { url: string }) => {
+const WebPreview = React.memo(({ url }: { url: string }) => {
   const { language } = useLanguage();
   const domain = new URL(url).hostname;
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
@@ -773,12 +776,12 @@ const WebPreview = ({ url }: { url: string }) => {
       </MobileObjectGuard>
     </div>
   );
-};
+});
 
 const YT_PLAYERS = new Map<string, any>();
 let ACTIVE_YT_VIDEO_ID: string | null = null;
 
-const YouTubePlayer = ({ videoId, startTimestamp, memoId,
+const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
   
    isShort }: { videoId: string; startTimestamp?: number; memoId?: number;
   wordTitle?: string;
@@ -1939,9 +1942,9 @@ const YouTubePlayer = ({ videoId, startTimestamp, memoId,
       </div>
     </div>
   );
-};
+});
 
-const YoutubePlaylistView = ({ playlistId }: { playlistId: string }) => {
+const YoutubePlaylistView = React.memo(({ playlistId }: { playlistId: string }) => {
   const [playlistVideos, setPlaylistVideos] = React.useState<{ id: string, title: string }[]>([]);
   const [loading, setLoading] = React.useState(true);
 
@@ -2046,7 +2049,7 @@ const YoutubePlaylistView = ({ playlistId }: { playlistId: string }) => {
       </a>
     </div>
   );
-};
+});
 
 
 
@@ -2064,7 +2067,7 @@ interface MarkdownViewProps {
     fontSize?: number;
 }
 
-export const MarkdownView: React.FC<MarkdownViewProps> = ({
+export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
     content,
     memoId,
   
@@ -2287,8 +2290,8 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
     return (
         <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>
             <ReactMarkdown
-                remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
-                rehypePlugins={[rehypeRaw, rehypeKatex]}
+                remarkPlugins={REMARK_PLUGINS}
+                rehypePlugins={REHYPE_PLUGINS}
                 remarkRehypeOptions={{ allowDangerousHtml: true }}
                 components={components}
             >
@@ -2296,4 +2299,4 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
             </ReactMarkdown>
         </MarkdownContainer>
     );
-};
+});
