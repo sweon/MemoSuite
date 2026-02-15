@@ -173,6 +173,35 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
       padding: 0;
     }
   }
+
+  /* Collapsible / Details Styles */
+  details {
+    border-radius: 6px;
+    padding: 0 12px 12px 12px;
+    margin: 8px 0;
+    transition: all 0.2s ease;
+    background: ${({ theme }) => theme.colors.surface};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    overflow: hidden;
+
+    summary {
+      padding: 8px 0;
+      cursor: pointer;
+      font-weight: 600;
+      color: ${({ theme }) => theme.colors.primary};
+      outline: none;
+      user-select: none;
+      font-size: 0.9rem;
+
+      &::-webkit-details-marker {
+        margin-right: 8px;
+      }
+    }
+
+    & > *:not(summary) {
+      margin-bottom: 4px;
+    }
+  }
 `;
 
 const PREVIEW_CACHE = new Map<string, string>();
@@ -508,7 +537,13 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
   const isDark = theme.mode === 'dark';
 
   const processedContent = React.useMemo(() => {
-    return content.replace(/^\\newpage\s*$/gm, '<div class="page-break"></div>');
+    let result = content;
+    // Convert :::collapse Title ... ::: to <details><summary>Title</summary>...</details>
+    result = result.replace(
+      /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
+      (_, title, body) => `<details><summary>${title.trim() || 'Details'}</summary>\n\n${body}\n\n</details>`
+    );
+    return result.replace(/^\\newpage\s*$/gm, '<div class="page-break"></div>');
   }, [content]);
 
   return (
