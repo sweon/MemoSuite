@@ -1316,6 +1316,21 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const lastAddedObjectRef = useRef<fabric.Object | null>(null);
     const lastAddedObjectTimeRef = useRef(0);
     const touchEraserCursorRef = useRef<SVGSVGElement | null>(null);
+    // --- Barrel Button Eraser ---
+    // Tracks which eraser was last actively used (via toolbar selection), defaults to pixel eraser
+    const lastUsedEraserRef = useRef<'eraser_pixel' | 'eraser_object'>('eraser_pixel');
+    // True while the stylus barrel button is held down and we're in temporary eraser mode
+    const barrelButtonErasingRef = useRef(false);
+    // Stores the brush/canvas state before barrel-button eraser activation so we can restore it
+    const savedBrushStateRef = useRef<{
+        brush: fabric.BaseBrush | null;
+        isDrawingMode: boolean;
+        freeDrawingCursor: string;
+        defaultCursor: string;
+        hoverCursor: string;
+        overlayCursor: string;
+        upperCanvasOpacity: string;
+    } | null>(null);
     handleActualClose.current = propsOnClose;
 
     const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
@@ -2021,6 +2036,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }
                 setActiveTool('pen');
             } else {
+                // Track last-used eraser type for barrel button feature
+                if (toolId === 'eraser_pixel' || toolId === 'eraser_object') {
+                    lastUsedEraserRef.current = toolId;
+                }
                 setActiveTool(toolId);
             }
         }
@@ -2840,7 +2859,103 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     return; // Absorb event
                 }
 
-                // 2. Decision: Forward to Fabric or Absorb?
+                // 2. Barrel Button Eraser Detection
+                // Stylus barrel button: button === 5 (standard) or button === 2 with pen pointerType
+                const isBarrelButton = isPen && (e.button === 5 || (e.button === 2 && e.pointerType === 'pen'));
+                const currentTool = activeToolRef.current;
+
+                if (isBarrelButton && currentTool !== 'eraser_pixel' && currentTool !== 'eraser_object') {
+                    const eraserType = lastUsedEraserRef.current;
+
+                    if (eraserType === 'eraser_pixel') {
+                        // --- Pixel Eraser via Barrel Button ---
+                        // Save current state
+                        const overlay = (canvas as any).__overlayEl;
+                        const upperCanvasEl = (canvas as any).upperCanvasEl;
+                        savedBrushStateRef.current = {
+                            brush: canvas.freeDrawingBrush,
+                            isDrawingMode: canvas.isDrawingMode,
+                            freeDrawingCursor: canvas.freeDrawingCursor || 'crosshair',
+                            defaultCursor: canvas.defaultCursor || 'default',
+                            hoverCursor: canvas.hoverCursor || 'default',
+                            overlayCursor: overlay ? overlay.style.cursor : 'default',
+                            upperCanvasOpacity: upperCanvasEl ? upperCanvasEl.style.opacity : '1',
+                        };
+
+                        // Switch to pixel eraser brush (no React state change!)
+                        const eraserBrush = new fabric.PencilBrush(canvas);
+                        const currentBrushSize = canvas.freeDrawingBrush ? canvas.freeDrawingBrush.width : 8;
+                        eraserBrush.width = currentBrushSize * 4;
+                        eraserBrush.color = 'black';
+                        // @ts-ignore
+                        eraserBrush.globalCompositeOperation = 'source-over';
+                        (eraserBrush as any).decimate = 0.5;
+
+                        canvas.freeDrawingBrush = eraserBrush;
+                        canvas.isDrawingMode = true;
+                        canvas.freeDrawingCursor = 'none';
+                        canvas.defaultCursor = 'none';
+                        canvas.hoverCursor = 'none';
+                        if (overlay) overlay.style.cursor = 'none';
+                        if (upperCanvasEl) upperCanvasEl.style.opacity = '0.01';
+
+                        barrelButtonErasingRef.current = true;
+                        abortActiveStroke();
+
+                        forwardedPointers.add(id);
+                        forwardToFabric('__onMouseDown', e);
+                        return;
+                    } else {
+                        // --- Object Eraser via Barrel Button ---
+                        barrelButtonErasingRef.current = true;
+                        // Don't forward to Fabric; we handle object removal directly
+                        // Store a minimal state backup for cleanup
+                        savedBrushStateRef.current = {
+                            brush: canvas.freeDrawingBrush,
+                            isDrawingMode: canvas.isDrawingMode,
+                            freeDrawingCursor: canvas.freeDrawingCursor || 'crosshair',
+                            defaultCursor: canvas.defaultCursor || 'default',
+                            hoverCursor: canvas.hoverCursor || 'default',
+                            overlayCursor: ((canvas as any).__overlayEl || {}).style?.cursor || 'default',
+                            upperCanvasOpacity: ((canvas as any).upperCanvasEl || {}).style?.opacity || '1',
+                        };
+
+                        abortActiveStroke();
+
+                        // Perform immediate object erasing at this point
+                        const pointer = canvas.getPointer(e);
+                        const bSize = canvas.freeDrawingBrush ? canvas.freeDrawingBrush.width : 8;
+                        const visualRadius = ((bSize * 4) / 2);
+
+                        const objects = canvas.getObjects();
+                        const checkRadius = visualRadius * 0.9;
+                        const samplePoints = [
+                            new fabric.Point(pointer.x, pointer.y),
+                            new fabric.Point(pointer.x - checkRadius, pointer.y),
+                            new fabric.Point(pointer.x + checkRadius, pointer.y),
+                            new fabric.Point(pointer.x, pointer.y - checkRadius),
+                            new fabric.Point(pointer.x, pointer.y + checkRadius),
+                            new fabric.Point(pointer.x - checkRadius * 0.707, pointer.y - checkRadius * 0.707),
+                            new fabric.Point(pointer.x + checkRadius * 0.707, pointer.y - checkRadius * 0.707),
+                            new fabric.Point(pointer.x - checkRadius * 0.707, pointer.y + checkRadius * 0.707),
+                            new fabric.Point(pointer.x + checkRadius * 0.707, pointer.y + checkRadius * 0.707)
+                        ];
+                        for (const p of samplePoints) {
+                            // @ts-ignore
+                            const target = (canvas as any)._searchPossibleTargets(objects, p);
+                            if (target && !((target as any).isPixelEraser || (target as any).isPageBackground)) {
+                                canvas.remove(target);
+                            }
+                        }
+                        canvas.requestRenderAll();
+
+                        // Mark this pointer as barrel-object-erasing (for move handler)
+                        forwardedPointers.add(id);
+                        return;
+                    }
+                }
+
+                // 3. Decision: Forward to Fabric or Absorb?
                 const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen() && !isPalmEvent(e);
                 if (isPen || allowTouch) {
                     if (isPen) {
@@ -2918,7 +3033,39 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen() && !isPalmEvent(e);
                 if (isPen || (allowTouch && !isMultiTouching)) {
+                    // Handle barrel button object eraser drag
+                    if (barrelButtonErasingRef.current && lastUsedEraserRef.current === 'eraser_object' && forwardedPointers.has(id)) {
+                        // Directly remove objects under pointer (don't forward to Fabric)
+                        const pointer = canvas.getPointer(e);
+                        const bSize = canvas.freeDrawingBrush ? canvas.freeDrawingBrush.width : 8;
+                        const visualRadius = ((bSize * 4) / 2);
+                        const checkRadius = visualRadius * 0.9;
+
+                        const objects = canvas.getObjects();
+                        const samplePoints = [
+                            new fabric.Point(pointer.x, pointer.y),
+                            new fabric.Point(pointer.x - checkRadius, pointer.y),
+                            new fabric.Point(pointer.x + checkRadius, pointer.y),
+                            new fabric.Point(pointer.x, pointer.y - checkRadius),
+                            new fabric.Point(pointer.x, pointer.y + checkRadius),
+                        ];
+                        for (const p of samplePoints) {
+                            // @ts-ignore
+                            const target = (canvas as any)._searchPossibleTargets(objects, p);
+                            if (target && !((target as any).isPixelEraser || (target as any).isPageBackground)) {
+                                canvas.remove(target);
+                            }
+                        }
+                        canvas.requestRenderAll();
+                        return;
+                    }
+
                     forwardToFabric('__onMouseMove', e);
+
+                    // Force re-render during barrel-button pixel erasing for real-time feedback
+                    if (barrelButtonErasingRef.current && lastUsedEraserRef.current === 'eraser_pixel') {
+                        canvas.requestRenderAll();
+                    }
 
                     // Immediate cursor sync: since the overlay captures the mouse, we must
                     // reflect whatever cursor Fabric decided to show on the upperCanvas.
@@ -2952,6 +3099,41 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                     e.preventDefault();
                     e.stopPropagation();
+                    return;
+                }
+
+                // Handle barrel button eraser cleanup
+                if (barrelButtonErasingRef.current && forwardedPointers.has(id)) {
+                    const eraserType = lastUsedEraserRef.current;
+
+                    if (eraserType === 'eraser_pixel') {
+                        // Let Fabric finalize the stroke (path:created will mark it as eraser)
+                        forwardToFabric('__onMouseUp', e);
+                    }
+                    // For object eraser, no Fabric event was forwarded, nothing to finalize
+
+                    forwardedPointers.delete(id);
+
+                    // Restore saved state
+                    const saved = savedBrushStateRef.current;
+                    if (saved) {
+                        if (saved.brush) canvas.freeDrawingBrush = saved.brush;
+                        canvas.isDrawingMode = saved.isDrawingMode;
+                        canvas.freeDrawingCursor = saved.freeDrawingCursor;
+                        canvas.defaultCursor = saved.defaultCursor;
+                        canvas.hoverCursor = saved.hoverCursor;
+
+                        const overlay = (canvas as any).__overlayEl;
+                        if (overlay) overlay.style.cursor = saved.overlayCursor;
+
+                        const upperCanvasEl = (canvas as any).upperCanvasEl;
+                        if (upperCanvasEl) upperCanvasEl.style.opacity = saved.upperCanvasOpacity;
+
+                        savedBrushStateRef.current = null;
+                    }
+
+                    barrelButtonErasingRef.current = false;
+                    canvas.requestRenderAll();
                     return;
                 }
 
@@ -2993,7 +3175,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         canvas.on('object:removed', handleObjectRemovedForHistory);
 
         canvas.on('path:created', (opt: any) => {
-            if (activeToolRef.current === 'eraser_pixel') {
+            // Detect pixel eraser paths: either from active eraser tool OR barrel button temporary eraser
+            const isPixelEraserPath = activeToolRef.current === 'eraser_pixel' ||
+                (barrelButtonErasingRef.current && lastUsedEraserRef.current === 'eraser_pixel');
+            if (isPixelEraserPath) {
                 opt.path.set({
                     isPixelEraser: true,
                     selectable: false,
@@ -5248,9 +5433,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             const pattern = persistentBackgroundPatternRef.current;
             if (ctx && pattern && canvas.viewportTransform) {
                 // A. LIVE ERASE PROJECTION
-                // If user is currently erasing, subtract the upper-canvas (brush trail) 
+                // If user is currently erasing (via active tool OR barrel button), subtract the upper-canvas (brush trail) 
                 // from the lower-canvas (final objects) in real-time.
-                if (activeToolRef.current === 'eraser_pixel' && canvas.isDrawingMode) {
+                const isPixelErasing = (activeToolRef.current === 'eraser_pixel' ||
+                    (barrelButtonErasingRef.current && lastUsedEraserRef.current === 'eraser_pixel'));
+                if (isPixelErasing && canvas.isDrawingMode) {
                     const upperCanvas = (canvas as any).upperCanvasEl;
                     if (upperCanvas) {
                         ctx.save();
