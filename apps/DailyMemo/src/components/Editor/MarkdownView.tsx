@@ -16,7 +16,7 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
-import { FiMaximize, FiSun, FiVolume2, FiX , FiArrowDown, FiExternalLink, FiSettings} from 'react-icons/fi';
+import { FiMaximize, FiSun, FiVolume2, FiX, FiArrowDown, FiExternalLink, FiSettings } from 'react-icons/fi';
 import { FaYoutube } from 'react-icons/fa';
 
 const PLAYLIST_DATA_CACHE = new Map<string, any>();
@@ -750,7 +750,7 @@ const WebPreview = React.memo(({ url }: { url: string }) => {
       </MobileObjectGuard>
     </div>
   );
-};
+});
 
 
 const JumpBackButton = styled.button`
@@ -774,7 +774,7 @@ const JumpBackButton = styled.button`
 
   &:hover {
     transform: translateY(-1px);
-    background: ${({ theme }) => theme.colors.primary});
+    background: ${({ theme }) => theme.colors.primary};
     color: white;
     box-shadow: 0 4px 12px ${({ theme }) => theme.colors.primary}40;
   }
@@ -791,10 +791,12 @@ const YT_PLAYERS = new Map<string, any>();
 let ACTIVE_YT_VIDEO_ID: string | null = null;
 
 const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
-  
-   isShort }: { videoId: string; startTimestamp?: number; memoId?: number;
-  wordTitle?: string;
-  studyMode?: string; isShort?: boolean }) => {
+
+  isShort }: {
+    videoId: string; startTimestamp?: number; memoId?: number;
+    wordTitle?: string;
+    studyMode?: string; isShort?: boolean
+  }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const playerRef = React.useRef<any>(null);
   const intervalRef = React.useRef<any>(null);
@@ -811,7 +813,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
   const [activeTrackCode, setActiveTrackCode] = React.useState<string>('off');
   const [ccFontSize, setCCFontSize] = React.useState(0);
   const [volumeToast, setVolumeToast] = React.useState<number | null>(null);
-  
+
 
   const ccTimersRef = React.useRef<any[]>([]);
   const isSwitchingCCTrack = React.useRef(false);
@@ -1426,8 +1428,8 @@ interface MarkdownViewProps {
 
 export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
   memoId,
-  
-  
+
+
   isReadOnly = false,
   isComment = false,
   tableHeaderBg,
@@ -1439,9 +1441,9 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
   const isDark = theme.mode === 'dark';
   const stateRef = React.useRef({ onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment });
   stateRef.current = { onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment };
-  
 
-  
+
+
 
   const processedContent = React.useMemo(() => {
     let result = content;
@@ -1453,7 +1455,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
     return result.replace(/^\\newpage\s*$/gm, '<div class="page-break"></div>');
   }, [content]);
 
-  
+
   const components = React.useMemo(() => ({
     a: ({ href, children, ...props }: any) => {
       try {
@@ -1465,7 +1467,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
         if (isYoutube) {
           let videoId = ''; let timestamp = 0;
           const vParamMatch = cleanHref.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-          if (vParamMatch && vParamMatch[1]) { videoId = vParamMatch[1]; } 
+          if (vParamMatch && vParamMatch[1]) { videoId = vParamMatch[1]; }
           else {
             const pathMatch = cleanHref.match(/(?:youtu\.be\/|embed\/|shorts\/|v\/)([a-zA-Z0-9_-]{11})/);
             if (pathMatch && pathMatch[1]) videoId = pathMatch[1];
@@ -1508,8 +1510,8 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
         const match = /language-(\w+)/.exec(className || '');
         const language = match ? match[1] : '';
         const json = String(children).replace(/\n$/, '');
-        if (!inline && language === 'fabric') return <FabricPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditDrawing ? () => stateRef.current.onEditDrawing(json) : undefined} />;
-        if (!inline && language === 'spreadsheet') return <SpreadsheetPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditSpreadsheet ? () => stateRef.current.onEditSpreadsheet(json) : undefined} />;
+        if (!inline && language === 'fabric') return <FabricPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditDrawing ? () => stateRef.current.onEditDrawing?.(json) : undefined} />;
+        if (!inline && language === 'spreadsheet') return <SpreadsheetPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditSpreadsheet ? () => stateRef.current.onEditSpreadsheet?.(json) : undefined} />;
         if (!inline && language === 'web') { try { const url = json.trim(); new URL(url); return <WebPreview key={`web-${url}`} url={url} />; } catch (e) { return <code className={className} {...props}>{children}</code>; } }
         if (!inline && (language === 'youtube' || language === 'yt')) {
           try {
@@ -1529,7 +1531,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
       } catch (e) { return <code className={className} {...props}>{children}</code>; }
     }
   }), []);
-return (
+  return (
     <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>
       <ReactMarkdown
         remarkPlugins={REMARK_PLUGINS}

@@ -1419,9 +1419,9 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
   const isDark = theme.mode === 'dark';
   const stateRef = React.useRef({ onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment });
   stateRef.current = { onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment };
-  
 
-  
+
+
 
   const processedContent = React.useMemo(() => {
     let result = content;
@@ -1487,8 +1487,8 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
         const match = /language-(\w+)/.exec(className || '');
         const language = match ? match[1] : '';
         const json = String(children).replace(/\n$/, '');
-        if (!inline && language === 'fabric') return <FabricPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditDrawing ? () => stateRef.current.onEditDrawing(json) : undefined} />;
-        if (!inline && language === 'spreadsheet') return <SpreadsheetPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditSpreadsheet ? () => stateRef.current.onEditSpreadsheet(json) : undefined} />;
+        if (!inline && language === 'fabric') return <FabricPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditDrawing ? () => stateRef.current.onEditDrawing?.(json) : undefined} />;
+        if (!inline && language === 'spreadsheet') return <SpreadsheetPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditSpreadsheet ? () => stateRef.current.onEditSpreadsheet?.(json) : undefined} />;
         if (!inline && language === 'web') { try { const url = json.trim(); new URL(url); return <WebPreview key={`web-${url}`} url={url} />; } catch (e) { return <code className={className} {...props}>{children}</code>; } }
         if (!inline && (language === 'youtube' || language === 'yt')) {
           try {

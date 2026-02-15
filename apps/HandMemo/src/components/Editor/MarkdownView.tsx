@@ -784,10 +784,12 @@ const YT_PLAYERS = new Map<string, any>();
 let ACTIVE_YT_VIDEO_ID: string | null = null;
 
 const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
-  
-   isShort }: { videoId: string; startTimestamp?: number; memoId?: number;
-  wordTitle?: string;
-  studyMode?: string; isShort?: boolean }) => {
+
+  isShort }: {
+    videoId: string; startTimestamp?: number; memoId?: number;
+    wordTitle?: string;
+    studyMode?: string; isShort?: boolean
+  }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const playerRef = React.useRef<any>(null);
   const intervalRef = React.useRef<any>(null);
@@ -2062,251 +2064,251 @@ const YoutubePlaylistView = React.memo(({ playlistId }: { playlistId: string }) 
 
 
 interface MarkdownViewProps {
-    content: string;
-    memoId?: number;
+  content: string;
+  memoId?: number;
   wordTitle?: string;
   studyMode?: string;
-    isReadOnly?: boolean;
-    isComment?: boolean;
-    tableHeaderBg?: string;
-    onEditDrawing?: (json: string) => void;
-    onEditSpreadsheet?: (json: string) => void;
-    fontSize?: number;
+  isReadOnly?: boolean;
+  isComment?: boolean;
+  tableHeaderBg?: string;
+  onEditDrawing?: (json: string) => void;
+  onEditSpreadsheet?: (json: string) => void;
+  fontSize?: number;
 }
 
 export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
-    content,
-    memoId,
-  
-  
-    isReadOnly = false,
-    isComment = false,
-    tableHeaderBg,
-    onEditDrawing,
-    onEditSpreadsheet,
-    fontSize
+  content,
+  memoId,
+
+
+  isReadOnly = false,
+  isComment = false,
+  tableHeaderBg,
+  onEditDrawing,
+  onEditSpreadsheet,
+  fontSize
 }) => {
   const theme = useTheme() as any;
   const isDark = theme.mode === 'dark';
   const stateRef = React.useRef({ onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment });
   stateRef.current = { onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment };
-  
 
-    
 
-    const processedContent = React.useMemo(() => {
-        let result = content;
-        // Convert :::collapse Title ... ::: to <details><summary>Title</summary>...</details>
-        result = result.replace(
-            /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
-            (_, title, body) => `<details><summary>${title.trim() || 'Details'}</summary>\n\n${body}\n\n</details>`
-        );
-        return result.replace(/^\\newpage\s*$/gm, '<div class="page-break"></div>');
-    }, [content]);
 
-    const components = React.useMemo(() => ({
-        a: ({ href, children, ...props }: any) => {
-            try {
-                if (!href) return <a {...props}>{children}</a>;
 
-                let cleanHref = href;
-                try {
-                    cleanHref = decodeURIComponent(href);
-                } catch (e) { }
-
-                // Clean common HTML entities
-                cleanHref = (cleanHref || '')
-                    .replace(/&amp;/g, '&')
-                    .replace(/&#38;/g, '&')
-                    .replace(/&#x26;/g, '&');
-
-                const isYoutube =
-                    (cleanHref.includes('youtube.com') ||
-                        cleanHref.includes('youtu.be')) && !stateRef.current.isComment;
-
-                if (isYoutube) {
-                    let videoId = '';
-                    let timestamp = 0;
-
-                    // 1. Check for 'v=' parameter anywhere in query string
-                    const vParamMatch = cleanHref.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-
-                    if (vParamMatch && vParamMatch[1]) {
-                        videoId = vParamMatch[1];
-                    } else {
-                        // 2. Check for path-based IDs (youtu.be, embed, shorts, v)
-                        const pathMatch = cleanHref.match(/(?:youtu\.be\/|embed\/|shorts\/|v\/)([a-zA-Z0-9_-]{11})/);
-                        if (pathMatch && pathMatch[1]) {
-                            videoId = pathMatch[1];
-                        }
-                    }
-
-                    const tMatch = cleanHref.match(/[?&]t=(\d+)/);
-                    if (tMatch && tMatch[1]) {
-                        timestamp = parseInt(tMatch[1]);
-                    }
-
-                    if (videoId) {
-                        return (
-                            <div key={`yt-wrap-${videoId}`} style={{ margin: '16px 0' }}>
-                                <YouTubePlayer key={`yt-${videoId}`}
-                                    videoId={videoId}
-                                    startTimestamp={timestamp > 0 ? timestamp : undefined}
-                                    memoId={stateRef.current.memoId}
-                                    isShort={cleanHref.includes('shorts/')}
-                                />
-                            </div>
-                        );
-                    } else {
-                        // Check for playlist ID if video ID is missing
-                        let playlistId = '';
-                        const listMatch = cleanHref.match(/[?&]list=([a-zA-Z0-9_-]+)/);
-                        if (listMatch) playlistId = listMatch[1];
-                        else {
-                            const showMatch = cleanHref.match(/\/show\/([a-zA-Z0-9_-]+)/);
-                            if (showMatch) playlistId = showMatch[1];
-                        }
-
-                        if (playlistId) {
-                            // Remove 'VL' prefix if present
-                            if (playlistId.startsWith('VL')) {
-                                playlistId = playlistId.substring(2);
-                            }
-                            return <YoutubePlaylistView key={`pl-${playlistId}`} playlistId={playlistId} />;
-                        }
-                    }
-                }
-
-                // General Web Preview for standalone links (links that match children or are on their own)
-                const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
-                if (isStandalone && href.startsWith('http')) {
-                    return <WebPreview key={`web-${href}`} url={href} />;
-                }
-
-                return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
-            } catch (err) {
-                console.error('Link render error', err);
-                return <a href={href} {...props}>{children}</a>;
-            }
-        },
-        img: ({ src, alt }: any) => {
-            try {
-                const meta = metadataCache.get(src || '');
-                if (meta) {
-                    return (
-                        <img
-                            src={src}
-                            alt={alt}
-                            width={meta.width}
-                            height={meta.height}
-                            style={{
-                                aspectRatio: `${meta.width} / ${meta.height}`,
-                                height: 'auto',
-                                maxWidth: '100%',
-                                display: 'block',
-                                margin: '1em auto'
-                            }}
-                        />
-                    );
-                }
-                return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px', display: 'block', margin: '1em auto' }} />;
-            } catch (err) {
-                return <img src={src} alt={alt} style={{ maxWidth: '100%' }} />;
-            }
-        },
-        pre: ({ children, ...props }: any) => {
-            try {
-                const child = Array.isArray(children) ? children[0] : children;
-                if (React.isValidElement(child) &&
-                    (child.props as any).className?.includes('language-fabric')) {
-                    return <>{children}</>;
-                }
-                if (React.isValidElement(child) &&
-                    (child.props as any).className?.includes('language-spreadsheet')) {
-                    return <>{children}</>;
-                }
-                return <div {...props}>{children}</div>;
-            } catch (err) {
-                return <pre {...props}>{children}</pre>;
-            }
-        },
-        code: ({ node, inline, className, children, ...props }: any) => {
-            try {
-                const match = /language-(\w+)/.exec(className || '');
-                const language = match ? match[1] : '';
-                const json = String(children).replace(/\n$/, '');
-
-                if (!inline && language === 'fabric') {
-                    return <FabricPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditDrawing ? () => stateRef.current.onEditDrawing(json) : undefined} />;
-                }
-
-                if (!inline && language === 'spreadsheet') {
-                    return <SpreadsheetPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditSpreadsheet ? () => stateRef.current.onEditSpreadsheet(json) : undefined} />;
-                }
-
-                if (!inline && language === 'web') {
-                    try {
-                        const url = json.trim();
-                        new URL(url); // basic check
-                        return <WebPreview key={`web-${url}`} url={url} />;
-                    } catch (e) {
-                        return <code className={className} {...props}>{children}</code>;
-                    }
-                }
-
-                if (!inline && (language === 'youtube' || language === 'yt')) {
-                    try {
-                        let videoId = '';
-                        const parts = json.split('\n');
-                        const rawUrl = parts[0].trim();
-                        const startParam = parts.find(p => p.startsWith('start='))?.split('=')[1];
-                        const startTimestamp = startParam ? parseInt(startParam) : undefined;
-                        const isShort = parts.some(p => p.includes('short'));
-
-                        if (rawUrl.includes('youtube.com/watch?v=')) {
-                            videoId = new URL(rawUrl).searchParams.get('v') || '';
-                        } else if (rawUrl.includes('youtu.be/')) {
-                            videoId = rawUrl.split('youtu.be/')[1].split('?')[0];
-                        } else if (rawUrl.includes('youtube.com/shorts/')) {
-                            videoId = rawUrl.split('youtube.com/shorts/')[1].split('?')[0];
-                        } else {
-                            videoId = rawUrl; // fallback assumes literal videoId
-                        }
-
-                        if (videoId) return <YouTubePlayer key={`yt-${videoId}`} videoId={videoId} startTimestamp={startTimestamp} memoId={stateRef.current.memoId} isShort={isShort} />;
-                    } catch (e) { }
-                }
-
-                if (!inline) {
-                    return (
-                        <SyntaxHighlighter
-                            style={stateRef.current.isDark ? vscDarkPlus : vs}
-                            language={language || 'text'}
-                            PreTag="div"
-                            {...props}
-                        >
-                            {json}
-                        </SyntaxHighlighter>
-                    );
-                }
-
-                return <code className={className} {...props}>{children}</code>;
-            } catch (err) {
-                return <code className={className} {...props}>{children}</code>;
-            }
-        }
-    }), []);
-
-    return (
-        <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>
-            <ReactMarkdown
-                remarkPlugins={REMARK_PLUGINS}
-                rehypePlugins={REHYPE_PLUGINS}
-                remarkRehypeOptions={{ allowDangerousHtml: true }}
-                components={components}
-            >
-                {processedContent}
-            </ReactMarkdown>
-        </MarkdownContainer>
+  const processedContent = React.useMemo(() => {
+    let result = content;
+    // Convert :::collapse Title ... ::: to <details><summary>Title</summary>...</details>
+    result = result.replace(
+      /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
+      (_, title, body) => `<details><summary>${title.trim() || 'Details'}</summary>\n\n${body}\n\n</details>`
     );
+    return result.replace(/^\\newpage\s*$/gm, '<div class="page-break"></div>');
+  }, [content]);
+
+  const components = React.useMemo(() => ({
+    a: ({ href, children, ...props }: any) => {
+      try {
+        if (!href) return <a {...props}>{children}</a>;
+
+        let cleanHref = href;
+        try {
+          cleanHref = decodeURIComponent(href);
+        } catch (e) { }
+
+        // Clean common HTML entities
+        cleanHref = (cleanHref || '')
+          .replace(/&amp;/g, '&')
+          .replace(/&#38;/g, '&')
+          .replace(/&#x26;/g, '&');
+
+        const isYoutube =
+          (cleanHref.includes('youtube.com') ||
+            cleanHref.includes('youtu.be')) && !stateRef.current.isComment;
+
+        if (isYoutube) {
+          let videoId = '';
+          let timestamp = 0;
+
+          // 1. Check for 'v=' parameter anywhere in query string
+          const vParamMatch = cleanHref.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+
+          if (vParamMatch && vParamMatch[1]) {
+            videoId = vParamMatch[1];
+          } else {
+            // 2. Check for path-based IDs (youtu.be, embed, shorts, v)
+            const pathMatch = cleanHref.match(/(?:youtu\.be\/|embed\/|shorts\/|v\/)([a-zA-Z0-9_-]{11})/);
+            if (pathMatch && pathMatch[1]) {
+              videoId = pathMatch[1];
+            }
+          }
+
+          const tMatch = cleanHref.match(/[?&]t=(\d+)/);
+          if (tMatch && tMatch[1]) {
+            timestamp = parseInt(tMatch[1]);
+          }
+
+          if (videoId) {
+            return (
+              <div key={`yt-wrap-${videoId}`} style={{ margin: '16px 0' }}>
+                <YouTubePlayer key={`yt-${videoId}`}
+                  videoId={videoId}
+                  startTimestamp={timestamp > 0 ? timestamp : undefined}
+                  memoId={stateRef.current.memoId}
+                  isShort={cleanHref.includes('shorts/')}
+                />
+              </div>
+            );
+          } else {
+            // Check for playlist ID if video ID is missing
+            let playlistId = '';
+            const listMatch = cleanHref.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+            if (listMatch) playlistId = listMatch[1];
+            else {
+              const showMatch = cleanHref.match(/\/show\/([a-zA-Z0-9_-]+)/);
+              if (showMatch) playlistId = showMatch[1];
+            }
+
+            if (playlistId) {
+              // Remove 'VL' prefix if present
+              if (playlistId.startsWith('VL')) {
+                playlistId = playlistId.substring(2);
+              }
+              return <YoutubePlaylistView key={`pl-${playlistId}`} playlistId={playlistId} />;
+            }
+          }
+        }
+
+        // General Web Preview for standalone links (links that match children or are on their own)
+        const isStandalone = typeof children === 'string' && (children === href || children.startsWith('http'));
+        if (isStandalone && href.startsWith('http')) {
+          return <WebPreview key={`web-${href}`} url={href} />;
+        }
+
+        return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+      } catch (err) {
+        console.error('Link render error', err);
+        return <a href={href} {...props}>{children}</a>;
+      }
+    },
+    img: ({ src, alt }: any) => {
+      try {
+        const meta = metadataCache.get(src || '');
+        if (meta) {
+          return (
+            <img
+              src={src}
+              alt={alt}
+              width={meta.width}
+              height={meta.height}
+              style={{
+                aspectRatio: `${meta.width} / ${meta.height}`,
+                height: 'auto',
+                maxWidth: '100%',
+                display: 'block',
+                margin: '1em auto'
+              }}
+            />
+          );
+        }
+        return <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: '6px', display: 'block', margin: '1em auto' }} />;
+      } catch (err) {
+        return <img src={src} alt={alt} style={{ maxWidth: '100%' }} />;
+      }
+    },
+    pre: ({ children, ...props }: any) => {
+      try {
+        const child = Array.isArray(children) ? children[0] : children;
+        if (React.isValidElement(child) &&
+          (child.props as any).className?.includes('language-fabric')) {
+          return <>{children}</>;
+        }
+        if (React.isValidElement(child) &&
+          (child.props as any).className?.includes('language-spreadsheet')) {
+          return <>{children}</>;
+        }
+        return <div {...props}>{children}</div>;
+      } catch (err) {
+        return <pre {...props}>{children}</pre>;
+      }
+    },
+    code: ({ node, inline, className, children, ...props }: any) => {
+      try {
+        const match = /language-(\w+)/.exec(className || '');
+        const language = match ? match[1] : '';
+        const json = String(children).replace(/\n$/, '');
+
+        if (!inline && language === 'fabric') {
+          return <FabricPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditDrawing ? () => stateRef.current.onEditDrawing?.(json) : undefined} />;
+        }
+
+        if (!inline && language === 'spreadsheet') {
+          return <SpreadsheetPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditSpreadsheet ? () => stateRef.current.onEditSpreadsheet?.(json) : undefined} />;
+        }
+
+        if (!inline && language === 'web') {
+          try {
+            const url = json.trim();
+            new URL(url); // basic check
+            return <WebPreview key={`web-${url}`} url={url} />;
+          } catch (e) {
+            return <code className={className} {...props}>{children}</code>;
+          }
+        }
+
+        if (!inline && (language === 'youtube' || language === 'yt')) {
+          try {
+            let videoId = '';
+            const parts = json.split('\n');
+            const rawUrl = parts[0].trim();
+            const startParam = parts.find(p => p.startsWith('start='))?.split('=')[1];
+            const startTimestamp = startParam ? parseInt(startParam) : undefined;
+            const isShort = parts.some(p => p.includes('short'));
+
+            if (rawUrl.includes('youtube.com/watch?v=')) {
+              videoId = new URL(rawUrl).searchParams.get('v') || '';
+            } else if (rawUrl.includes('youtu.be/')) {
+              videoId = rawUrl.split('youtu.be/')[1].split('?')[0];
+            } else if (rawUrl.includes('youtube.com/shorts/')) {
+              videoId = rawUrl.split('youtube.com/shorts/')[1].split('?')[0];
+            } else {
+              videoId = rawUrl; // fallback assumes literal videoId
+            }
+
+            if (videoId) return <YouTubePlayer key={`yt-${videoId}`} videoId={videoId} startTimestamp={startTimestamp} memoId={stateRef.current.memoId} isShort={isShort} />;
+          } catch (e) { }
+        }
+
+        if (!inline) {
+          return (
+            <SyntaxHighlighter
+              style={stateRef.current.isDark ? vscDarkPlus : vs}
+              language={language || 'text'}
+              PreTag="div"
+              {...props}
+            >
+              {json}
+            </SyntaxHighlighter>
+          );
+        }
+
+        return <code className={className} {...props}>{children}</code>;
+      } catch (err) {
+        return <code className={className} {...props}>{children}</code>;
+      }
+    }
+  }), []);
+
+  return (
+    <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>
+      <ReactMarkdown
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={REHYPE_PLUGINS}
+        remarkRehypeOptions={{ allowDangerousHtml: true }}
+        components={components}
+      >
+        {processedContent}
+      </ReactMarkdown>
+    </MarkdownContainer>
+  );
 });
