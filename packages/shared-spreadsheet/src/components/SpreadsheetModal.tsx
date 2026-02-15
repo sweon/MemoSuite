@@ -523,7 +523,11 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
               </Button>
             </ButtonGroup>
           </ModalHeader>
-          <EditorContainer>
+          <EditorContainer onKeyDownCapture={(e: React.KeyboardEvent) => {
+            if (e.key === 'Enter' && e.nativeEvent.isComposing) {
+              e.stopPropagation();
+            }
+          }}>
             <FortuneExcelHelper
               setKey={() => setMountKey(uuidv4())}
               setSheets={setWorkbookData}
