@@ -786,8 +786,8 @@ const YT_PLAYERS = new Map<string, any>();
 let ACTIVE_YT_VIDEO_ID: string | null = null;
 
 const YouTubePlayer = ({ videoId, startTimestamp, memoId,
-  wordTitle,
-  studyMode, isShort }: { videoId: string; startTimestamp?: number; memoId?: number;
+  
+   isShort }: { videoId: string; startTimestamp?: number; memoId?: number;
   wordTitle?: string;
   studyMode?: string; isShort?: boolean }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -1411,11 +1411,10 @@ interface MarkdownViewProps {
   fontSize?: number;
 }
 
-export const MarkdownView: React.FC<MarkdownViewProps> = ({
-  content,
+export const MarkdownView: React.FC<MarkdownViewProps> = ({ content,
   memoId,
-  wordTitle,
-  studyMode,
+  
+  
   isReadOnly = false,
   isComment = false,
   tableHeaderBg,
@@ -1512,8 +1511,8 @@ export const MarkdownView: React.FC<MarkdownViewProps> = ({
       } catch (e) { return <code className={className} {...props}>{children}</code>; }
     }
   }), [onEditDrawing, onEditSpreadsheet, isDark, memoId,
-  wordTitle,
-  studyMode, isReadOnly, isComment]);
+  
+   isReadOnly, isComment]);
 return (
     <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>
       <ReactMarkdown
