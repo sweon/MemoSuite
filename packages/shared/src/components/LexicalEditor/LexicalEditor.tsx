@@ -5,7 +5,6 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
-import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { CheckListPlugin } from "@lexical/react/LexicalCheckListPlugin";
 import { TabIndentationPlugin } from "@lexical/react/LexicalTabIndentationPlugin";
@@ -28,7 +27,7 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import React, { useEffect, useRef, useMemo } from "react";
 import styled from "styled-components";
 import { $nodesOfType, ParagraphNode, $isTextNode, $createTextNode, $createParagraphNode, $setSelection } from "lexical";
-import type { LexicalNode, EditorState } from "lexical";
+import type { LexicalNode } from "lexical";
 
 import { HandwritingNode, $createHandwritingNode, $isHandwritingNode } from "./nodes/HandwritingNode";
 import { SpreadsheetNode, $createSpreadsheetNode, $isSpreadsheetNode } from "./nodes/SpreadsheetNode";
