@@ -40,16 +40,15 @@ import styled from "styled-components";
 import {
     FaBold, FaItalic, FaStrikethrough, FaCode,
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
-    FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
-    FaYoutube
+    FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown
 } from "react-icons/fa";
 import { FiPenTool, FiSidebar, FiSave, FiX, FiTrash2 } from "react-icons/fi";
 import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
 import { $createHandwritingNode } from "../nodes/HandwritingNode";
 import { $createSpreadsheetNode } from "../nodes/SpreadsheetNode";
-import { $createImageNode } from "../nodes/ImageNode";
 import { $createCollapsibleNode } from "../nodes/CollapsibleNode";
-import { $createYouTubeNode, extractYouTubeVideoId } from "../nodes/YouTubeNode";
+import { $createImageNode } from "../nodes/ImageNode";
+
 import { Tooltip } from "../../Tooltip";
 import { useLanguage } from "../../../i18n";
 
@@ -692,20 +691,7 @@ export function ToolbarPlugin(props: {
         }
     };
 
-    const insertYouTube = () => {
-        const url = window.prompt(t.toolbar.youtube_prompt);
-        if (url) {
-            const info = extractYouTubeVideoId(url);
-            if (info) {
-                editor.update(() => {
-                    const node = $createYouTubeNode(info.videoId, info.startTimestamp, info.isShort, url);
-                    $insertNodeToNearestRoot(node);
-                });
-            } else {
-                alert(t.toolbar.youtube_invalid || 'Invalid YouTube URL');
-            }
-        }
-    };
+
 
     const insertCollapsible = () => {
         const title = window.prompt(t.toolbar.collapsible_prompt, t.toolbar.collapsible_default_title);
@@ -1011,15 +997,7 @@ export function ToolbarPlugin(props: {
                     <FaImage />
                 </ToolbarButton>
             </Tooltip>
-            <Tooltip content={t.toolbar.youtube}>
-                <ToolbarButton
-                    onClick={insertYouTube}
-                    title={t.toolbar.youtube}
-                    style={{ color: '#FF0000' }}
-                >
-                    <FaYoutube size={18} />
-                </ToolbarButton>
-            </Tooltip>
+
             <Tooltip content={t.toolbar.collapsible}>
                 <ToolbarButton
                     onClick={insertCollapsible}
