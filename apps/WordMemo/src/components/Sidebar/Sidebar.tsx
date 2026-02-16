@@ -1194,7 +1194,11 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
       {
         toastMessage && (
-          <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+          <Toast
+            message={toastMessage}
+            onClose={() => setToastMessage(null)}
+            duration={(toastMessage === t.sidebar.move_success || toastMessage === t.sidebar.move_entire_thread) ? 500 : 2500}
+          />
         )
       }
 

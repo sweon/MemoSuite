@@ -1101,7 +1101,11 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       />
       {
         toastMessage && (
-          <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+          <Toast
+            message={toastMessage}
+            onClose={() => setToastMessage(null)}
+            duration={(toastMessage === t.sidebar.move_success || toastMessage === t.sidebar.move_entire_thread) ? 500 : 2500}
+          />
         )
       }
       <ScrollTopButton $visible={showScrollTop} onClick={scrollToTop} title={t.common?.scroll_to_top || "Scroll to top"}>

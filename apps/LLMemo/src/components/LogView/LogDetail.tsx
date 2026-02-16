@@ -1291,12 +1291,19 @@ export const LogDetail: React.FC = () => {
           memoId={log.id}
           currentFolderId={log.folderId || null}
           onClose={() => setIsFolderMoveModalOpen(false)}
-          onSuccess={(msg) => setToastMessage(msg)}
+          onSuccess={(msg) => {
+            setToastMessage(msg);
+            setTimeout(() => setToastMessage(null), 500);
+          }}
         />
       )}
 
       {toastMessage && (
-        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+        <Toast
+          message={toastMessage}
+          onClose={() => setToastMessage(null)}
+          duration={500}
+        />
       )}
 
       {showExitToast && (

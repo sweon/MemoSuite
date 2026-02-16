@@ -1974,7 +1974,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
           <Toast
             message={folderMoveToast}
             onClose={() => setFolderMoveToast(null)}
-            duration={3000}
+            duration={500}
           />
         )}
 
@@ -2000,7 +2000,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
             memoId={word.id}
             currentFolderId={word.folderId || null}
             onClose={() => setIsFolderMoveModalOpen(false)}
-            onSuccess={(msg) => setToastMessage(msg)}
+            onSuccess={(msg) => {
+              setToastMessage(msg);
+              setTimeout(() => setToastMessage(null), 500);
+            }}
           />
         )}
         {showExitToast && (

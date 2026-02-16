@@ -1626,7 +1626,7 @@ export const MemoDetail: React.FC = () => {
             onClose={() => setIsFolderMoveModalOpen(false)}
             onSuccess={(message) => {
               setFolderMoveToast(message);
-              setTimeout(() => setFolderMoveToast(null), 3000);
+              setTimeout(() => setFolderMoveToast(null), 500);
               setIsFolderMoveModalOpen(false);
             }}
           />
@@ -1636,7 +1636,7 @@ export const MemoDetail: React.FC = () => {
           <Toast
             message={folderMoveToast}
             onClose={() => setFolderMoveToast(null)}
-            duration={3000}
+            duration={500}
           />
         )}
         <PrintSettingsModal
