@@ -481,7 +481,7 @@ export const translations = {
             disclaimer_title: "법적 고지",
             disclaimer_text: "BookMemo는 보증 없이 '있는 그대로' 제공됩니다. 모든 데이터는 사용자 기기에 로컬로 저장되며, 데이터의 백업 및 관리에 대한 책임은 사용자에게 있습니다. 개발자는 데이터 손실이나 오류에 대해 책임을 지지 않습니다.",
             factory_reset: "전체 데이터 초기화",
-            reset_confirm: "정말로 모든 데이터를 삭제하시겠습니까? 책, 메모, 설정 등 모든 정보가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+            reset_confirm: "정말로 모든 데이터를 삭제하시겠습니까? 데이터, 설정, 암호 등 모든 정보가 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
             reset_success: "모든 데이터가 초기화되었습니다.",
             color_theme: "색상 테마",
             color_theme_desc: "원하는 색상 테마를 선택하세요",
