@@ -471,10 +471,19 @@ export const MemoDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
-    const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
+    const [folderMoveToast, setFolderMoveToast] = useState<string | null>(location.state?.toastMessage || null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    useEffect(() => {
+        if (id && searchParams.get('drawing') === 'true') {
+            setIsFabricModalOpen(true);
+        }
+        if (id && searchParams.get('spreadsheet') === 'true') {
+            setIsSpreadsheetModalOpen(true);
+        }
+    }, [id]);
     const fabricCheckpointRef = useRef<string | null>(null);
     const spreadsheetCheckpointRef = useRef<string | null>(null);
     const originalSpreadsheetJsonRef = useRef<string | null>(null); // Store original JSON string for accurate matching
@@ -1436,11 +1445,19 @@ export const MemoDetail: React.FC = () => {
                         setContent(newContent);
                         setEditingDrawingData(json);
                         fabricCheckpointRef.current = newContent;
-                        if (id && memo) {
+                        const isInitialDrawing = searchParams.get('drawing') === 'true';
+                        if (isNew && isInitialDrawing) {
+                            const finalTitle = title || t.memo_detail.untitled;
+                            setTitle(finalTitle);
+                            const msg = language === 'ko' ? "저장되었습니다!" : "Saved!";
+                            await handleSave(finalTitle, newContent, searchParams.toString(), { toastMessage: msg });
+                            setFolderMoveToast(msg);
+                        } else if (id && memo) {
                             await db.memos.update(Number(id), {
                                 content: newContent,
                                 updatedAt: new Date()
                             });
+                            setFolderMoveToast(language === 'ko' ? "저장되었습니다!" : "Saved!");
                         }
                     }}
                     onAutosave={(json) => {
@@ -1532,15 +1549,19 @@ export const MemoDetail: React.FC = () => {
 
                         // Trigger save with new content and title
                         // Keep spreadsheet=true and pass data in state to prevent "empty sheet" bug on remount
+                        const msg = language === 'ko' ? "저장되었습니다!" : "Saved!";
                         await handleSave(finalTitle, newContent, searchParams.toString(), {
                             spreadsheetData: data,
-                            spreadsheetJson: json
+                            spreadsheetJson: json,
+                            toastMessage: msg
                         });
+                        setFolderMoveToast(msg);
                     } else {
                         if (id) {
                             // Trigger save with new content
                             // Use handleSave to update lastSavedState and avoid race conditions with main Save button
                             await handleSave(undefined, newContent);
+                            setFolderMoveToast(language === 'ko' ? "저장되었습니다!" : "Saved!");
                         }
                     }
                 }}

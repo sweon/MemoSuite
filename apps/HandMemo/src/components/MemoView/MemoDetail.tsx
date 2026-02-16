@@ -379,7 +379,7 @@ export const MemoDetail: React.FC = () => {
     const [searchParams] = useSearchParams();
     const { setSearchQuery } = useSearch();
     const { t, language } = useLanguage();
-    const { confirm, prompt: modalPrompt, choice } = useModal();
+    const { confirm, choice } = useModal();
     const location = useLocation();
     const isNew = !id;
 
@@ -446,10 +446,19 @@ export const MemoDetail: React.FC = () => {
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
     const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(location.state?.toastMessage || null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    useEffect(() => {
+        if (id && searchParams.get('drawing') === 'true') {
+            setIsFabricModalOpen(true);
+        }
+        if (id && searchParams.get('spreadsheet') === 'true') {
+            setIsSpreadsheetModalOpen(true);
+        }
+    }, [id]);
 
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
     const fabricCheckpointRef = useRef<string | null>(null);
@@ -957,8 +966,9 @@ export const MemoDetail: React.FC = () => {
             // Cleanup all new memo autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
+            const search = _overrideSearch !== undefined ? _overrideSearch : searchParams.toString();
             // Navigate without thread params to avoid re-applying on subsequent saves
-            navigate(`/memo/${newId}`, {
+            navigate(`/memo/${newId}${search ? '?' + search : ''}`, {
                 replace: true,
                 state: {
                     ...overrideState,
@@ -1424,21 +1434,16 @@ export const MemoDetail: React.FC = () => {
                             const isInitialDrawing = searchParams.get('drawing') === 'true';
 
                             if (isNew && isInitialDrawing) {
-                                let finalTitle = title;
-                                if (!title || title === t.memo_detail.untitled) {
-                                    const inputTitle = await modalPrompt({
-                                        message: t.memo_detail.title_prompt,
-                                        placeholder: t.memo_detail.untitled
-                                    });
-                                    finalTitle = inputTitle?.trim() || t.memo_detail.untitled;
-                                    setTitle(finalTitle);
-                                }
-
+                                const finalTitle = title || t.memo_detail.untitled;
+                                setTitle(finalTitle);
                                 setIsEditingInternal(true);
-                                await handleSave(finalTitle, newContent, undefined, { editing: true });
+                                const msg = language === 'ko' ? "저장되었습니다!" : "Saved!";
+                                await handleSave(finalTitle, newContent, searchParams.toString(), { editing: true, toastMessage: msg });
+                                setToastMessage(msg);
                             } else {
                                 if (id) {
                                     await handleSave(title, newContent, undefined, { editing: true });
+                                    setToastMessage(language === 'ko' ? "저장되었습니다!" : "Saved!");
                                 } else {
                                     setIsEditingInternal(true);
                                 }
@@ -1538,16 +1543,18 @@ export const MemoDetail: React.FC = () => {
                         if (isNew && isInitialSpreadsheet) {
                             setIsEditingInternal(true);
                             // Trigger save with new content
+                            const msg = language === 'ko' ? "저장되었습니다!" : "Saved!";
                             await handleSave(title, newContent, searchParams.toString(), {
                                 editing: true,
                                 spreadsheetData: data,
                                 spreadsheetJson: json,
-                                showToast: "Saved!"
+                                toastMessage: msg
                             });
+                            setToastMessage(msg);
                         } else {
                             if (id) {
                                 await handleSave(title, newContent, undefined, { editing: true });
-                                setToastMessage("Saved!");
+                                setToastMessage(language === 'ko' ? "저장되었습니다!" : "Saved!");
                             } else {
                                 setIsEditingInternal(true);
                             }

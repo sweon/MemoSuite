@@ -526,7 +526,7 @@ export const MemoDetail: React.FC = () => {
   const [sourceId, setSourceId] = useState<number | undefined>(undefined);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeletingThreadHead, setIsDeletingThreadHead] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(location.state?.toastMessage || null);
   const [isFabricModalOpen, setIsFabricModalOpen] = useState(false);
   const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -537,6 +537,15 @@ export const MemoDetail: React.FC = () => {
     useState<any>(undefined);
   const originalSpreadsheetJsonRef = useRef<string | null>(null); // Store original JSON string for accurate matching
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (id && searchParams.get('drawing') === 'true') {
+      setIsFabricModalOpen(true);
+    }
+    if (id && searchParams.get('spreadsheet') === 'true') {
+      setIsSpreadsheetModalOpen(true);
+    }
+  }, [id]);
   const fabricCheckpointRef = useRef<string | null>(null);
   const spreadsheetCheckpointRef = useRef<string | null>(null);
   const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
@@ -1119,8 +1128,9 @@ export const MemoDetail: React.FC = () => {
       // Cleanup all new word autosaves
       await db.autosaves.filter((a) => a.originalId === undefined).delete();
 
+      const search = _overrideSearch !== undefined ? _overrideSearch : searchParams.toString();
       // Navigate without thread params to avoid re-applying on subsequent saves
-      navigate(`/word/${newId}`, { replace: true, state: overrideState });
+      navigate(`/word/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
     }
   };
 
@@ -1761,11 +1771,20 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
               setContent(newContent);
               setEditingDrawingData(json);
               fabricCheckpointRef.current = newContent;
-              if (id) {
+              const isInitialDrawing = searchParams.get("drawing") === "true";
+              if (isNew && isInitialDrawing) {
+                // Remove prompt, just save with untitled or current title
+                const finalTitle = title || t.memo_detail.untitled;
+                setTitle(finalTitle);
+                const msg = language === 'ko' ? "저장되었습니다!" : "Saved!";
+                await handleSave(finalTitle, newContent, searchParams.toString(), { toastMessage: msg });
+                setToastMessage(msg);
+              } else if (id) {
                 await db.words.update(Number(id), {
                   content: newContent,
                   updatedAt: new Date(),
                 });
+                setToastMessage(language === 'ko' ? "저장되었습니다!" : "Saved!");
               }
             }}
             onAutosave={(json) => {
@@ -1868,6 +1887,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
               // Trigger save with new content and title
               // Keep spreadsheet=true and pass data in state to prevent "empty sheet" bug on remount
+              const msg = language === "ko" ? "저장되었습니다!" : "Saved!";
               await handleSave(
                 finalTitle,
                 newContent,
@@ -1875,13 +1895,16 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 {
                   spreadsheetData: data,
                   spreadsheetJson: json,
+                  toastMessage: msg,
                 },
               );
+              setToastMessage(msg);
             } else {
               if (id) {
                 // Trigger save with new content
                 // Use handleSave to update lastSavedState and avoid race conditions with main Save button
                 await handleSave(undefined, newContent);
+                setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
               }
             }
           }}
