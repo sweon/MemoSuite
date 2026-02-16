@@ -863,6 +863,8 @@ interface ToolbarConfiguratorProps {
     onDefaultZoomLockedChange: (val: boolean) => void;
     onSaveItems: (items: ToolbarItem[]) => void;
     onClose: () => void;
+    defaultEraserType: 'eraser_pixel' | 'eraser_object';
+    onDefaultEraserTypeChange: (val: 'eraser_pixel' | 'eraser_object') => void;
     language: Language;
     t: TranslationKeys;
 }
@@ -871,6 +873,7 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
     currentItems, allItems, onSaveItems, onClose, colors, brushSizes,
     scrollbarSide, onScrollbarSideChange, maxPages, onMaxPagesChange,
     defaultZoomLocked, onDefaultZoomLockedChange,
+    defaultEraserType, onDefaultEraserTypeChange,
     language, t
 }) => {
     // Section 1: Scrollbar
@@ -888,6 +891,9 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
     // Section 4: Default Zoom Lock
     const [tempDefaultZoomLocked, setTempDefaultZoomLocked] = useState(defaultZoomLocked);
 
+    // Section 5: Default Eraser
+    const [tempDefaultEraserType, setTempDefaultEraserType] = useState(defaultEraserType);
+
     const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
 
     const handleCancelClick = () => {
@@ -895,6 +901,7 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
             JSON.stringify(tempActiveItems) !== JSON.stringify(currentItems) ||
             tempScrollbarSide !== scrollbarSide ||
             tempMaxPages !== maxPages ||
+            tempDefaultEraserType !== defaultEraserType ||
             tempDefaultZoomLocked !== defaultZoomLocked;
 
         if (hasChanges) {
@@ -1130,6 +1137,81 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
                             </div>
                         </section>
 
+                        {/* Section 2.5: Default Eraser for Barrel Button */}
+                        <section style={{ paddingBottom: '24px', borderBottom: '1px solid #f3f4f6' }}>
+                            <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 600, color: '#1f2937', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                {t.drawing?.barrel_eraser_title || 'Stylus Barrel Eraser'}
+                            </h4>
+                            <p style={{ margin: '0 0 12px 0', fontSize: '0.75rem', color: '#6b7280', lineHeight: '1.4' }}>
+                                {t.drawing?.barrel_eraser_desc || 'Choose eraser type for pen button'}
+                            </p>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <div
+                                    onClick={() => setTempDefaultEraserType('eraser_pixel')}
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px',
+                                        borderRadius: '10px',
+                                        border: `2px solid ${tempDefaultEraserType === 'eraser_pixel' ? '#111827' : '#e5e7eb'}`,
+                                        background: tempDefaultEraserType === 'eraser_pixel' ? '#f3f4f6' : '#ffffff',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <PixelEraserIcon />
+                                    <span style={{ fontSize: '0.9rem', fontWeight: tempDefaultEraserType === 'eraser_pixel' ? 600 : 500, color: tempDefaultEraserType === 'eraser_pixel' ? '#111827' : '#4b5563' }}>
+                                        {t.drawing?.tool_eraser_pixel || 'Pixel'}
+                                    </span>
+                                </div>
+                                <div
+                                    onClick={() => setTempDefaultEraserType('eraser_object')}
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px',
+                                        borderRadius: '10px',
+                                        border: `2px solid ${tempDefaultEraserType === 'eraser_object' ? '#111827' : '#e5e7eb'}`,
+                                        background: tempDefaultEraserType === 'eraser_object' ? '#f3f4f6' : '#ffffff',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <ObjectEraserIcon />
+                                    <span style={{ fontSize: '0.9rem', fontWeight: tempDefaultEraserType === 'eraser_object' ? 600 : 500, color: tempDefaultEraserType === 'eraser_object' ? '#111827' : '#4b5563' }}>
+                                        {t.drawing?.tool_eraser_object || 'Object'}
+                                    </span>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px', alignItems: 'center' }}>
+                                <span
+                                    onClick={() => setTempDefaultEraserType('eraser_pixel')}
+                                    style={{ marginRight: 'auto', fontSize: '0.7rem', color: '#6b7280', cursor: 'pointer', textDecoration: 'underline' }}
+                                >
+                                    {t.drawing?.reset_each}
+                                </span>
+                                <CompactModalButton onClick={handleCancelClick} style={{ fontSize: '0.75rem', padding: '6px 12px' }}>
+                                    {t.drawing?.cancel}
+                                </CompactModalButton>
+                                <CompactModalButton
+                                    $variant="primary"
+                                    onClick={() => {
+                                        onDefaultEraserTypeChange(tempDefaultEraserType);
+                                        onClose();
+                                    }}
+                                    style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                                >
+                                    {t.drawing?.save_apply}
+                                </CompactModalButton>
+                            </div>
+                        </section>
+
                         {/* Section 3: Scrollbar Side Selection */}
                         <section style={{ paddingBottom: '24px', borderBottom: '1px solid #f3f4f6' }}>
                             <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', fontWeight: 600, color: '#1f2937', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -1325,10 +1407,21 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     handleActualClose.current = propsOnClose;
 
     // --- Barrel Button Toggle State ---
+    const [defaultEraserType, setDefaultEraserType] = useState<'eraser_pixel' | 'eraser_object'>(() => {
+        return (localStorage.getItem('fabric_default_eraser_type') as any) || 'eraser_pixel';
+    });
     // Remembers the last non-eraser tool so we can restore it when toggling back
     const lastNonEraserToolRef = useRef<{ toolType: ToolType; itemId: string | null; penSlot?: string } | null>(null);
-    // Remembers the last eraser tool used (default: eraser_pixel)
-    const lastEraserToolRef = useRef<{ toolType: 'eraser_pixel' | 'eraser_object'; itemId: string | null }>({ toolType: 'eraser_pixel', itemId: 'eraser_pixel' });
+    // Remembers the last eraser tool used (initialize from setting)
+    const lastEraserToolRef = useRef<{ toolType: 'eraser_pixel' | 'eraser_object'; itemId: string | null }>({ toolType: defaultEraserType, itemId: defaultEraserType });
+
+    useEffect(() => {
+        localStorage.setItem('fabric_default_eraser_type', defaultEraserType);
+        // Sync ref with setting if it's still at the default state
+        if (lastEraserToolRef.current.itemId === 'eraser_pixel' || lastEraserToolRef.current.itemId === 'eraser_object') {
+            lastEraserToolRef.current = { toolType: defaultEraserType, itemId: defaultEraserType };
+        }
+    }, [defaultEraserType]);
     // Tracks previous barrel button state to detect transitions (press/release)
     const barrelButtonStateRef = useRef(false);
     // Whether we are currently in eraser mode via barrel toggle
@@ -6852,6 +6945,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         onScrollbarSideChange={setScrollbarSide}
                         maxPages={maxPages}
                         onMaxPagesChange={setMaxPages}
+                        defaultEraserType={defaultEraserType}
+                        onDefaultEraserTypeChange={setDefaultEraserType}
                         defaultZoomLocked={(() => {
                             const saved = localStorage.getItem('fabric_default_zoom_locked');
                             if (saved !== null) return saved === 'true';
