@@ -4,11 +4,10 @@ import { createPortal } from 'react-dom';
 import { Workbook, type WorkbookInstance } from "@fortune-sheet/react";
 import "@fortune-sheet/react/dist/index.css";
 import styled from 'styled-components';
-import { X, Save, Keyboard, Check } from 'lucide-react';
+import { X, Save, Keyboard } from 'lucide-react';
 const XIcon = X as any;
 const SaveIcon = Save as any;
 const KeyboardIcon = Keyboard as any;
-const CheckIcon = Check as any;
 import { v4 as uuidv4 } from 'uuid';
 import {
   exportToolBarItem,
@@ -234,7 +233,6 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  const [savedToastVisible, setSavedToastVisible] = useState(false);
 
   // Use a ref to track if we've pushed our history state
   const historyStatePushedRef = useRef(false);

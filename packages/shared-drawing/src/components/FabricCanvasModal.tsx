@@ -1433,7 +1433,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
     const [isPaletteResetConfirmOpen, setIsPaletteResetConfirmOpen] = useState(false);
     const [paletteResetIndex, setPaletteResetIndex] = useState<number | null>(null);
-    const [savedToastVisible, setSavedToastVisible] = useState(false);
 
     // Wrapper for onClose to handle history safe closing
     const onClose = () => {
