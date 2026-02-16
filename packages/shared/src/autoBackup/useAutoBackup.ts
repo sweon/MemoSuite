@@ -73,6 +73,15 @@ export function useAutoBackup({ adapter, appName, hasData, language }: UseAutoBa
     const [hasAppData, setHasAppData] = useState<boolean | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [skipRestore, setSkipRestoreInternal] = useState<boolean>(() => {
+        // Detect if app was opened from landing page with ?install=true
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('install') === 'true') {
+            localStorage.setItem(`MS_SKIP_RESTORE_${appName}`, 'true');
+            // Clean up the URL to avoid skipping restore on every reload if the user keeps the parameter
+            const newUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, '', newUrl);
+            return true;
+        }
         return localStorage.getItem(`MS_SKIP_RESTORE_${appName}`) === 'true';
     });
     const cleanupRef = useRef<(() => void) | null>(null);
