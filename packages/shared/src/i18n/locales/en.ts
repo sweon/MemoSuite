@@ -1,4 +1,7 @@
 export const en = {
+    common: {
+        home: "Home",
+    },
     settings: {
         language: "UI Language",
         language_desc: "Change display language",

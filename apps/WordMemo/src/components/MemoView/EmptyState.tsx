@@ -98,7 +98,9 @@ export const EmptyState: React.FC = () => {
       </IconWrapper>
       <Title>
         {isEmptyFolder
-          ? (language === 'ko' ? `${josa(currentFolder?.name || '폴더', '이/가')} 비어 있습니다` : `${currentFolder?.name || 'Folder'} is empty`)
+          ? (language === 'ko'
+            ? `${josa(currentFolder?.isHome ? t.common.home : (currentFolder?.name || '폴더'), '이/가')} 비어 있습니다`
+            : `${currentFolder?.isHome ? t.common.home : (currentFolder?.name || 'Folder')} is empty`)
           : t.word_detail.empty_state_title
         }
       </Title>

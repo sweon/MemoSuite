@@ -231,7 +231,7 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
     onClose,
     onSuccess
 }) => {
-    const { language } = useLanguage();
+    const { language, t: sharedT } = useLanguage();
     const [mode, setMode] = useState<'move' | 'copy'>('move');
     const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -370,6 +370,7 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
             ? '스레드의 첫 번째 메모를 이동하면 스레드 전체가 이동됩니다.'
             : 'Moving the first memo of a thread will move the entire thread.',
         memoCount: (count: number) => language === 'ko' ? `${count}개` : `${count}`,
+        home: sharedT.common.home
     };
 
     const isThreadHeader = log?.threadId && allLogs?.some(l =>
@@ -399,7 +400,7 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
                     </FolderItemIcon>
                     <FolderItemInfo>
                         <FolderItemName>
-                            {node.name}
+                            {node.isHome ? t.home : node.name}
                             {isCurrent && ` (${t.currentFolder})`}
                         </FolderItemName>
                         <FolderItemMeta>{t.memoCount(logCount)}</FolderItemMeta>

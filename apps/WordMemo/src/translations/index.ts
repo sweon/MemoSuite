@@ -1,5 +1,8 @@
 export const translations = {
     en: {
+        common: {
+            home: "Home",
+        },
         sidebar: {
             new: "New",
             search: "Search... (tag: for tags/sources)",
@@ -350,6 +353,9 @@ export const translations = {
         }
     },
     ko: {
+        common: {
+            home: "홈",
+        },
         sidebar: {
             new: "새 단어",
             search: "검색... (태그/출처는 tag:)",

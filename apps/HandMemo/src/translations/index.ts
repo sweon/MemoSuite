@@ -1,5 +1,8 @@
 export const translations = {
     en: {
+        common: {
+            home: "Home",
+        },
         sidebar: {
             new: "New Memo",
             add_memo: "Add Memo",
@@ -379,6 +382,9 @@ export const translations = {
         }
     },
     ko: {
+        common: {
+            home: "홈",
+        },
         sidebar: {
             new: "새 메모 추가",
             add_memo: "메모 추가",

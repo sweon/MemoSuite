@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
 import { FiHome, FiChevronRight, FiFolder } from 'react-icons/fi';
 
@@ -75,6 +76,7 @@ export const BreadcrumbNav: React.FC<BreadcrumbNavProps> = ({
     onNavigateHome,
     compact = false
 }) => {
+    const { t } = useLanguage();
     if (items.length === 0) return null;
 
     return (
@@ -92,7 +94,7 @@ export const BreadcrumbNav: React.FC<BreadcrumbNavProps> = ({
                                 onNavigate(item.id);
                             }
                         }}
-                        title={item.name}
+                        title={item.isHome ? t.common.home : item.name}
                     >
                         {item.isHome ? (
                             <FiHome size={14} />

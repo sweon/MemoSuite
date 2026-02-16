@@ -1,4 +1,7 @@
 export const ko = {
+    common: {
+        home: "홈",
+    },
     settings: {
         language: "UI 언어",
         language_desc: "표시 언어 변경",
