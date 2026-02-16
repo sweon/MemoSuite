@@ -27,7 +27,7 @@ import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/m
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import React, { useEffect, useRef, useMemo } from "react";
 import styled from "styled-components";
-import { $nodesOfType, ParagraphNode, $isTextNode, $createTextNode, $createParagraphNode } from "lexical";
+import { $nodesOfType, ParagraphNode, $isTextNode, $createTextNode, $createParagraphNode, $setSelection } from "lexical";
 import type { LexicalNode, EditorState } from "lexical";
 
 import { HandwritingNode, $createHandwritingNode, $isHandwritingNode } from "./nodes/HandwritingNode";
@@ -405,71 +405,94 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
 
 function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val: string) => void }) {
   const [editor] = useLexicalComposerContext();
-  const isFirstRender = useRef(true);
+  const lastNormalizedValueRef = useRef<string>(value);
 
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      editor.update(() => {
-        // Pre-process: Convert :::collapse fenced blocks into temporary code blocks.
-        // Lexical's ElementTransformer is line-based and cannot handle multi-line
-        // fenced blocks. Code blocks ARE natively multi-line, so we piggyback on them.
-        const collapsibleBlocks: Array<{ title: string, content: string }> = [];
-        const preprocessed = value.replace(
-          /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
-          (_, title, content) => {
-            const idx = collapsibleBlocks.length;
-            collapsibleBlocks.push({ title: title.trim() || 'Details', content });
-            return '```__collapse_' + idx + '\n' + content + '\n```';
-          }
-        );
+  // Helper to apply markdown to editor with post-processing
+  const applyMarkdown = (markdown: string) => {
+    editor.update(() => {
+      // CRITICAL: Clear selection to avoid "selection lost" errors during bulk replacement
+      $setSelection(null);
 
-        $convertFromMarkdownString(preprocessed, ALL_TRANSFORMERS);
+      // 1. Pre-process collapsible blocks
+      const collapsibleBlocks: Array<{ title: string, content: string }> = [];
+      const preprocessed = markdown.replace(
+        /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
+        (_, title, content) => {
+          const idx = collapsibleBlocks.length;
+          collapsibleBlocks.push({ title: title.trim() || 'Details', content });
+          return '```__collapse_' + idx + '\n' + content + '\n```';
+        }
+      );
 
-        // Post-process: Convert temporary code blocks and other special nodes
-        const codeNodes = $nodesOfType(CodeNode);
-        codeNodes.forEach((node: CodeNode) => {
-          const lang = node.getLanguage();
-          if (lang?.startsWith('__collapse_')) {
-            const idx = parseInt(lang.substring('__collapse_'.length));
-            const block = collapsibleBlocks[idx];
-            if (block) {
-              const collapsibleNode = $createCollapsibleNode(true, block.title);
-              const textContent = node.getTextContent();
-              const lines = textContent.split('\n');
-              for (const line of lines) {
-                const paragraph = $createParagraphNode();
-                if (line) {
-                  paragraph.append($createTextNode(line));
-                }
-                collapsibleNode.append(paragraph);
-              }
-              node.replace(collapsibleNode);
+      // 2. Initial Markdown Import
+      $convertFromMarkdownString(preprocessed, ALL_TRANSFORMERS);
+
+      // 3. Post-process: Convert temporary code blocks to custom nodes
+      const codeNodes = $nodesOfType(CodeNode);
+      codeNodes.forEach((node: CodeNode) => {
+        const lang = node.getLanguage();
+        if (lang?.startsWith('__collapse_')) {
+          const idx = parseInt(lang.substring('__collapse_'.length));
+          const block = collapsibleBlocks[idx];
+          if (block) {
+            const collapsibleNode = $createCollapsibleNode(true, block.title);
+            const textContent = node.getTextContent();
+            const lines = textContent.split('\n');
+            for (const line of lines) {
+              const paragraph = $createParagraphNode();
+              if (line) paragraph.append($createTextNode(line));
+              collapsibleNode.append(paragraph);
             }
-          } else if (lang === "fabric") {
-            const data = node.getTextContent();
-            const hwNode = $createHandwritingNode(data);
-            node.replace(hwNode);
-          } else if (lang === "spreadsheet") {
-            const data = node.getTextContent();
-            const shNode = $createSpreadsheetNode(data);
-            node.replace(shNode);
+            node.replace(collapsibleNode);
           }
-        });
+        } else if (lang === "fabric") {
+          const data = node.getTextContent();
+          node.replace($createHandwritingNode(data));
+        } else if (lang === "spreadsheet") {
+          const data = node.getTextContent();
+          node.replace($createSpreadsheetNode(data));
+        }
       });
+    }, { tag: 'import' });
+  };
+
+  // Initial load
+  useEffect(() => {
+    applyMarkdown(value);
+  }, [editor]); // Only once on mount
+
+  // Sync from outside
+  useEffect(() => {
+    if (value !== lastNormalizedValueRef.current) {
+      lastNormalizedValueRef.current = value;
+      applyMarkdown(value);
     }
   }, [editor, value]);
 
-  return (
-    <OnChangePlugin
-      onChange={(editorState: EditorState) => {
-        editorState.read(() => {
-          const markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
+  // Export to outside
+  useEffect(() => {
+    return editor.registerUpdateListener(({ editorState, tags }) => {
+      if (tags.has('import')) return;
+
+      editorState.read(() => {
+        const markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
+
+        // Safety: Don't sync empty if we had content (prevents wipe bugs)
+        // Check for common empty states like "\n" or single empty paragraph
+        const trimmedMarkdown = markdown.trim();
+        if (trimmedMarkdown === "" && lastNormalizedValueRef.current.trim() !== "") {
+          return;
+        }
+
+        if (markdown !== lastNormalizedValueRef.current) {
+          lastNormalizedValueRef.current = markdown;
           onChange(markdown);
-        });
-      }}
-    />
-  );
+        }
+      });
+    });
+  }, [editor, onChange]);
+
+  return null;
 }
 
 export interface LexicalEditorProps {

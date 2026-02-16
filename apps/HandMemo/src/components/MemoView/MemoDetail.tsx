@@ -415,13 +415,21 @@ export const MemoDetail: React.FC = () => {
         currentAutosaveIdRef.current = undefined;
         restoredIdRef.current = null;
         setCommentDraft(null);
-        setIsEditingInternal(!id);
+
+        // If navigation state says we should be editing, respect it.
+        // Otherwise default to true for new memos and false for existing ones.
+        const shouldBeEditing = location.state?.editing ?? !id;
+        setIsEditingInternal(shouldBeEditing);
+
         isClosingRef.current = false;
 
         // Reset state to avoid stale data when switching memos
-        setTitle('');
-        setContent('');
-        setTags('');
+        // Except when we are navigating from a save of the same memo
+        if (location.state?.content === undefined) {
+            setTitle('');
+            setContent('');
+            setTags('');
+        }
     }, [id]);
 
     // Folder context for read-only mode
@@ -541,9 +549,9 @@ export const MemoDetail: React.FC = () => {
         else handleExit();
     };
 
-    const [title, setTitle] = useState('');
-    const [content, setContent] = useState('');
-    const [tags, setTags] = useState('');
+    const [title, setTitle] = useState(location.state?.title || '');
+    const [content, setContent] = useState(location.state?.content || '');
+    const [tags, setTags] = useState(location.state?.tags || '');
     const [date, setDate] = useState('');
 
     // State reset on ID change is now handled by the 'key' prop in App.tsx
@@ -797,8 +805,8 @@ export const MemoDetail: React.FC = () => {
 
         const interval = setInterval(async () => {
             const { title: cTitle, content: cContent, tags: cTags, commentDraft: cCommentDraft } = currentStateRef.current;
-            const currentTagArray = cTags.split(',').map(t => t.trim()).filter(Boolean);
-            const lastTagArray = lastSavedState.current.tags.split(',').map(t => t.trim()).filter(Boolean);
+            const currentTagArray = cTags.split(',').map((t: any) => t.trim()).filter(Boolean);
+            const lastTagArray = lastSavedState.current.tags.split(',').map((t: any) => t.trim()).filter(Boolean);
 
             const hasChanged = cTitle !== lastSavedState.current.title ||
                 cContent !== lastSavedState.current.content ||
@@ -843,7 +851,7 @@ export const MemoDetail: React.FC = () => {
     }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft]); // Removed memo dependency to prevent interval reset on DB updates
 
     const handleSave = async (overrideTitle?: string, overrideContent?: string, _overrideSearch?: string, overrideState?: any) => {
-        const tagArray = tags.split(',').map(t => t.trim()).filter(Boolean);
+        const tagArray = tags.split(',').map((t: any) => t.trim()).filter(Boolean);
         const now = new Date();
         const currentContent = overrideContent !== undefined ? overrideContent : content;
         const currentTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
@@ -860,7 +868,7 @@ export const MemoDetail: React.FC = () => {
             if (contentText) {
                 // Filter out markdown code blocks for title generation
                 const filteredText = contentText
-                    .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+                    .replace(/```[\s\S]*?```/g, () => '') // Remove code blocks
                     .trim();
 
                 if (filteredText) {
@@ -944,7 +952,16 @@ export const MemoDetail: React.FC = () => {
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
             // Navigate without thread params to avoid re-applying on subsequent saves
-            navigate(`/memo/${newId}`, { replace: true, state: overrideState });
+            navigate(`/memo/${newId}`, {
+                replace: true,
+                state: {
+                    ...overrideState,
+                    editing: isEditingInternal,
+                    title: finalTitle,
+                    content: currentContent,
+                    tags: tags
+                }
+            });
         }
     };
 
@@ -1039,10 +1056,10 @@ export const MemoDetail: React.FC = () => {
                 const prevId = localStorage.getItem('handmemo_prev_memo_id');
                 localStorage.removeItem('handmemo_prev_memo_id');
                 navigate(prevId ? `/memo/${prevId}` : '/', { replace: true });
-            } else if (searchParams.get('edit')) {
-                navigate(`/memo/${id}`, { replace: true });
             } else {
-                window.history.back();
+                // Return to preview mode on current memo
+                setIsEditingInternal(false);
+                navigate(`/memo/${id}`, { replace: true });
             }
             return;
         }
@@ -1062,10 +1079,9 @@ export const MemoDetail: React.FC = () => {
             if (isNew) {
                 const prevId = localStorage.getItem('handmemo_prev_memo_id');
                 navigate(prevId ? `/memo/${prevId}` : '/', { replace: true });
-            } else if (searchParams.get('edit')) {
-                navigate(`/memo/${id}`, { replace: true });
             } else {
-                window.history.back();
+                setIsEditingInternal(false);
+                navigate(`/memo/${id}`, { replace: true });
             }
         } else if (result === 'neutral') {
             if (id) {
@@ -1090,11 +1106,8 @@ export const MemoDetail: React.FC = () => {
                     setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : format(memo.createdAt, 'yyyy-MM-dd'));
                     setCommentDraft(null);
                 }
-                if (searchParams.get('edit')) {
-                    navigate(`/memo/${id}`, { replace: true });
-                } else {
-                    window.history.back();
-                }
+                setIsEditingInternal(false);
+                navigate(`/memo/${id}`, { replace: true });
             }
         }
     };
@@ -1366,7 +1379,7 @@ export const MemoDetail: React.FC = () => {
 
                             if (editingDrawingData) {
                                 let found = false;
-                                newContent = content.replace(fabricRegex, (match, p1) => {
+                                newContent = content.replace(fabricRegex, (match: any, p1: any) => {
                                     if (!found && p1.trim() === editingDrawingData.trim()) {
                                         found = true;
                                         return `\`\`\`fabric\n${json}\n\`\`\``;
@@ -1388,16 +1401,33 @@ export const MemoDetail: React.FC = () => {
                             } else {
                                 newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                             }
-
                             setContent(newContent);
                             setEditingDrawingData(json);
                             fabricCheckpointRef.current = newContent; // Update checkpoint on manual save
-                            if (id && memo) {
-                                await db.memos.update(Number(id), {
-                                    content: newContent,
-                                    updatedAt: new Date()
-                                });
+
+                            const isInitialDrawing = searchParams.get('drawing') === 'true';
+
+                            if (isNew && isInitialDrawing) {
+                                let finalTitle = title;
+                                if (!title || title === t.memo_detail.untitled) {
+                                    const inputTitle = await modalPrompt({
+                                        message: t.memo_detail.title_prompt,
+                                        placeholder: t.memo_detail.untitled
+                                    });
+                                    finalTitle = inputTitle?.trim() || t.memo_detail.untitled;
+                                    setTitle(finalTitle);
+                                }
+
+                                setIsEditingInternal(true);
+                                await handleSave(finalTitle, newContent, undefined, { editing: true });
+                            } else {
+                                if (id) {
+                                    await handleSave(title, newContent, undefined, { editing: true });
+                                } else {
+                                    setIsEditingInternal(true);
+                                }
                             }
+                            setIsFabricModalOpen(false);
                         }}
                         onClose={() => {
                             if (fabricCheckpointRef.current !== null) {
@@ -1413,7 +1443,7 @@ export const MemoDetail: React.FC = () => {
 
                             if (editingDrawingData) {
                                 let found = false;
-                                newContent = content.replace(fabricRegex, (match, p1) => {
+                                newContent = content.replace(fabricRegex, (match: any, p1: any) => {
                                     if (!found && p1.trim() === editingDrawingData.trim()) {
                                         found = true;
                                         return `\`\`\`fabric\n${json}\n\`\`\``;
@@ -1464,7 +1494,7 @@ export const MemoDetail: React.FC = () => {
                         const targetRaw = originalSpreadsheetJsonRef.current?.trim() || '';
                         if (targetRaw) {
                             let found = false;
-                            newContent = content.replace(spreadsheetRegex, (match, p1) => {
+                            newContent = content.replace(spreadsheetRegex, (match: any, p1: any) => {
                                 if (!found && p1.trim() === targetRaw) {
                                     found = true;
                                     return `\`\`\`spreadsheet\n${json}\n\`\`\``;
@@ -1490,27 +1520,31 @@ export const MemoDetail: React.FC = () => {
 
                         // If it's a new spreadsheet memo from sidebar, ask for title and auto-save
                         if (isNew && isInitialSpreadsheet) {
-                            const inputTitle = await modalPrompt({
-                                message: t.memo_detail.title_prompt,
-                                placeholder: t.memo_detail.untitled
-                            });
-                            const finalTitle = inputTitle?.trim() || t.memo_detail.untitled;
+                            let finalTitle = title;
+                            if (!title || title === t.memo_detail.untitled) {
+                                const inputTitle = await modalPrompt({
+                                    message: t.memo_detail.title_prompt,
+                                    placeholder: t.memo_detail.untitled
+                                });
+                                finalTitle = inputTitle?.trim() || t.memo_detail.untitled;
+                                setTitle(finalTitle);
+                            }
 
-                            setTitle(finalTitle);
-
+                            setIsEditingInternal(true);
                             // Trigger save with new content and title
-                            // Keep spreadsheet=true and pass data in state to prevent "empty sheet" bug on remount
                             await handleSave(finalTitle, newContent, searchParams.toString(), {
+                                editing: true,
                                 spreadsheetData: data,
                                 spreadsheetJson: json
                             });
                         } else {
                             if (id) {
-                                // Trigger save with new content
-                                // Use handleSave to update lastSavedState and avoid race conditions with main Save button
-                                await handleSave(undefined, newContent);
+                                await handleSave(title, newContent, undefined, { editing: true });
+                            } else {
+                                setIsEditingInternal(true);
                             }
                         }
+                        setIsSpreadsheetModalOpen(false);
                     }}
                     onAutosave={(data) => {
                         const json = JSON.stringify(data);
@@ -1521,7 +1555,7 @@ export const MemoDetail: React.FC = () => {
                         const targetRaw = originalSpreadsheetJsonRef.current?.trim() || '';
                         if (targetRaw) {
                             let found = false;
-                            newContent = content.replace(spreadsheetRegex, (match, p1) => {
+                            newContent = content.replace(spreadsheetRegex, (match: any, p1: any) => {
                                 if (!found && p1.trim() === targetRaw) {
                                     found = true;
                                     return `\`\`\`spreadsheet\n${json}\n\`\`\``;
