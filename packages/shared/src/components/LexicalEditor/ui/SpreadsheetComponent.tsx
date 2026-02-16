@@ -57,14 +57,14 @@ const Table = styled.table`
   width: 100%;
   font-size: 13px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  line-height: 20px;
+  line-height: normal;
 `;
 
 const Th = styled.th`
   background: #f8f9fa;
   border: 1px solid #d1d5db;
-  height: 20px;
-  padding: 0 8px;
+  height: 22px;
+  padding: 0 4px;
   font-weight: 500;
   color: #666;
   text-align: center;
@@ -72,8 +72,8 @@ const Th = styled.th`
 
 const Td = styled.td`
   border: 1px solid #d1d5db;
-  height: 20px;
-  padding: 0 6px;
+  height: 22px;
+  padding: 0 4px;
   min-width: 60px;
   color: #000;
   white-space: nowrap;
@@ -194,18 +194,18 @@ export default function SpreadsheetComponent({
                         <Table>
                             <thead>
                                 <tr>
-                                    <Th style={{ width: "32px" }}>#</Th>
+                                    <Th style={{ width: "32px", height: "22px", padding: '0 4px' }}>#</Th>
                                     {Array.from({ length: preview.maxCol + 1 }).map((_, c) => (
-                                        <Th key={c}>{String.fromCharCode(65 + c)}</Th>
+                                        <Th key={c} style={{ height: "22px", padding: "0 4px" }}>{String.fromCharCode(65 + c)}</Th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {preview.grid.map((row, r) => (
                                     <tr key={r}>
-                                        <Td style={{ background: "#f8f9fa", textAlign: "center", fontSize: "11px", color: "#666" }}>{r + 1}</Td>
+                                        <Td style={{ background: "#f8f9fa", textAlign: "center", fontSize: "11px", color: "#666", padding: '0 4px', height: "22px" }}>{r + 1}</Td>
                                         {row.map((val, c) => (
-                                            <Td key={c}>{val}</Td>
+                                            <Td key={c} style={{ height: "22px", padding: "0 4px" }}>{val}</Td>
                                         ))}
                                     </tr>
                                 ))}

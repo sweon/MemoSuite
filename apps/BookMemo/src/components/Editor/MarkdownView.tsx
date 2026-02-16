@@ -105,7 +105,7 @@ const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => v
           color: 'white',
           padding: '8px 16px',
           borderRadius: '24px',
-          fontSize: '11px',
+          fontSize: '13px',
           fontWeight: 600,
           boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
           display: 'flex',
@@ -510,7 +510,7 @@ const SpreadsheetPreview = React.memo(({ json, onClick }: { json: string; onClic
           <div style={{ fontSize: '20px' }}>📊</div>
           <div>
             <div style={{ fontWeight: 600, color: '#343a40' }}>{language === 'ko' ? '스프레드시트 (비어 있음)' : 'Spreadsheet (Empty)'}</div>
-            <div style={{ fontSize: '11px', color: '#868e96' }}>{onClick ? (language === 'ko' ? '클릭하여 편집' : 'Click to open editor') : (language === 'ko' ? '데이터 없음' : 'No data')}</div>
+            <div style={{ fontSize: '13px', color: '#868e96' }}>{onClick ? (language === 'ko' ? '클릭하여 편집' : 'Click to open editor') : (language === 'ko' ? '데이터 없음' : 'No data')}</div>
           </div>
         </div>
       );
@@ -605,14 +605,14 @@ const SpreadsheetPreview = React.memo(({ json, onClick }: { json: string; onClic
           </tbody>
         </table>
         {(maxRow >= 100 || maxCol >= 20) && (
-          <div style={{ padding: '8px', textAlign: 'center', color: '#666', fontSize: '11px', background: '#f8f9fa', borderTop: '1px solid #d1d5db', position: 'sticky', bottom: 0, left: 0, width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ padding: '8px', textAlign: 'center', color: '#666', fontSize: '13px', background: '#f8f9fa', borderTop: '1px solid #d1d5db', position: 'sticky', bottom: 0, left: 0, width: '100%', boxSizing: 'border-box' }}>
             {language === 'ko' ? '... 항목 더 있음 (편집기에서 확인 가능) ...' : '... more data available in editor ...'}
           </div>
         )}
       </div>
     );
   } catch (e) {
-    return <div style={{ color: 'red', fontSize: '12px' }}>Failed to render spreadsheet preview</div>;
+    return <div style={{ color: 'red', fontSize: '13px' }}>Failed to render spreadsheet preview</div>;
   }
 });
 
@@ -657,7 +657,7 @@ const WebPreview = React.memo(({ url }: { url: string }) => {
             {domain}
           </div>
           <div style={{
-            fontSize: '11px',
+            fontSize: '13px',
             color: '#6a737d',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -677,7 +677,7 @@ const WebPreview = React.memo(({ url }: { url: string }) => {
             background: '#ef8e13',
             padding: '6px 14px',
             borderRadius: '8px',
-            fontSize: '12px',
+            fontSize: '13px',
             boxShadow: '0 2px 4px rgba(239, 142, 19, 0.2)',
             flexShrink: 0
           }}
@@ -1282,7 +1282,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
       </div>
       <div id={`yt-player-container-${videoId}`} style={{ position: 'relative', paddingBottom: isFullScreen ? 0 : '56.25%', height: isFullScreen ? '100%' : 0, overflow: 'hidden', borderRadius: isFullScreen ? 0 : '4px', boxShadow: '0 4px 16px rgba(0,0,0,0.15)', background: '#000', display: isFullScreen ? 'flex' : 'block', alignItems: isFullScreen ? 'center' : 'initial', justifyContent: isFullScreen ? 'center' : 'initial', cursor: (isFullScreen && isMouseIdle) ? 'none' : 'auto' }}>
         {isFullScreen && <div style={{ position: 'absolute', inset: 0, background: 'black', opacity: 1 - brightness, pointerEvents: 'none', zIndex: 15 }} />}
-        {!isReady && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontSize: '11px', background: '#111', zIndex: 1 }}>YouTube Loading...</div>}
+        {!isReady && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontSize: '13px', background: '#111', zIndex: 1 }}>YouTube Loading...</div>}
         <div ref={wrapperRef} style={{ position: isFullScreen ? 'relative' : 'absolute', top: 0, left: 0, width: isFullScreen ? (isShort && isMobilePortrait ? '100vw' : 'min(100vw, calc(100vh * 16 / 9))') : '380px', height: isFullScreen ? (isShort && isMobilePortrait ? '100vh' : 'min(100vh, calc(100vw * 9 / 16))') : '214px', transform: isFullScreen ? 'none' : `scale(${scale})`, transformOrigin: 'top left', pointerEvents: 'none' }}>
           <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
         </div>
@@ -1305,7 +1305,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
             {isCCSettingsOpen && (
               <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', bottom: '50px', right: '12px', background: 'rgba(28, 28, 28, 0.95)', borderRadius: '12px', padding: '16px', width: '240px', zIndex: 100, boxShadow: '0 8px 32px rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', color: '#fff', fontSize: '13px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}><FiSettings size={14} />{language === 'ko' ? '자막 설정' : 'Caption Settings'}</div><button onClick={() => setIsCCSettingsOpen(false)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', padding: '4px' }}><FiX size={16} /></button></div>
-                <div style={{ marginBottom: '16px' }}><div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{language === 'ko' ? '언어 선택' : 'Language'}</div>
+                <div style={{ marginBottom: '16px' }}><div style={{ fontSize: '13px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{language === 'ko' ? '언어 선택' : 'Language'}</div>
                   <select value={activeTrackCode} onChange={(e) => {
                     const code = e.target.value; setActiveTrackCode(code); isSwitchingCCTrack.current = true; ccTimersRef.current.forEach(t => clearTimeout(t)); ccTimersRef.current = [];
                     if (code === 'off') { playerRef.current?.unloadModule('captions'); setIsCaptionsOn(false); isSwitchingCCTrack.current = false; }
@@ -1316,22 +1316,22 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
                       else if (code === 'en-force') { if (wasTranslating) { playerRef.current?.unloadModule('captions'); playerRef.current?.loadModule('captions'); } setTimeout(() => { const tracks = playerRef.current?.getOption('captions', 'tracklist') || []; const enTrack = tracks.find((t: any) => (t.kind === 'asr' || t.languageCode?.startsWith('a.')) && t.languageCode?.includes('en')) || tracks.find((t: any) => t.languageCode?.includes('en')) || { languageCode: 'en' }; playerRef.current?.setOption('captions', 'track', { languageCode: enTrack.languageCode }); applyCaptionStyles(); setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500); }, wasTranslating ? 300 : 100); }
                       else { if (wasTranslating) { playerRef.current?.unloadModule('captions'); playerRef.current?.loadModule('captions'); } setTimeout(() => { playerRef.current?.setOption('captions', 'track', { languageCode: code }); applyCaptionStyles(); setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500); }, wasTranslating ? 300 : 100); }
                     } setIsCCSettingsOpen(false);
-                  }} style={{ width: '100%', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', padding: '6px 8px', borderRadius: '6px', fontSize: '12px', outline: 'none', cursor: 'pointer', appearance: 'none' }}>
+                  }} style={{ width: '100%', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', padding: '6px 8px', borderRadius: '6px', fontSize: '13px', outline: 'none', cursor: 'pointer', appearance: 'none' }}>
                     <option value="" disabled>{language === 'ko' ? '언어 선택' : 'Language'}</option><option value="off" style={{ background: '#1c1c1c' }}>{language === 'ko' ? '자막 끄기' : 'Captions Off'}</option>
                     {ccTracks.map((track: any) => <option key={`${track.languageCode}-${track.kind}`} value={track.languageCode} style={{ background: '#1c1c1c' }}>{track.displayName} {track.kind === 'asr' || track.languageCode?.startsWith('a.') ? `(${language === 'ko' ? '자동 생성' : 'auto-generated'})` : ''}</option>)}
                     {!ccTracks.some((t: any) => t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) && <option value="en-force" style={{ background: '#1c1c1c' }}>{language === 'ko' ? '영어 (자동 생성)' : 'English (Auto-generated)'}</option>}
                     {!ccTracks.some((t: any) => t.languageCode === 'ko' || t.languageCode === 'ko-KR') && <option value="ko-auto" style={{ background: '#1c1c1c' }}>{language === 'ko' ? '한국어 (자동 번역)' : 'Korean (auto-translate)'}</option>}
                   </select></div>
-                <div><div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{language === 'ko' ? '글자 크기' : 'Font Size'}</div>
-                  <div style={{ display: 'flex', gap: '4px' }}>{[{ label: '50%', val: -1 }, { label: '100%', val: 0 }, { label: '150%', val: 1 }, { label: '200%', val: 2 }, { label: '300%', val: 3 }].map(size => <button key={size.val} onClick={() => { setCCFontSize(size.val); applyCaptionStyles(size.val); }} style={{ flex: 1, padding: '5px 0', background: ccFontSize === size.val ? 'rgba(239, 142, 19, 0.2)' : 'rgba(255,255,255,0.08)', border: ccFontSize === size.val ? '1px solid #ef8e13' : '1px solid transparent', borderRadius: '4px', color: ccFontSize === size.val ? '#ef8e13' : '#ddd', fontSize: '10px', cursor: 'pointer' }}>{size.label}</button>)}</div></div>
+                <div><div style={{ fontSize: '13px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{language === 'ko' ? '글자 크기' : 'Font Size'}</div>
+                  <div style={{ display: 'flex', gap: '4px' }}>{[{ label: '50%', val: -1 }, { label: '100%', val: 0 }, { label: '150%', val: 1 }, { label: '200%', val: 2 }, { label: '300%', val: 3 }].map(size => <button key={size.val} onClick={() => { setCCFontSize(size.val); applyCaptionStyles(size.val); }} style={{ flex: 1, padding: '5px 0', background: ccFontSize === size.val ? 'rgba(239, 142, 19, 0.2)' : 'rgba(255,255,255,0.08)', border: ccFontSize === size.val ? '1px solid #ef8e13' : '1px solid transparent', borderRadius: '4px', color: ccFontSize === size.val ? '#ef8e13' : '#ddd', fontSize: '13px', cursor: 'pointer' }}>{size.label}</button>)}</div></div>
               </div>)}
             {playbackRateToast !== null && <div style={{ position: 'absolute', top: '20%', background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '8px 16px', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold', pointerEvents: 'none', zIndex: 20 }}>{playbackRateToast}x</div>}
             {volumeToast !== null && <div style={{ position: 'absolute', top: '20%', background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '8px 16px', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold', pointerEvents: 'none', zIndex: 20, display: 'flex', alignItems: 'center', gap: '8px' }}><FiVolume2 size={16} /> {volumeToast}%</div>}
             {brightnessToast !== null && <div style={{ position: 'absolute', top: '20%', background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '8px 16px', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold', pointerEvents: 'none', zIndex: 20, display: 'flex', alignItems: 'center', gap: '8px' }}><FiSun size={16} /> {Math.round(brightnessToast * 100)}%</div>}
             <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40px', display: 'flex', alignItems: 'center', padding: '0 12px', gap: '12px', color: '#fff', cursor: 'default', opacity: isPlaying ? 0 : 1, pointerEvents: isPlaying ? 'none' : 'auto', transition: 'opacity 0.2s', background: 'linear-gradient(transparent, rgba(0,0,0,0.5))', zIndex: 20 }}>
               <input type="range" min={0} max={duration || 100} value={currentTime} onChange={(e) => { const time = parseFloat(e.target.value); setCurrentTime(time); ACTIVE_YT_VIDEO_ID = videoId; playerRef.current?.seekTo(time); }} style={{ flex: 1, height: '3px', cursor: 'pointer', accentColor: '#ef8e13' }} />
-              <div style={{ fontSize: '11px', fontFamily: 'monospace', minWidth: '75px', textAlign: 'right' }}>{formatTime(currentTime)} / {formatTime(duration)}</div>
-              <a href={`https://www.youtube.com/watch?v=${videoId}${currentTime > 0 ? `&t=${Math.floor(currentTime)}` : ''}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: isMobilePortrait ? '#ff0000' : '#ddd', textDecoration: 'none', padding: isMobilePortrait ? '4px' : '4px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', whiteSpace: 'nowrap', marginLeft: '4px' }} title={language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}>
+              <div style={{ fontSize: '13px', fontFamily: 'monospace', minWidth: '75px', textAlign: 'right' }}>{formatTime(currentTime)} / {formatTime(duration)}</div>
+              <a href={`https://www.youtube.com/watch?v=${videoId}${currentTime > 0 ? `&t=${Math.floor(currentTime)}` : ''}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: isMobilePortrait ? '#ff0000' : '#ddd', textDecoration: 'none', padding: isMobilePortrait ? '4px' : '4px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', whiteSpace: 'nowrap', marginLeft: '4px' }} title={language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}>
                 {isMobilePortrait ? <FaYoutube size={18} /> : <><FiExternalLink size={12} />{language === 'ko' ? '유튜브에서 시청' : 'Watch on YouTube'}</>}
               </a>
               <button onClick={(e) => { if (ccClickTimerRef.current) clearTimeout(ccClickTimerRef.current); ccClickTimerRef.current = setTimeout(() => { toggleCaptions(e); ccClickTimerRef.current = null; }, 500); }} onDoubleClick={(e) => { if (ccClickTimerRef.current) { clearTimeout(ccClickTimerRef.current); ccClickTimerRef.current = null; } toggleCCSettings(e); }} title={language === 'ko' ? '자막 (더블클릭: 설정)' : 'Subtitles (Double-click: Settings)'} style={{ background: 'none', border: 'none', color: isCaptionsOn ? '#ef8e13' : '#ddd', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px', marginLeft: '4px' }}>
@@ -1386,7 +1386,7 @@ const YoutubePlaylistView = React.memo(({ playlistId }: { playlistId: string }) 
   }, [playlistId]);
   if (loading) return <div style={{ margin: '16px 0', padding: '12px', color: '#868e96', fontSize: '14px', border: '1px solid #e9ecef', borderRadius: '8px' }}>loading playlist...</div>;
   if (playlistVideos.length > 0) return (<div style={{ margin: '16px 0', padding: '12px', border: '1px solid #e9ecef', borderRadius: '8px' }}><div style={{ marginBottom: '12px', fontWeight: 600, fontSize: '14px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>Playlist ({playlistVideos.length})</div>
-    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>{playlistVideos.map((v, i) => (<li key={v.id} style={{ marginBottom: '8px', fontSize: '14px' }}><a href={`https://www.youtube.com/watch?v=${v.id}&list=${playlistId}&index=${i + 1}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#065fd4', display: 'flex', gap: '8px', alignItems: 'baseline' }}><span style={{ color: '#868e96', minWidth: '24px', fontSize: '12px' }}>{i + 1}.</span><span style={{ lineHeight: '1.4' }}>{v.title}</span></a></li>))}</ul></div>);
+    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>{playlistVideos.map((v, i) => (<li key={v.id} style={{ marginBottom: '8px', fontSize: '14px' }}><a href={`https://www.youtube.com/watch?v=${v.id}&list=${playlistId}&index=${i + 1}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#065fd4', display: 'flex', gap: '8px', alignItems: 'baseline' }}><span style={{ color: '#868e96', minWidth: '24px', fontSize: '13px' }}>{i + 1}.</span><span style={{ lineHeight: '1.4' }}>{v.title}</span></a></li>))}</ul></div>);
   return (<div style={{ margin: '16px 0', padding: '12px', border: '1px solid #e9ecef', borderRadius: '8px' }}><div style={{ marginBottom: '8px', fontSize: '14px' }}>Unable to extract videos list.</div><a href={`https://www.youtube.com/playlist?list=${playlistId}`} target="_blank" rel="noopener noreferrer" style={{ color: '#065fd4', textDecoration: 'none', fontSize: '14px' }}>Open Playlist on YouTube ↗</a></div>);
 });
 

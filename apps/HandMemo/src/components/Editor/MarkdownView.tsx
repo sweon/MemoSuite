@@ -107,7 +107,7 @@ const MobileObjectGuard: React.FC<{ children: React.ReactNode; onClick?: () => v
           color: 'white',
           padding: '8px 16px',
           borderRadius: '24px',
-          fontSize: '11px',
+          fontSize: '13px',
           fontWeight: 600,
           boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
           display: 'flex',
@@ -554,7 +554,7 @@ const SpreadsheetPreview = React.memo(({ json, onClick }: { json: string; onClic
           <div style={{ fontSize: '20px' }}>📊</div>
           <div>
             <div style={{ fontWeight: 600, color: '#343a40' }}>{language === 'ko' ? '스프레드시트 (비어 있음)' : 'Spreadsheet (Empty)'}</div>
-            <div style={{ fontSize: '11px', color: '#868e96' }}>{onClick ? (language === 'ko' ? '클릭하여 편집' : 'Click to open editor') : (language === 'ko' ? '데이터 없음' : 'No data')}</div>
+            <div style={{ fontSize: '13px', color: '#868e96' }}>{onClick ? (language === 'ko' ? '클릭하여 편집' : 'Click to open editor') : (language === 'ko' ? '데이터 없음' : 'No data')}</div>
           </div>
         </div>
       );
@@ -621,30 +621,30 @@ const SpreadsheetPreview = React.memo(({ json, onClick }: { json: string; onClic
             backgroundColor: '#fff'
           }}
         >
-          <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '13px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', lineHeight: '20px' }}>
-            <thead>
-              <tr>
-                <th style={{ background: '#f8f9fa', border: '1px solid #d1d5db', width: '32px', height: '20px', textAlign: 'center', color: '#666', padding: '0 4px', fontWeight: 500 }}>#</th>
-                {Array.from({ length: maxCol + 1 }).map((_, c) => (
-                  <th key={c} style={{ background: '#f8f9fa', border: '1px solid #d1d5db', height: '20px', padding: '0 8px', fontWeight: 500, color: '#666', textAlign: 'center' }}>
-                    {String.fromCharCode(65 + c)}
-                  </th>
+        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '13px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', lineHeight: '20px' }}>
+          <thead>
+            <tr>
+              <th style={{ background: '#f8f9fa', border: '1px solid #d1d5db', width: '32px', height: '20px', textAlign: 'center', color: '#666', padding: '0 4px', fontWeight: 500 }}>#</th>
+              {Array.from({ length: maxCol + 1 }).map((_, c) => (
+                <th key={c} style={{ background: '#f8f9fa', border: '1px solid #d1d5db', height: '20px', padding: '0 8px', fontWeight: 500, color: '#666', textAlign: 'center' }}>
+                  {String.fromCharCode(65 + c)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {grid.map((row, r) => (
+              <tr key={r}>
+                <td style={{ background: '#f8f9fa', border: '1px solid #d1d5db', textAlign: 'center', color: '#666', fontSize: '11px', padding: '0 4px', height: '20px' }}>{r + 1}</td>
+                {row.map((val, c) => (
+                  <td key={c} style={{ border: '1px solid #d1d5db', height: '20px', padding: '0 6px', minWidth: '60px', color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px', verticalAlign: 'middle' }}>{val}</td>
                 ))}
               </tr>
-            </thead>
-            <tbody>
-              {grid.map((row, r) => (
-                <tr key={r}>
-                  <td style={{ background: '#f8f9fa', border: '1px solid #d1d5db', textAlign: 'center', color: '#666', fontSize: '11px', padding: '0 4px', height: '20px' }}>{r + 1}</td>
-                  {row.map((val, c) => (
-                    <td key={c} style={{ border: '1px solid #d1d5db', height: '20px', padding: '0 6px', minWidth: '60px', color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px', verticalAlign: 'middle' }}>{val}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
           {(maxRow >= 100 || maxCol >= 20) && (
-            <div style={{ padding: '8px', textAlign: 'center', color: '#666', fontSize: '11px', background: '#f8f9fa', borderTop: '1px solid #d1d5db', position: 'sticky', bottom: 0, left: 0, width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ padding: '8px', textAlign: 'center', color: '#666', fontSize: '13px', background: '#f8f9fa', borderTop: '1px solid #d1d5db', position: 'sticky', bottom: 0, left: 0, width: '100%', boxSizing: 'border-box' }}>
               {language === 'ko' ? '... 항목 더 있음 (편집기에서 확인 가능) ...' : '... more data available in editor ...'}
             </div>
           )}
@@ -652,7 +652,7 @@ const SpreadsheetPreview = React.memo(({ json, onClick }: { json: string; onClic
       </MobileObjectGuard>
     );
   } catch (e) {
-    return <div style={{ color: 'red', fontSize: '12px' }}>Failed to render spreadsheet preview</div>;
+    return <div style={{ color: 'red', fontSize: '13px' }}>Failed to render spreadsheet preview</div>;
   }
 });
 
@@ -698,7 +698,7 @@ const WebPreview = React.memo(({ url }: { url: string }) => {
             {domain}
           </div>
           <div style={{
-            fontSize: '11px',
+            fontSize: '13px',
             color: '#6a737d',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -718,7 +718,7 @@ const WebPreview = React.memo(({ url }: { url: string }) => {
             background: '#ef8e13',
             padding: '6px 14px',
             borderRadius: '8px',
-            fontSize: '12px',
+            fontSize: '13px',
             boxShadow: '0 2px 4px rgba(239, 142, 19, 0.2)',
             flexShrink: 0
           }}
@@ -753,7 +753,7 @@ const WebPreview = React.memo(({ url }: { url: string }) => {
                 ? '일부 사이트는 보안 정책상 미리보기를 허용하지 않습니다.'
                 : 'Some sites may block previews due to security policies.'}
             </div>
-            <div style={{ fontSize: '12px', marginTop: '4px' }}>
+            <div style={{ fontSize: '13px', marginTop: '4px' }}>
               {language === 'ko'
                 ? '내용이 보이지 않으면 상단 버튼을 눌러 새 창에서 확인해주세요.'
                 : 'If you cannot see the content, please use the button above to open it.'}
@@ -1447,7 +1447,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
             alignItems: 'center',
             justifyContent: 'center',
             color: '#ffffff',
-            fontSize: '11px',
+            fontSize: '13px',
             background: '#111',
             zIndex: 1
           }}>
@@ -1601,7 +1601,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
 
                 {/* Tracks Selection - Dropdown */}
                 <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <div style={{ fontSize: '13px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     {language === 'ko' ? '언어 선택' : 'Language'}
                   </div>
                   <select
@@ -1672,7 +1672,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
                       color: '#fff',
                       padding: '6px 8px',
                       borderRadius: '6px',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       outline: 'none',
                       cursor: 'pointer',
                       appearance: 'none',
@@ -1708,7 +1708,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
 
                 {/* Font Size */}
                 <div style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <div style={{ fontSize: '13px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     {language === 'ko' ? '글자 크기' : 'Font Size'}
                   </div>
                   <div style={{ display: 'flex', gap: '4px' }}>
@@ -1734,7 +1734,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
                             border: isActive ? '1px solid #ef8e13' : '1px solid transparent',
                             borderRadius: '4px',
                             color: isActive ? '#ef8e13' : '#ddd',
-                            fontSize: '10px',
+                            fontSize: '13px',
                             cursor: 'pointer',
                             transition: 'all 0.2s'
                           }}
@@ -1846,7 +1846,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
                   accentColor: '#ef8e13'
                 }}
               />
-              <div style={{ fontSize: '11px', fontFamily: 'monospace', minWidth: '75px', textAlign: 'right' }}>
+              <div style={{ fontSize: '13px', fontFamily: 'monospace', minWidth: '75px', textAlign: 'right' }}>
                 {formatTime(currentTime)} / {formatTime(duration)}
               </div>
 
@@ -1859,7 +1859,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
-                  fontSize: '10px',
+                  fontSize: '13px',
                   color: isMobilePortrait ? '#ff0000' : '#ddd',
                   textDecoration: 'none',
                   padding: isMobilePortrait ? '4px' : '4px 8px',
@@ -2033,7 +2033,7 @@ const YoutubePlaylistView = React.memo(({ playlistId }: { playlistId: string }) 
                 rel="noopener noreferrer"
                 style={{ textDecoration: 'none', color: '#065fd4', display: 'flex', gap: '8px', alignItems: 'baseline' }}
               >
-                <span style={{ color: '#868e96', minWidth: '24px', fontSize: '12px' }}>{i + 1}.</span>
+                <span style={{ color: '#868e96', minWidth: '24px', fontSize: '13px' }}>{i + 1}.</span>
                 <span style={{ lineHeight: '1.4' }}>{v.title}</span>
               </a>
             </li>
