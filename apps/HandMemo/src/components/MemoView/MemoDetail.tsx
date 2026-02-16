@@ -446,6 +446,7 @@ export const MemoDetail: React.FC = () => {
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
     const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -505,6 +506,11 @@ export const MemoDetail: React.FC = () => {
             setEditingSpreadsheetData(location.state.spreadsheetData);
             originalSpreadsheetJsonRef.current = location.state.spreadsheetJson;
             setIsSpreadsheetModalOpen(true);
+        }
+        if (location.state?.showToast) {
+            setToastMessage(location.state.showToast);
+            // Clear toast from state to prevent re-showing
+            window.history.replaceState({ ...location.state, showToast: undefined }, '');
         }
     }, [location.state]);
 
@@ -1360,6 +1366,16 @@ export const MemoDetail: React.FC = () => {
                     />
                 )}
 
+                {toastMessage && (
+                    <Toast
+                        variant="success"
+                        position="success"
+                        message={toastMessage}
+                        onClose={() => setToastMessage(null)}
+                        duration={800}
+                    />
+                )}
+
                 {showExitToast && (
                     <Toast
                         variant="warning"
@@ -1427,7 +1443,7 @@ export const MemoDetail: React.FC = () => {
                                     setIsEditingInternal(true);
                                 }
                             }
-                            setIsFabricModalOpen(false);
+                            // setIsFabricModalOpen(false); // Do not exit on save as requested
                         }}
                         onClose={() => {
                             if (fabricCheckpointRef.current !== null) {
@@ -1518,33 +1534,27 @@ export const MemoDetail: React.FC = () => {
 
                         const isInitialSpreadsheet = searchParams.get('spreadsheet') === 'true';
 
-                        // If it's a new spreadsheet memo from sidebar, ask for title and auto-save
+                        // If it's a new spreadsheet memo from sidebar, auto-save without asking for title
                         if (isNew && isInitialSpreadsheet) {
-                            let finalTitle = title;
-                            if (!title || title === t.memo_detail.untitled) {
-                                const inputTitle = await modalPrompt({
-                                    message: t.memo_detail.title_prompt,
-                                    placeholder: t.memo_detail.untitled
-                                });
-                                finalTitle = inputTitle?.trim() || t.memo_detail.untitled;
-                                setTitle(finalTitle);
-                            }
-
                             setIsEditingInternal(true);
-                            // Trigger save with new content and title
-                            await handleSave(finalTitle, newContent, searchParams.toString(), {
+                            // Trigger save with new content
+                            await handleSave(title, newContent, searchParams.toString(), {
                                 editing: true,
                                 spreadsheetData: data,
-                                spreadsheetJson: json
+                                spreadsheetJson: json,
+                                showToast: "Saved!"
                             });
                         } else {
                             if (id) {
                                 await handleSave(title, newContent, undefined, { editing: true });
+                                setToastMessage("Saved!");
                             } else {
                                 setIsEditingInternal(true);
                             }
                         }
-                        setIsSpreadsheetModalOpen(false);
+                        // setTimeout(() => {
+                        //     setIsSpreadsheetModalOpen(false);
+                        // }, 400); // Do not exit on save as requested
                     }}
                     onAutosave={(data) => {
                         const json = JSON.stringify(data);

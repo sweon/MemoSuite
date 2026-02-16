@@ -16,14 +16,14 @@ const pulse = keyframes`
   100% { transform: scale(1); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2); }
 `;
 
-const ToastWrapper = styled.div<{ $position?: 'bottom' | 'centered' | 'left-centered' }>`
+const ToastWrapper = styled.div<{ $position?: 'bottom' | 'centered' | 'left-centered' | 'success' }>`
   position: fixed;
   z-index: 999999;
   left: 16px;
   pointer-events: none;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: ${({ $position }) => ($position === 'centered' || $position === 'success') ? 'center' : 'flex-start'};
   width: calc(100vw - 32px);
   
   /* Always centered vertically as requested for phone screen alignment */
@@ -31,13 +31,14 @@ const ToastWrapper = styled.div<{ $position?: 'bottom' | 'centered' | 'left-cent
   transform: translateY(-50%);
 `;
 
-const ToastContainer = styled.div<{ $variant?: 'default' | 'warning' | 'danger' }>`
+const ToastContainer = styled.div<{ $variant?: 'default' | 'warning' | 'danger' | 'success' }>`
   background: ${({ $variant }) =>
     $variant === 'warning' ? '#f59e0b' :
       $variant === 'danger' ? '#ef4444' :
-        'rgba(0, 0, 0, 0.9)'};
+        $variant === 'success' ? 'rgba(0, 0, 0, 0.9)' :
+          'rgba(0, 0, 0, 0.9)'};
   color: white;
-  padding: 12px 18px;
+  padding: ${({ $variant }) => $variant === 'success' ? '16px 32px' : '12px 18px'};
   border-radius: 12px;
   font-size: 0.8rem;
   font-weight: 600;
@@ -66,12 +67,14 @@ interface ToastProps {
   message: string;
   onClose: () => void;
   duration?: number;
-  variant?: 'default' | 'warning' | 'danger';
+  variant?: 'default' | 'warning' | 'danger' | 'success';
   icon?: React.ReactNode;
-  position?: 'bottom' | 'centered' | 'left-centered';
+  position?: 'bottom' | 'centered' | 'left-centered' | 'success';
 }
 
 export const Toast: React.FC<ToastProps> = ({ message, onClose, duration = 2500, variant = 'default', icon, position = 'bottom' }) => {
+  const isSuccess = variant === 'success' || position === 'success';
+
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -81,10 +84,26 @@ export const Toast: React.FC<ToastProps> = ({ message, onClose, duration = 2500,
   }, [duration, onClose]);
 
   return createPortal(
-    <ToastWrapper $position={position}>
+    <ToastWrapper $position={isSuccess ? 'centered' : position}>
       <ToastContainer $variant={variant}>
+        {isSuccess && !icon && (
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            background: '#20c997',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: '8px'
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+        )}
         {icon}
-        <span>{message}</span>
+        <span style={isSuccess ? { fontSize: '1.1rem', fontWeight: 600 } : {}}>{message}</span>
       </ToastContainer>
     </ToastWrapper>,
     document.body

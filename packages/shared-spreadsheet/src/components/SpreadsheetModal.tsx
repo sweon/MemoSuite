@@ -425,8 +425,6 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
         }
         await onSave(dataToSave);
         setIsDirty(false);
-        setSavedToastVisible(true);
-        setTimeout(() => setSavedToastVisible(false), 500);
       }
     } finally {
       setIsSaving(false);
@@ -576,49 +574,6 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
           </EditorContainer>
         </ModalContent>
       </ModalOverlay>
-
-      {savedToastVisible && (
-        <>
-          <style>{`
-            @keyframes fadeInOut {
-              0% { opacity: 0; transform: translate(-50%, -40%); }
-              100% { opacity: 1; transform: translate(-50%, -50%); }
-            }
-          `}</style>
-          <div style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: 'rgba(255, 255, 255, 0.95)',
-            padding: '24px 48px',
-            borderRadius: '16px',
-            zIndex: 20002, // Higher than Exit Confirm Dialog (20000)
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '12px',
-            backdropFilter: 'blur(4px)',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
-            animation: 'fadeInOut 0.3s ease',
-            pointerEvents: 'none',
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              background: '#20c997',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <CheckIcon size={28} color="white" />
-            </div>
-            <span style={{ fontSize: '1.1rem', fontWeight: 600, color: '#333' }}>{labels.saved}</span>
-          </div>
-        </>
-      )}
 
       {isExitConfirmOpen && (
         <Backdrop onClick={(e) => e.stopPropagation()}>

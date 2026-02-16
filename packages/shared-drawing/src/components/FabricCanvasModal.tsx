@@ -4683,8 +4683,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 await onSaveRef.current(json);
 
                 lastSavedIndexRef.current = savedIndex;
-                setSavedToastVisible(true);
-                setTimeout(() => setSavedToastVisible(false), 500);
                 return true;
             }
             return false;
@@ -6959,43 +6957,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         language={language as Language}
                         t={t}
                     />
-                )
-            }
-            {
-                savedToastVisible && (
-                    <div style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        background: 'rgba(0,0,0,0.8)',
-                        color: 'white',
-                        padding: '16px 32px',
-                        borderRadius: '12px',
-                        zIndex: 12000,
-                        pointerEvents: 'none',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '12px',
-                        backdropFilter: 'blur(4px)',
-                        boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
-                        animation: 'fadeInOut 0.3s ease'
-                    }}>
-                        <div style={{
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '50%',
-                            background: '#20c997',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <FiCheck size={28} color="white" />
-                        </div>
-                        <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>{'Saved!'}</span>
-                    </div>
                 )
             }
         </ModalOverlay >
