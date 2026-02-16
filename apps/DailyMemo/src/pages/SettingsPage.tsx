@@ -285,8 +285,8 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     padding: '1rem',
-    background: 'var(--surface-color)',
-    border: '1px solid var(--border-color)',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
     borderRadius: '12px'
   }}>
     <div>
@@ -297,7 +297,7 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
       type="checkbox"
       checked={checked}
       onChange={onChange}
-      style={{ width: '28px', height: '28px', cursor: 'pointer', accentColor: 'var(--primary-color)', marginTop: '2px' }}
+      style={{ width: '28px', height: '28px', cursor: 'pointer', accentColor: 'var(--primary)', marginTop: '2px' }}
     />
   </div>
 );
@@ -604,8 +604,8 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '1rem',
-              background: 'var(--surface-color)',
-              border: '1px solid var(--border-color)',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
               borderRadius: '12px'
             }}>
               <div>
@@ -623,8 +623,8 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '1rem',
-              background: 'var(--surface-color)',
-              border: '1px solid var(--border-color)',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
               borderRadius: '12px'
             }}>
               <div>
@@ -634,7 +634,7 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
               <FontSizeContainer>
                 <FontSizeControls>
                   <SpinButton
-                    
+
                     onMouseDown={(e) => { e.preventDefault(); startFontSizeInterval(true); }}
                     onMouseUp={stopFontSizeInterval}
                     onMouseLeave={stopFontSizeInterval} onPointerUp={stopFontSizeInterval}
@@ -642,7 +642,7 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
                     <FiChevronUp />
                   </SpinButton>
                   <SpinButton
-                    
+
                     onMouseDown={(e) => { e.preventDefault(); startFontSizeInterval(false); }}
                     onMouseUp={stopFontSizeInterval}
                     onMouseLeave={stopFontSizeInterval} onPointerUp={stopFontSizeInterval}
@@ -715,7 +715,7 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
             checked={autoUpdateEnabled}
             onChange={toggleAutoUpdate}
           />
-          <div style={{ marginTop: '2rem', padding: '1rem', background: 'var(--surface-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <div style={{ marginTop: '2rem', padding: '1rem', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <h4 style={{ margin: 0, color: 'var(--text-color)' }}>{t.settings.manual_update_title}</h4>
             </div>
@@ -750,7 +750,7 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
             <li>{t.settings.help_math}</li>
           </HelpList>
 
-          <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--surface-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--border)' }}>
             <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)' }}>{t.settings.memosuite_apps}</h4>
             <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t.settings.memosuite_apps_desc}</p>
             <ActionButton onClick={() => window.open('https://sweon.github.io/MemoSuite/', '_blank')} style={{ width: '100%' }}>
@@ -758,7 +758,7 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
             </ActionButton>
           </div>
 
-          <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--surface-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <div style={{ marginTop: '2.5rem', padding: '1.5rem', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--border)' }}>
             <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)' }}>{t.settings.share_app}</h4>
             <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{t.settings.share_desc}</p>
             <ActionButton onClick={handleShare} style={{ width: '100%' }}>
@@ -766,12 +766,12 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
             </ActionButton>
           </div>
 
-          <div style={{ marginTop: '2.5rem', padding: '1.25rem', background: 'rgba(0,0,0,0.03)', borderRadius: '12px', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+          <div style={{ marginTop: '2.5rem', padding: '1.25rem', background: 'rgba(0,0,0,0.03)', borderRadius: '12px', border: '1px solid var(--border)', fontSize: '0.85rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-color)', fontWeight: 600 }}>{t.settings.disclaimer_title}</h5>
             <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: '1.5' }}>{t.settings.disclaimer_text}</p>
           </div>
 
-          <div style={{ marginTop: '2rem', padding: '1rem', background: 'var(--surface-color)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+          <div style={{ marginTop: '2rem', padding: '1rem', background: 'var(--surface)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
             {t.settings.app_tagline}
           </div>
         </Section>
