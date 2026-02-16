@@ -24,6 +24,7 @@
         "@memosuite/shared-drawing": "workspace:*",
         "@memosuite/shared-spreadsheet": "workspace:*",
         "date-fns": "^4.1.0",
+        "es-hangul": "^2.3.8",
         "fabric": "^5.5.2",
         "html5-qrcode": "^2.3.8",
         "lexical": "^0.40.0",

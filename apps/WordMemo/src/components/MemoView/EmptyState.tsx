@@ -1,4 +1,4 @@
-import { useLanguage } from '@memosuite/shared';
+import { useLanguage, josa } from '@memosuite/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import React from 'react';
 import { FiFolderPlus } from 'react-icons/fi';
@@ -98,7 +98,7 @@ export const EmptyState: React.FC = () => {
       </IconWrapper>
       <Title>
         {isEmptyFolder
-          ? (language === 'ko' ? `${currentFolder?.name || '폴더'}가 비어 있습니다` : `${currentFolder?.name || 'Folder'} is empty`)
+          ? (language === 'ko' ? `${josa(currentFolder?.name || '폴더', '이/가')} 비어 있습니다` : `${currentFolder?.name || 'Folder'} is empty`)
           : t.word_detail.empty_state_title
         }
       </Title>
