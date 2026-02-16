@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MemoSuite - All Your Memos in One Place</title>
     <meta name="theme-color" content="#0f172a">
-    <link rel="manifest" href="manifest.json">
+
     <style>
         :root {
             /* Premium Palette */
@@ -477,14 +477,7 @@
     </footer>
 
     <script>
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => console.log('SW registered: ', registration))
-                    .catch(registrationError => console.log('SW registration failed: ', registrationError));
-            });
-        }
+
 
         const translations = {
             ko: {
