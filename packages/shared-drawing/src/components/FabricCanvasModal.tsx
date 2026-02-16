@@ -189,10 +189,15 @@ const ModalOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
+  /* Use viewport units for modern mobile awareness */
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   background: rgba(0, 0, 0, 0.7);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
   z-index: 9999;
   touch-action: none !important;
   overscroll-behavior: none !important;
@@ -201,6 +206,7 @@ const ModalOverlay = styled.div`
 const ModalContainer = styled.div`
   width: 100%;
   height: 100%;
+  flex: 1;
   background: #ffffff;
   display: flex;
   flex-direction: column;
@@ -2616,7 +2622,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             // Only set initial height if not already set (e.g. from initialData parsing)
             if (pageHeightRef.current <= 0) {
                 // Default to a reasonable size if starting fresh, or fill viewport if small
-                const defaultHeight = Math.min(height, 500);
+                const defaultHeight = height || window.innerHeight;
                 pageHeightRef.current = defaultHeight;
                 setPageHeightState(defaultHeight);
             }
