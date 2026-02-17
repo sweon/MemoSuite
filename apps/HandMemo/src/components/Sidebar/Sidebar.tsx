@@ -1083,12 +1083,23 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
             <Button
               $color="#009E73"
               onClick={() => {
-                handleSafeNavigation(() => {
+                handleSafeNavigation(async () => {
                   // Save current memo ID for Exit navigation
                   if (id && id !== 'new' && id !== 'settings') {
                     localStorage.setItem('handmemo_prev_memo_id', id);
                   }
-                  navigate(`/memo/new?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true } });
+                  // Create a new memo immediately to get a stable ID
+                  const now = new Date();
+                  const newMemoId = await db.memos.add({
+                    folderId: currentFolderId ?? undefined,
+                    title: '',
+                    content: '```spreadsheet\n\n```',
+                    tags: [],
+                    createdAt: now,
+                    updatedAt: now,
+                    type: 'normal'
+                  });
+                  navigate(`/memo/${newMemoId}?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true, editing: true } });
                   onCloseMobile(true);
                 });
               }}>
