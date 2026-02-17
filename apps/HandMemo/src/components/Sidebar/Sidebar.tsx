@@ -1066,8 +1066,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                   const now = new Date();
                   const newMemoId = await db.memos.add({
                     folderId: currentFolderId ?? undefined,
-                    title: language === 'ko' ? '캔버스' : 'Canvas',
-                    content: '',
+                    title: '',
+                    content: '```fabric\n\n```',
                     tags: [],
                     createdAt: now,
                     updatedAt: now,
