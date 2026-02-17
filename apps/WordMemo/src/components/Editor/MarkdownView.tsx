@@ -1102,9 +1102,12 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
   }, [isReady, videoId]);
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${String(secs).padStart(2, '0')}`;
+    const val = Math.floor(seconds);
+    const h = Math.floor(val / 3600);
+    const m = Math.floor((val % 3600) / 60);
+    const s = val % 60;
+    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   const containerId = `yt-player-container-${videoId}`;

@@ -388,8 +388,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
             const mins = Math.floor((time % 3600) / 60);
             const secs = time % 60;
             const timeStr = hours > 0
-                ? `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-                : `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                ? `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+                : `${mins}:${String(secs).padStart(2, '0')}`;
 
             const link = `[${prefixLabel}${timeStr}](https://youtu.be/${activeVideoId}?t=${time}) `;
             setNewContent(prev => (prev.trim() ? link + '\n\n' + prev : link));
