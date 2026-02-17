@@ -350,9 +350,143 @@ const PREVIEW_CACHE = new Map<string, string>();
 
 
 
+const FULL_PREVIEW_CACHE = new Map<string, string>();
+
+const FabricFullscreenViewer = React.memo(({ json, onClose }: { json: string; onClose: () => void }) => {
+  const [fullImgSrc, setFullImgSrc] = React.useState<string | null>(FULL_PREVIEW_CACHE.get(json) || null);
+  const [loading, setLoading] = React.useState(!fullImgSrc);
+
+  React.useEffect(() => {
+    if (fullImgSrc) return;
+
+    try {
+      const pureJson = json.split('\n<!--SVG_PREVIEW_START-->')[0];
+      const data = JSON.parse(pureJson);
+
+      const offscreen = document.createElement('canvas');
+      const staticCanvas = new fabric.StaticCanvas(offscreen, {
+        enableRetinaScaling: false,
+        renderOnAddRemove: false,
+        skipTargetFind: true
+      });
+
+      const finishRendering = (bgPattern?: fabric.Pattern) => {
+        const w = staticCanvas.getWidth() || 800;
+        const h = staticCanvas.getHeight() || 600;
+
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = w;
+        exportCanvas.height = h;
+        const ctx = exportCanvas.getContext('2d');
+
+        if (ctx) {
+          if (bgPattern) {
+            const src = (bgPattern as any).source;
+            if (src) {
+              const pat = ctx.createPattern(src, bgPattern.repeat || 'repeat');
+              if (pat) {
+                ctx.fillStyle = pat;
+                ctx.fillRect(0, 0, w, h);
+              }
+            }
+          }
+          ctx.drawImage(staticCanvas.getElement(), 0, 0);
+          const base64 = exportCanvas.toDataURL('image/png', 1);
+          FULL_PREVIEW_CACHE.set(json, base64);
+          setFullImgSrc(base64);
+        }
+
+        setLoading(false);
+        staticCanvas.dispose();
+      };
+
+      staticCanvas.loadFromJSON(data, () => {
+        const w = data.width || 800;
+        const h = data.height || 600;
+        staticCanvas.setDimensions({ width: w, height: h });
+
+        if (data.backgroundConfig) {
+          const cfg = data.backgroundConfig;
+          const bgColor = calculateBackgroundColor(cfg.colorType, cfg.intensity);
+
+          const renderWithPattern = (img?: HTMLImageElement) => {
+            const pat = createBackgroundPattern(
+              cfg.type, bgColor, cfg.opacity, cfg.size, false, cfg.bundleGap, img, cfg.imageOpacity, staticCanvas.getWidth()
+            );
+            staticCanvas.renderAll();
+            finishRendering(pat as fabric.Pattern);
+          };
+
+          if (cfg.type === 'image' && cfg.imageData) {
+            const img = new Image();
+            img.onload = () => renderWithPattern(img);
+            img.src = cfg.imageData;
+            return;
+          } else {
+            renderWithPattern();
+            return;
+          }
+        }
+
+        finishRendering();
+      });
+    } catch (e) {
+      console.error('Full canvas render fail', e);
+      setLoading(false);
+    }
+  }, [json, fullImgSrc]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        zIndex: 99999,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'zoom-out',
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      <button
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        style={{
+          position: 'absolute', top: 16, right: 16, zIndex: 100000,
+          background: 'rgba(255,255,255,0.15)', border: 'none',
+          borderRadius: '50%', width: 40, height: 40,
+          color: '#fff', fontSize: 22, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(8px)',
+        }}
+      >✕</button>
+      {loading ? (
+        <div style={{ color: '#fff', fontSize: 14 }}>Loading...</div>
+      ) : fullImgSrc ? (
+        <img
+          src={fullImgSrc}
+          alt="Full Canvas"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            maxWidth: '95vw',
+            maxHeight: '95vh',
+            objectFit: 'contain',
+            borderRadius: 8,
+            boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+            cursor: 'default',
+          }}
+        />
+      ) : null}
+    </div>
+  );
+});
+
 const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: () => void }) => {
   const [imgSrc, setImgSrc] = React.useState<string | null>(PREVIEW_CACHE.get(json) || null);
   const [loading, setLoading] = React.useState(!imgSrc);
+  const [showFullscreen, setShowFullscreen] = React.useState(false);
   const isMountedRef = React.useRef(true);
 
   React.useEffect(() => {
@@ -485,36 +619,49 @@ const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: (
     };
   }, [json, imgSrc]);
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onClick) {
+      // Edit mode: open editor
+      onClick();
+    } else {
+      // Read-only mode: show fullscreen viewer with original uncropped canvas
+      setShowFullscreen(true);
+    }
+  };
+
   return (
-    <div
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.();
-      }}
-      style={{
-        overflow: 'hidden',
-        background: '#fff',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: onClick ? 'pointer' : 'default',
-        border: onClick ? '1px solid #eee' : 'none',
-        borderRadius: onClick ? '4px' : '0',
-        margin: onClick ? '8px 0' : '0',
-        minHeight: imgSrc ? 'auto' : '120px',
-        width: '100%',
-        position: 'relative'
-      }}
-    >
-      {loading ? (
-        <div style={{ padding: '20px', color: '#adb5bd', fontSize: '0.8rem', fontStyle: 'italic' }}>
-          Loading drawing...
-        </div>
-      ) : imgSrc ? (
-        <img src={imgSrc} alt="Drawing" style={{ maxWidth: '100%', height: 'auto', display: 'block' }} />
-      ) : null}
-    </div>
+    <>
+      <div
+        onClick={handleClick}
+        style={{
+          overflow: 'hidden',
+          background: '#fff',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          border: onClick ? '1px solid #eee' : 'none',
+          borderRadius: onClick ? '4px' : '0',
+          margin: onClick ? '8px 0' : '0',
+          minHeight: imgSrc ? 'auto' : '120px',
+          width: '100%',
+          position: 'relative'
+        }}
+      >
+        {loading ? (
+          <div style={{ padding: '20px', color: '#adb5bd', fontSize: '0.8rem', fontStyle: 'italic' }}>
+            Loading drawing...
+          </div>
+        ) : imgSrc ? (
+          <img src={imgSrc} alt="Drawing" style={{ maxWidth: '100%', height: 'auto', display: 'block' }} />
+        ) : null}
+      </div>
+      {showFullscreen && (
+        <FabricFullscreenViewer json={json} onClose={() => setShowFullscreen(false)} />
+      )}
+    </>
   );
 });
 

@@ -3350,22 +3350,22 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     // Ensure page height covers at least the content
                     const viewportHeight = viewportHeightRef.current || canvas.getHeight() || 500;
 
-                    // Tight Crop Implementation (Unified with Preview)
-                    const PADDING_BOTTOM = 40;
-                    const MIN_HEIGHT = 100;
+                    // Use original saved height — do NOT crop. Only use viewport height for empty canvases.
                     const isNewDrawing = objects.length === 0 || (objects.length === 1 && (objects[0] as any).isPageBackground);
-                    const tightHeight = isNewDrawing ? viewportHeight : Math.max(MIN_HEIGHT, maxTop + PADDING_BOTTOM);
+                    const savedHeight = json.height || viewportHeight;
+                    const contentMinHeight = maxTop > 0 ? Math.max(savedHeight, maxTop + 40) : savedHeight;
+                    const finalHeight = isNewDrawing ? viewportHeight : contentMinHeight;
 
-                    pageHeightRef.current = tightHeight;
-                    setPageHeightState(tightHeight);
+                    pageHeightRef.current = finalHeight;
+                    setPageHeightState(finalHeight);
                     if (pageRectRef.current) {
-                        pageRectRef.current.set('height', tightHeight).setCoords();
+                        pageRectRef.current.set('height', finalHeight).setCoords();
                     }
 
                     // Force update total pages based on potentially new height
                     if (viewportHeight > 0) {
-                        const finalHeight = pageHeightRef.current;
-                        setTotalPages(Math.max(1, Math.ceil(finalHeight / viewportHeight)));
+                        const h = pageHeightRef.current;
+                        setTotalPages(Math.max(1, Math.ceil(h / viewportHeight)));
                     }
 
                     // Reset/Sync viewport transform

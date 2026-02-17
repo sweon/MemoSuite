@@ -453,6 +453,7 @@ export const MemoDetail: React.FC = () => {
 
     useEffect(() => {
         if (id && searchParams.get('drawing') === 'true') {
+            fabricCheckpointRef.current = content;
             setIsFabricModalOpen(true);
         }
         if (id && searchParams.get('spreadsheet') === 'true') {
@@ -1457,6 +1458,19 @@ export const MemoDetail: React.FC = () => {
                             }
                             setIsFabricModalOpen(false);
                             setEditingDrawingData(undefined);
+                            // Always go to editing mode on exit
+                            setIsEditingInternal(true);
+                            // Remove drawing param from URL so modal doesn't re-open
+                            if (searchParams.get('drawing') === 'true') {
+                                const params = new URLSearchParams(searchParams);
+                                params.delete('drawing');
+                                params.delete('t');
+                                const search = params.toString();
+                                navigate(`/memo/${id}${search ? '?' + search : ''}`, {
+                                    replace: true,
+                                    state: { editing: true, isGuard: true }
+                                });
+                            }
                         }}
                         onAutosave={(json) => {
                             let newContent = content;
