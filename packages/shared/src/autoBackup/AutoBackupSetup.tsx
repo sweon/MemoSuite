@@ -277,7 +277,7 @@ interface AutoBackupSetupProps {
 const translations = {
     ko: {
         desktop_title: '자동 백업',
-        mobile_title: '백업',
+        mobile_title: '원터치 백업',
         essential_notice: '데이터 손실 방지를 위해 필수임',
         desktop_desc: '데이터가 자동으로 암호화되어 선택한 폴더에 동기화됩니다. 브라우저가 초기화되어도 폴더의 파일은 안전하게 유지됩니다.',
         mobile_desc: '아래 버튼을 눌러 데이터를 암호화된 파일로 내보낼 수 있습니다. 다운로드한 파일을 보관하면 브라우저 초기화 후에도 안전하게 복구할 수 있습니다.',
