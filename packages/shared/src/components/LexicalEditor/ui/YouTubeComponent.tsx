@@ -104,6 +104,15 @@ interface YouTubeComponentProps {
     nodeKey: string;
 }
 
+const formatTime = (seconds: number) => {
+    const val = Math.floor(seconds);
+    const h = Math.floor(val / 3600);
+    const m = Math.floor((val % 3600) / 60);
+    const s = val % 60;
+    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
 const YouTubeComponent: React.FC<YouTubeComponentProps> = ({
     videoId,
     startTimestamp,
@@ -185,7 +194,7 @@ const YouTubeComponent: React.FC<YouTubeComponentProps> = ({
                             </svg>
                         </span>
                         YouTube &middot; {videoId}
-                        {startTimestamp ? ` · ${Math.floor(startTimestamp / 60)}:${(startTimestamp % 60).toString().padStart(2, '0')}` : ''}
+                        {startTimestamp ? ` · ${formatTime(startTimestamp)}` : ''}
                     </VideoLabel>
                 </>
             )}
