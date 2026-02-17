@@ -119,7 +119,7 @@ export const SidebarMemoItem: React.FC<Props> = ({
                         replace={!location.pathname.endsWith('/') && location.pathname !== '/'}
                     >
                         <WordTitleRow>
-                            <WordTitle>
+                            <WordTitle $isUntitled={!log.title}>
                                 <BlurredText $isBlurred={studyMode === 'hide-words'} $forceReveal={isRevealed}>
                                     {log.title || untitledText}
                                 </BlurredText>

@@ -49,7 +49,7 @@ export const SidebarMemoItem: React.FC<Props> = ({
                         $inThread={inThread}
                         onClick={() => onClick?.(true)}
                     >
-                        <MemoTitle title={memo.title || untitledText}>
+                        <MemoTitle title={memo.title || untitledText} $isUntitled={!memo.title}>
                             {memo.title || untitledText}
                         </MemoTitle>
                         <MemoDate>

@@ -111,7 +111,7 @@ export const SidebarThreadItem: React.FC<Props> = ({
                             replace={location.pathname !== '/' && location.pathname !== ''}
                         >
                             <WordTitleRow>
-                                <WordTitle>
+                                <WordTitle $isUntitled={!headWord.title}>
                                     <BlurredText $isBlurred={studyMode === 'hide-words'} $forceReveal={isRevealed}>
                                         {headWord.title || untitledText}
                                     </BlurredText>

@@ -65,7 +65,7 @@ export const SidebarLogItem: React.FC<Props> = ({
                 $inThread={inThread}
                 onClick={handleLogClick}
             >
-                <LogTitle title={log.title || untitledText}>
+                <LogTitle title={log.title || untitledText} $isUntitled={!log.title}>
                     {log.title || untitledText}
                 </LogTitle>
                 <ItemFooter>

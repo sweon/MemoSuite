@@ -48,14 +48,15 @@ export const WordTitleRow = styled.div`
   width: 100%;
 `;
 
-export const WordTitle = styled.div`
-  font-weight: 600;
+export const WordTitle = styled.div<{ $isUntitled?: boolean }>`
+  font-weight: ${({ $isUntitled }) => ($isUntitled ? '400' : '600')};
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.95rem;
   flex: 1;
   color: ${({ theme }) => theme.colors.text};
+  opacity: ${({ $isUntitled }) => ($isUntitled ? 0.6 : 1)};
 `;
 
 export { BlurredText } from '../UI/BlurredText';

@@ -239,7 +239,7 @@ export const SidebarBookItem: React.FC<Props> = ({ book, memos, onClick, onSafeN
                 }}
                 style={isMatch ? { borderRight: `2px solid ${theme.colors.primary}` } : {}}
               >
-                <MemoTitle title={memo.title || t.sidebar.untitled}>
+                <MemoTitle title={memo.title || t.sidebar.untitled} $isUntitled={!memo.title}>
                   {memo.title || t.sidebar.untitled}
                 </MemoTitle>
                 <MemoDate>

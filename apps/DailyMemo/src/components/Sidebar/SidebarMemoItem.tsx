@@ -117,7 +117,7 @@ export const SidebarMemoItem: React.FC<Props> = ({
                             <BsKeyboard />
                         </TypeIcon>
                     )}
-                    <MemoTitle title={memo.title || untitledText}>
+                    <MemoTitle title={memo.title || untitledText} $isUntitled={!memo.title}>
                         {memo.title || untitledText}
                     </MemoTitle>
                 </TitleRow>

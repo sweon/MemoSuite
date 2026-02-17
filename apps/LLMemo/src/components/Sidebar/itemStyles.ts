@@ -40,13 +40,14 @@ export const LogItemLink = styled(Link) <{ $isActive: boolean; $inThread?: boole
   }
 `;
 
-export const LogTitle = styled.div`
-  font-weight: 600;
+export const LogTitle = styled.div<{ $isUntitled?: boolean }>`
+  font-weight: ${({ $isUntitled }) => ($isUntitled ? '400' : '600')};
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.95rem;
   color: ${({ theme }) => theme.colors.text};
+  opacity: ${({ $isUntitled }) => ($isUntitled ? 0.6 : 1)};
 `;
 
 export const LogDate = styled.div`

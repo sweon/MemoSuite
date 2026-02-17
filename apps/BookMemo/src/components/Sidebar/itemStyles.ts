@@ -40,13 +40,14 @@ export const MemoItemLink = styled(Link) <{ $isActive: boolean; $inThread?: bool
   }
 `;
 
-export const MemoTitle = styled.div`
-  font-weight: 600;
+export const MemoTitle = styled.div<{ $isUntitled?: boolean }>`
+  font-weight: ${({ $isUntitled }) => ($isUntitled ? '400' : '600')};
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.95rem;
   color: ${({ theme }) => theme.colors.text};
+  opacity: ${({ $isUntitled }) => ($isUntitled ? 0.6 : 1)};
 `;
 
 export const MemoDate = styled.div`
