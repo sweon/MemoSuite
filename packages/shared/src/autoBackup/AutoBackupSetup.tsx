@@ -311,7 +311,7 @@ const translations = {
     },
     en: {
         desktop_title: 'Auto Backup',
-        mobile_title: 'Backup',
+        mobile_title: 'One-touch Backup',
         essential_notice: 'Essential for data loss prevention',
         desktop_desc: 'Data is automatically encrypted and synced to your chosen folder. Files remain safe even if browser data is cleared.',
         mobile_desc: 'Export your data as an encrypted file. Keep the downloaded file safe to restore even after browser data is cleared.',
