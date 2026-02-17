@@ -832,11 +832,13 @@ export const MemoDetail: React.FC = () => {
         if (isInitialDrawing) {
           fabricCheckpointRef.current = "";
           setIsFabricModalOpen(true);
+          setContent("\n\n```fabric\n\n```\n\n");
         }
 
         // Auto-open spreadsheet if requested
         if (isInitialSheet) {
           setIsSpreadsheetModalOpen(true);
+          setContent("\n\n```spreadsheet\n\n```\n\n");
         }
 
         // Handle dropped image from MainLayout
@@ -1697,7 +1699,7 @@ export const MemoDetail: React.FC = () => {
               } else {
                 newContent = content.trim()
                   ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\``
-                  : `\`\`\`fabric\n${json}\n\`\`\``;
+                  : `\n\n\`\`\`fabric\n${json}\n\`\`\`\n\n`;
               }
 
               setContent(newContent);
@@ -1758,7 +1760,7 @@ export const MemoDetail: React.FC = () => {
                 searchParams.get("drawing") === "true" ||
                 content.trim().startsWith("```fabric")
               ) {
-                newContent = `\`\`\`fabric\n${json}\n\`\`\``;
+                newContent = `\n\n\`\`\`fabric\n${json}\n\`\`\`\n\n`;
               } else {
                 if (content.includes("```fabric")) {
                   newContent = content.replace(
@@ -1768,7 +1770,7 @@ export const MemoDetail: React.FC = () => {
                 } else {
                   newContent = content.trim()
                     ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\``
-                    : `\`\`\`fabric\n${json}\n\`\`\``;
+                    : `\n\n\`\`\`fabric\n${json}\n\`\`\`\n\n`;
                 }
               }
               if (newContent !== content) {
@@ -1791,7 +1793,7 @@ export const MemoDetail: React.FC = () => {
           }}
           onSave={async (data: any) => {
             const json = JSON.stringify(data);
-            let newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
+            let newContent = `\n\n\`\`\`spreadsheet\n${json}\n\`\`\`\n\n`;
             const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
 
             // Use original JSON string for accurate matching

@@ -1421,12 +1421,12 @@ export const MemoDetail: React.FC = () => {
                                     }
                                 }
                                 if (!found && !content.includes('```fabric')) {
-                                    newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                    newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\n\n\`\`\`fabric\n${json}\n\`\`\`\n\n`;
                                 }
                             } else if (content.includes('```fabric')) {
                                 newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
                             } else {
-                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\n\n\`\`\`fabric\n${json}\n\`\`\`\n\n`;
                             }
                             setContent(newContent);
                             setEditingDrawingData(json);
@@ -1522,7 +1522,7 @@ export const MemoDetail: React.FC = () => {
                     }}
                     onSave={async (data: any) => {
                         const json = JSON.stringify(data);
-                        let newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        let newContent = `\n\n\`\`\`spreadsheet\n${json}\n\`\`\`\n\n`;
                         const spreadsheetRegex = /```spreadsheet\s*([\s\S]*?)\s*```/g;
 
                         // Use original JSON string for accurate matching
