@@ -714,7 +714,7 @@ export const MainLayout: React.FC = () => {
   const globalLongPressTimer = useRef<any>(null);
   const [pasteButton, setPasteButton] = useState<{ x: number, y: number } | null>(null);
   const [isPlaylistExtracting, setIsPlaylistExtracting] = useState(false);
-  const { confirm } = useModal();
+  const { choice } = useModal();
 
   // Track mobile state
   useEffect(() => {
@@ -870,19 +870,33 @@ export const MainLayout: React.FC = () => {
           metadataCache.fetchImageMetadata(cleaned);
           title = '이미지';
         } else if (isYoutubePlaylistUrl(cleaned)) {
-          setIsPlaylistExtracting(true);
-          try {
-            const playlistData = await fetchYoutubePlaylistData(cleaned);
-            if (playlistData) {
-              title = playlistData.title;
-              if (playlistData.items.length > 0) {
-                content = playlistData.items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
-              } else {
-                content = cleaned; // Fallback to just the URL if items failed but it's a playlist
+          const plResult = await choice({
+            message: language === 'ko'
+              ? "재생목록이 감지되었습니다. 어떤 순서로 등록하시겠습니까?"
+              : "Playlist detected. In what order would you like to register?",
+            confirmText: language === 'ko' ? "역순" : "Reverse",
+            neutralText: language === 'ko' ? "정순" : "Forward",
+            cancelText: null
+          });
+
+          if (plResult !== 'cancel') {
+            setIsPlaylistExtracting(true);
+            try {
+              const playlistData = await fetchYoutubePlaylistData(cleaned);
+              if (playlistData) {
+                title = playlistData.title;
+                if (playlistData.items.length > 0) {
+                  const items = plResult === 'confirm' ? [...playlistData.items].reverse() : playlistData.items;
+                  content = items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
+                } else {
+                  content = cleaned; // Fallback to just the URL if items failed but it's a playlist
+                }
               }
+            } finally {
+              setIsPlaylistExtracting(false);
             }
-          } finally {
-            setIsPlaylistExtracting(false);
+          } else {
+            return;
           }
         } else if (isYoutubeUrl(cleaned)) {
           content = cleaned;
@@ -911,7 +925,7 @@ export const MainLayout: React.FC = () => {
     } catch (err) {
       console.error('Failed to read clipboard', err);
     }
-  }, [currentFolderId, navigate]);
+  }, [currentFolderId, navigate, choice, language]);
 
   // Simplified sidebar toggle for mobile
   const toggleSidebar = useCallback((open: boolean) => {
@@ -930,7 +944,7 @@ export const MainLayout: React.FC = () => {
         // Clear search params so it doesn't re-trigger on refresh
         window.history.replaceState({}, '', window.location.pathname + window.location.hash);
 
-        let content = (shareText || '') + (shareUrl && (!shareText || !shareText.includes(shareUrl)) ? (shareText ? '\n\n' : '') + shareUrl : '');
+        const content = (shareText || '') + (shareUrl && (!shareText || !shareText.includes(shareUrl)) ? (shareText ? '\n\n' : '') + shareUrl : '');
         if (!content) return;
 
         // Try to identify if it's a YouTube or Image URL
@@ -962,25 +976,35 @@ export const MainLayout: React.FC = () => {
             const cleaned = cleanImageUrl(firstUrl);
             const isPlaylist = isYoutubePlaylistUrl(cleaned);
             const isVideo = isYoutubeUrl(cleaned);
-            let usePlaylist = isPlaylist;
+            let plResult: 'confirm' | 'cancel' | 'neutral' = isPlaylist ? 'confirm' : 'cancel';
 
             if (isPlaylist && isVideo && hasYoutubeVideoId(cleaned)) {
-              usePlaylist = await confirm({
+              plResult = await choice({
                 message: language === 'ko'
-                  ? "동영상과 재생목록이 모두 포함되어 있습니다. 재생목록 전체를 등록하시겠습니까?"
-                  : "Both video and playlist IDs are present. Register the entire playlist?",
-                confirmText: language === 'ko' ? "재생목록 전체" : "Playlist",
-                cancelText: language === 'ko' ? "동영상만" : "Video only"
+                  ? "재생목록이 감지되었습니다. 어떤 순서로 등록하시겠습니까?"
+                  : "Playlist detected. In what order would you like to register?",
+                confirmText: language === 'ko' ? "재생목록 (역순)" : "Playlist (Reverse)",
+                neutralText: language === 'ko' ? "재생목록 (정순)" : "Playlist (Forward)",
+                cancelText: language === 'ko' ? (isVideo && hasYoutubeVideoId(cleaned) ? "동영상만" : "취소") : (isVideo && hasYoutubeVideoId(cleaned) ? "Video only" : "Cancel")
+              });
+              plResult = await choice({
+                message: language === 'ko'
+                  ? "재생목록이 감지되었습니다. 어떤 순서로 등록하시겠습니까?"
+                  : "Playlist detected. In what order would you like to register?",
+                confirmText: language === 'ko' ? "재생목록 (역순)" : "Playlist (Reverse)",
+                neutralText: language === 'ko' ? "재생목록 (정순)" : "Playlist (Forward)",
+                cancelText: null
               });
             }
 
-            if (usePlaylist) {
+            if (plResult !== 'cancel') {
               setIsPlaylistExtracting(true);
               try {
                 const playlistData = await fetchYoutubePlaylistData(cleaned);
                 if (playlistData) {
                   identifiedTitle = playlistData.title;
-                  finalContent = playlistData.items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
+                  const items = plResult === 'confirm' ? [...playlistData.items].reverse() : playlistData.items;
+                  finalContent = items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
                 }
               } finally {
                 setIsPlaylistExtracting(false);
@@ -1030,7 +1054,7 @@ export const MainLayout: React.FC = () => {
     };
 
     handleShare();
-  }, [navigate, location.search, currentFolderId, language, confirm]);
+  }, [navigate, location.search, currentFolderId, language, choice]);
 
   useEffect(() => {
     const handleSWShare = async () => {
@@ -1060,7 +1084,7 @@ export const MainLayout: React.FC = () => {
 
         const data = await getPendingShare();
         if (data) {
-          let { title: sTitle, text: sText, url: sUrl, files } = data;
+          const { title: sTitle, text: sText, url: sUrl, files } = data;
           let title = typeof sTitle === 'string' ? sTitle : '';
           let content = '';
 
@@ -1085,7 +1109,7 @@ export const MainLayout: React.FC = () => {
 
           // 2. Handle Text/URL if no content extracted from files
           if (!content) {
-            let rawText = (sText || '') + (sUrl && (!sText || !sText.includes(sUrl)) ? (sText ? '\n\n' : '') + sUrl : '');
+            const rawText = (sText || '') + (sUrl && (!sText || !sText.includes(sUrl)) ? (sText ? '\n\n' : '') + sUrl : '');
             if (rawText) {
               const urlMatch = rawText.match(/https?:\/\/[^\s]+/);
               const firstUrl = urlMatch ? urlMatch[0] : undefined;
@@ -1097,15 +1121,27 @@ export const MainLayout: React.FC = () => {
 
                 // Check for playlist FIRST
                 if (isYoutubePlaylistUrl(cleaned)) {
-                  setIsPlaylistExtracting(true);
-                  try {
-                    const playlistData = await fetchYoutubePlaylistData(cleaned);
-                    if (playlistData) {
-                      title = playlistData.title;
-                      content = playlistData.items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
+                  const plResult = await choice({
+                    message: language === 'ko'
+                      ? "재생목록이 감지되었습니다. 어떤 순서로 등록하시겠습니까?"
+                      : "Playlist detected. In what order would you like to register?",
+                    confirmText: language === 'ko' ? "역순" : "Reverse",
+                    neutralText: language === 'ko' ? "정순" : "Forward",
+                    cancelText: null
+                  });
+
+                  if (plResult !== 'cancel') {
+                    setIsPlaylistExtracting(true);
+                    try {
+                      const playlistData = await fetchYoutubePlaylistData(cleaned);
+                      if (playlistData) {
+                        title = playlistData.title;
+                        const items = plResult === 'confirm' ? [...playlistData.items].reverse() : playlistData.items;
+                        content = items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
+                      }
+                    } finally {
+                      setIsPlaylistExtracting(false);
                     }
-                  } finally {
-                    setIsPlaylistExtracting(false);
                   }
                 } else {
                   // Try to improve title
@@ -1149,7 +1185,7 @@ export const MainLayout: React.FC = () => {
       }
     };
     handleSWShare();
-  }, [navigate, currentFolderId]);
+  }, [navigate, currentFolderId, choice, language]);
 
   useEffect(() => {
     const handleGlobalDrop = async (e: DragEvent) => {
@@ -1200,25 +1236,36 @@ export const MainLayout: React.FC = () => {
             } else {
               const isPlaylist = isYoutubePlaylistUrl(cleaned);
               const isVideo = isYoutubeUrl(cleaned);
-              let usePlaylist = isPlaylist;
+              let plResult: 'confirm' | 'cancel' | 'neutral' = isPlaylist ? 'confirm' : 'cancel';
 
               if (isPlaylist && isVideo && hasYoutubeVideoId(cleaned)) {
-                usePlaylist = await confirm({
+                plResult = await choice({
                   message: language === 'ko'
-                    ? "동영상과 재생목록이 모두 포함되어 있습니다. 재생목록 전체를 등록하시겠습니까?"
-                    : "Both video and playlist IDs are present. Register the entire playlist?",
-                  confirmText: language === 'ko' ? "재생목록 전체" : "Playlist",
-                  cancelText: language === 'ko' ? "동영상만" : "Video only"
+                    ? "재생목록이 감지되었습니다. 어떤 순서로 등록하시겠습니까?"
+                    : "Playlist detected. In what order would you like to register?",
+                  confirmText: language === 'ko' ? "재생목록 (역순)" : "Playlist (Reverse)",
+                  neutralText: language === 'ko' ? "재생목록 (정순)" : "Playlist (Forward)",
+                  cancelText: language === 'ko' ? (isVideo && hasYoutubeVideoId(cleaned) ? "동영상만" : "취소") : (isVideo && hasYoutubeVideoId(cleaned) ? "Video only" : "Cancel")
+                });
+              } else if (isPlaylist) {
+                plResult = await choice({
+                  message: language === 'ko'
+                    ? "재생목록이 감지되었습니다. 어떤 순서로 등록하시겠습니까?"
+                    : "Playlist detected. In what order would you like to register?",
+                  confirmText: language === 'ko' ? "재생목록 (역순)" : "Playlist (Reverse)",
+                  neutralText: language === 'ko' ? "재생목록 (정순)" : "Playlist (Forward)",
+                  cancelText: null
                 });
               }
 
-              if (usePlaylist) {
+              if (plResult !== 'cancel') {
                 setIsPlaylistExtracting(true);
                 try {
                   const playlistData = await fetchYoutubePlaylistData(cleaned);
                   if (playlistData) {
                     title = playlistData.title;
-                    content = playlistData.items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
+                    const items = plResult === 'confirm' ? [...playlistData.items].reverse() : playlistData.items;
+                    content = items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
                   }
                 } finally {
                   setIsPlaylistExtracting(false);
@@ -1300,25 +1347,36 @@ export const MainLayout: React.FC = () => {
             } else {
               const isPlaylist = isYoutubePlaylistUrl(cleaned);
               const isVideo = isYoutubeUrl(cleaned);
-              let usePlaylist = isPlaylist;
+              let plResult: 'confirm' | 'cancel' | 'neutral' = isPlaylist ? 'confirm' : 'cancel';
 
               if (isPlaylist && isVideo && hasYoutubeVideoId(cleaned)) {
-                usePlaylist = await confirm({
+                plResult = await choice({
                   message: language === 'ko'
-                    ? "동영상과 재생목록이 모두 포함되어 있습니다. 재생목록 전체를 등록하시겠습니까?"
-                    : "Both video and playlist IDs are present. Register the entire playlist?",
-                  confirmText: language === 'ko' ? "재생목록 전체" : "Playlist",
-                  cancelText: language === 'ko' ? "동영상만" : "Video only"
+                    ? "재생목록이 감지되었습니다. 어떤 순서로 등록하시겠습니까?"
+                    : "Playlist detected. In what order would you like to register?",
+                  confirmText: language === 'ko' ? "재생목록 (역순)" : "Playlist (Reverse)",
+                  neutralText: language === 'ko' ? "재생목록 (정순)" : "Playlist (Forward)",
+                  cancelText: language === 'ko' ? (isVideo && hasYoutubeVideoId(cleaned) ? "동영상만" : "취소") : (isVideo && hasYoutubeVideoId(cleaned) ? "Video only" : "Cancel")
+                });
+              } else if (isPlaylist) {
+                plResult = await choice({
+                  message: language === 'ko'
+                    ? "재생목록이 감지되었습니다. 어떤 순서로 등록하시겠습니까?"
+                    : "Playlist detected. In what order would you like to register?",
+                  confirmText: language === 'ko' ? "재생목록 (역순)" : "Playlist (Reverse)",
+                  neutralText: language === 'ko' ? "재생목록 (정순)" : "Playlist (Forward)",
+                  cancelText: null
                 });
               }
 
-              if (usePlaylist) {
+              if (plResult !== 'cancel') {
                 setIsPlaylistExtracting(true);
                 try {
                   const playlistData = await fetchYoutubePlaylistData(cleaned);
                   if (playlistData) {
                     title = playlistData.title;
-                    content = playlistData.items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
+                    const items = plResult === 'confirm' ? [...playlistData.items].reverse() : playlistData.items;
+                    content = items.map(item => `${item.title}\n\`\`\`youtube\nhttps://www.youtube.com/watch?v=${item.videoId}\n\`\`\``).join('\n\n');
                   }
                 } finally {
                   setIsPlaylistExtracting(false);
@@ -1394,7 +1452,7 @@ export const MainLayout: React.FC = () => {
       window.removeEventListener('paste', handleGlobalPaste);
       window.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [location.pathname, navigate, currentFolderId, language, confirm, isAppEditing]);
+  }, [location.pathname, navigate, currentFolderId, language, choice, isAppEditing]);
 
   // Resize handle is visible:
   // - Desktop: always visible
