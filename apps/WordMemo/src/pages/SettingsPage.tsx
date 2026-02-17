@@ -3,10 +3,16 @@ import { AppLockSettings, AutoBackupSetup, DataManagementSection, LanguageSettin
 import type { UseAutoBackupReturn } from '@memosuite/shared';
 
 import styled from 'styled-components';
-import { FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiLock, FiEdit3, FiArrowUpCircle, FiChevronUp, FiChevronDown } from 'react-icons/fi';
+import { FiChevronRight, FiArrowLeft, FiDatabase, FiGlobe, FiInfo, FiShare2, FiLock, FiEdit3, FiArrowUpCircle, FiChevronUp, FiChevronDown, FiLayers, FiTrendingUp, FiCpu, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { MdDragIndicator } from 'react-icons/md';
+import { DragDropContext, Droppable } from '@hello-pangea/dnd';
+import type { DropResult } from '@hello-pangea/dnd';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Toast } from '../components/UI/Toast';
 import { wordMemoAdapter } from '../utils/backupAdapter';
+import { db } from '../db';
+import { TouchDelayDraggable } from '../components/Sidebar/TouchDelayDraggable';
 
 const Container = styled.div`
   padding: 24px 32px;
@@ -279,6 +285,116 @@ const FontSizeUnit = styled.span`
   user-select: none;
 `;
 
+const RadioLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: ${({ theme }) => theme.colors.background};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: 8px;
+  cursor: pointer;
+  color: ${({ theme }) => theme.colors.text};
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
+
+  input {
+    width: 18px;
+    height: 18px;
+    accent-color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+const SourceList = styled.ul`
+  list-style: none;
+  padding: 0;
+`;
+
+const SourceItem = styled.li<{ $isDragging?: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  padding: 0.75rem;
+  background: ${({ theme, $isDragging }) => $isDragging ? theme.colors.border : theme.colors.surface};
+  border-radius: 8px;
+  border: 1px solid ${({ theme, $isDragging }) => $isDragging ? theme.colors.primary : 'transparent'};
+  box-shadow: ${({ $isDragging }) => $isDragging ? '0 5px 15px rgba(0,0,0,0.15)' : 'none'};
+  transition: background-color 0.2s, box-shadow 0.2s;
+`;
+
+const DragHandle = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: grab;
+  padding: 4px;
+  border-radius: 4px;
+  
+  &:hover {
+    background-color: ${({ theme }) => theme.colors.background};
+    color: ${({ theme }) => theme.colors.text};
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+`;
+
+const Input = styled.input`
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 1rem;
+
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+const IconButton = styled.button`
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  padding: 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover { 
+    color: ${({ theme }) => theme.colors.danger};
+    background-color: ${({ theme }) => theme.colors.background};
+  }
+`;
+
+const Select = styled.select`
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  background: ${({ theme }) => theme.colors.background};
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 1rem;
+  width: 100%;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
 const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolean; onChange: () => void }> = ({ title, desc, checked, onChange }) => (
   <div style={{
     display: 'flex',
@@ -302,7 +418,7 @@ const EditorSettingItem: React.FC<{ title: string; desc: string; checked: boolea
   </div>
 );
 
-type SubMenu = 'main' | 'data' | 'editor' | 'theme' | 'language' | 'about' | 'appLock' | 'updates';
+type SubMenu = 'main' | 'data' | 'editor' | 'theme' | 'language' | 'about' | 'appLock' | 'updates' | 'sources' | 'llm' | 'learning';
 
 export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ autoBackup }) => {
   const { t, language } = useLanguage();
@@ -317,6 +433,17 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
   const [tabSize, setTabSize] = useState(() => Number(localStorage.getItem('editor_tab_size') || '4'));
   const [fontSize, setFontSize] = useState(() => Number(localStorage.getItem('editor_font_size') || '11'));
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(() => localStorage.getItem('auto_update_enabled') === 'true');
+  const [wordLevel, setWordLevel] = useState(() => {
+    const saved = localStorage.getItem('wordLevel');
+    return saved !== null ? Number(saved) : 1;
+  });
+  const [newSource, setNewSource] = useState('');
+  const [newLLMName, setNewLLMName] = useState('');
+  const [newLLMUrl, setNewLLMUrl] = useState('');
+  const [llmProvider, setLlmProvider] = useState(() => localStorage.getItem('llm_provider') || 'ChatGPT');
+
+  const sources = useLiveQuery(() => db.sources.orderBy('order').toArray());
+  const llmProviders = useLiveQuery(() => db.llmProviders.orderBy('order').toArray());
 
   const fontSizeIntervalRef = React.useRef<any>(null);
   const fsTimeoutRef = React.useRef<any>(null);
@@ -467,6 +594,97 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
     localStorage.setItem('auto_update_enabled', String(next));
   };
 
+  const handleLevelChange = (level: number) => {
+    setWordLevel(level);
+    localStorage.setItem('wordLevel', String(level));
+  };
+
+  const handleProviderChange = (provider: string) => {
+    setLlmProvider(provider);
+    localStorage.setItem('llm_provider', provider);
+  };
+
+  const handleAddSource = async () => {
+    if (newSource.trim()) {
+      await db.transaction('rw', db.sources, async () => {
+        const allSources = await db.sources.orderBy('order').toArray();
+        for (const s of allSources) {
+          if (s.id !== undefined) {
+            await db.sources.update(s.id, { order: (s.order ?? 0) + 1 });
+          }
+        }
+        await db.sources.add({
+          name: newSource.trim(),
+          order: 0
+        });
+      });
+      setNewSource('');
+    }
+  };
+
+  const handleDeleteSource = async (id: number) => {
+    if (await confirm({ message: t.settings.delete_confirm, isDestructive: true })) {
+      await db.sources.delete(id);
+    }
+  };
+
+  const handleAddLLM = async () => {
+    if (newLLMName.trim() && newLLMUrl.trim()) {
+      await db.transaction('rw', db.llmProviders, async () => {
+        const allLLMs = await db.llmProviders.orderBy('order').toArray();
+        for (const l of allLLMs) {
+          if (l.id !== undefined) {
+            await db.llmProviders.update(l.id, { order: (l.order ?? 0) + 1 });
+          }
+        }
+        await db.llmProviders.add({
+          name: newLLMName.trim(),
+          url: newLLMUrl.trim(),
+          order: 0
+        });
+      });
+      setNewLLMName('');
+      setNewLLMUrl('');
+    }
+  };
+
+  const handleDeleteLLM = async (id: number) => {
+    if (await confirm({ message: t.settings.llm_delete_confirm, isDestructive: true })) {
+      await db.llmProviders.delete(id);
+    }
+  };
+
+  const onDragEnd = async (result: DropResult) => {
+    if (!result.destination) return;
+    const sourceIndex = result.source.index;
+    const destIndex = result.destination.index;
+    if (sourceIndex === destIndex) return;
+
+    if (result.type === 'source' && sources) {
+      const newSources = Array.from(sources);
+      const [removed] = newSources.splice(sourceIndex, 1);
+      newSources.splice(destIndex, 0, removed);
+      await db.transaction('rw', db.sources, async () => {
+        for (let i = 0; i < newSources.length; i++) {
+          if (newSources[i].id !== undefined) {
+            await db.sources.update(newSources[i].id!, { order: i });
+          }
+        }
+      });
+    } else if (result.type === 'llm' && llmProviders) {
+      const newLLMs = Array.from(llmProviders);
+      const [removed] = newLLMs.splice(sourceIndex, 1);
+      newLLMs.splice(destIndex, 0, removed);
+      await db.transaction('rw', db.llmProviders, async () => {
+        for (let i = 0; i < newLLMs.length; i++) {
+          if (newLLMs[i].id !== undefined) {
+            await db.llmProviders.update(newLLMs[i].id!, { order: i });
+          }
+        }
+      });
+    }
+  };
+
   const handleShare = async () => {
     const shareData = {
       title: 'WordMemo',
@@ -506,6 +724,33 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
               <div className="label-wrapper">
                 <span className="title">{t.settings.data_management}</span>
                 <span className="desc">{t.settings.data_management_desc}</span>
+              </div>
+              <FiChevronRight className="chevron" />
+            </MenuButton>
+
+            <MenuButton onClick={() => setCurrentSubMenu('sources')}>
+              <div className="icon-wrapper"><FiLayers /></div>
+              <div className="label-wrapper">
+                <span className="title">{t.settings.manage_sources}</span>
+                <span className="desc">{t.settings.manage_sources_desc}</span>
+              </div>
+              <FiChevronRight className="chevron" />
+            </MenuButton>
+
+            <MenuButton onClick={() => setCurrentSubMenu('llm')}>
+              <div className="icon-wrapper"><FiCpu /></div>
+              <div className="label-wrapper">
+                <span className="title">{t.settings.llm_config}</span>
+                <span className="desc">{t.settings.llm_config_desc}</span>
+              </div>
+              <FiChevronRight className="chevron" />
+            </MenuButton>
+
+            <MenuButton onClick={() => setCurrentSubMenu('learning')}>
+              <div className="icon-wrapper"><FiTrendingUp /></div>
+              <div className="label-wrapper">
+                <span className="title">{t.settings.learning}</span>
+                <span className="desc">{t.settings.level_desc}</span>
               </div>
               <FiChevronRight className="chevron" />
             </MenuButton>
@@ -634,7 +879,7 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
               <FontSizeContainer>
                 <FontSizeControls>
                   <SpinButton
-                    
+
                     onMouseDown={(e) => { e.preventDefault(); startFontSizeInterval(true); }}
                     onMouseUp={stopFontSizeInterval}
                     onMouseLeave={stopFontSizeInterval} onPointerUp={stopFontSizeInterval}
@@ -642,7 +887,7 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
                     <FiChevronUp />
                   </SpinButton>
                   <SpinButton
-                    
+
                     onMouseDown={(e) => { e.preventDefault(); startFontSizeInterval(false); }}
                     onMouseUp={stopFontSizeInterval}
                     onMouseLeave={stopFontSizeInterval} onPointerUp={stopFontSizeInterval}
@@ -726,6 +971,178 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
               <FiArrowUpCircle className={isCheckingUpdate ? 'spin' : ''} />
               {isCheckingUpdate ? t.sidebar.checking : t.sidebar.check_updates}
             </ActionButton>
+          </div>
+        </Section>
+      )}
+
+      {currentSubMenu === 'sources' && (
+        <Section>
+          {renderHeader(t.settings.manage_sources)}
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <Input
+              value={newSource}
+              onChange={e => setNewSource(e.target.value)}
+              placeholder={t.settings.add_source_placeholder}
+              onKeyDown={(e) => e.key === 'Enter' && newSource.trim() && handleAddSource()}
+            />
+            <ActionButton onClick={handleAddSource} disabled={!newSource.trim()}><FiPlus /> {t.settings.add}</ActionButton>
+          </div>
+
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Droppable droppableId="sources" type="source">
+              {(provided) => (
+                <SourceList {...provided.droppableProps} ref={provided.innerRef}>
+                  {sources?.map((s, index) => (
+                    <TouchDelayDraggable key={s.id} draggableId={s.id!.toString()} index={index}>
+                      {(provided, snapshot) => (
+                        <SourceItem
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          $isDragging={snapshot.isDragging}
+                        >
+                          <DragHandle {...provided.dragHandleProps}>
+                            <MdDragIndicator size={20} />
+                          </DragHandle>
+                          <span style={{ flex: 1, fontWeight: 500 }}>{s.name}</span>
+                          <IconButton onClick={() => handleDeleteSource(s.id!)}>
+                            <FiTrash2 size={18} />
+                          </IconButton>
+                        </SourceItem>
+                      )}
+                    </TouchDelayDraggable>
+                  ))}
+                  {provided.placeholder}
+                </SourceList>
+              )}
+            </Droppable>
+          </DragDropContext>
+        </Section>
+      )}
+
+      {currentSubMenu === 'llm' && (
+        <Section>
+          {renderHeader(t.settings.llm_config)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <p style={{ fontSize: '0.95rem', lineHeight: '1.5', opacity: 0.8 }}>
+              {language === 'ko'
+                ? '랜덤 단어 추천 시 사용할 AI 서비스들을 관리합니다. 드래그하여 순서를 변경할 수 있습니다.'
+                : 'Manage AI services to use for "Random Word" recommendations. Drag to reorder.'}
+            </p>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>{t.settings.llm_provider}</label>
+              <Select
+                value={llmProvider}
+                onChange={(e) => handleProviderChange(e.target.value)}
+              >
+                {llmProviders?.map(p => (
+                  <option key={p.id} value={p.name}>{p.name}</option>
+                ))}
+              </Select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 600 }}>{t.settings.llm_reorder_hint}</label>
+              <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="llm-list" type="llm">
+                  {(provided) => (
+                    <SourceList {...provided.droppableProps} ref={provided.innerRef}>
+                      {llmProviders?.map((p, index) => (
+                        <TouchDelayDraggable key={String(p.id)} draggableId={String(p.id)} index={index}>
+                          {(provided, snapshot) => (
+                            <SourceItem
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              $isDragging={snapshot.isDragging}
+                            >
+                              <DragHandle {...provided.dragHandleProps}>
+                                <MdDragIndicator size={20} />
+                              </DragHandle>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 600 }}>{p.name}</div>
+                                <div style={{ fontSize: '0.75rem', opacity: 0.6, wordBreak: 'break-all' }}>{p.url}</div>
+                              </div>
+                              <IconButton onClick={() => handleDeleteLLM(p.id!)}>
+                                <FiTrash2 size={18} />
+                              </IconButton>
+                            </SourceItem>
+                          )}
+                        </TouchDelayDraggable>
+                      ))}
+                      {provided.placeholder}
+                    </SourceList>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1.25rem', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <label style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t.settings.llm_add_provider}</label>
+              <Input
+                value={newLLMName}
+                onChange={(e) => setNewLLMName(e.target.value)}
+                placeholder={t.settings.llm_name_placeholder}
+              />
+              <Input
+                value={newLLMUrl}
+                onChange={(e) => setNewLLMUrl(e.target.value)}
+                placeholder={t.settings.llm_url_placeholder}
+              />
+              <ActionButton onClick={handleAddLLM} style={{ marginTop: '0.5rem' }}>
+                <FiPlus /> {t.settings.add}
+              </ActionButton>
+            </div>
+
+            <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.03)', borderRadius: '12px', fontSize: '0.85rem' }}>
+              <span style={{ fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>💡 {language === 'ko' ? '도움말' : 'How it works'}</span>
+              {language === 'ko'
+                ? '1. 에디터에서 \'랜덤 단어\'를 클릭합니다.\n2. 프롬프트가 자동으로 복사됩니다.\n3. 열리는 AI 창에 붙여넣기(Ctrl+V) 하세요.'
+                : '1. Click \'Random Word\' in the editor.\n2. The prompt is automatically copied.\n3. Paste (Ctrl+V) it into the AI window that opens.'}
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {currentSubMenu === 'learning' && (
+        <Section>
+          {renderHeader(t.settings.learning)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <RadioLabel onClick={() => handleLevelChange(0)}>
+              <input type="radio" checked={wordLevel === 0} readOnly />
+              <div style={{ flex: 1 }}>
+                <span style={{ display: 'block', fontWeight: 600 }}>{t.settings.level_0}</span>
+                <span style={{ display: 'block', fontSize: '0.85rem', opacity: 0.8 }}>
+                  {language === 'ko' ? '초등학생 수준의 기초 영단어' : 'Basic English for young learners'}
+                </span>
+              </div>
+            </RadioLabel>
+            <RadioLabel onClick={() => handleLevelChange(1)}>
+              <input type="radio" checked={wordLevel === 1} readOnly />
+              <div style={{ flex: 1 }}>
+                <span style={{ display: 'block', fontWeight: 600 }}>{t.settings.level_1}</span>
+                <span style={{ display: 'block', fontSize: '0.85rem', opacity: 0.8 }}>
+                  {language === 'ko' ? '일상 생활에서 쓰이는 쉬운 표현' : 'Common everyday vocabulary and phrases'}
+                </span>
+              </div>
+            </RadioLabel>
+            <RadioLabel onClick={() => handleLevelChange(2)}>
+              <input type="radio" checked={wordLevel === 2} readOnly />
+              <div style={{ flex: 1 }}>
+                <span style={{ display: 'block', fontWeight: 600 }}>{t.settings.level_2}</span>
+                <span style={{ display: 'block', fontSize: '0.85rem', opacity: 0.8 }}>
+                  {language === 'ko' ? '중급 수준의 어휘와 문장' : 'Intermediate vocabulary for daily life'}
+                </span>
+              </div>
+            </RadioLabel>
+            <RadioLabel onClick={() => handleLevelChange(3)}>
+              <input type="radio" checked={wordLevel === 3} readOnly />
+              <div style={{ flex: 1 }}>
+                <span style={{ display: 'block', fontWeight: 600 }}>{t.settings.level_3}</span>
+                <span style={{ display: 'block', fontSize: '0.85rem', opacity: 0.8 }}>
+                  {language === 'ko' ? '고급 학술 및 전문적인 용어' : 'Advanced academic and professional terms'}
+                </span>
+              </div>
+            </RadioLabel>
           </div>
         </Section>
       )}
