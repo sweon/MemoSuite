@@ -44,7 +44,7 @@ import {
     FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
     FaClock, FaEllipsisH
 } from "react-icons/fa";
-import { FiPenTool, FiSidebar, FiSave, FiX, FiTrash2, FiCheck } from "react-icons/fi";
+import { FiPenTool, FiSidebar, FiX, FiTrash2, FiCheck } from "react-icons/fi";
 import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
 import { $createHandwritingNode } from "../nodes/HandwritingNode";
 import { $createSpreadsheetNode } from "../nodes/SpreadsheetNode";
