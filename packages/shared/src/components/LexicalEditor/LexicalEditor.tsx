@@ -80,20 +80,17 @@ const EditorContainer = styled.div`
   background: ${(props: any) => props.theme.colors?.background || '#1e1e1e'};
   color: ${(props: any) => props.theme.colors?.text || '#d4d4d4'};
   border: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  display: block;
+  overflow: visible;
   container-type: inline-size;
 `;
 
 const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number }>`
   min-height: 300px;
-  max-height: 600px;
   outline: none;
   padding: 0.5rem;
   padding-bottom: 5rem; /* Large bottom padding for easy clicking below last node */
   tab-size: ${props => props.$tabSize || 4};
-  overflow-y: auto;
   font-size: ${props => props.$fontSize ? `${props.$fontSize}pt` : 'calc(1.85cqi)'};
   line-height: 1.5;
 

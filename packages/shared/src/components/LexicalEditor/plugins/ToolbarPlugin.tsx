@@ -65,9 +65,11 @@ const ToolbarContainer = styled.div<{ $isPortaled?: boolean; $top?: number }>`
   width: 100%;
   
   ${props => !props.$isPortaled && `
+    position: -webkit-sticky;
     position: sticky;
     top: ${props.$top || 0}px;
-    z-index: 10;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   `}
 
   @media (min-width: 768px) {
