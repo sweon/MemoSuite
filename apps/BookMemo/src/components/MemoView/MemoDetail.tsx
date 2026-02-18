@@ -1361,6 +1361,7 @@ export const MemoDetail: React.FC = () => {
                         <ContentPadding>
                             <MarkdownView
                                 content={content}
+                                memoId={Number(id)}
                                 fontSize={Number(localStorage.getItem('editor_font_size') || '11')}
                                 onEditDrawing={(json) => {
                                     fabricCheckpointRef.current = content;

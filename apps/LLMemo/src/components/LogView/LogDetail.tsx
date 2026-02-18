@@ -1250,6 +1250,7 @@ export const LogDetail: React.FC = () => {
           ) : (
             <MarkdownView
               content={content}
+              memoId={Number(id)}
               fontSize={Number(localStorage.getItem('editor_font_size') || '11')}
             />
           )}

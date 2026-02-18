@@ -1208,6 +1208,17 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
     };
   }, [videoId, startTimestamp]);
 
+  React.useEffect(() => {
+    const handleSeek = (e: any) => {
+      if (e.detail?.videoId === videoId && playerRef.current) {
+        playerRef.current.seekTo(e.detail.time, true);
+        if (!isPlaying) playerRef.current.playVideo();
+      }
+    };
+    window.addEventListener('yt-seek', handleSeek);
+    return () => window.removeEventListener('yt-seek', handleSeek);
+  }, [videoId, isPlaying]);
+
   const [jumpedCommentId, setJumpedCommentId] = React.useState<number | null>(null);
   const { language, t } = useLanguage();
 
@@ -2243,6 +2254,22 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
   const stateRef = React.useRef({ onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment });
   stateRef.current = { onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment };
 
+  React.useEffect(() => {
+    const handleSeek = (e: any) => {
+      const { videoId, time } = e.detail;
+      const player = (window as any).YT_PLAYERS?.get(videoId) || (window as any).YT?.get?.(videoId);
+      const internalPlayer = (window as any).YT_PLAYERS_INTERNAL?.get?.(videoId);
+      const activePlayer = internalPlayer || player;
+
+      if (activePlayer && activePlayer.seekTo) {
+        activePlayer.seekTo(time, true);
+        if (activePlayer.playVideo) activePlayer.playVideo();
+      }
+    };
+    window.addEventListener('yt-seek', handleSeek);
+    return () => window.removeEventListener('yt-seek', handleSeek);
+  }, []);
+
 
 
 
@@ -2260,72 +2287,61 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
     a: ({ href, children, ...props }: any) => {
       try {
         if (!href) return <a {...props}>{children}</a>;
-
         let cleanHref = href;
-        try {
-          cleanHref = decodeURIComponent(href);
-        } catch (e) { }
+        try { cleanHref = decodeURIComponent(href); } catch (e) { }
+        cleanHref = (cleanHref || '').replace(/&amp;/g, '&').replace(/&#38;/g, '&').replace(/&#x26;/g, '&');
 
-        // Clean common HTML entities
-        cleanHref = (cleanHref || '')
-          .replace(/&amp;/g, '&')
-          .replace(/&#38;/g, '&')
-          .replace(/&#x26;/g, '&');
-
-        const isYoutube =
-          (cleanHref.includes('youtube.com') ||
-            cleanHref.includes('youtu.be')) && !stateRef.current.isComment;
-
-        if (isYoutube) {
+        // Handle timestamp links in comments or anywhere to seek instead of opening new tab
+        const isYoutubeUrl = (cleanHref.includes('youtube.com') || cleanHref.includes('youtu.be'));
+        const tMatch = cleanHref.match(/[?&]t=(\d+)/);
+        if (isYoutubeUrl && tMatch) {
           let videoId = '';
-          let timestamp = 0;
-
-          // 1. Check for 'v=' parameter anywhere in query string
           const vParamMatch = cleanHref.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-
-          if (vParamMatch && vParamMatch[1]) {
-            videoId = vParamMatch[1];
-          } else {
-            // 2. Check for path-based IDs (youtu.be, embed, shorts, v)
+          if (vParamMatch) videoId = vParamMatch[1];
+          else {
             const pathMatch = cleanHref.match(/(?:youtu\.be\/|embed\/|shorts\/|v\/)([a-zA-Z0-9_-]{11})/);
-            if (pathMatch && pathMatch[1]) {
-              videoId = pathMatch[1];
-            }
-          }
-
-          const tMatch = cleanHref.match(/[?&]t=(\d+)/);
-          if (tMatch && tMatch[1]) {
-            timestamp = parseInt(tMatch[1]);
+            if (pathMatch) videoId = pathMatch[1];
           }
 
           if (videoId) {
             return (
-              <div key={`yt-wrap-${videoId}`} style={{ margin: '16px 0' }}>
-                <YouTubePlayer key={`yt-${videoId}`}
-                  videoId={videoId}
-                  startTimestamp={timestamp > 0 ? timestamp : undefined}
-                  memoId={stateRef.current.memoId}
-                  isShort={cleanHref.includes('shorts/')}
-                />
-              </div>
+              <a
+                href={href}
+                onClick={(e) => {
+                  const el = document.getElementById(`yt-player-container-${videoId}`);
+                  if (el) {
+                    e.preventDefault();
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    window.dispatchEvent(new CustomEvent('yt-seek', { detail: { videoId, time: parseInt(tMatch[1]) } }));
+                  }
+                }}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {children}
+              </a>
             );
-          } else {
-            // Check for playlist ID if video ID is missing
+          }
+        }
+
+        const isYoutube = isYoutubeUrl && !stateRef.current.isComment;
+
+        if (isYoutube) {
+          let videoId = ''; let timestamp = 0;
+          const vParamMatch = cleanHref.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+          if (vParamMatch && vParamMatch[1]) { videoId = vParamMatch[1]; }
+          else {
+            const pathMatch = cleanHref.match(/(?:youtu\.be\/|embed\/|shorts\/|v\/)([a-zA-Z0-9_-]{11})/);
+            if (pathMatch && pathMatch[1]) videoId = pathMatch[1];
+          }
+          if (tMatch && tMatch[1]) timestamp = parseInt(tMatch[1]);
+          if (videoId) return (<div key={`yt-wrap-${videoId}`} id={`yt-player-container-${videoId}`} style={{ margin: '16px 0' }}><YouTubePlayer key={`yt-${videoId}`} videoId={videoId} startTimestamp={timestamp > 0 ? timestamp : undefined} memoId={stateRef.current.memoId} isShort={cleanHref.includes('shorts/')} /></div>);
+          else {
             let playlistId = '';
             const listMatch = cleanHref.match(/[?&]list=([a-zA-Z0-9_-]+)/);
             if (listMatch) playlistId = listMatch[1];
-            else {
-              const showMatch = cleanHref.match(/\/show\/([a-zA-Z0-9_-]+)/);
-              if (showMatch) playlistId = showMatch[1];
-            }
-
-            if (playlistId) {
-              // Remove 'VL' prefix if present
-              if (playlistId.startsWith('VL')) {
-                playlistId = playlistId.substring(2);
-              }
-              return <YoutubePlaylistView key={`pl-${playlistId}`} playlistId={playlistId} />;
-            }
+            else { const showMatch = cleanHref.match(/\/show\/([a-zA-Z0-9_-]+)/); if (showMatch) playlistId = showMatch[1]; }
+            if (playlistId) { if (playlistId.startsWith('VL')) playlistId = playlistId.substring(2); return <YoutubePlaylistView key={`pl-${playlistId}`} playlistId={playlistId} />; }
           }
         }
 

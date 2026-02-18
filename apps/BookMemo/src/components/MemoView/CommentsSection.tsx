@@ -6,7 +6,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Comment, type CommentDraft } from '../../db';
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare, FiArrowUp } from 'react-icons/fi';
 import { format } from 'date-fns';
 
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
@@ -161,6 +161,23 @@ const AddButton = styled.button`
   }
 `;
 
+const YOUTUBE_TITLE_CACHE: Record<string, string> = {};
+
+const fetchYoutubeTitle = async (videoId: string): Promise<string | null> => {
+    if (YOUTUBE_TITLE_CACHE[videoId]) return YOUTUBE_TITLE_CACHE[videoId];
+    try {
+        const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.title) {
+                YOUTUBE_TITLE_CACHE[videoId] = data.title;
+                return data.title;
+            }
+        }
+    } catch (e) { }
+    return null;
+};
+
 export const CommentsSection: React.FC<{
     memoId: number,
     onEditingChange?: (draft: CommentDraft | null) => void,
@@ -185,6 +202,46 @@ export const CommentsSection: React.FC<{
     const [activeCommentId, setActiveCommentId] = React.useState<number | null>(null);
     const [editingDrawingData, setEditingDrawingData] = React.useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = React.useState<any>(undefined);
+
+    const [lastJumpedCommentId, setLastJumpedCommentId] = React.useState<number | null>(null);
+
+    const scrollToPlayer = (content: string, commentId: number) => {
+        let videoId = '';
+        try {
+            const ytLike = content.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+            if (ytLike) videoId = ytLike[1];
+        } catch (e) { }
+
+        if (videoId && videoId.length === 11) {
+            const el = document.getElementById(`yt-player-container-${videoId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setLastJumpedCommentId(commentId);
+                window.dispatchEvent(new CustomEvent('yt-jump-success', { detail: { videoId, commentId } }));
+            }
+        }
+    };
+
+    const scrollToComment = (commentId?: number | null) => {
+        const id = commentId ?? lastJumpedCommentId;
+        if (!id) return;
+        const el = document.getElementById(`comment-${id}`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.style.backgroundColor = theme.colors.primary + '15';
+            setTimeout(() => {
+                el.style.backgroundColor = 'transparent';
+            }, 2000);
+        }
+    };
+
+    React.useEffect(() => {
+        const handleReturn = (e: any) => {
+            if (e.detail?.commentId) scrollToComment(e.detail.commentId);
+        };
+        window.addEventListener('return-to-comment', handleReturn);
+        return () => window.removeEventListener('return-to-comment', handleReturn);
+    }, [theme.colors.primary]);
 
     // Initialize from initialEditingState
     React.useEffect(() => {
@@ -253,7 +310,26 @@ export const CommentsSection: React.FC<{
         }
     };
 
+    const handleStartAdding = async () => {
+        setIsAdding(true);
+        const lastActive = localStorage.getItem('yt_last_active');
+        if (lastActive) {
+            try {
+                const { videoId, time, timestamp } = JSON.parse(lastActive);
+                if (Date.now() - timestamp < 1000 * 60 * 60) {
+                    const videoTitle = await fetchYoutubeTitle(videoId);
+                    const timeStr = `${Math.floor(time / 60)}:${(time % 60).toString().padStart(2, '0')}`;
+                    const videoLink = `[${videoTitle ? `${videoTitle} (${timeStr})` : timeStr}](https://www.youtube.com/watch?v=${videoId}&t=${time})`;
 
+                    if (newContent.trim()) {
+                        setNewContent(prev => prev.trim() + '\n' + videoLink);
+                    } else {
+                        setNewContent(videoLink);
+                    }
+                }
+            } catch (e) { }
+        }
+    };
 
     return (
         <Section>
@@ -267,9 +343,30 @@ export const CommentsSection: React.FC<{
 
             <CommentList>
                 {comments?.map(c => (
-                    <CommentItem key={c.id}>
+                    <CommentItem key={c.id} id={`comment-${c.id}`}>
                         <CommentHeader>
-                            <span>{format(c.createdAt, language === 'ko' ? 'yyyy년 M월 d일 HH:mm' : 'MMM d, yyyy HH:mm')}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {format(c.createdAt, language === 'ko' ? 'yyyy년 M월 d일 HH:mm' : 'MMM d, yyyy HH:mm')}
+                                {(c.content.includes('youtube.com') || c.content.includes('youtu.be')) && (
+                                    <button
+                                        onClick={() => scrollToPlayer(c.content, c.id!)}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: theme.colors.primary,
+                                            cursor: 'pointer',
+                                            padding: '2px 4px',
+                                            borderRadius: '4px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            fontSize: '11px',
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        <FiArrowUp size={12} style={{ marginRight: '2px' }} /> {language === 'ko' ? '영상 이동' : 'Jump to Video'}
+                                    </button>
+                                )}
+                            </span>
                             <Actions>
                                 {editingId === c.id ? (
                                     <>
@@ -304,6 +401,8 @@ export const CommentsSection: React.FC<{
                         ) : (
                             <MarkdownView
                                 content={c.content}
+                                memoId={memoId}
+                                isComment={true}
                                 tableHeaderBg={theme.colors.border}
                                 onEditDrawing={(json) => {
                                     setActiveCommentId(c.id!);
@@ -338,7 +437,7 @@ export const CommentsSection: React.FC<{
                     />
                 </EditorContainer>
             ) : (
-                <AddButton onClick={() => setIsAdding(true)}>
+                <AddButton onClick={handleStartAdding}>
                     <FiPlus /> {t.comments.add_button}
                 </AddButton>
             )}

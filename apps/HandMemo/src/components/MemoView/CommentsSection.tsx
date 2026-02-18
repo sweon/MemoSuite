@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useColorTheme, useConfirm, useLanguage } from '@memosuite/shared';
 
 import styled from 'styled-components';
@@ -14,29 +14,7 @@ import { format } from 'date-fns';
 
 const YOUTUBE_TITLE_CACHE: Record<string, string> = {};
 
-function findCommonPrefix(strings: string[]): string {
-    if (strings.length === 0) return "";
-    let prefix = strings[0];
-    for (let i = 1; i < strings.length; i++) {
-        while (strings[i].indexOf(prefix) !== 0) {
-            prefix = prefix.substring(0, prefix.length - 1);
-            if (prefix === "") return "";
-        }
-    }
-    return prefix;
-}
 
-function findCommonSuffix(strings: string[]): string {
-    if (strings.length === 0) return "";
-    let suffix = strings[0];
-    for (let i = 1; i < strings.length; i++) {
-        while (!strings[i].endsWith(suffix)) {
-            suffix = suffix.substring(1);
-            if (suffix === "") return "";
-        }
-    }
-    return suffix;
-}
 
 const fetchYoutubeTitle = async (videoId: string): Promise<string> => {
     if (YOUTUBE_TITLE_CACHE[videoId]) return YOUTUBE_TITLE_CACHE[videoId];
@@ -258,18 +236,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
     const scrollToPlayer = (content: string, commentId: number) => {
         let videoId = '';
         try {
-            // Match youtu.be/ID or youtube.com/...v=ID
             const ytLike = content.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
-            if (ytLike) {
-                videoId = ytLike[1];
-            } else {
-                // Fallback for cases where regex might miss but URL is present
-                const urlStr = content.match(/https?:\/\/[^\s)]+/)?.[0];
-                if (urlStr) {
-                    const url = new URL(urlStr.replace('youtu.be/', 'youtube.com/watch?v='));
-                    videoId = url.searchParams.get('v') || url.pathname.split('/').pop() || '';
-                }
-            }
+            if (ytLike) videoId = ytLike[1];
         } catch (e) { }
 
         if (videoId && videoId.length === 11) {
@@ -277,7 +245,6 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
             if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 setLastJumpedCommentId(commentId);
-                // Notify the player to show return button
                 window.dispatchEvent(new CustomEvent('yt-jump-success', { detail: { videoId, commentId } }));
             }
         }
@@ -287,12 +254,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
         const id = targetId ?? lastJumpedCommentId;
         if (id === undefined || id === null) return;
         let el = document.getElementById(id === -1 ? 'new-comment-editor' : `comment-${id}`);
-        if (!el) {
-            el = document.getElementById('comments-section');
-        }
-        if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        if (!el) el = document.getElementById('comments-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
     useEffect(() => {
@@ -303,28 +266,25 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
         return () => window.removeEventListener('return-to-comment', handleReturn);
     }, [lastJumpedCommentId]);
 
-    // Sync editing state up to parent for autosave
-    const onEditingChangeRef = useRef(onEditingChange);
-    useEffect(() => { onEditingChangeRef.current = onEditingChange; }, [onEditingChange]);
-
+    // Report editing changes
     useEffect(() => {
-        if (!onEditingChangeRef.current) return;
+        if (!onEditingChange) return;
 
-        if (isAdding) {
-            onEditingChangeRef.current({
+        if (isAdding && newContent.trim()) {
+            onEditingChange({
                 content: newContent,
                 isNew: true
             });
-        } else if (editingId) {
-            onEditingChangeRef.current({
+        } else if (editingId && editContent.trim()) {
+            onEditingChange({
                 commentId: editingId,
                 content: editContent,
                 isNew: false
             });
         } else {
-            onEditingChangeRef.current(null);
+            onEditingChange(null);
         }
-    }, [isAdding, newContent, editingId, editContent]);
+    }, [isAdding, newContent, editingId, editContent, onEditingChange]);
 
     const handleAdd = async () => {
         if (!newContent.trim()) return;
@@ -345,53 +305,28 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
             if (!lastActiveStr) return;
 
             const { videoId: activeVideoId, time, timestamp } = JSON.parse(lastActiveStr);
-            // Ignore if more than 30 minutes old
             if (Date.now() - timestamp > 30 * 60 * 1000) return;
 
-            // Verify if this video is in the current memo
             const memo = await db.memos.get(memoId);
             if (!memo || !memo.content.includes(activeVideoId)) return;
 
-            // Check if there are other YouTube videos in the memo
-            const ytRegex = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/g;
-            const allVideoIds = Array.from(new Set(Array.from(memo.content.matchAll(ytRegex)).map(m => m[1])));
-
+            // Fetch video title
             let prefixLabel = '';
-            if (allVideoIds.length > 1) {
-                // Fetch titles for all videos to find unique parts
-                const titles: Record<string, string> = {};
-                await Promise.all(allVideoIds.map(async (id) => {
-                    titles[id] = await fetchYoutubeTitle(id);
-                }));
-
-                const validTitles = allVideoIds.map(id => titles[id]).filter(Boolean);
-                if (validTitles.length > 1) {
-                    const commonPrefix = findCommonPrefix(validTitles);
-                    const commonSuffix = findCommonSuffix(validTitles.map(t => t.substring(commonPrefix.length)));
-
-                    const activeTitle = titles[activeVideoId] || '';
-                    if (activeTitle) {
-                        let unique = activeTitle.substring(commonPrefix.length);
-                        if (commonSuffix.length > 0) {
-                            unique = unique.substring(0, unique.length - commonSuffix.length);
-                        }
-                        unique = unique.trim();
-                        if (unique) {
-                            prefixLabel = unique.substring(0, 10).trim() + ' ';
-                        }
-                    }
+            try {
+                const title = await fetchYoutubeTitle(activeVideoId);
+                if (title) {
+                    prefixLabel = title.trim() + ' ';
                 }
-            }
+            } catch (e) { }
 
-            // Format time
             const hours = Math.floor(time / 3600);
             const mins = Math.floor((time % 3600) / 60);
-            const secs = time % 60;
+            const secs = Math.floor(time % 60);
             const timeStr = hours > 0
                 ? `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
                 : `${mins}:${String(secs).padStart(2, '0')}`;
 
-            const link = `[${prefixLabel}${timeStr}](https://youtu.be/${activeVideoId}?t=${time}) `;
+            const link = `[${prefixLabel}${timeStr}](https://youtu.be/${activeVideoId}?t=${Math.floor(time)}) `;
             setNewContent(prev => (prev.trim() ? link + '\n\n' + prev : link));
         } catch (e) {
             console.error('Failed to auto-insert YT link', e);

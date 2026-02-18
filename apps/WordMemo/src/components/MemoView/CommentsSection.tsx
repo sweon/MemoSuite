@@ -6,11 +6,28 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Comment, type CommentDraft } from '../../db';
 import { MarkdownEditor } from '../Editor/MarkdownEditor';
 import { MarkdownView } from '../Editor/MarkdownView';
-import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiPlus, FiSave, FiX, FiMessageSquare, FiArrowUp } from 'react-icons/fi';
 import { format } from 'date-fns';
 
 import { FabricCanvasModal } from '@memosuite/shared-drawing';
 import { SpreadsheetModal } from '@memosuite/shared-spreadsheet';
+
+const YOUTUBE_TITLE_CACHE: Record<string, string> = {};
+
+const fetchYoutubeTitle = async (videoId: string): Promise<string> => {
+    if (YOUTUBE_TITLE_CACHE[videoId]) return YOUTUBE_TITLE_CACHE[videoId];
+    try {
+        const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.title) {
+                YOUTUBE_TITLE_CACHE[videoId] = data.title;
+                return data.title;
+            }
+        }
+    } catch (e) { }
+    return '';
+};
 
 const Section = styled.div`
   margin-top: 0;
@@ -221,6 +238,41 @@ export const CommentsSection: React.FC<{
         }
     }, [isAdding, newContent, editingId, editContent, onEditingChange]);
 
+    const [lastJumpedCommentId, setLastJumpedCommentId] = React.useState<number | null>(null);
+
+    const scrollToPlayer = (content: string, commentId: number) => {
+        let videoId = '';
+        try {
+            const ytLike = content.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+            if (ytLike) videoId = ytLike[1];
+        } catch (e) { }
+
+        if (videoId && videoId.length === 11) {
+            const el = document.getElementById(`yt-player-container-${videoId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setLastJumpedCommentId(commentId);
+                window.dispatchEvent(new CustomEvent('yt-jump-success', { detail: { videoId, commentId } }));
+            }
+        }
+    };
+
+    const scrollToComment = (targetId?: number) => {
+        const id = targetId ?? lastJumpedCommentId;
+        if (id === undefined || id === null) return;
+        let el = document.getElementById(id === -1 ? 'new-comment-editor' : `comment-${id}`);
+        if (!el) el = document.getElementById('comments-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    React.useEffect(() => {
+        const handleReturn = (e: any) => {
+            if (e.detail?.commentId !== undefined) scrollToComment(e.detail.commentId);
+        };
+        window.addEventListener('return-to-comment', handleReturn);
+        return () => window.removeEventListener('return-to-comment', handleReturn);
+    }, [lastJumpedCommentId]);
+
     const handleAdd = async () => {
         if (!newContent.trim()) return;
         await db.comments.add({
@@ -231,6 +283,41 @@ export const CommentsSection: React.FC<{
         });
         setNewContent('');
         setIsAdding(false);
+    };
+
+    const handleStartAdding = async () => {
+        setIsAdding(true);
+        try {
+            const lastActiveStr = localStorage.getItem('yt_last_active');
+            if (!lastActiveStr) return;
+
+            const { videoId: activeVideoId, time, timestamp } = JSON.parse(lastActiveStr);
+            if (Date.now() - timestamp > 30 * 60 * 1000) return;
+
+            const wordDoc = await db.words.get(wordId);
+            if (!wordDoc || !wordDoc.content.includes(activeVideoId)) return;
+
+            // Fetch video title
+            let prefixLabel = '';
+            try {
+                const title = await fetchYoutubeTitle(activeVideoId);
+                if (title) {
+                    prefixLabel = title.trim() + ' ';
+                }
+            } catch (e) { }
+
+            const hours = Math.floor(time / 3600);
+            const mins = Math.floor((time % 3600) / 60);
+            const secs = Math.floor(time % 60);
+            const timeStr = hours > 0
+                ? `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+                : `${mins}:${String(secs).padStart(2, '0')}`;
+
+            const link = `[${prefixLabel}${timeStr}](https://youtu.be/${activeVideoId}?t=${Math.floor(time)}) `;
+            setNewContent(prev => (prev.trim() ? link + '\n\n' + prev : link));
+        } catch (e) {
+            console.error('Failed to auto-insert YT link', e);
+        }
     };
 
     const handleDelete = async (id: number) => {
@@ -270,7 +357,7 @@ export const CommentsSection: React.FC<{
 
             <CommentList>
                 {comments?.map(c => (
-                    <CommentItem key={c.id}>
+                    <CommentItem key={c.id} id={`comment-${c.id}`}>
                         <CommentHeader>
                             <span>{format(c.createdAt, 'MMM d, yyyy HH:mm')}</span>
                             <Actions>
@@ -285,6 +372,11 @@ export const CommentsSection: React.FC<{
                                     </>
                                 ) : (
                                     <>
+                                        {c.content.match(/youtube\.com|youtu\.be/) && (
+                                            <ActionIcon onClick={() => scrollToPlayer(c.content, c.id!)} title={language === 'ko' ? '동영상을 찾아서 이동' : 'Scroll to Video'}>
+                                                <FiArrowUp />
+                                            </ActionIcon>
+                                        )}
                                         <ActionIcon onClick={() => startEdit(c)} title={t.word_detail.edit}>
                                             <FiEdit2 />
                                         </ActionIcon>
@@ -299,6 +391,11 @@ export const CommentsSection: React.FC<{
                         {editingId === c.id ? (
                             <div style={{ marginTop: '0.5rem' }}>
                                 <EditorHeader style={{ padding: '0.5rem', borderRadius: '8px 8px 0 0' }}>
+                                    {editContent.match(/youtube\.com|youtu\.be/) && (
+                                        <HeaderButton onClick={() => scrollToPlayer(editContent, editingId!)} $variant="secondary">
+                                            <FiArrowUp />
+                                        </HeaderButton>
+                                    )}
                                     <HeaderButton onClick={() => setEditingId(null)} $variant="secondary">{t.comments.cancel}</HeaderButton>
                                     <HeaderButton onClick={saveEdit} $variant="primary">{t.comments.save_comment}</HeaderButton>
                                 </EditorHeader>
@@ -329,8 +426,13 @@ export const CommentsSection: React.FC<{
             </CommentList>
 
             {isAdding ? (
-                <EditorContainer>
+                <EditorContainer id="new-comment-editor">
                     <EditorHeader>
+                        {newContent.match(/youtube\.com|youtu\.be/) && (
+                            <HeaderButton onClick={() => scrollToPlayer(newContent, -1)} $variant="secondary">
+                                <FiArrowUp />
+                            </HeaderButton>
+                        )}
                         <div style={{ flex: 1 }} />
                         <HeaderButton onClick={() => setIsAdding(false)} $variant="secondary">{t.comments.cancel}</HeaderButton>
                         <HeaderButton onClick={handleAdd} $variant="primary">{t.comments.save_comment}</HeaderButton>
@@ -341,7 +443,7 @@ export const CommentsSection: React.FC<{
                     />
                 </EditorContainer>
             ) : (
-                <AddButton onClick={() => setIsAdding(true)}>
+                <AddButton onClick={handleStartAdding}>
                     <FiPlus /> {t.comments.add_button}
                 </AddButton>
             )}

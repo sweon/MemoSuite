@@ -1691,6 +1691,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
             <ContentWrapper $isBlurred={studyMode === "hide-meanings"}>
               <MarkdownView
                 content={content}
+                memoId={Number(id)}
                 wordTitle={word?.title}
                 studyMode={studyMode}
                 isReadOnly={isReadOnly}
