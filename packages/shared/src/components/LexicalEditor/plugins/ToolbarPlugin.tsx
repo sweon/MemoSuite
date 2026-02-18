@@ -139,41 +139,6 @@ const ToolbarButton = styled.button`
 `;
 
 
-const SelectWrapper = styled.div`
-position: relative;
-display: flex;
-align-items: center;
-margin: 0;
-`;
-
-const BlockSelect = styled.select`
-appearance: none;
-padding: 4px 28px 4px 10px;
-border-radius: 6px;
-border: 1px solid #eee;
-outline: none;
-font-size: 13px;
-background: #f8f9fa;
-color: #444;
-cursor: pointer;
-font-weight: 500;
-min-width: 90px;
-transition: all 0.2s ease;
-
-  &:hover {
-    background: #f0f2f5;
-    border-color: #ddd;
-}
-`;
-
-const SelectArrow = styled.div`
-position: absolute;
-right: 10px;
-pointer-events: none;
-border-left: 4px solid transparent;
-border-right: 4px solid transparent;
-border-top: 5px solid #666;
-`;
 
 const ColorPickerWrapper = styled.div`
 position: relative;
