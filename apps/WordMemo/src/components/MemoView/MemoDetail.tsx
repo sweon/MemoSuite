@@ -246,7 +246,7 @@ const ResponsiveGroup = styled.div`
   flex-wrap: wrap;
 
   @media (max-width: 480px) {
-    display: contents;
+    padding: ${({ theme }) => theme.spacing.xs};
   }
 `;
 
@@ -257,7 +257,7 @@ const ButtonGroup = styled.div<{ $flex?: number }>`
   ${({ $flex }) => $flex !== undefined && `flex: ${$flex};`}
 
   @media (max-width: 480px) {
-    display: contents;
+    flex-wrap: wrap;
   }
 `;
 
@@ -300,8 +300,6 @@ const ActionButton = styled.button<{
   transition: ${({ theme }) => theme.effects.transition};
 
   @media (max-width: 480px) {
-    ${({ $mobileOrder }) =>
-    $mobileOrder !== undefined && `order: ${$mobileOrder};`}
     &.hide-on-mobile {
       display: none !important;
     }
@@ -1579,22 +1577,21 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
             <ResponsiveGroup>
               {/* Group 1: Edit, Meaning, Example, Join/Append */}
               <ButtonGroup>
-                <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
+                <ActionButton onClick={handleStartEdit}>
                   <FiEdit2 size={13} /> {t.word_detail.edit || "Edit"}
                 </ActionButton>
-                <ActionButton onClick={handleMeaning} $mobileOrder={7}>
+                <ActionButton onClick={handleMeaning}>
                   <FiBookOpen size={14} /> {t.word_detail.meaning_button}
                 </ActionButton>
-                <ActionButton onClick={handleExample} $mobileOrder={8}>
+                <ActionButton onClick={handleExample}>
                   <FiCoffee size={14} /> {t.word_detail.example_button}
                 </ActionButton>
-                <ActionButton onClick={handleAddThread} $mobileOrder={2}>
+                <ActionButton onClick={handleAddThread}>
                   <FiGitMerge size={14} /> {t.word_detail.append}
                 </ActionButton>
 
                 <ActionButton
                   onClick={() => setIsFolderMoveModalOpen(true)}
-                  $mobileOrder={4}
                 >
                   <FiFolder size={13} />{" "}
                   {language === "ko" ? "폴더 이동" : "Folder"}
@@ -1604,7 +1601,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
               {/* Group 2: Share, Delete, Print ... Star */}
               <ButtonGroup $flex={1}>
 
-                <ActionButton onClick={handleCopy} $mobileOrder={5.5}>
+                <ActionButton onClick={handleCopy}>
                   <FiCopy size={14} /> {t.word_detail.copy}
                 </ActionButton>
                 <ActionButton
@@ -1616,7 +1613,6 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                       setMovingWordId?.(Number(id));
                     }
                   }}
-                  $mobileOrder={6}
                 >
                   <FiArrowRightCircle size={14} />
                   {movingWordId === Number(id)
@@ -1625,20 +1621,17 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 </ActionButton>
                 <ActionButton
                   onClick={() => setShowShareModal(true)}
-                  $mobileOrder={5}
                 >
                   <FiShare2 size={13} /> {t.word_detail.share_word}
                 </ActionButton>
                 <ActionButton
                   onClick={() => setIsPrintModalOpen(true)}
-                  $mobileOrder={7}
                 >
                   <FiPrinter size={14} /> {language === "ko" ? "인쇄" : "Print"}
                 </ActionButton>
                 <ActionButton
                   $variant="danger"
                   onClick={handleDelete}
-                  $mobileOrder={11}
                 >
                   <FiTrash2 size={13} /> {t.word_detail.delete}
                 </ActionButton>
@@ -1646,7 +1639,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 <StarButton
                   $active={!!word?.isStarred}
                   onClick={handleToggleStar}
-                  style={{ padding: "6px", marginLeft: "auto", order: 9 }}
+                  style={{ padding: "6px", marginLeft: "auto" }}
                 >
                   <FiStar
                     fill={word?.isStarred ? "currentColor" : "none"}
