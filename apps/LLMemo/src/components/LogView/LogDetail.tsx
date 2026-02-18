@@ -1182,7 +1182,7 @@ export const LogDetail: React.FC = () => {
                   {t.log_detail.move_folder}
                 </span>
               </ActionButton>
-              <ActionButton onClick={handleCopy} $mobileOrder={4.5}>
+              <ActionButton onClick={handleCopy} $mobileOrder={4}>
                 <FiCopy size={16} />
                 <span className="hide-on-mobile">{t.log_detail.copy}</span>
               </ActionButton>
@@ -1195,7 +1195,7 @@ export const LogDetail: React.FC = () => {
                     setMovingLogId?.(Number(id));
                   }
                 }}
-                $mobileOrder={4.6}
+                $mobileOrder={5}
               >
                 <FiArrowRightCircle size={16} />
                 <span className="hide-on-mobile">
@@ -1204,19 +1204,19 @@ export const LogDetail: React.FC = () => {
               </ActionButton>
               <ActionButton
                 onClick={() => setIsShareModalOpen(true)}
-                $mobileOrder={4}
+                $mobileOrder={6}
               >
                 <FiShare2 size={16} />
                 <span className="hide-on-mobile">{t.log_detail.share}</span>
               </ActionButton>
-              <ActionButton onClick={handlePrint} className="hide-on-mobile">
+              <ActionButton onClick={handlePrint} $mobileOrder={7}>
                 <FiPrinter size={16} />
-                <span>{t.log_detail.print || "Print"}</span>
+                <span className="hide-on-mobile">{t.log_detail.print || "Print"}</span>
               </ActionButton>
               <ActionButton
                 $variant="danger"
                 onClick={handleDelete}
-                $mobileOrder={5}
+                $mobileOrder={8}
               >
                 <FiTrash2 size={16} />
                 <span className="hide-on-mobile">{t.log_detail.delete}</span>
