@@ -1578,6 +1578,9 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
             <ResponsiveGroup>
               {/* Group 1: Edit, Meaning, Example, Join/Append */}
               <ButtonGroup>
+                <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
+                  <FiEdit2 size={13} /> {t.word_detail.edit || "Edit"}
+                </ActionButton>
                 <ActionButton onClick={handleMeaning} $mobileOrder={7}>
                   <FiBookOpen size={14} /> {t.word_detail.meaning_button}
                 </ActionButton>
@@ -1599,11 +1602,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
               {/* Group 2: Share, Delete, Print ... Star */}
               <ButtonGroup $flex={1}>
-                {!isReadOnly && (
-                  <ActionButton onClick={handleStartEdit} $mobileOrder={1}>
-                    <FiEdit2 size={13} /> {t.word_detail.edit || "Edit"}
-                  </ActionButton>
-                )}
+
                 <ActionButton onClick={handleCopy} $mobileOrder={5.5}>
                   <FiCopy size={14} /> {t.word_detail.copy}
                 </ActionButton>
