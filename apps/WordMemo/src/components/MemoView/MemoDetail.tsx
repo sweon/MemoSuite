@@ -1418,7 +1418,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
       } else if (searchParams.get("edit")) {
         navigate(`/word/${id}`, { replace: true });
       } else {
-        window.history.back();
+        navigate(`/word/${id}`, { replace: true });
       }
       return;
     }
@@ -1466,10 +1466,11 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
           setSourceId(word.sourceId);
           setCommentDraft(null);
         }
-        if (searchParams.get("edit")) {
+        if (searchParams.get("edit") || id) {
           navigate(`/word/${id}`, { replace: true });
         } else {
-          window.history.back();
+          const prevId = localStorage.getItem("wordmemo_prev_memo_id");
+          navigate(prevId ? `/word/${prevId}` : "/", { replace: true });
         }
       }
     }

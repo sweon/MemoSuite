@@ -1279,10 +1279,11 @@ export const MemoDetail: React.FC = () => {
         const prevId = localStorage.getItem("dailymemo_prev_memo_id");
         localStorage.removeItem("dailymemo_prev_memo_id");
         navigate(prevId ? `/memo/${prevId}` : "/", { replace: true });
-      } else if (searchParams.get("edit")) {
+      } else if (searchParams.get("edit") || id) {
         navigate(`/memo/${id}`, { replace: true });
       } else {
-        window.history.back();
+        const prevId = localStorage.getItem("dailymemo_prev_memo_id");
+        navigate(prevId ? `/memo/${prevId}` : "/", { replace: true });
       }
       return;
     }
@@ -1303,13 +1304,11 @@ export const MemoDetail: React.FC = () => {
       localStorage.removeItem("dailymemo_prev_memo_id");
       isClosingRef.current = true;
       setIsEditingInternal(false);
-      if (isNew) {
-        const prevId = localStorage.getItem("dailymemo_prev_memo_id");
-        navigate(prevId ? `/memo/${prevId}` : "/", { replace: true });
-      } else if (searchParams.get("edit")) {
+      if (id) {
         navigate(`/memo/${id}`, { replace: true });
       } else {
-        window.history.back();
+        const prevId = localStorage.getItem("dailymemo_prev_memo_id");
+        navigate(prevId ? `/memo/${prevId}` : "/", { replace: true });
       }
     } else if (result === "neutral") {
       if (id) {
@@ -1338,10 +1337,11 @@ export const MemoDetail: React.FC = () => {
           );
           setCommentDraft(null);
         }
-        if (searchParams.get("edit")) {
+        if (searchParams.get("edit") || id) {
           navigate(`/memo/${id}`, { replace: true });
         } else {
-          window.history.back();
+          const prevId = localStorage.getItem("dailymemo_prev_memo_id");
+          navigate(prevId ? `/memo/${prevId}` : "/", { replace: true });
         }
       }
     }

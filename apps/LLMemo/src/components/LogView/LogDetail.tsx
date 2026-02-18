@@ -879,7 +879,7 @@ export const LogDetail: React.FC = () => {
       } else if (searchParams.get("edit")) {
         navigate(`/log/${id}`, { replace: true });
       } else {
-        window.history.back();
+        navigate(`/log/${id}`, { replace: true });
       }
       return;
     }
@@ -904,7 +904,7 @@ export const LogDetail: React.FC = () => {
       } else if (searchParams.get("edit")) {
         navigate(`/log/${id}`, { replace: true });
       } else {
-        window.history.back();
+        navigate(`/log/${id}`, { replace: true });
       }
     } else if (result === "neutral") {
       if (id && id !== "new") {

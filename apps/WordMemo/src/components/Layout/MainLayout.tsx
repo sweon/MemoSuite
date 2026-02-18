@@ -234,10 +234,20 @@ export const MainLayout: React.FC = () => {
 
   const location = useLocation();
   useEffect(() => {
-    if (isMobile && (location.pathname === '/' || location.pathname === '/index.html')) {
-      setSidebarOpen(true);
+    if (isMobile) {
+      if (location.pathname === '/' || location.pathname === '/index.html') {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
     }
   }, [location.pathname, isMobile]);
+
+  useEffect(() => {
+    if (isAppEditing) {
+      setSidebarOpen(false);
+    }
+  }, [isAppEditing]);
 
   const handleDragStart = () => {
     if (sidebarRef.current) {

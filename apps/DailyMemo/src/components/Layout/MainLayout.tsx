@@ -703,8 +703,12 @@ export const MainLayout: React.FC = () => {
   const [movingMemoId, setMovingMemoId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (isMobile && (location.pathname === '/' || location.pathname === '/index.html')) {
-      setSidebarOpen(true);
+    if (isMobile) {
+      if (location.pathname === '/' || location.pathname === '/index.html') {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
     }
   }, [location.pathname, isMobile]);
 
