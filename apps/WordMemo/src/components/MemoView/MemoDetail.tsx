@@ -246,7 +246,7 @@ const ResponsiveGroup = styled.div`
   flex-wrap: wrap;
 
   @media (max-width: 480px) {
-    padding: ${({ theme }) => theme.spacing.xs};
+    display: contents;
   }
 `;
 
@@ -257,7 +257,7 @@ const ButtonGroup = styled.div<{ $flex?: number }>`
   ${({ $flex }) => $flex !== undefined && `flex: ${$flex};`}
 
   @media (max-width: 480px) {
-    flex-wrap: wrap;
+    display: contents;
   }
 `;
 
