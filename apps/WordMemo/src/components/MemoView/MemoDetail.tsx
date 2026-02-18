@@ -1090,13 +1090,13 @@ export const MemoDetail: React.FC = () => {
         updatedAt: now,
       });
 
-      // Clear edit param if present to prevent re-entering edit mode
+      // Keep edit param if present to stay in edit mode
       if (
         searchParams.get("edit") &&
         !isFabricModalOpen &&
         !isSpreadsheetModalOpen
       ) {
-        navigate(`/word/${id}`, { replace: true });
+        navigate(`/word/${id}?edit=true`, { replace: true });
       }
 
       // Cleanup autosaves for this word
@@ -1128,8 +1128,9 @@ export const MemoDetail: React.FC = () => {
       await db.autosaves.filter((a) => a.originalId === undefined).delete();
 
       const search = _overrideSearch !== undefined ? _overrideSearch : searchParams.toString();
-      // Navigate without thread params to avoid re-applying on subsequent saves
-      navigate(`/word/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+      const finalSearch = search ? `${search}&edit=true` : 'edit=true';
+      // Navigate with edit=true to stay in edit mode
+      navigate(`/word/${newId}?${finalSearch}`, { replace: true, state: overrideState });
     }
   };
 
