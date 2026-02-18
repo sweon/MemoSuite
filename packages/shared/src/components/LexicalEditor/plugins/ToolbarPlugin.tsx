@@ -511,9 +511,13 @@ export function ToolbarPlugin(props: {
     const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
     useEffect(() => {
+        if (isMobile) {
+            setPortalTarget(null);
+            return;
+        }
         const target = document.getElementById("lexical-toolbar-portal");
         if (target) setPortalTarget(target);
-    }, []);
+    }, [isMobile]);
 
     const colorInputRef = useRef<HTMLInputElement>(null);
     const colorMenuRef = useRef<HTMLDivElement>(null);
