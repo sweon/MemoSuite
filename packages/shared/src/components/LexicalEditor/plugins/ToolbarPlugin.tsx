@@ -11,6 +11,7 @@ import {
     $createParagraphNode,
     CLEAR_EDITOR_COMMAND,
     $insertNodes,
+    $createTextNode,
     INDENT_CONTENT_COMMAND,
     OUTDENT_CONTENT_COMMAND,
 } from "lexical";
@@ -40,7 +41,8 @@ import styled from "styled-components";
 import {
     FaBold, FaItalic, FaStrikethrough, FaCode,
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
-    FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown
+    FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
+    FaClock
 } from "react-icons/fa";
 import { FiPenTool, FiSidebar, FiSave, FiX, FiTrash2 } from "react-icons/fi";
 import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
@@ -48,6 +50,7 @@ import { $createHandwritingNode } from "../nodes/HandwritingNode";
 import { $createSpreadsheetNode } from "../nodes/SpreadsheetNode";
 import { $createCollapsibleNode } from "../nodes/CollapsibleNode";
 import { $createImageNode } from "../nodes/ImageNode";
+import { format } from "date-fns";
 
 import { Tooltip } from "../../Tooltip";
 import { useLanguage } from "../../../i18n";
@@ -709,6 +712,15 @@ export function ToolbarPlugin(props: {
         }
     };
 
+    const insertTime = () => {
+        editor.update(() => {
+            const now = new Date();
+            const timeString = format(now, "yyyy-MM-dd HH:mm:ss");
+            const textNode = $createTextNode(timeString);
+            $insertNodes([textNode]);
+        });
+    };
+
 
     const applyStyleText = useCallback(
         (styles: Record<string, string>) => {
@@ -1135,6 +1147,15 @@ export function ToolbarPlugin(props: {
                     title={t.toolbar.horizontal_rule}
                 >
                     <FaMinus />
+                </ToolbarButton>
+            </Tooltip>
+
+            <Tooltip content={t.toolbar.insert_time}>
+                <ToolbarButton
+                    onClick={insertTime}
+                    title={t.toolbar.insert_time}
+                >
+                    <FaClock />
                 </ToolbarButton>
             </Tooltip>
 

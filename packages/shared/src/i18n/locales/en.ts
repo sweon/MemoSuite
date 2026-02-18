@@ -53,6 +53,7 @@ export const en = {
         indent: "Indent Options",
         table: "Insert Table",
         horizontal_rule: "Horizontal Rule",
+        insert_time: "Insert Current Time",
         clear: "Clear All Content",
         table_menu: {
             title: "Insert Table",

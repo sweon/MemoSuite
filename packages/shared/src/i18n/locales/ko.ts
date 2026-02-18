@@ -53,6 +53,7 @@ export const ko = {
         indent: "들여쓰기 옵션",
         table: "표 삽입",
         horizontal_rule: "구분선",
+        insert_time: "현재 시각 삽입",
         clear: "모든 내용 지우기",
         table_menu: {
             title: "표 삽입",
