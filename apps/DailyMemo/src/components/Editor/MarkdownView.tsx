@@ -1200,6 +1200,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '')) return;
+      if (document.activeElement?.getAttribute('contenteditable') === 'true' || document.activeElement?.closest('[contenteditable="true"]')) return;
       if (document.activeElement?.closest('.CodeMirror')) return;
       if (ACTIVE_YT_VIDEO_ID !== videoId) return;
       const player = playerRef.current;
