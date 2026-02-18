@@ -69,6 +69,14 @@ const ToolbarContainer = styled.div<{ $isPortaled?: boolean; $top?: number }>`
     top: ${props.$top || 0}px;
     z-index: 10;
   `}
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 4px 6px;
+    gap: 1.5px;
+  }
 `;
 
 const ToolbarRow = styled.div`
@@ -77,13 +85,19 @@ const ToolbarRow = styled.div`
   align-items: center;
   gap: 1.5px;
   padding: 4px 6px;
+
+  @media (min-width: 768px) {
+    display: contents;
+  }
 `;
 
 const CoreToolbarRow = styled(ToolbarRow)`
   background: ${props => props.theme.colors?.surface || "#fff"};
   border-bottom: 1px solid ${props => props.theme.colors?.border || "#eee"};
-  /* On mobile, we want this to be the primary sticky part if needed, 
-     but since ToolbarContainer is already sticky, this just ensures it's at the top. */
+  
+  @media (min-width: 768px) {
+    display: contents;
+  }
 `;
 
 const ToolbarButton = styled.button`
