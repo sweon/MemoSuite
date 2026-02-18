@@ -44,7 +44,7 @@ import {
     FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
     FaClock
 } from "react-icons/fa";
-import { FiPenTool, FiSidebar, FiSave, FiX, FiTrash2 } from "react-icons/fi";
+import { FiPenTool, FiSidebar, FiSave, FiX, FiTrash2, FiCheck } from "react-icons/fi";
 import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
 import { $createHandwritingNode } from "../nodes/HandwritingNode";
 import { $createSpreadsheetNode } from "../nodes/SpreadsheetNode";
@@ -1178,7 +1178,7 @@ export function ToolbarPlugin(props: {
                         disabled={props.saveDisabled}
                         style={{ opacity: props.saveDisabled ? 0.5 : 1, cursor: props.saveDisabled ? 'not-allowed' : 'pointer' }}
                     >
-                        <FiSave size={16} />
+                        <FiCheck size={16} />
                     </ToolbarButton>
                 </Tooltip>
             )}
