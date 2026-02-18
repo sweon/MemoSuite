@@ -42,7 +42,7 @@ import {
     FaBold, FaItalic, FaStrikethrough, FaCode,
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
     FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
-    FaClock
+    FaClock, FaEllipsisH
 } from "react-icons/fa";
 import { FiPenTool, FiSidebar, FiSave, FiX, FiTrash2, FiCheck } from "react-icons/fi";
 import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
@@ -456,6 +456,14 @@ export function ToolbarPlugin(props: {
     const [showTableMenu, setShowTableMenu] = useState(false);
     const tableMenuRef = useRef<HTMLDivElement>(null);
     const [tableConfig, setTableConfig] = useState({ rows: "3", columns: "3", headerRow: true, headerColumn: false });
+    const [showMoreOnMobile, setShowMoreOnMobile] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Destructure new props
 
@@ -791,16 +799,7 @@ export function ToolbarPlugin(props: {
 
     const toolbarContent = (
         <ToolbarContainer $isPortaled={!!portalTarget}>
-            {/* Sidebar Toggle */}
-            {onToggleSidebar && (
-                <Tooltip content={t.toolbar.toggle_sidebar}>
-                    <ToolbarButton onClick={onToggleSidebar} title={t.toolbar.toggle_sidebar}>
-                        <FiSidebar />
-                    </ToolbarButton>
-                </Tooltip>
-            )}
-
-            {/* Custom Buttons */}
+            {/* Core Mobile Buttons */}
             <Tooltip content={t.toolbar.handwriting}>
                 <ToolbarButton onClick={insertHandwriting} title={t.toolbar.handwriting} style={{ color: "#D55E00" }}>
                     <FiPenTool size={18} />
@@ -812,364 +811,7 @@ export function ToolbarPlugin(props: {
                 </ToolbarButton>
             </Tooltip>
 
-            {/* History */}
-            <Tooltip content={t.toolbar.undo}>
-                <ToolbarButton
-                    disabled={!canUndo}
-                    onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
-                    title={t.toolbar.undo}
-                >
-                    <FaUndo />
-                </ToolbarButton>
-            </Tooltip>
-            <Tooltip content={t.toolbar.redo}>
-                <ToolbarButton
-                    disabled={!canRedo}
-                    onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
-                    title={t.toolbar.redo}
-                >
-                    <FaRedo />
-                </ToolbarButton>
-            </Tooltip>
-
-            {/* Block Type */}
-            <SelectWrapper>
-                <BlockSelect
-                    value={blockType}
-                    onChange={(e) => {
-                        const type = e.target.value;
-                        if (type === "paragraph") formatParagraph();
-                        else if (type.startsWith("h")) formatHeading(type as HeadingTagType);
-                        else if (type === "bullet") formatBulletList();
-                        else if (type === "number") formatNumberedList();
-                        else if (type === "check") formatCheckList();
-                        else if (type === "quote") formatQuote();
-                    }}
-                >
-                    <option value="paragraph">{t.toolbar.normal}</option>
-                    <option value="h1">{t.toolbar.h1}</option>
-                    <option value="h2">{t.toolbar.h2}</option>
-                    <option value="h3">{t.toolbar.h3}</option>
-                    <option value="bullet">{t.toolbar.bullet_list}</option>
-                    <option value="number">{t.toolbar.numbered_list}</option>
-                    <option value="check">{t.toolbar.check_list}</option>
-                    <option value="quote">{t.toolbar.quote}</option>
-                </BlockSelect>
-                <SelectArrow />
-            </SelectWrapper>
-
-            {/* Inline Formatting */}
-            <Tooltip content={t.toolbar.bold}>
-                <ToolbarButton
-                    onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
-                    onMouseDown={(e) => e.preventDefault()}
-                    className={isBold ? "is-active" : ""}
-                    title={t.toolbar.bold}
-                >
-                    <FaBold />
-                </ToolbarButton>
-            </Tooltip>
-            <Tooltip content={t.toolbar.italic}>
-                <ToolbarButton
-                    onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
-                    onMouseDown={(e) => e.preventDefault()}
-                    className={isItalic ? "is-active" : ""}
-                    title={t.toolbar.italic}
-                >
-                    <FaItalic />
-                </ToolbarButton>
-            </Tooltip>
-            <Tooltip content={t.toolbar.underline}>
-                <ToolbarButton
-                    onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}
-                    onMouseDown={(e) => e.preventDefault()}
-                    className={isUnderline ? "is-active" : ""}
-                    title={t.toolbar.underline}
-                >
-                    <FaUnderline />
-                </ToolbarButton>
-            </Tooltip>
-            <Tooltip content={t.toolbar.strikethrough}>
-                <ToolbarButton
-                    onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}
-                    onMouseDown={(e) => e.preventDefault()}
-                    className={isStrikethrough ? "is-active" : ""}
-                    title={t.toolbar.strikethrough}
-                >
-                    <FaStrikethrough />
-                </ToolbarButton>
-            </Tooltip>
-
-            {/* Font Size Control */}
-            <FontSizeContainer>
-                <Tooltip content={t.toolbar.font_size}>
-                    <FontSizeDisplay>
-                        <FontSizeInput
-                            type="text"
-                            value={fontSize.replace("pt", "")}
-                            onChange={onFontSizeChange}
-                        />
-                        <FontSizeUnit>pt</FontSizeUnit>
-                    </FontSizeDisplay>
-                </Tooltip>
-                <FontSizeControls>
-                    <SpinButton
-                        onMouseDown={(e) => {
-                            e.preventDefault();
-                            startFontSizeInterval(true);
-                        }}
-                        onMouseUp={stopFontSizeInterval}
-                        onMouseLeave={stopFontSizeInterval}
-                        onPointerUp={stopFontSizeInterval}
-                    >
-                        <FaChevronUp />
-                    </SpinButton>
-                    <SpinButton
-                        onMouseDown={(e) => {
-                            e.preventDefault();
-                            startFontSizeInterval(false);
-                        }}
-                        onMouseUp={stopFontSizeInterval}
-                        onMouseLeave={stopFontSizeInterval}
-                        onPointerUp={stopFontSizeInterval}
-                    >
-                        <FaChevronDown />
-                    </SpinButton>
-                </FontSizeControls>
-            </FontSizeContainer>
-
-            {/* Color Picker Dropdown with Expanded Palette */}
-            <ColorPickerWrapper ref={colorMenuRef}>
-                <Tooltip content={t.toolbar.font_color}>
-                    <ToolbarButton
-                        onClick={() => {
-                            updateMenuAlignment('color', colorMenuRef);
-                            setShowColorMenu(!showColorMenu);
-                        }}
-                        className={showColorMenu ? "is-active" : ""}
-                        title={t.toolbar.font_color}
-                        style={{ color: fontColor !== "#000000" ? fontColor : undefined }}
-                    >
-                        <FaPalette />
-                    </ToolbarButton>
-                </Tooltip>
-
-                {showColorMenu && (
-                    <ColorMenu $rightAlign={menuAlignments.color}>
-                        <ColorGrid>
-                            {COLOR_PALETTE.map((row, rowIndex) => (
-                                <ColorRow key={`row - ${rowIndex} `}>
-                                    {row.map(color => (
-                                        <ColorOption
-                                            key={color}
-                                            color={color}
-                                            onClick={() => applyStyleText({ color })}
-                                            title={color}
-                                        />
-                                    ))}
-                                </ColorRow>
-                            ))}
-                        </ColorGrid>
-                        <CustomColorBtn onClick={() => colorInputRef.current?.click()}>
-                            <FaPlus size={10} /> {t.toolbar.custom_color}
-                        </CustomColorBtn>
-                    </ColorMenu>
-                )}
-
-                <HiddenColorInput
-                    type="color"
-                    ref={colorInputRef}
-                    value={fontColor}
-                    onChange={onFontColorSelect}
-                />
-            </ColorPickerWrapper>
-            <Tooltip content={t.toolbar.inline_code}>
-                <ToolbarButton
-                    onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}
-                    className={isCode ? "is-active" : ""}
-                    title={t.toolbar.inline_code}
-                >
-                    <FaCode />
-                </ToolbarButton>
-            </Tooltip>
-            <Tooltip content={t.toolbar.link}>
-                <ToolbarButton
-                    onClick={insertLink}
-                    className={isLink ? "is-active" : ""}
-                    title={t.toolbar.link}
-                >
-                    <FaLink />
-                </ToolbarButton>
-            </Tooltip>
-            <Tooltip content={t.toolbar.image}>
-                <ToolbarButton
-                    onClick={insertImage}
-                    title={t.toolbar.image}
-                >
-                    <FaImage />
-                </ToolbarButton>
-            </Tooltip>
-
-            <Tooltip content={t.toolbar.collapsible}>
-                <ToolbarButton
-                    onClick={insertCollapsible}
-                    title={t.toolbar.collapsible}
-                >
-                    <FaCaretDown />
-                </ToolbarButton>
-            </Tooltip>
-
-
-            {/* Alignments Dropdown */}
-            <ColorPickerWrapper ref={alignMenuRef}>
-                <Tooltip content={t.toolbar.alignment}>
-                    <ToolbarButton onClick={() => { updateMenuAlignment('align', alignMenuRef); setShowAlignMenu(!showAlignMenu); }} title={t.toolbar.alignment}>
-                        <FaAlignLeft />
-                    </ToolbarButton>
-                </Tooltip>
-                {showAlignMenu && (
-                    <FormatMenu $rightAlign={menuAlignments.align} style={{ minWidth: '120px' }}>
-                        <FormatOption onClick={() => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left"); setShowAlignMenu(false); }}>
-                            <FaAlignLeft style={{ marginRight: '8px' }} /> {t.toolbar.align.left}
-                        </FormatOption>
-                        <FormatOption onClick={() => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "center"); setShowAlignMenu(false); }}>
-                            <FaAlignCenter style={{ marginRight: '8px' }} /> {t.toolbar.align.center}
-                        </FormatOption>
-                        <FormatOption onClick={() => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "right"); setShowAlignMenu(false); }}>
-                            <FaAlignRight style={{ marginRight: '8px' }} /> {t.toolbar.align.right}
-                        </FormatOption>
-                        <FormatOption onClick={() => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "justify"); setShowAlignMenu(false); }}>
-                            <FaAlignJustify style={{ marginRight: '8px' }} /> {t.toolbar.align.justify}
-                        </FormatOption>
-                    </FormatMenu>
-                )}
-            </ColorPickerWrapper>
-
-
-            <ColorPickerWrapper ref={lineHeightMenuRef}>
-                <Tooltip content={t.toolbar.line_spacing}>
-                    <ToolbarButton onClick={() => { updateMenuAlignment('lineHeight', lineHeightMenuRef); setShowLineHeightMenu(!showLineHeightMenu); }} title={t.toolbar.line_spacing}>
-                        <RiLineHeight />
-                    </ToolbarButton>
-                </Tooltip>
-                {showLineHeightMenu && (
-                    <FormatMenu $rightAlign={menuAlignments.lineHeight}>
-                        {LINE_H_OPTIONS.map(height => (
-                            <FormatOption key={height} onClick={() => {
-                                applyStyleText({ 'line-height': height });
-                                setShowLineHeightMenu(false);
-                            }}>
-                                {height}
-                            </FormatOption>
-                        ))}
-                    </FormatMenu>
-                )}
-            </ColorPickerWrapper>
-
-            <ColorPickerWrapper ref={indentMenuRef}>
-                <Tooltip content={t.toolbar.indent}>
-                    <ToolbarButton onClick={() => { updateMenuAlignment('indent', indentMenuRef); setShowIndentMenu(!showIndentMenu); }} title={t.toolbar.indent}>
-                        <RiIndentIncrease />
-                    </ToolbarButton>
-                </Tooltip>
-                {showIndentMenu && (
-                    <FormatMenu $rightAlign={menuAlignments.indent} style={{ minWidth: '140px' }}>
-                        <FormatOption onClick={() => { editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }}>
-                            <RiIndentIncrease style={{ marginRight: '8px' }} /> {t.toolbar.indent_options.indent}
-                        </FormatOption>
-                        <FormatOption onClick={() => { editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }}>
-                            <RiIndentDecrease style={{ marginRight: '8px' }} /> {t.toolbar.indent_options.outdent}
-                        </FormatOption>
-                    </FormatMenu>
-                )}
-            </ColorPickerWrapper>
-
-            {/* Insert Nodes */}
-            {/* Table */}
-            <div style={{ position: 'relative' }} ref={tableMenuRef}>
-                <Tooltip content={t.toolbar.table}>
-                    <ToolbarButton
-                        onClick={() => { updateMenuAlignment('table', tableMenuRef); setShowTableMenu(!showTableMenu); }}
-                        className={showTableMenu ? "is-active" : ""}
-                    >
-                        <FaTable />
-                    </ToolbarButton>
-                </Tooltip>
-
-                {showTableMenu && (
-                    <TableInsertMenu $rightAlign={menuAlignments.table}>
-                        <MenuTitle>{t.toolbar.table_menu.title}</MenuTitle>
-                        <InputGroup>
-                            <label>{t.toolbar.table_menu.rows}</label>
-                            <input
-                                type="number"
-                                value={tableConfig.rows}
-                                onChange={(e) => setTableConfig({ ...tableConfig, rows: e.target.value })}
-                                min="1"
-                            />
-                        </InputGroup>
-                        <InputGroup>
-                            <label>{t.toolbar.table_menu.columns}</label>
-                            <input
-                                type="number"
-                                value={tableConfig.columns}
-                                onChange={(e) => setTableConfig({ ...tableConfig, columns: e.target.value })}
-                                min="1"
-                            />
-                        </InputGroup>
-                        <CheckboxGroup>
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={tableConfig.headerRow}
-                                    onChange={(e) => setTableConfig({ ...tableConfig, headerRow: e.target.checked })}
-                                />
-                                {t.toolbar.table_menu.header_row}
-                            </label>
-                        </CheckboxGroup>
-                        <CheckboxGroup>
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={tableConfig.headerColumn}
-                                    onChange={(e) => setTableConfig({ ...tableConfig, headerColumn: e.target.checked })}
-                                />
-                                {t.toolbar.table_menu.header_column}
-                            </label>
-                        </CheckboxGroup>
-                        <CreateButton onClick={insertTable}>{t.toolbar.table_menu.create}</CreateButton>
-                    </TableInsertMenu>
-                )}
-            </div>
-            <Tooltip content={t.toolbar.horizontal_rule}>
-                <ToolbarButton
-                    onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
-                    title={t.toolbar.horizontal_rule}
-                >
-                    <FaMinus />
-                </ToolbarButton>
-            </Tooltip>
-
-            <Tooltip content={t.toolbar.insert_time}>
-                <ToolbarButton
-                    onClick={insertTime}
-                    title={t.toolbar.insert_time}
-                >
-                    <FaClock />
-                </ToolbarButton>
-            </Tooltip>
-
-            {/* Utility */}
-            <Tooltip content={t.toolbar.clear}>
-                <ToolbarButton
-                    onClick={() => editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined)}
-                    title={t.toolbar.clear}
-                >
-                    <FaEraser />
-                </ToolbarButton>
-            </Tooltip>
-
-            {/* App Actions */}
+            {/* App Actions - Priority on mobile */}
             {props.onSave && (
                 <Tooltip content={props.saveLabel || "Save"}>
                     <ToolbarButton
@@ -1195,6 +837,390 @@ export function ToolbarPlugin(props: {
                         <FiTrash2 size={16} />
                     </ToolbarButton>
                 </Tooltip>
+            )}
+
+            {/* More Toggle for Mobile */}
+            {isMobile && (
+                <ToolbarButton
+                    onClick={() => setShowMoreOnMobile(!showMoreOnMobile)}
+                    className={showMoreOnMobile ? "is-active" : ""}
+                    title="More options"
+                >
+                    <FaEllipsisH />
+                </ToolbarButton>
+            )}
+
+            {/* Optional Buttons Group */}
+            {(!isMobile || showMoreOnMobile) && (
+                <>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5px', alignItems: 'center' }}>
+                        {/* Sidebar Toggle */}
+                        {onToggleSidebar && (
+                            <Tooltip content={t.toolbar.toggle_sidebar}>
+                                <ToolbarButton onClick={onToggleSidebar} title={t.toolbar.toggle_sidebar}>
+                                    <FiSidebar />
+                                </ToolbarButton>
+                            </Tooltip>
+                        )}
+
+                        {/* History */}
+                        <Tooltip content={t.toolbar.undo}>
+                            <ToolbarButton
+                                disabled={!canUndo}
+                                onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+                                title={t.toolbar.undo}
+                            >
+                                <FaUndo />
+                            </ToolbarButton>
+                        </Tooltip>
+                        <Tooltip content={t.toolbar.redo}>
+                            <ToolbarButton
+                                disabled={!canRedo}
+                                onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+                                title={t.toolbar.redo}
+                            >
+                                <FaRedo />
+                            </ToolbarButton>
+                        </Tooltip>
+
+                        {/* Block Type */}
+                        <SelectWrapper>
+                            <BlockSelect
+                                value={blockType}
+                                onChange={(e) => {
+                                    const type = e.target.value;
+                                    if (type === "paragraph") formatParagraph();
+                                    else if (type.startsWith("h")) formatHeading(type as HeadingTagType);
+                                    else if (type === "bullet") formatBulletList();
+                                    else if (type === "number") formatNumberedList();
+                                    else if (type === "check") formatCheckList();
+                                    else if (type === "quote") formatQuote();
+                                }}
+                            >
+                                <option value="paragraph">{t.toolbar.normal}</option>
+                                <option value="h1">{t.toolbar.h1}</option>
+                                <option value="h2">{t.toolbar.h2}</option>
+                                <option value="h3">{t.toolbar.h3}</option>
+                                <option value="bullet">{t.toolbar.bullet_list}</option>
+                                <option value="number">{t.toolbar.numbered_list}</option>
+                                <option value="check">{t.toolbar.check_list}</option>
+                                <option value="quote">{t.toolbar.quote}</option>
+                            </BlockSelect>
+                            <SelectArrow />
+                        </SelectWrapper>
+
+                        {/* Inline Formatting */}
+                        <Tooltip content={t.toolbar.bold}>
+                            <ToolbarButton
+                                onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
+                                onMouseDown={(e) => e.preventDefault()}
+                                className={isBold ? "is-active" : ""}
+                                title={t.toolbar.bold}
+                            >
+                                <FaBold />
+                            </ToolbarButton>
+                        </Tooltip>
+                        <Tooltip content={t.toolbar.italic}>
+                            <ToolbarButton
+                                onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
+                                onMouseDown={(e) => e.preventDefault()}
+                                className={isItalic ? "is-active" : ""}
+                                title={t.toolbar.italic}
+                            >
+                                <FaItalic />
+                            </ToolbarButton>
+                        </Tooltip>
+                        <Tooltip content={t.toolbar.underline}>
+                            <ToolbarButton
+                                onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}
+                                onMouseDown={(e) => e.preventDefault()}
+                                className={isUnderline ? "is-active" : ""}
+                                title={t.toolbar.underline}
+                            >
+                                <FaUnderline />
+                            </ToolbarButton>
+                        </Tooltip>
+                        <Tooltip content={t.toolbar.strikethrough}>
+                            <ToolbarButton
+                                onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}
+                                onMouseDown={(e) => e.preventDefault()}
+                                className={isStrikethrough ? "is-active" : ""}
+                                title={t.toolbar.strikethrough}
+                            >
+                                <FaStrikethrough />
+                            </ToolbarButton>
+                        </Tooltip>
+
+                        {/* Font Size Control */}
+                        <FontSizeContainer>
+                            <Tooltip content={t.toolbar.font_size}>
+                                <FontSizeDisplay>
+                                    <FontSizeInput
+                                        type="text"
+                                        value={fontSize.replace("pt", "")}
+                                        onChange={onFontSizeChange}
+                                    />
+                                    <FontSizeUnit>pt</FontSizeUnit>
+                                </FontSizeDisplay>
+                            </Tooltip>
+                            <FontSizeControls>
+                                <SpinButton
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        startFontSizeInterval(true);
+                                    }}
+                                    onMouseUp={stopFontSizeInterval}
+                                    onMouseLeave={stopFontSizeInterval}
+                                    onPointerUp={stopFontSizeInterval}
+                                >
+                                    <FaChevronUp />
+                                </SpinButton>
+                                <SpinButton
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        startFontSizeInterval(false);
+                                    }}
+                                    onMouseUp={stopFontSizeInterval}
+                                    onMouseLeave={stopFontSizeInterval}
+                                    onPointerUp={stopFontSizeInterval}
+                                >
+                                    <FaChevronDown />
+                                </SpinButton>
+                            </FontSizeControls>
+                        </FontSizeContainer>
+
+                        {/* Color Picker Dropdown with Expanded Palette */}
+                        <ColorPickerWrapper ref={colorMenuRef}>
+                            <Tooltip content={t.toolbar.font_color}>
+                                <ToolbarButton
+                                    onClick={() => {
+                                        updateMenuAlignment('color', colorMenuRef);
+                                        setShowColorMenu(!showColorMenu);
+                                    }}
+                                    className={showColorMenu ? "is-active" : ""}
+                                    title={t.toolbar.font_color}
+                                    style={{ color: fontColor !== "#000000" ? fontColor : undefined }}
+                                >
+                                    <FaPalette />
+                                </ToolbarButton>
+                            </Tooltip>
+
+                            {showColorMenu && (
+                                <ColorMenu $rightAlign={menuAlignments.color}>
+                                    <ColorGrid>
+                                        {COLOR_PALETTE.map((row, rowIndex) => (
+                                            <ColorRow key={`row - ${rowIndex} `}>
+                                                {row.map(color => (
+                                                    <ColorOption
+                                                        key={color}
+                                                        color={color}
+                                                        onClick={() => applyStyleText({ color })}
+                                                        title={color}
+                                                    />
+                                                ))}
+                                            </ColorRow>
+                                        ))}
+                                    </ColorGrid>
+                                    <CustomColorBtn onClick={() => colorInputRef.current?.click()}>
+                                        <FaPlus size={10} /> {t.toolbar.custom_color}
+                                    </CustomColorBtn>
+                                </ColorMenu>
+                            )}
+
+                            <HiddenColorInput
+                                type="color"
+                                ref={colorInputRef}
+                                value={fontColor}
+                                onChange={onFontColorSelect}
+                            />
+                        </ColorPickerWrapper>
+                        <Tooltip content={t.toolbar.inline_code}>
+                            <ToolbarButton
+                                onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}
+                                className={isCode ? "is-active" : ""}
+                                title={t.toolbar.inline_code}
+                            >
+                                <FaCode />
+                            </ToolbarButton>
+                        </Tooltip>
+                        <Tooltip content={t.toolbar.link}>
+                            <ToolbarButton
+                                onClick={insertLink}
+                                className={isLink ? "is-active" : ""}
+                                title={t.toolbar.link}
+                            >
+                                <FaLink />
+                            </ToolbarButton>
+                        </Tooltip>
+                        <Tooltip content={t.toolbar.image}>
+                            <ToolbarButton
+                                onClick={insertImage}
+                                title={t.toolbar.image}
+                            >
+                                <FaImage />
+                            </ToolbarButton>
+                        </Tooltip>
+
+                        <Tooltip content={t.toolbar.collapsible}>
+                            <ToolbarButton
+                                onClick={insertCollapsible}
+                                title={t.toolbar.collapsible}
+                            >
+                                <FaCaretDown />
+                            </ToolbarButton>
+                        </Tooltip>
+
+
+                        {/* Alignments Dropdown */}
+                        <ColorPickerWrapper ref={alignMenuRef}>
+                            <Tooltip content={t.toolbar.alignment}>
+                                <ToolbarButton onClick={() => { updateMenuAlignment('align', alignMenuRef); setShowAlignMenu(!showAlignMenu); }} title={t.toolbar.alignment}>
+                                    <FaAlignLeft />
+                                </ToolbarButton>
+                            </Tooltip>
+                            {showAlignMenu && (
+                                <FormatMenu $rightAlign={menuAlignments.align} style={{ minWidth: '120px' }}>
+                                    <FormatOption onClick={() => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left"); setShowAlignMenu(false); }}>
+                                        <FaAlignLeft style={{ marginRight: '8px' }} /> {t.toolbar.align.left}
+                                    </FormatOption>
+                                    <FormatOption onClick={() => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "center"); setShowAlignMenu(false); }}>
+                                        <FaAlignCenter style={{ marginRight: '8px' }} /> {t.toolbar.align.center}
+                                    </FormatOption>
+                                    <FormatOption onClick={() => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "right"); setShowAlignMenu(false); }}>
+                                        <FaAlignRight style={{ marginRight: '8px' }} /> {t.toolbar.align.right}
+                                    </FormatOption>
+                                    <FormatOption onClick={() => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "justify"); setShowAlignMenu(false); }}>
+                                        <FaAlignJustify style={{ marginRight: '8px' }} /> {t.toolbar.align.justify}
+                                    </FormatOption>
+                                </FormatMenu>
+                            )}
+                        </ColorPickerWrapper>
+
+
+                        <ColorPickerWrapper ref={lineHeightMenuRef}>
+                            <Tooltip content={t.toolbar.line_spacing}>
+                                <ToolbarButton onClick={() => { updateMenuAlignment('lineHeight', lineHeightMenuRef); setShowLineHeightMenu(!showLineHeightMenu); }} title={t.toolbar.line_spacing}>
+                                    <RiLineHeight />
+                                </ToolbarButton>
+                            </Tooltip>
+                            {showLineHeightMenu && (
+                                <FormatMenu $rightAlign={menuAlignments.lineHeight}>
+                                    {LINE_H_OPTIONS.map(height => (
+                                        <FormatOption key={height} onClick={() => {
+                                            applyStyleText({ 'line-height': height });
+                                            setShowLineHeightMenu(false);
+                                        }}>
+                                            {height}
+                                        </FormatOption>
+                                    ))}
+                                </FormatMenu>
+                            )}
+                        </ColorPickerWrapper>
+
+                        <ColorPickerWrapper ref={indentMenuRef}>
+                            <Tooltip content={t.toolbar.indent}>
+                                <ToolbarButton onClick={() => { updateMenuAlignment('indent', indentMenuRef); setShowIndentMenu(!showIndentMenu); }} title={t.toolbar.indent}>
+                                    <RiIndentIncrease />
+                                </ToolbarButton>
+                            </Tooltip>
+                            {showIndentMenu && (
+                                <FormatMenu $rightAlign={menuAlignments.indent} style={{ minWidth: '140px' }}>
+                                    <FormatOption onClick={() => { editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }}>
+                                        <RiIndentIncrease style={{ marginRight: '8px' }} /> {t.toolbar.indent_options.indent}
+                                    </FormatOption>
+                                    <FormatOption onClick={() => { editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }}>
+                                        <RiIndentDecrease style={{ marginRight: '8px' }} /> {t.toolbar.indent_options.outdent}
+                                    </FormatOption>
+                                </FormatMenu>
+                            )}
+                        </ColorPickerWrapper>
+
+                        {/* Insert Nodes */}
+                        {/* Table */}
+                        <div style={{ position: 'relative' }} ref={tableMenuRef}>
+                            <Tooltip content={t.toolbar.table}>
+                                <ToolbarButton
+                                    onClick={() => { updateMenuAlignment('table', tableMenuRef); setShowTableMenu(!showTableMenu); }}
+                                    className={showTableMenu ? "is-active" : ""}
+                                >
+                                    <FaTable />
+                                </ToolbarButton>
+                            </Tooltip>
+
+                            {showTableMenu && (
+                                <TableInsertMenu $rightAlign={menuAlignments.table}>
+                                    <MenuTitle>{t.toolbar.table_menu.title}</MenuTitle>
+                                    <InputGroup>
+                                        <label>{t.toolbar.table_menu.rows}</label>
+                                        <input
+                                            type="number"
+                                            value={tableConfig.rows}
+                                            onChange={(e) => setTableConfig({ ...tableConfig, rows: e.target.value })}
+                                            min="1"
+                                        />
+                                    </InputGroup>
+                                    <InputGroup>
+                                        <label>{t.toolbar.table_menu.columns}</label>
+                                        <input
+                                            type="number"
+                                            value={tableConfig.columns}
+                                            onChange={(e) => setTableConfig({ ...tableConfig, columns: e.target.value })}
+                                            min="1"
+                                        />
+                                    </InputGroup>
+                                    <CheckboxGroup>
+                                        <label>
+                                            <input
+                                                type="checkbox"
+                                                checked={tableConfig.headerRow}
+                                                onChange={(e) => setTableConfig({ ...tableConfig, headerRow: e.target.checked })}
+                                            />
+                                            {t.toolbar.table_menu.header_row}
+                                        </label>
+                                    </CheckboxGroup>
+                                    <CheckboxGroup>
+                                        <label>
+                                            <input
+                                                type="checkbox"
+                                                checked={tableConfig.headerColumn}
+                                                onChange={(e) => setTableConfig({ ...tableConfig, headerColumn: e.target.checked })}
+                                            />
+                                            {t.toolbar.table_menu.header_column}
+                                        </label>
+                                    </CheckboxGroup>
+                                    <CreateButton onClick={insertTable}>{t.toolbar.table_menu.create}</CreateButton>
+                                </TableInsertMenu>
+                            )}
+                        </div>
+                        <Tooltip content={t.toolbar.horizontal_rule}>
+                            <ToolbarButton
+                                onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
+                                title={t.toolbar.horizontal_rule}
+                            >
+                                <FaMinus />
+                            </ToolbarButton>
+                        </Tooltip>
+
+                        <Tooltip content={t.toolbar.insert_time}>
+                            <ToolbarButton
+                                onClick={insertTime}
+                                title={t.toolbar.insert_time}
+                            >
+                                <FaClock />
+                            </ToolbarButton>
+                        </Tooltip>
+
+                        {/* Utility */}
+                        <Tooltip content={t.toolbar.clear}>
+                            <ToolbarButton
+                                onClick={() => editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined)}
+                                title={t.toolbar.clear}
+                            >
+                                <FaEraser />
+                            </ToolbarButton>
+                        </Tooltip>
+                    </div>
+                </>
             )}
         </ToolbarContainer>
     );
