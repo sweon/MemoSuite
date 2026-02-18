@@ -1635,15 +1635,13 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 >
                   <FiPrinter size={14} /> {language === "ko" ? "인쇄" : "Print"}
                 </ActionButton>
-                {!isReadOnly && (
-                  <ActionButton
-                    $variant="danger"
-                    onClick={handleDelete}
-                    $mobileOrder={11}
-                  >
-                    <FiTrash2 size={13} /> {t.word_detail.delete}
-                  </ActionButton>
-                )}
+                <ActionButton
+                  $variant="danger"
+                  onClick={handleDelete}
+                  $mobileOrder={11}
+                >
+                  <FiTrash2 size={13} /> {t.word_detail.delete}
+                </ActionButton>
 
                 <StarButton
                   $active={!!word?.isStarred}
