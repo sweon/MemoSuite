@@ -1352,6 +1352,7 @@ export const MemoDetail: React.FC = () => {
                             exitLabel={t.memo_detail.exit}
                             deleteLabel={t.memo_detail.delete}
                             saveDisabled={!isCurrentlyDirty || (!!quote.trim() && !pageNumber)}
+                            stickyOffset={headerHeight}
                         />
                     </ContentPadding>
                 ) : (

@@ -514,6 +514,7 @@ export interface LexicalEditorProps {
   exitLabel?: string;
   deleteLabel?: string;
   saveDisabled?: boolean;
+  stickyOffset?: number;
 }
 
 export const LexicalEditor: React.FC<LexicalEditorProps> = ({
@@ -534,7 +535,8 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   saveLabel,
   exitLabel,
   deleteLabel,
-  saveDisabled
+  saveDisabled,
+  stickyOffset
 }) => {
   const initialConfig = useMemo(() => ({
     namespace: "MemoSuiteEditor",
@@ -576,6 +578,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
           exitLabel={exitLabel}
           deleteLabel={deleteLabel}
           saveDisabled={saveDisabled}
+          stickyOffset={stickyOffset}
         />
         <div className="editor-inner" style={{ position: 'relative' }}>
           <RichTextPlugin

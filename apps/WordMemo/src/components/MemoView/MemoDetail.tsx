@@ -1683,6 +1683,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
               exitLabel={t.word_detail.exit}
               deleteLabel={t.word_detail.delete}
               saveDisabled={!isCurrentlyDirty}
+              stickyOffset={headerHeight}
             />
           </ContentPadding>
         ) : (

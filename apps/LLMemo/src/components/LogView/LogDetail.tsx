@@ -1244,6 +1244,7 @@ export const LogDetail: React.FC = () => {
               onExit={handleExit}
               saveLabel={t.log_detail.save}
               exitLabel={t.log_detail.exit}
+              stickyOffset={headerHeight}
             />
           ) : (
             <MarkdownView
