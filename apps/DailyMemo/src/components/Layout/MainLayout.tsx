@@ -542,11 +542,20 @@ const SidebarWrapper = styled.div<{ $isOpen: boolean; $width: number }>`
   background: ${({ theme }) => theme.colors.surface};
   display: flex;
   flex-direction: column;
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.1s linear;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   z-index: 20;
   user-select: none;
   -webkit-user-select: none;
+
+  @media (min-width: 769px) {
+    ${({ $isOpen }) => !$isOpen && `
+      width: 0 !important;
+      min-width: 0 !important;
+      border-right: none;
+      overflow: hidden;
+    `}
+  }
 
   @media (max-width: 768px) {
     width: ${({ $width }) => $width}px !important;
@@ -624,8 +633,8 @@ const ResizeHandle = styled.div<{ $isResizing: boolean; $isVisible: boolean }>`
   }
 `;
 
-const MobileHeader = styled.div`
-  display: none;
+const MobileHeader = styled.div<{ $isOpen: boolean }>`
+  display: ${({ $isOpen }) => ($isOpen ? 'none' : 'flex')};
   padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   background: ${({ theme }) => theme.colors.glassBackground};
@@ -698,6 +707,12 @@ export const MainLayout: React.FC = () => {
       setSidebarOpen(true);
     }
   }, [location.pathname, isMobile]);
+
+  useEffect(() => {
+    if (isAppEditing) {
+      setSidebarOpen(false);
+    }
+  }, [isAppEditing]);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     const isMobileInitial = window.innerWidth <= 768;
@@ -1500,7 +1515,7 @@ export const MainLayout: React.FC = () => {
           />
         </SidebarWrapper>
         <ContentWrapper id="app-content-wrapper-area">
-          <MobileHeader>
+          <MobileHeader $isOpen={isSidebarOpen}>
             {!isSidebarOpen && <FiMenu size={24} onClick={() => toggleSidebar(true)} />}
             <h3>DailyMemo</h3>
           </MobileHeader>
