@@ -634,7 +634,7 @@ const ResizeHandle = styled.div<{ $isResizing: boolean; $isVisible: boolean }>`
 `;
 
 const MobileHeader = styled.div<{ $isOpen: boolean }>`
-  display: ${({ $isOpen }) => ($isOpen ? 'none' : 'flex')};
+  display: none;
   padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   background: ${({ theme }) => theme.colors.glassBackground};
@@ -653,7 +653,7 @@ const MobileHeader = styled.div<{ $isOpen: boolean }>`
   }
 
   @media (max-width: 768px) {
-    display: flex;
+    display: ${({ $isOpen }) => ($isOpen ? "none" : "flex")};
   }
 
   @media print {
@@ -713,10 +713,16 @@ export const MainLayout: React.FC = () => {
   }, [location.pathname, isMobile]);
 
   useEffect(() => {
-    if (isAppEditing) {
+    if (isMobile && isAppEditing) {
       setSidebarOpen(false);
     }
-  }, [isAppEditing]);
+  }, [isAppEditing, isMobile]);
+
+  useEffect(() => {
+    if (!isMobile && !isSidebarOpen) {
+      setSidebarOpen(true);
+    }
+  }, [isMobile, isSidebarOpen]);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     const isMobileInitial = window.innerWidth <= 768;
