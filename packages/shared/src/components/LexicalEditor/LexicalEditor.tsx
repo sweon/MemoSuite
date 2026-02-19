@@ -287,7 +287,7 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
 
     /* Target the content area */
     & > *:not(summary) {
-      margin-bottom: 12px;
+      margin-bottom: 0px;
     }
   }
 `;

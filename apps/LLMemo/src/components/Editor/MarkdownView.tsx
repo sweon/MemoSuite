@@ -303,7 +303,7 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
     }
 
     & > *:not(summary) {
-      margin-bottom: 4px;
+      margin-bottom: 0px;
     }
   }
 `;
