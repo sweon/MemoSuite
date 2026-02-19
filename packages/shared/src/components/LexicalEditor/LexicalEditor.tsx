@@ -465,6 +465,8 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
     }
   }, [editor, value]);
 
+  const firstUpdateRef = useRef(true);
+
   // Export to outside
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState, tags }) => {
@@ -485,12 +487,6 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
               break;
             }
           }
-          // If we have trailing empty paragraphs, they represent newlines the user added
-          // Note: the first empty paragraph is usually part of the last text, so we add for n-1? 
-          // Actually, if we have 2 paragraphs and both are empty, it's 2 enters.
-          // Let's just append trailingNewlines - (markdown ? 0 : 0) ? 
-          // Simple approach: if Lexical has more paragraphs than Markdown has lines, append.
-          // But let's be more precise:
           if (trailingNewlines > 0) {
             markdown = markdown.replace(/\n+$/, '') + '\n'.repeat(trailingNewlines);
           }
@@ -502,12 +498,25 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
         }
 
         if (markdown !== lastNormalizedValueRef.current) {
+          // If this is the very first update after mount (and not an 'import' tag update),
+          // it might be Lexical's internal normalization.
+          // We ignore it if the trimmed content is the same, to avoid marking the parent as dirty.
+          if (firstUpdateRef.current) {
+            firstUpdateRef.current = false;
+            if (markdown.trim() === value.trim()) {
+              lastNormalizedValueRef.current = markdown;
+              return;
+            }
+          }
+
           lastNormalizedValueRef.current = markdown;
           onChange(markdown);
+        } else {
+          firstUpdateRef.current = false;
         }
       });
     });
-  }, [editor, onChange]);
+  }, [editor, onChange, value]);
 
   return null;
 }
