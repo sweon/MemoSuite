@@ -307,7 +307,7 @@ type SubMenu = 'main' | 'data' | 'editor' | 'theme' | 'language' | 'about' | 'ap
 export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ autoBackup }) => {
   const { t, language } = useLanguage();
   const { confirm } = useConfirm();
-  useColorTheme();
+  const { fontSize, setFontSize, increaseFontSize, decreaseFontSize } = useColorTheme();
   const [currentSubMenu, setCurrentSubMenu] = useState<SubMenu>('main');
 
   const [spellCheck, setSpellCheck] = useState(() => localStorage.getItem('spellCheck') !== 'false');
@@ -315,7 +315,6 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
   const [autoLink, setAutoLink] = useState(() => localStorage.getItem('editor_auto_link') !== 'false');
   const [tabIndentation, setTabIndentation] = useState(() => localStorage.getItem('editor_tab_indentation') !== 'false');
   const [tabSize, setTabSize] = useState(() => Number(localStorage.getItem('editor_tab_size') || '4'));
-  const [fontSize, setFontSize] = useState(() => Number(localStorage.getItem('editor_font_size') || '11'));
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(() => localStorage.getItem('auto_update_enabled') === 'true');
 
   const fontSizeIntervalRef = React.useRef<any>(null);
@@ -420,11 +419,11 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
   };
 
   const updateFontSize = (increment: boolean) => {
-    setFontSize(prev => {
-      const next = increment ? Math.min(99, prev + 1) : Math.max(1, prev - 1);
-      localStorage.setItem('editor_font_size', String(next));
-      return next;
-    });
+    if (increment) {
+      increaseFontSize();
+    } else {
+      decreaseFontSize();
+    }
   };
 
   const startFontSizeInterval = (increment: boolean) => {
@@ -455,9 +454,8 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
     }
     const num = parseInt(val);
     if (!isNaN(num)) {
-      const clamped = Math.max(1, Math.min(99, num));
+      const clamped = Math.max(12, Math.min(24, num));
       setFontSize(clamped);
-      localStorage.setItem('editor_font_size', String(clamped));
     }
   };
 
@@ -634,7 +632,7 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
               <FontSizeContainer>
                 <FontSizeControls>
                   <SpinButton
-                    
+
                     onMouseDown={(e) => { e.preventDefault(); startFontSizeInterval(true); }}
                     onMouseUp={stopFontSizeInterval}
                     onMouseLeave={stopFontSizeInterval} onPointerUp={stopFontSizeInterval}
@@ -642,7 +640,7 @@ export const SettingsPage: React.FC<{ autoBackup?: UseAutoBackupReturn }> = ({ a
                     <FiChevronUp />
                   </SpinButton>
                   <SpinButton
-                    
+
                     onMouseDown={(e) => { e.preventDefault(); startFontSizeInterval(false); }}
                     onMouseUp={stopFontSizeInterval}
                     onMouseLeave={stopFontSizeInterval} onPointerUp={stopFontSizeInterval}

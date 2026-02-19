@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useLanguage, useModal, metadataCache, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext, PrintSettingsModal } from '@memosuite/shared';
+import { SyncModal, useLanguage, useModal, metadataCache, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext, PrintSettingsModal, useColorTheme } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
@@ -380,6 +380,7 @@ export const MemoDetail: React.FC = () => {
     const { setSearchQuery } = useSearch();
     const { t, language } = useLanguage();
     const { confirm, choice } = useModal();
+    const { fontSize } = useColorTheme();
     const location = useLocation();
     const isNew = !id;
 
@@ -1307,7 +1308,7 @@ export const MemoDetail: React.FC = () => {
                             autoLink={localStorage.getItem('editor_auto_link') !== 'false'}
                             tabIndentation={localStorage.getItem('editor_tab_indentation') !== 'false'}
                             tabSize={Number(localStorage.getItem('editor_tab_size') || '4')}
-                            fontSize={Number(localStorage.getItem('editor_font_size') || '11')}
+                            fontSize={fontSize}
                             onSave={() => handleSave()}
                             onExit={handleExit}
                             onDelete={!isNew ? handleDelete : undefined}
@@ -1325,7 +1326,7 @@ export const MemoDetail: React.FC = () => {
                                 content={content}
                                 memoId={Number(id)}
                                 isReadOnly={isCurrentFolderReadOnly}
-                                fontSize={Number(localStorage.getItem('editor_font_size') || '11')}
+                                fontSize={fontSize}
                                 onEditDrawing={(json) => {
                                     fabricCheckpointRef.current = content;
                                     setEditingDrawingData(json);

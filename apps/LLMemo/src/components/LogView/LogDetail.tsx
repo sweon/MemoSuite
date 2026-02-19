@@ -7,6 +7,7 @@ import {
   buildThreadNavigationUrl,
   extractThreadContext,
   PrintSettingsModal,
+  useColorTheme,
 } from "@memosuite/shared";
 
 import styled from "styled-components";
@@ -352,8 +353,9 @@ export const LogDetail: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const { language, t } = useLanguage();
-  const { choice } = useModal();
+  const { t, language } = useLanguage();
+  const { confirm, choice, prompt: modalPrompt } = useModal();
+  const { fontSize } = useColorTheme();
 
   // Guard Hook
   const { registerGuard, unregisterGuard } = useExitGuard();
@@ -1270,7 +1272,7 @@ export const LogDetail: React.FC = () => {
                 localStorage.getItem("editor_tab_indentation") !== "false"
               }
               tabSize={Number(localStorage.getItem("editor_tab_size") || "4")}
-              fontSize={Number(localStorage.getItem("editor_font_size") || "11")}
+              fontSize={fontSize}
               onSave={() => handleSave()}
               onExit={handleExit}
               saveLabel={t.log_detail.save}
@@ -1282,7 +1284,7 @@ export const LogDetail: React.FC = () => {
             <MarkdownView
               content={content}
               memoId={Number(id)}
-              fontSize={Number(localStorage.getItem('editor_font_size') || '11')}
+              fontSize={fontSize}
             />
           )}
         </ContentPadding>

@@ -7,6 +7,7 @@ import {
   buildThreadNavigationUrl,
   extractThreadContext,
   PrintSettingsModal,
+  useColorTheme,
 } from "@memosuite/shared";
 
 import styled from "styled-components";
@@ -411,6 +412,7 @@ export const MemoDetail: React.FC = () => {
   const { setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
   const { confirm, choice, prompt: modalPrompt } = useModal();
+  const { fontSize } = useColorTheme();
 
   // Guard Hook
   const { registerGuard, unregisterGuard } = useExitGuard();
@@ -1672,7 +1674,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 localStorage.getItem("editor_tab_indentation") !== "false"
               }
               tabSize={Number(localStorage.getItem("editor_tab_size") || "4")}
-              fontSize={Number(localStorage.getItem("editor_font_size") || "11")}
+              fontSize={fontSize}
               onSave={() => handleSave()}
               onExit={handleExit}
               onDelete={!isNew ? handleDelete : undefined}
@@ -1706,7 +1708,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 wordTitle={word?.title}
                 studyMode={studyMode}
                 isReadOnly={isReadOnly}
-                fontSize={Number(localStorage.getItem('editor_font_size') || '11')}
+                fontSize={fontSize}
                 onEditDrawing={(json) => {
                   if (isReadOnly) return;
                   fabricCheckpointRef.current = content;

@@ -8,6 +8,7 @@ interface ColorThemeContextType {
     mode: ThemeMode;
     toggleTheme: () => void;
     fontSize: number;
+    setFontSize: (size: number) => void;
     increaseFontSize: () => void;
     decreaseFontSize: () => void;
     theme: Theme;
@@ -200,6 +201,7 @@ export const ColorThemeProvider: React.FC<ColorThemeProviderProps> = ({
             mode,
             toggleTheme,
             fontSize,
+            setFontSize,
             increaseFontSize,
             decreaseFontSize,
             theme: currentTheme,
