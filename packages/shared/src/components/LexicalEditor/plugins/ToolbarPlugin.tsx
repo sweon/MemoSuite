@@ -110,11 +110,14 @@ export const ToolbarButton = styled.button`
   cursor: pointer;
   color: ${(props: any) => props.theme.colors?.text || "#555"};
   font-size: 13px;
+  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 28px;
   min-height: 28px;
+  gap: 6px;
+  padding: 4px 8px;
   transition: all 0.15s ease;
 
   &:hover:not(:disabled) {

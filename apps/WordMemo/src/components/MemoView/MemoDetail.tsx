@@ -1685,12 +1685,12 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                 <>
                   <Tooltip content={t.word_detail.random_word}>
                     <ToolbarButton onClick={handleRandomWord}>
-                      <FiList size={16} />
+                      <FiList size={14} /> <span>{t.word_detail.random_word}</span>
                     </ToolbarButton>
                   </Tooltip>
                   <Tooltip content={t.word_detail.bulk_add}>
                     <ToolbarButton onClick={() => setShowBulkAdd(true)}>
-                      <FiPlus size={16} />
+                      <FiPlus size={14} /> <span>{t.word_detail.bulk_add}</span>
                     </ToolbarButton>
                   </Tooltip>
                 </>
