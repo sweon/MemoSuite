@@ -4,7 +4,7 @@ import { AuthProvider, ColorThemeProvider, GlobalStyle, InstallPrompt, LanguageP
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { SearchProvider } from './contexts/SearchContext';
-import { FolderProvider } from './contexts/FolderContext';
+import { FolderProvider, useFolder } from './contexts/FolderContext';
 import { translations } from './translations';
 import { MainLayout } from './components/Layout/MainLayout';
 import { LogDetail } from './components/LogView/LogDetail';
@@ -13,6 +13,14 @@ import { SettingsPage } from './pages/SettingsPage';
 import { FolderPage } from './pages/FolderPage';
 import { ExitGuardProvider } from '@memosuite/shared-drawing';
 import { db } from './db';
+
+const FolderContentDispatcher = () => {
+  const { subfolders } = useFolder();
+  if (subfolders.length > 0) {
+    return <FolderPage />;
+  }
+  return <EmptyState />;
+};
 
 function AppContent() {
   const { t, language } = useLanguage();
@@ -129,7 +137,7 @@ function AppContent() {
                 <BackupReminder autoBackup={autoBackup} language={language} />
                 <Routes>
                   <Route path="/" element={<MainLayout />}>
-                    <Route index element={<EmptyState />} />
+                    <Route index element={<FolderContentDispatcher />} />
                     <Route path="folders" element={<FolderPage />} />
                     <Route path="new" element={<LogDetail />} />
                     <Route path="log/:id" element={<LogDetail />} />

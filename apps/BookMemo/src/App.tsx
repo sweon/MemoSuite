@@ -17,6 +17,15 @@ import { SettingsPage } from './pages/SettingsPage';
 import { FolderPage } from './pages/FolderPage';
 
 import { db } from './db';
+import { useFolder } from './contexts/FolderContext';
+
+const FolderContentDispatcher = () => {
+  const { subfolders } = useFolder();
+  if (subfolders.length > 0) {
+    return <FolderPage />;
+  }
+  return <EmptyState />;
+};
 
 function AppContent() {
   const { t, language } = useLanguage();
@@ -137,7 +146,7 @@ function AppContent() {
                 <BackupReminder autoBackup={autoBackup} language={language} />
                 <Routes>
                   <Route path="/" element={<MainLayout />}>
-                    <Route index element={<EmptyState />} />
+                    <Route index element={<FolderContentDispatcher />} />
                     <Route path="folders" element={<FolderPage />} />
                     <Route path="book/new" element={<AddBookPage />} />
                     <Route path="book/:bookId" element={<BookDetail />}>

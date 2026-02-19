@@ -17,6 +17,15 @@ import { Toast } from './components/UI/Toast';
 import pkg from '../package.json';
 import { db } from './db';
 import { useParams } from 'react-router-dom';
+import { useFolder } from './contexts/FolderContext';
+
+const FolderContentDispatcher = () => {
+  const { subfolders } = useFolder();
+  if (subfolders.length > 0) {
+    return <FolderPage />;
+  }
+  return <EmptyState />;
+};
 
 const MemoDetailWrapper = () => {
   const { id } = useParams();
@@ -151,7 +160,7 @@ function AppContent() {
                 )}
                 <Routes>
                   <Route path="/" element={<MainLayout />}>
-                    <Route index element={<EmptyState />} />
+                    <Route index element={<FolderContentDispatcher />} />
                     <Route path="memo/new" element={<MemoDetail key="new" />} />
                     <Route path="memo/:id" element={<MemoDetailWrapper />} />
                     <Route path="settings" element={<SettingsPage autoBackup={autoBackup} />} />
