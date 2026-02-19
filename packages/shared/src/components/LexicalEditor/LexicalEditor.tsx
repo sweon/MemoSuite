@@ -15,19 +15,29 @@ import { AutoLinkPlugin } from "@lexical/react/LexicalAutoLinkPlugin";
 import { ClearEditorPlugin } from "@lexical/react/LexicalClearEditorPlugin";
 import { TRANSFORMERS, CHECK_LIST } from "@lexical/markdown";
 import type { Transformer, TextMatchTransformer } from "@lexical/markdown";
-import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
 import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { CodeHighlightNode, CodeNode } from "@lexical/code";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { MemoSuiteTheme } from "./themes/MemoSuiteTheme";
-import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import React, { useEffect, useRef, useMemo } from "react";
 import styled from "styled-components";
-import { $nodesOfType, ParagraphNode, $isTextNode, $createTextNode, $createParagraphNode, $setSelection } from "lexical";
-import type { LexicalNode } from "lexical";
+import {
+  $nodesOfType,
+  ParagraphNode,
+  $isTextNode,
+  $createTextNode,
+  $createParagraphNode,
+  $setSelection,
+  $isElementNode,
+  ElementNode,
+  $isParagraphNode,
+} from "lexical";
+import type { LexicalNode, ElementFormatType } from "lexical";
+import { HeadingNode, QuoteNode, $isHeadingNode, $isQuoteNode } from "@lexical/rich-text";
 
 import { HandwritingNode, $createHandwritingNode, $isHandwritingNode } from "./nodes/HandwritingNode";
 import { SpreadsheetNode, $createSpreadsheetNode, $isSpreadsheetNode } from "./nodes/SpreadsheetNode";
@@ -380,7 +390,32 @@ const HANDWRITING_TRANSFORMER: Transformer = {
   type: "element",
 };
 
-
+const ELEMENT_FORMAT_EXPORT_TRANSFORMER: Transformer = {
+  dependencies: [ParagraphNode, HeadingNode, QuoteNode],
+  export: (node: LexicalNode, traverseChildren: (node: ElementNode) => string) => {
+    if ($isElementNode(node)) {
+      const format = node.getFormatType();
+      if (format && format !== "left" && (format as string) !== "") {
+        const tag = $isParagraphNode(node)
+          ? "p"
+          : $isHeadingNode(node)
+            ? (node as HeadingNode).getTag()
+            : $isQuoteNode(node)
+              ? "blockquote"
+              : null;
+        if (tag) {
+          return `<${tag} align="${format}">${traverseChildren(
+            node
+          )}</${tag}>`;
+        }
+      }
+    }
+    return null;
+  },
+  regExp: /^<([p|h1-6|blockquote]+) align="(\w+)">(.*)<\/\1>$/,
+  replace: () => { },
+  type: "element",
+};
 
 const ALL_TRANSFORMERS: Transformer[] = [
   CHECK_LIST,
@@ -390,6 +425,7 @@ const ALL_TRANSFORMERS: Transformer[] = [
   ...TRANSFORMERS,
 ];
 const EXPORT_TRANSFORMERS: Transformer[] = [
+  ELEMENT_FORMAT_EXPORT_TRANSFORMER,
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
@@ -447,6 +483,25 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
         } else if (lang === "spreadsheet") {
           const data = node.getTextContent();
           node.replace($createSpreadsheetNode(data));
+        }
+      });
+
+      // 4. Post-process: Restore alignment from HTML tags
+      const elements = [
+        ...$nodesOfType(ParagraphNode),
+        ...$nodesOfType(HeadingNode),
+        ...$nodesOfType(QuoteNode),
+      ];
+      elements.forEach((node) => {
+        const text = node.getTextContent();
+        const match = text.match(
+          /<(p|h[1-6]|blockquote) align="(left|center|right|justify)">(.*)<\/\1>/
+        );
+        if (match) {
+          const [, , align, content] = match;
+          node.setFormat(align as ElementFormatType);
+          node.clear();
+          node.append($createTextNode(content));
         }
       });
     }, { tag: 'import' });
