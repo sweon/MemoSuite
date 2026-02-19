@@ -294,7 +294,7 @@ export const MainLayout: React.FC = () => {
           />
         </SidebarWrapper>
         <ContentWrapper id="app-content-wrapper-area">
-          <MobileHeader>
+          <MobileHeader className="no-print">
             <FiMenu size={24} onClick={() => toggleSidebar(true)} />
             <h3>LLMemo</h3>
           </MobileHeader>

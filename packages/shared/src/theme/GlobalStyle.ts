@@ -76,6 +76,7 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
   @media print {
     /* 1. Global Reset: Remove all viewport and sizing constraints */
     html, body {
+      display: block !important;
       height: auto !important;
       min-height: 0 !important;
       overflow: visible !important;
@@ -83,10 +84,12 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
       padding: 0 !important;
       background: white !important;
       color: black !important;
+      width: 100% !important;
+      position: static !important;
     }
 
-    /* 2. Ancestral Path Isolation: Hide all siblings at each level to prevent layout interference */
-    body > *:not(#root) {
+    /* 2. Ancestral Path Isolation */
+    body > *:not(#root):not(#print-hf-wrapper) {
       display: none !important;
     }
 
@@ -95,6 +98,9 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
       height: auto !important;
       margin: 0 !important;
       padding: 0 !important;
+      width: 100% !important;
+      overflow: visible !important;
+      position: static !important;
     }
 
     #root > *:not(#app-main-layout-container) {
@@ -108,33 +114,46 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
       margin: 0 !important;
       padding: 0 !important;
       overflow: visible !important;
+      position: static !important;
     }
 
     #app-main-layout-container > *:not(#app-content-wrapper-area) {
       display: none !important;
     }
 
-    /* 3. Target Content Area: Force it to the very top */
+    /* 3. Target Content Area */
     #app-content-wrapper-area {
       display: block !important;
       height: auto !important;
       width: 100% !important;
       margin: 0 !important;
       padding: 0 !important;
-      position: static !important; /* Flow across pages */
+      position: static !important;
       overflow: visible !important;
     }
 
-    /* 4. Internal Cleanup: Hide UI elements inside the content area */
+    /* 4. Internal Cleanup: Hide UI elements */
+    header,
+    nav,
+    aside,
+    [class*="Header"],
+    [class*="header"],
     [class*="MobileHeader"],
     [class*="ActionBar"],
     [class*="ActionButton"],
+    [class*="GoToBottomButton"],
+    [class*="GoToTopButton"],
+    [class*="ResizeHandle"],
+    [class*="Overlay"],
+    [class*="SidebarInactiveOverlay"],
     .no-print,
     button {
       display: none !important;
     }
 
-    /* 5. Content Styling: Ensure detail views take full width and expand */
+    /* 5. Content Styling: Universal reset for all nested containers */
+    [class*="MainWrapper"],
+    [class*="ScrollContainer"],
     [class*="Detail"],
     [class*="LogDetail"],
     [class*="MemoDetail"],
@@ -149,15 +168,25 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
       box-shadow: none !important;
       border: none !important;
       overflow: visible !important;
+      position: static !important;
     }
 
-    /* 6. Page Break Optimizations */
-    h1, h2, h3, h4, h5, h6 { page-break-after: avoid; }
-    img, table, pre, blockquote { page-break-inside: avoid; }
+    /* 6. Page Break Management */
+    h1, h2, h3, h4, h5, h6 { 
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+    img, table, pre, blockquote { 
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
     
+    /* Ensure all descendants of content area are visible and expanding */
+    #app-content-wrapper-area *,
     .MarkdownView * {
       overflow: visible !important;
       height: auto !important;
+      max-height: none !important;
     }
   }
 `;

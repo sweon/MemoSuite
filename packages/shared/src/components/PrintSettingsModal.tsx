@@ -86,6 +86,8 @@ export function executePrint(settings: PrintSettings, title?: string) {
                 background: white !important;
                 width: 100% !important;
                 height: auto !important;
+                display: block !important;
+                overflow: visible !important;
             }
             
             #root, #app-root {
@@ -94,6 +96,7 @@ export function executePrint(settings: PrintSettings, title?: string) {
                 overflow: visible !important;
                 width: 100% !important;
                 display: block !important;
+                position: static !important;
             }
 
             /* Prevent content from overlapping headers/footers if they are fixed */
@@ -164,6 +167,17 @@ export function executePrint(settings: PrintSettings, title?: string) {
             /* Ensure page counter starts correctly */
             body {
                 counter-reset: page 1;
+            }
+
+            /* Hide UI elements */
+            header, nav, aside,
+            [class*="Header"], [class*="header"], [class*="MobileHeader"],
+            [class*="ActionBar"], [class*="ActionButton"],
+            [class*="GoToBottomButton"], [class*="GoToTopButton"],
+            [class*="ResizeHandle"], [class*="Overlay"],
+            [class*="SidebarInactiveOverlay"],
+            .no-print, button {
+                display: none !important;
             }
         }
         @media screen {
