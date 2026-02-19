@@ -383,6 +383,13 @@ export const LogDetail: React.FC = () => {
   }, [isEditing]);
 
   const handleStartEdit = () => {
+    lastSavedState.current = {
+      title,
+      content,
+      tags,
+      modelId,
+      commentDraft,
+    };
     setIsEditing(true);
     window.history.pushState({ editing: true, isGuard: true }, "");
   };
@@ -409,6 +416,14 @@ export const LogDetail: React.FC = () => {
   const restoredIdRef = useRef<string | null>(null);
   const loadedIdRef = useRef<string | null>(null);
 
+  const lastSavedState = useRef({
+    title: "",
+    content: "",
+    tags: "",
+    modelId: undefined as number | undefined,
+    commentDraft: null as CommentDraft | null,
+  });
+
   const log = useLiveQuery(() => {
     if (!id || id === "new") return undefined;
     const numericId = Number(id);
@@ -426,15 +441,13 @@ export const LogDetail: React.FC = () => {
       setMovingLogId?: (id: number | null) => void;
     }>() || {};
 
-  const hasDraftChanges = !!commentDraft;
-  const isCurrentlyDirty = !!(isNew
-    ? title.trim() || content.trim() || tags.trim() || hasDraftChanges
-    : !!log &&
-    ((title || "").trim() !== (log.title || "").trim() ||
-      (content || "") !== (log.content || "") ||
-      (tags || "").trim() !== (log.tags.join(", ") || "").trim() ||
-      (modelId || null) !== (log.modelId || null) ||
-      hasDraftChanges));
+  const isCurrentlyDirty = !!(
+    (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
+    (content || "") !== (lastSavedState.current.content || "") ||
+    (tags || "").trim() !== (lastSavedState.current.tags || "").trim() ||
+    (modelId || null) !== (lastSavedState.current.modelId || null) ||
+    JSON.stringify(commentDraft) !== JSON.stringify(lastSavedState.current.commentDraft)
+  );
 
   useEffect(() => {
     loadedIdRef.current = null;
@@ -442,6 +455,13 @@ export const LogDetail: React.FC = () => {
     setContent("");
     setTags("");
     setCommentDraft(null);
+    lastSavedState.current = {
+      title: "",
+      content: "",
+      tags: "",
+      modelId: undefined,
+      commentDraft: null,
+    };
     setIsEditing(id === undefined || id === "new");
     isClosingRef.current = false;
   }, [id]);
@@ -493,13 +513,13 @@ export const LogDetail: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (setIsDirty) setIsDirty(isEditing || hasDraftChanges);
+    if (setIsDirty) setIsDirty(isEditing || !!commentDraft);
     if (setAppIsEditing) setAppIsEditing(isEditing);
     return () => {
       if (setIsDirty) setIsDirty(false);
       if (setAppIsEditing) setAppIsEditing(false);
     };
-  }, [isEditing, hasDraftChanges, setIsDirty, setAppIsEditing]);
+  }, [isEditing, commentDraft, setIsDirty, setAppIsEditing]);
 
   const handleGoToTop = () => {
     containerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -584,6 +604,13 @@ export const LogDetail: React.FC = () => {
     if (log) {
       const shouldEdit = searchParams.get("edit") === "true";
       if (shouldEdit && !isEditing) {
+        lastSavedState.current = {
+          title,
+          content,
+          tags,
+          modelId,
+          commentDraft,
+        };
         setIsEditing(true);
         const params = new URLSearchParams(searchParams);
         params.delete("edit");
@@ -697,17 +724,15 @@ export const LogDetail: React.FC = () => {
 
   useEffect(() => {
     if (isNew && !modelId && models && models.length > 0) {
-      setModelId(models[0].id);
+      const defaultModelId = models[0].id;
+      setModelId(defaultModelId);
+      // Sync lastSavedState so Rule 1 holds for newly created logs
+      if (lastSavedState.current.modelId === undefined) {
+        lastSavedState.current.modelId = defaultModelId;
+      }
     }
   }, [isNew, modelId, models]);
 
-  const lastSavedState = useRef({
-    title,
-    content,
-    tags,
-    modelId,
-    commentDraft,
-  });
 
   const currentStateRef = useRef({
     title,
@@ -777,13 +802,6 @@ export const LogDetail: React.FC = () => {
 
       const newId = await db.autosaves.put(autosaveData);
       currentAutosaveIdRef.current = newId;
-      lastSavedState.current = {
-        title: cTitle,
-        content: cContent,
-        tags: cTags,
-        modelId: cModelId,
-        commentDraft: cCommentDraft,
-      };
 
       const allAutosaves = await db.autosaves.orderBy("createdAt").toArray();
       if (allAutosaves.length > 20) {
@@ -837,10 +855,16 @@ export const LogDetail: React.FC = () => {
       await db.autosaves.where("originalId").equals(Number(id)).delete();
       currentAutosaveIdRef.current = undefined;
       restoredIdRef.current = null;
+      setCommentDraft(null);
 
-      if (searchParams.get("edit")) {
-        navigate(`/log/${id}`, { replace: true });
-      }
+      setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+      lastSavedState.current = {
+        title: finalTitle,
+        content: currentContent,
+        tags: tagArray.join(", "),
+        modelId: modelId ? Number(modelId) : undefined,
+        commentDraft: null,
+      };
     } else {
       const threadContext = extractThreadContext(searchParams);
 
@@ -862,8 +886,21 @@ export const LogDetail: React.FC = () => {
       await db.autosaves.filter((a) => a.originalId === undefined).delete();
       currentAutosaveIdRef.current = undefined;
       restoredIdRef.current = null;
+      setCommentDraft(null);
 
-      navigate(`/log/${newId}`, { replace: true, state: overrideState });
+      setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+      lastSavedState.current = {
+        title: finalTitle,
+        content: currentContent,
+        tags: tagArray.join(", "),
+        modelId: modelId ? Number(modelId) : undefined,
+        commentDraft: null,
+      };
+
+      navigate(`/log/${newId}?edit=true`, {
+        replace: true,
+        state: { ...overrideState },
+      });
     }
   };
 
@@ -876,8 +913,6 @@ export const LogDetail: React.FC = () => {
 
       if (isNew) {
         navigate("/", { replace: true });
-      } else if (searchParams.get("edit")) {
-        navigate(`/log/${id}`, { replace: true });
       } else {
         navigate(`/log/${id}`, { replace: true });
       }
@@ -901,8 +936,6 @@ export const LogDetail: React.FC = () => {
       setIsEditing(false);
       if (isNew) {
         navigate("/", { replace: true });
-      } else if (searchParams.get("edit")) {
-        navigate(`/log/${id}`, { replace: true });
       } else {
         navigate(`/log/${id}`, { replace: true });
       }
@@ -1245,6 +1278,7 @@ export const LogDetail: React.FC = () => {
               onExit={handleExit}
               saveLabel={t.log_detail.save}
               exitLabel={t.log_detail.exit}
+              saveDisabled={!isCurrentlyDirty}
               stickyOffset={headerHeight}
             />
           ) : (

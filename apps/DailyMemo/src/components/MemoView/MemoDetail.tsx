@@ -477,6 +477,12 @@ export const MemoDetail: React.FC = () => {
     setTitle("");
     setContent("");
     setTags("");
+    lastSavedState.current = {
+      title: "",
+      content: "",
+      tags: "",
+      commentDraft: null,
+    };
   }, [id]);
 
   // Folder context for read-only mode
@@ -489,7 +495,9 @@ export const MemoDetail: React.FC = () => {
   const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
-  const [folderMoveToast, setFolderMoveToast] = useState<string | null>(location.state?.toastMessage || null);
+  const [toastMessage, setToastMessage] = useState<string | null>(
+    location.state?.toastMessage || null,
+  );
   const [editingDrawingData, setEditingDrawingData] = useState<
     string | undefined
   >(undefined);
@@ -519,6 +527,12 @@ export const MemoDetail: React.FC = () => {
       const ratio = scrollTop / (scrollHeight - clientHeight || 1);
       setPrevScrollRatio(ratio);
     }
+    lastSavedState.current = {
+      title,
+      content,
+      tags,
+      commentDraft,
+    };
     setIsEditingInternal(true);
     window.history.pushState({ editing: true, isGuard: true }, "");
   };
@@ -546,7 +560,12 @@ export const MemoDetail: React.FC = () => {
       if (isNew) {
         setContent("");
         setTitle("");
-        setTags("");
+        lastSavedState.current = {
+          title: "",
+          content: "",
+          tags: "",
+          commentDraft: null,
+        };
       }
 
       // Re-trigger modal if URL state indicates it should be open
@@ -612,6 +631,7 @@ export const MemoDetail: React.FC = () => {
     isFabricModalOpen,
     isShareModalOpen,
     isDeleteModalOpen,
+    isSpreadsheetModalOpen, // Added this to the dependency array
   ]);
 
   const isEditing = isEditingInternal;
@@ -626,14 +646,12 @@ export const MemoDetail: React.FC = () => {
   const [tags, setTags] = useState("");
   const [date, setDate] = useState("");
 
-  // State reset on ID change is now handled by the 'key' prop in App.tsx
-
-  // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
-  // Memoize drawing data extraction to prevent unnecessary re-computations or modal glitches
-  // const contentDrawingData = React.useMemo(() => {
-  //     const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
-  //     return match ? match[1] : undefined;
-  // }, [content]);
+  const lastSavedState = useRef({
+    title: "",
+    content: "",
+    tags: "",
+    commentDraft: null as CommentDraft | null,
+  });
 
   const memo = useLiveQuery(
     () => (id ? db.memos.get(Number(id)) : undefined),
@@ -666,14 +684,13 @@ export const MemoDetail: React.FC = () => {
     }
   };
 
-  const hasDraftChanges = !!commentDraft;
-  const isCurrentlyDirty = !!(isNew
-    ? title.trim() || content.trim() || tags.trim() || hasDraftChanges
-    : !!memo &&
-    ((title || "").trim() !== (memo.title || "").trim() ||
-      (content || "") !== (memo.content || "") ||
-      (tags || "").trim() !== (memo.tags.join(", ") || "").trim() ||
-      hasDraftChanges));
+  const isCurrentlyDirty = !!(
+    (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
+    (content || "") !== (lastSavedState.current.content || "") ||
+    (tags || "").trim() !== (lastSavedState.current.tags || "").trim() ||
+    JSON.stringify(commentDraft) !==
+    JSON.stringify(lastSavedState.current.commentDraft)
+  );
 
   useEffect(() => {
     setAppIsEditing(
@@ -705,6 +722,12 @@ export const MemoDetail: React.FC = () => {
     setContent("");
     setTags("");
     setCommentDraft(null);
+    lastSavedState.current = {
+      title: "",
+      content: "",
+      tags: "",
+      commentDraft: null,
+    };
     setIsEditingInternal(!id);
     isClosingRef.current = false;
   }
@@ -896,8 +919,6 @@ export const MemoDetail: React.FC = () => {
     isEditing,
   ]);
 
-  const lastSavedState = useRef({ title, content, tags, commentDraft });
-
   const currentStateRef = useRef({ title, content, tags, commentDraft });
   useEffect(() => {
     currentStateRef.current = { title, content, tags, commentDraft };
@@ -961,12 +982,6 @@ export const MemoDetail: React.FC = () => {
 
       const newId = await db.autosaves.put(autosaveData);
       currentAutosaveIdRef.current = newId;
-      lastSavedState.current = {
-        title: cTitle,
-        content: cContent,
-        tags: cTags,
-        commentDraft: cCommentDraft,
-      };
 
       // Keep only latest 20 autosaves
       const allAutosaves = await db.autosaves.orderBy("createdAt").toArray();
@@ -1089,13 +1104,14 @@ export const MemoDetail: React.FC = () => {
       currentAutosaveIdRef.current = undefined;
       restoredIdRef.current = null;
 
-      if (
-        searchParams.get("edit") &&
-        !isFabricModalOpen &&
-        !isSpreadsheetModalOpen
-      ) {
-        navigate(`/memo/${id}`, { replace: true });
-      }
+      setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+      setCommentDraft(null);
+      lastSavedState.current = {
+        title: finalTitle,
+        content: currentContent,
+        tags: tagArray.join(", "),
+        commentDraft: null,
+      };
     } else {
       // Extract thread context from URL params if present (from Append button)
       const threadContext = extractThreadContext(searchParams);
@@ -1180,9 +1196,22 @@ export const MemoDetail: React.FC = () => {
       // Cleanup all new memo autosaves
       await db.autosaves.filter((a) => a.originalId === undefined).delete();
 
+      setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+      setCommentDraft(null);
+      lastSavedState.current = {
+        title: finalTitle,
+        content: currentContent,
+        tags: tagArray.join(", "),
+        commentDraft: null,
+      };
+
       const search = _overrideSearch !== undefined ? _overrideSearch : searchParams.toString();
-      // Navigate without thread params to avoid re-applying on subsequent saves
-      navigate(`/memo/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+      const params = new URLSearchParams(search);
+      params.set("edit", "true");
+      navigate(`/memo/${newId}?${params.toString()}`, {
+        replace: true,
+        state: { ...overrideState },
+      });
     }
   };
 
@@ -1276,14 +1305,9 @@ export const MemoDetail: React.FC = () => {
       setIsEditingInternal(false);
 
       if (isNew) {
-        const prevId = localStorage.getItem("dailymemo_prev_memo_id");
-        localStorage.removeItem("dailymemo_prev_memo_id");
-        navigate(prevId ? `/memo/${prevId}` : "/", { replace: true });
-      } else if (searchParams.get("edit") || id) {
-        navigate(`/memo/${id}`, { replace: true });
+        navigate("/", { replace: true });
       } else {
-        const prevId = localStorage.getItem("dailymemo_prev_memo_id");
-        navigate(prevId ? `/memo/${prevId}` : "/", { replace: true });
+        navigate(`/memo/${id}`, { replace: true });
       }
       return;
     }
@@ -1629,18 +1653,18 @@ export const MemoDetail: React.FC = () => {
             currentFolderId={currentFolderId}
             onClose={() => setIsFolderMoveModalOpen(false)}
             onSuccess={(message) => {
-              setFolderMoveToast(message);
-              setTimeout(() => setFolderMoveToast(null), 500);
+              setToastMessage(message);
+              setTimeout(() => setToastMessage(null), 1500);
               setIsFolderMoveModalOpen(false);
             }}
           />
         )}
 
-        {folderMoveToast && (
+        {toastMessage && (
           <Toast
-            message={folderMoveToast}
-            onClose={() => setFolderMoveToast(null)}
-            duration={500}
+            message={toastMessage}
+            onClose={() => setToastMessage(null)}
+            duration={1500}
           />
         )}
         <PrintSettingsModal
@@ -1714,13 +1738,13 @@ export const MemoDetail: React.FC = () => {
                 setTitle(finalTitle);
                 const msg = language === 'ko' ? "저장되었습니다!" : "Saved!";
                 await handleSave(finalTitle, newContent, searchParams.toString(), { toastMessage: msg });
-                setFolderMoveToast(msg);
+                setToastMessage(msg);
               } else if (id && memo) {
                 await db.memos.update(Number(id), {
                   content: newContent,
                   updatedAt: new Date(),
                 });
-                setFolderMoveToast(language === 'ko' ? "저장되었습니다!" : "Saved!");
+                setToastMessage(language === 'ko' ? "저장되었습니다!" : "Saved!");
               }
             }}
             onClose={() => {
@@ -1853,13 +1877,13 @@ export const MemoDetail: React.FC = () => {
                   toastMessage: msg,
                 },
               );
-              setFolderMoveToast(msg);
+              setToastMessage(msg);
             } else {
               if (id) {
                 // Trigger save with new content
                 // Use handleSave to update lastSavedState and avoid race conditions with main Save button
                 await handleSave(undefined, newContent);
-                setFolderMoveToast(language === "ko" ? "저장되었습니다!" : "Saved!");
+                setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
               }
             }
           }}

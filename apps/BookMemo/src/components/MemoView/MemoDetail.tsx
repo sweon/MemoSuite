@@ -408,6 +408,14 @@ export const MemoDetail: React.FC = () => {
             const ratio = scrollTop / (scrollHeight - clientHeight || 1);
             setPrevScrollRatio(ratio);
         }
+        lastSavedState.current = {
+            title,
+            content,
+            tags,
+            quote,
+            pageNumber,
+            commentDraft,
+        };
         setIsEditingInternal(true);
         window.history.pushState({ editing: true, isGuard: true }, '');
     };
@@ -472,10 +480,19 @@ export const MemoDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
-    const [folderMoveToast, setFolderMoveToast] = useState<string | null>(location.state?.toastMessage || null);
+    const [toastMessage, setToastMessage] = useState<string | null>(location.state?.toastMessage || null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const lastSavedState = useRef({
+        title: "",
+        content: "",
+        tags: "",
+        pageNumber: "",
+        quote: "",
+        commentDraft: null as CommentDraft | null,
+    });
 
     useEffect(() => {
         if (id && searchParams.get('drawing') === 'true') {
@@ -551,6 +568,14 @@ export const MemoDetail: React.FC = () => {
         setQuote('');
         setPageNumber('');
         setCommentDraft(null);
+        lastSavedState.current = {
+            title: '',
+            content: '',
+            tags: '',
+            quote: '',
+            pageNumber: '',
+            commentDraft: null,
+        };
         setIsEditingInternal(!id);
         isClosingRef.current = false;
 
@@ -598,16 +623,14 @@ export const MemoDetail: React.FC = () => {
     );
 
     const hasDraftChanges = !!commentDraft;
-    const isCurrentlyDirty = !!(isNew
-        ? (title.trim() || content.trim() || tags.trim() || quote.trim() || pageNumber.trim() || hasDraftChanges)
-        : (!!memo && (
-            (title || '').trim() !== (memo.title || '').trim() ||
-            (content || '') !== (memo.content || '') ||
-            (tags || '').trim() !== (memo.tags.join(', ') || '').trim() ||
-            (quote || '').trim() !== (memo.quote || '').trim() ||
-            (pageNumber || '').trim() !== (memo.pageNumber?.toString() || '').trim() ||
-            hasDraftChanges
-        )));
+    const isCurrentlyDirty = !!(
+        (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
+        (content || "") !== (lastSavedState.current.content || "") ||
+        (tags || "").trim() !== (lastSavedState.current.tags || "").trim() ||
+        (quote || "").trim() !== (lastSavedState.current.quote || "").trim() ||
+        (pageNumber || "").trim() !== (lastSavedState.current.pageNumber || "").trim() ||
+        JSON.stringify(commentDraft) !== JSON.stringify(lastSavedState.current.commentDraft)
+    );
 
     useEffect(() => {
         if (setIsDirty) setIsDirty(isEditing || hasDraftChanges);
@@ -811,7 +834,6 @@ export const MemoDetail: React.FC = () => {
         }
     }, [isNew, book?.currentPage, searchParams]);
 
-    const lastSavedState = useRef({ title, content, tags, pageNumber, quote, commentDraft });
 
     const currentStateRef = useRef({ title, content, tags, pageNumber, quote, commentDraft });
     useEffect(() => {
@@ -861,7 +883,6 @@ export const MemoDetail: React.FC = () => {
 
             const newId = await db.autosaves.put(autosaveData);
             currentAutosaveIdRef.current = newId;
-            lastSavedState.current = { title: cTitle, content: cContent, tags: cTags, pageNumber: cPageNumber, quote: cQuote, commentDraft: cCommentDraft };
 
             // Keep only latest 20 autosaves
             const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();
@@ -958,10 +979,17 @@ export const MemoDetail: React.FC = () => {
                 updatedAt: now,
                 type: finalType
             });
+            setCommentDraft(null);
 
-            if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
-                navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
-            }
+            setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+            lastSavedState.current = {
+                title: finalTitle,
+                content: currentContent,
+                tags: tagArray.join(", "),
+                pageNumber: pNum?.toString() || '',
+                quote: quote,
+                commentDraft: null,
+            };
             // Cleanup autosaves for this memo
             await db.autosaves.where('originalId').equals(Number(id)).delete();
             currentAutosaveIdRef.current = undefined;
@@ -987,9 +1015,25 @@ export const MemoDetail: React.FC = () => {
 
             // Cleanup all new memo autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
+            setCommentDraft(null);
+
+            setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+            lastSavedState.current = {
+                title: finalTitle,
+                content: currentContent,
+                tags: tagArray.join(", "),
+                pageNumber: pNum?.toString() || '',
+                quote: quote,
+                commentDraft: null,
+            };
 
             const search = overrideSearch !== undefined ? overrideSearch : searchParams.toString();
-            navigate(`/book/${targetBookId}/memo/${newId}${search ? '?' + search : ''}`, { replace: true, state: overrideState });
+            const params = new URLSearchParams(search);
+            params.set("edit", "true");
+            navigate(`/book/${targetBookId}/memo/${newId}?${params.toString()}`, {
+                replace: true,
+                state: { ...overrideState },
+            });
         }
     };
 
@@ -1089,14 +1133,10 @@ export const MemoDetail: React.FC = () => {
             restoredIdRef.current = null;
             isClosingRef.current = true;
             setIsEditingInternal(false);
-
             if (isNew) {
                 navigate('/', { replace: true });
-            } else if (searchParams.get('edit')) {
-                const targetBookId = bookId ? Number(bookId) : memo?.bookId;
-                navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
             } else {
-                window.history.back();
+                navigate(`/book/${bookId}/memo/${id}`, { replace: true });
             }
             return;
         }
@@ -1114,11 +1154,8 @@ export const MemoDetail: React.FC = () => {
             setIsEditingInternal(false);
             if (isNew) {
                 navigate('/', { replace: true });
-            } else if (searchParams.get('edit')) {
-                const targetBookId = bookId ? Number(bookId) : memo?.bookId;
-                navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
             } else {
-                window.history.back();
+                navigate(`/book/${bookId}/memo/${id}`, { replace: true });
             }
         } else if (result === 'neutral') {
             if (id) {
@@ -1143,12 +1180,7 @@ export const MemoDetail: React.FC = () => {
                     setDate(language === 'ko' ? format(memo.createdAt, 'yyyy. MM. dd.') : format(memo.createdAt, 'yyyy-MM-dd'));
                     setCommentDraft(null);
                 }
-                if (searchParams.get('edit')) {
-                    const targetBookId = bookId ? Number(bookId) : memo?.bookId;
-                    navigate(`/book/${targetBookId}/memo/${id}`, { replace: true });
-                } else {
-                    window.history.back();
-                }
+                navigate(`/book/${bookId}/memo/${id}`, { replace: true });
             }
         }
     };
@@ -1454,13 +1486,13 @@ export const MemoDetail: React.FC = () => {
                             setTitle(finalTitle);
                             const msg = language === 'ko' ? "저장되었습니다!" : "Saved!";
                             await handleSave(finalTitle, newContent, searchParams.toString(), { toastMessage: msg });
-                            setFolderMoveToast(msg);
+                            setToastMessage(msg);
                         } else if (id && memo) {
                             await db.memos.update(Number(id), {
                                 content: newContent,
                                 updatedAt: new Date()
                             });
-                            setFolderMoveToast(language === 'ko' ? "저장되었습니다!" : "Saved!");
+                            setToastMessage(language === 'ko' ? "저장되었습니다!" : "Saved!");
                         }
                     }}
                     onAutosave={(json) => {
@@ -1558,13 +1590,13 @@ export const MemoDetail: React.FC = () => {
                             spreadsheetJson: json,
                             toastMessage: msg
                         });
-                        setFolderMoveToast(msg);
+                        setToastMessage(msg);
                     } else {
                         if (id) {
                             // Trigger save with new content
                             // Use handleSave to update lastSavedState and avoid race conditions with main Save button
                             await handleSave(undefined, newContent);
-                            setFolderMoveToast(language === 'ko' ? "저장되었습니다!" : "Saved!");
+                            setToastMessage(language === 'ko' ? "저장되었습니다!" : "Saved!");
                         }
                     }
                 }}
@@ -1632,25 +1664,25 @@ export const MemoDetail: React.FC = () => {
                         currentFolderId={currentFolderId || undefined}
                         onClose={() => setIsFolderMoveModalOpen(false)}
                         onSuccess={(message) => {
-                            setFolderMoveToast(message);
-                            setTimeout(() => setFolderMoveToast(null), 500);
+                            setToastMessage(message);
+                            setTimeout(() => setToastMessage(null), 1500);
                             setIsFolderMoveModalOpen(false);
                         }}
                     />
                 )
             }
 
-            {folderMoveToast && (
+            {toastMessage && (
                 <Toast
-                    message={folderMoveToast}
-                    onClose={() => setFolderMoveToast(null)}
-                    duration={500}
+                    message={toastMessage}
+                    onClose={() => setToastMessage(null)}
+                    duration={1500}
                 />
             )}
 
             <GoToTopButton $show={showGoToTop} onClick={handleGoToTop} aria-label="Go to top">
                 <FiArrowUp size={24} />
             </GoToTopButton>
-        </MainWrapper >
+        </MainWrapper>
     );
 };

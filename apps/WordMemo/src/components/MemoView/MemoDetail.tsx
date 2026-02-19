@@ -446,10 +446,16 @@ export const MemoDetail: React.FC = () => {
     undefined,
   );
   const containerRef = useRef<HTMLDivElement>(null);
-  const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
 
   const [headerHeight, setHeaderHeight] = useState(0);
   const actionBarRef = useRef<HTMLDivElement>(null);
+  const lastSavedState = useRef({
+    title: "",
+    content: "",
+    tags: "",
+    sourceId: undefined as number | undefined,
+    commentDraft: null as CommentDraft | null,
+  });
 
   useEffect(() => {
     if (!actionBarRef.current) return;
@@ -516,6 +522,13 @@ export const MemoDetail: React.FC = () => {
       const ratio = scrollTop / (scrollHeight - clientHeight || 1);
       setPrevScrollRatio(ratio);
     }
+    lastSavedState.current = {
+      title,
+      content,
+      tags,
+      sourceId,
+      commentDraft,
+    };
     setIsEditing(true);
     window.history.pushState({ editing: true, isGuard: true }, "");
   };
@@ -561,11 +574,14 @@ export const MemoDetail: React.FC = () => {
   const [prevId, setPrevId] = useState(id);
   if (id !== prevId) {
     setPrevId(id);
-    setTitle("");
-    setContent("");
-    setTags("");
-    setSourceId(undefined);
     setCommentDraft(null);
+    lastSavedState.current = {
+      title: "",
+      content: "",
+      tags: "",
+      sourceId: undefined,
+      commentDraft: null,
+    };
     setIsEditing(id === undefined);
     isClosingRef.current = false;
   }
@@ -629,14 +645,6 @@ export const MemoDetail: React.FC = () => {
   }, [content]);
   const { studyMode } = useStudyMode();
 
-  const lastSavedState = useRef({
-    title,
-    content,
-    tags,
-    sourceId,
-    commentDraft,
-  });
-
   const word = useLiveQuery(
     () => (id ? db.words.get(Number(id)) : undefined),
     [id],
@@ -650,24 +658,23 @@ export const MemoDetail: React.FC = () => {
       setMovingWordId?: (id: number | null) => void;
     }>() || {};
 
-  const hasDraftChanges = !!commentDraft;
-  const isCurrentlyDirty = !!(isNew
-    ? title.trim() || content.trim() || tags.trim() || hasDraftChanges
-    : !!word &&
-    ((title || "").trim() !== (word.title || "").trim() ||
-      (content || "") !== (word.content || "") ||
-      (tags || "").trim() !== (word.tags.join(", ") || "").trim() ||
-      (sourceId || null) !== (word.sourceId || null) ||
-      hasDraftChanges));
+  const isCurrentlyDirty = !!(
+    (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
+    (content || "") !== (lastSavedState.current.content || "") ||
+    (tags || "").trim() !== (lastSavedState.current.tags || "").trim() ||
+    (sourceId || null) !== (lastSavedState.current.sourceId || null) ||
+    JSON.stringify(commentDraft) !==
+    JSON.stringify(lastSavedState.current.commentDraft)
+  );
 
   useEffect(() => {
-    setIsDirty(isEditing || hasDraftChanges);
+    setIsDirty(isEditing || !!commentDraft);
     if (setAppIsEditing) setAppIsEditing(isEditing);
     return () => {
       setIsDirty(false);
       if (setAppIsEditing) setAppIsEditing(false);
     };
-  }, [isEditing, hasDraftChanges, setIsDirty, setAppIsEditing]);
+  }, [isEditing, commentDraft, setIsDirty, setAppIsEditing]);
 
   // scroll 이벤트 리스너 등록 (log가 로드된 후)
   useEffect(() => {
@@ -1018,13 +1025,6 @@ export const MemoDetail: React.FC = () => {
 
       const newId = await db.autosaves.put(autosaveData);
       currentAutosaveIdRef.current = newId;
-      lastSavedState.current = {
-        title: cTitle,
-        content: cContent,
-        tags: cTags,
-        sourceId: cSourceId,
-        commentDraft: cCommentDraft,
-      };
 
       // Keep only latest 20 autosaves
       const allAutosaves = await db.autosaves.orderBy("createdAt").toArray();
@@ -1090,19 +1090,20 @@ export const MemoDetail: React.FC = () => {
         updatedAt: now,
       });
 
-      // Keep edit param if present to stay in edit mode
-      if (
-        searchParams.get("edit") &&
-        !isFabricModalOpen &&
-        !isSpreadsheetModalOpen
-      ) {
-        navigate(`/word/${id}?edit=true`, { replace: true });
-      }
+      setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+      lastSavedState.current = {
+        title: derivedTitle,
+        content: currentContent,
+        tags: tagArray.join(", "),
+        sourceId: sourceId,
+        commentDraft: null,
+      };
 
       // Cleanup autosaves for this word
       await db.autosaves.where("originalId").equals(Number(id)).delete();
       currentAutosaveIdRef.current = undefined;
       restoredIdRef.current = null;
+      setCommentDraft(null);
       // setIsEditing(false); // Do not exit edit mode on save
     } else {
       // Extract thread context from URL params if present (from Append button)
@@ -1127,10 +1128,20 @@ export const MemoDetail: React.FC = () => {
       // Cleanup all new word autosaves
       await db.autosaves.filter((a) => a.originalId === undefined).delete();
 
-      const search = _overrideSearch !== undefined ? _overrideSearch : searchParams.toString();
-      const finalSearch = search ? `${search}&edit=true` : 'edit=true';
-      // Navigate with edit=true to stay in edit mode
-      navigate(`/word/${newId}?${finalSearch}`, { replace: true, state: overrideState });
+      setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+      lastSavedState.current = {
+        title: derivedTitle,
+        content: currentContent,
+        tags: tagArray.join(", "),
+        sourceId: sourceId,
+        commentDraft: null,
+      };
+
+      navigate(`/word/${newId}?edit=true`, {
+        replace: true,
+        state: { ...overrideState },
+      });
+      setCommentDraft(null);
     }
   };
 
@@ -1414,8 +1425,6 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
 
       if (isPlaceholder || isNew) {
         navigate("/", { replace: true });
-      } else if (searchParams.get("edit")) {
-        navigate(`/word/${id}`, { replace: true });
       } else {
         navigate(`/word/${id}`, { replace: true });
       }
@@ -1963,13 +1972,10 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
           />
         )}
         {toastMessage && (
-          <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-        )}
-        {folderMoveToast && (
           <Toast
-            message={folderMoveToast}
-            onClose={() => setFolderMoveToast(null)}
-            duration={500}
+            message={toastMessage}
+            onClose={() => setToastMessage(null)}
+            duration={1500}
           />
         )}
 
@@ -1997,7 +2003,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
             onClose={() => setIsFolderMoveModalOpen(false)}
             onSuccess={(msg) => {
               setToastMessage(msg);
-              setTimeout(() => setToastMessage(null), 500);
+              setTimeout(() => setToastMessage(null), 1500);
             }}
           />
         )}

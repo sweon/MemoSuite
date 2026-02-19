@@ -471,13 +471,34 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
       if (tags.has('import')) return;
 
       editorState.read(() => {
-        const markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
+        let markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
 
-        // Safety: Don't sync empty if we had content (prevents wipe bugs)
-        // Check for common empty states like "\n" or single empty paragraph
-        const trimmedMarkdown = markdown.trim();
-        if (trimmedMarkdown === "" && lastNormalizedValueRef.current.trim() !== "") {
-          return;
+        // Rule 2 Fix: Preserve trailing empty paragraphs as newlines
+        // Lexical's $convertToMarkdownString often ignores trailing empty paragraphs.
+        const root = $nodesOfType(ParagraphNode);
+        if (root.length > 0) {
+          let trailingNewlines = 0;
+          for (let i = root.length - 1; i >= 0; i--) {
+            if (root[i].getTextContentSize() === 0 && root[i].getChildrenSize() === 0) {
+              trailingNewlines++;
+            } else {
+              break;
+            }
+          }
+          // If we have trailing empty paragraphs, they represent newlines the user added
+          // Note: the first empty paragraph is usually part of the last text, so we add for n-1? 
+          // Actually, if we have 2 paragraphs and both are empty, it's 2 enters.
+          // Let's just append trailingNewlines - (markdown ? 0 : 0) ? 
+          // Simple approach: if Lexical has more paragraphs than Markdown has lines, append.
+          // But let's be more precise:
+          if (trailingNewlines > 0) {
+            markdown = markdown.replace(/\n+$/, '') + '\n'.repeat(trailingNewlines);
+          }
+        }
+
+        // Safety: Prevent accidental wipe on empty initialization before import
+        if (markdown === "" && lastNormalizedValueRef.current !== "" && !tags.has('import')) {
+          if (lastNormalizedValueRef.current.length > 10) return;
         }
 
         if (markdown !== lastNormalizedValueRef.current) {

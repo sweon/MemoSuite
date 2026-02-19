@@ -446,11 +446,17 @@ export const MemoDetail: React.FC = () => {
     const [isSpreadsheetModalOpen, setIsSpreadsheetModalOpen] = useState(false);
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const [isFolderMoveModalOpen, setIsFolderMoveModalOpen] = useState(false);
-    const [folderMoveToast, setFolderMoveToast] = useState<string | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(location.state?.toastMessage || null);
     const [editingDrawingData, setEditingDrawingData] = useState<string | undefined>(undefined);
     const [editingSpreadsheetData, setEditingSpreadsheetData] = useState<any>(undefined);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const lastSavedState = useRef({
+        title: "",
+        content: "",
+        tags: "",
+        commentDraft: null as CommentDraft | null,
+    });
 
     useEffect(() => {
         if (id && searchParams.get('drawing') === 'true') {
@@ -473,8 +479,14 @@ export const MemoDetail: React.FC = () => {
             const ratio = scrollTop / (scrollHeight - clientHeight || 1);
             setPrevScrollRatio(ratio);
         }
+        lastSavedState.current = {
+            title,
+            content,
+            tags,
+            commentDraft,
+        };
         setIsEditingInternal(true);
-        window.history.pushState({ editing: true, isGuard: true }, '');
+        window.history.pushState({ editing: true, isGuard: true }, "");
     };
 
     const [commentDraft, setCommentDraft] = useState<CommentDraft | null>(null);
@@ -611,14 +623,12 @@ export const MemoDetail: React.FC = () => {
     };
 
     const hasDraftChanges = !!commentDraft;
-    const isCurrentlyDirty = !!(isNew
-        ? (title.trim() || content.trim() || tags.trim() || hasDraftChanges)
-        : (!!memo && (
-            (title || '').trim() !== (memo.title || '').trim() ||
-            (content || '') !== (memo.content || '') ||
-            (tags || '').trim() !== (memo.tags.join(', ') || '').trim() ||
-            hasDraftChanges
-        )));
+    const isCurrentlyDirty = !!(
+        (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
+        (content || "") !== (lastSavedState.current.content || "") ||
+        (tags || "").trim() !== (lastSavedState.current.tags || "").trim() ||
+        JSON.stringify(commentDraft) !== JSON.stringify(lastSavedState.current.commentDraft)
+    );
 
     useEffect(() => {
         setAppIsEditing(isEditing || (!!commentDraft && commentDraft.content.trim().length > 0));
@@ -650,6 +660,12 @@ export const MemoDetail: React.FC = () => {
         setContent('');
         setTags('');
         setCommentDraft(null);
+        lastSavedState.current = {
+            title: '',
+            content: '',
+            tags: '',
+            commentDraft: null,
+        };
         setIsEditingInternal(!id);
         isClosingRef.current = false;
     }
@@ -809,7 +825,6 @@ export const MemoDetail: React.FC = () => {
         }
     }, [memo, isNew, searchParams, id, language, t.log_detail?.autosave_restore_confirm, isEditing]);
 
-    const lastSavedState = useRef({ title, content, tags, commentDraft });
 
     const currentStateRef = useRef({ title, content, tags, commentDraft });
     useEffect(() => {
@@ -854,7 +869,6 @@ export const MemoDetail: React.FC = () => {
 
             const newId = await db.autosaves.put(autosaveData);
             currentAutosaveIdRef.current = newId;
-            lastSavedState.current = { title: cTitle, content: cContent, tags: cTags, commentDraft: cCommentDraft };
 
             // Keep only latest 20 autosaves
             const allAutosaves = await db.autosaves.orderBy('createdAt').toArray();
@@ -944,10 +958,15 @@ export const MemoDetail: React.FC = () => {
             await db.autosaves.where('originalId').equals(Number(id)).delete();
             currentAutosaveIdRef.current = undefined;
             restoredIdRef.current = null;
+            setCommentDraft(null);
 
-            if (searchParams.get('edit') && !isFabricModalOpen && !isSpreadsheetModalOpen) {
-                navigate(`/memo/${id}`, { replace: true });
-            }
+            setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+            lastSavedState.current = {
+                title: finalTitle,
+                content: currentContent,
+                tags: tagArray.join(", "),
+                commentDraft: null,
+            };
             // setIsEditing(false); // Do not exit edit mode on save
         } else {
             // Extract thread context from URL params if present (from Append button)
@@ -968,18 +987,22 @@ export const MemoDetail: React.FC = () => {
             // Cleanup all new memo autosaves
             await db.autosaves.filter(a => a.originalId === undefined).delete();
 
+            setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+            lastSavedState.current = {
+                title: finalTitle,
+                content: currentContent,
+                tags: tagArray.join(", "),
+                commentDraft: null,
+            };
+
             const search = _overrideSearch !== undefined ? _overrideSearch : searchParams.toString();
-            // Navigate without thread params to avoid re-applying on subsequent saves
-            navigate(`/memo/${newId}${search ? '?' + search : ''}`, {
+            const params = new URLSearchParams(search);
+            params.set("edit", "true");
+            navigate(`/memo/${newId}?${params.toString()}`, {
                 replace: true,
-                state: {
-                    ...overrideState,
-                    editing: isEditingInternal,
-                    title: finalTitle,
-                    content: currentContent,
-                    tags: tags
-                }
+                state: { ...overrideState },
             });
+            setCommentDraft(null);
         }
     };
 
@@ -1364,28 +1387,18 @@ export const MemoDetail: React.FC = () => {
                         currentFolderId={currentFolderId}
                         onClose={() => setIsFolderMoveModalOpen(false)}
                         onSuccess={(message) => {
-                            setFolderMoveToast(message);
-                            setTimeout(() => setFolderMoveToast(null), 500);
+                            setToastMessage(message);
+                            setTimeout(() => setToastMessage(null), 1500);
                             setIsFolderMoveModalOpen(false);
                         }}
                     />
                 )}
 
-                {folderMoveToast && (
-                    <Toast
-                        message={folderMoveToast}
-                        onClose={() => setFolderMoveToast(null)}
-                        duration={500}
-                    />
-                )}
-
                 {toastMessage && (
                     <Toast
-                        variant="success"
-                        position="success"
                         message={toastMessage}
                         onClose={() => setToastMessage(null)}
-                        duration={800}
+                        duration={1500}
                     />
                 )}
 
