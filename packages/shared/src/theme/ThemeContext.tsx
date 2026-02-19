@@ -153,6 +153,48 @@ export const ColorThemeProvider: React.FC<ColorThemeProviderProps> = ({
         },
     }), [mode, fontSize, colorTheme]);
 
+    const filteredLightThemes = useMemo(() => {
+        const appPrefix = storageKeyPrefix;
+        const appThemeId = `${appPrefix}_light`;
+
+        // Find current app's default theme
+        const appDefault = lightThemes.find(t => t.id === appThemeId);
+        // Common themes (not starting with any app prefix)
+        const commonThemes = lightThemes.filter(t =>
+            !t.id.startsWith('llmemo_') &&
+            !t.id.startsWith('handmemo_') &&
+            !t.id.startsWith('wordmemo_') &&
+            !t.id.startsWith('bookmemo_') &&
+            !t.id.startsWith('dailymemo_')
+        );
+
+        if (appDefault) {
+            return [{ ...appDefault, name: '기본' }, ...commonThemes];
+        }
+        return commonThemes;
+    }, [storageKeyPrefix]);
+
+    const filteredDarkThemes = useMemo(() => {
+        const appPrefix = storageKeyPrefix;
+        const appThemeId = `${appPrefix}_dark`;
+
+        // Find current app's default theme
+        const appDefault = darkThemes.find(t => t.id === appThemeId);
+        // Common themes
+        const commonThemes = darkThemes.filter(t =>
+            !t.id.startsWith('llmemo_') &&
+            !t.id.startsWith('handmemo_') &&
+            !t.id.startsWith('wordmemo_') &&
+            !t.id.startsWith('bookmemo_') &&
+            !t.id.startsWith('dailymemo_')
+        );
+
+        if (appDefault) {
+            return [{ ...appDefault, name: '기본' }, ...commonThemes];
+        }
+        return commonThemes;
+    }, [storageKeyPrefix]);
+
     return (
         <ColorThemeContext.Provider value={{
             mode,
@@ -163,8 +205,8 @@ export const ColorThemeProvider: React.FC<ColorThemeProviderProps> = ({
             theme: currentTheme,
             currentThemeId,
             setThemeById,
-            lightThemes,
-            darkThemes,
+            lightThemes: filteredLightThemes,
+            darkThemes: filteredDarkThemes,
         }}>
             <StyledThemeProvider theme={currentTheme}>
                 {GlobalStyleComponent && <GlobalStyleComponent theme={currentTheme} />}

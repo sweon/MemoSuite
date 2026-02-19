@@ -2,6 +2,86 @@ import type { ColorTheme } from './types';
 
 export const lightThemes: ColorTheme[] = [
     {
+        id: 'llmemo_light',
+        name: 'Default',
+        mode: 'light',
+        colors: {
+            background: '#f4f9fd',
+            surface: '#ffffff',
+            border: '#e1edf5',
+            text: '#1a2633',
+            textSecondary: '#5c6b7a',
+            primary: '#56B4E9',
+            primaryHover: '#3da0d6',
+            danger: '#dc2626',
+            success: '#059669',
+        }
+    },
+    {
+        id: 'handmemo_light',
+        name: 'Default',
+        mode: 'light',
+        colors: {
+            background: '#fdf9f4',
+            surface: '#ffffff',
+            border: '#f5ece1',
+            text: '#33261a',
+            textSecondary: '#7a6b5c',
+            primary: '#E69F00',
+            primaryHover: '#cd8e00',
+            danger: '#dc2626',
+            success: '#059669',
+        }
+    },
+    {
+        id: 'wordmemo_light',
+        name: 'Default',
+        mode: 'light',
+        colors: {
+            background: '#f4fdfa',
+            surface: '#ffffff',
+            border: '#e1f5ef',
+            text: '#1a332d',
+            textSecondary: '#5c7a72',
+            primary: '#117864',
+            primaryHover: '#0e6654',
+            danger: '#dc2626',
+            success: '#059669',
+        }
+    },
+    {
+        id: 'bookmemo_light',
+        name: 'Default',
+        mode: 'light',
+        colors: {
+            background: '#faf4fd',
+            surface: '#ffffff',
+            border: '#f0e1f5',
+            text: '#261a33',
+            textSecondary: '#6b5c7a',
+            primary: '#6C3483',
+            primaryHover: '#5e2d73',
+            danger: '#dc2626',
+            success: '#059669',
+        }
+    },
+    {
+        id: 'dailymemo_light',
+        name: 'Default',
+        mode: 'light',
+        colors: {
+            background: '#fdf4fa',
+            surface: '#ffffff',
+            border: '#f5e1f0',
+            text: '#331a26',
+            textSecondary: '#7a5c6b',
+            primary: '#cc79a7',
+            primaryHover: '#d58bb3',
+            danger: '#dc2626',
+            success: '#059669',
+        }
+    },
+    {
         id: 'classic',
         name: 'Classic',
         mode: 'light',
@@ -501,90 +581,89 @@ export const lightThemes: ColorTheme[] = [
             shadowColor: 'rgba(100, 116, 139, 0.1)',
         }
     },
-    // App Specific Defaults (Light)
-    {
-        id: 'llmemo_light',
-        name: 'LLMemo Default',
-        mode: 'light',
-        colors: {
-            background: '#fafafa',
-            surface: '#ffffff',
-            border: '#eeeeee',
-            text: '#1a1a1a',
-            textSecondary: '#666666',
-            primary: '#56B4E9', // Sky Blue
-            primaryHover: '#3da0d6',
-            danger: '#dc2626',
-            success: '#059669',
-        }
-    },
-    {
-        id: 'handmemo_light',
-        name: 'HandMemo Default',
-        mode: 'light',
-        colors: {
-            background: '#fafafa',
-            surface: '#ffffff',
-            border: '#eeeeee',
-            text: '#1a1a1a',
-            textSecondary: '#666666',
-            primary: '#E69F00', // Orange
-            primaryHover: '#cd8e00',
-            danger: '#dc2626',
-            success: '#059669',
-        }
-    },
-    {
-        id: 'wordmemo_light',
-        name: 'WordMemo Default',
-        mode: 'light',
-        colors: {
-            background: '#fafafa',
-            surface: '#ffffff',
-            border: '#eeeeee',
-            text: '#1a1a1a',
-            textSecondary: '#666666',
-            primary: '#117864', // Teal/Green
-            primaryHover: '#0e6654',
-            danger: '#dc2626',
-            success: '#059669',
-        }
-    },
-    {
-        id: 'bookmemo_light',
-        name: 'BookMemo Default',
-        mode: 'light',
-        colors: {
-            background: '#fafafa',
-            surface: '#ffffff',
-            border: '#eeeeee',
-            text: '#1a1a1a',
-            textSecondary: '#666666',
-            primary: '#6C3483', // Royal Purple
-            primaryHover: '#5e2d73',
-            danger: '#dc2626',
-            success: '#059669',
-        }
-    },
-    {
-        id: 'dailymemo_light',
-        name: 'DailyMemo Default',
-        mode: 'light',
-        colors: {
-            background: '#fafafa',
-            surface: '#ffffff',
-            border: '#eeeeee',
-            text: '#1a1a1a',
-            textSecondary: '#666666',
-            primary: '#cc79a7', // Pink/Purple
-            primaryHover: '#d58bb3',
-            danger: '#dc2626',
-            success: '#059669',
-        }
-    },
 ];
 
 export const darkThemes: ColorTheme[] = [
+    {
+        id: 'llmemo_dark',
+        name: 'Default',
+        mode: 'dark',
+        colors: {
+            background: '#0f141a',
+            surface: '#1a2129',
+            border: '#2a343d',
+            text: '#ebf2f7',
+            textSecondary: '#9daab5',
+            primary: '#56B4E9',
+            primaryHover: '#7acdf5',
+            danger: '#f87171',
+            success: '#34d399',
+        }
+    },
+    {
+        id: 'handmemo_dark',
+        name: 'Default',
+        mode: 'dark',
+        colors: {
+            background: '#1a160f',
+            surface: '#29241a',
+            border: '#3d342a',
+            text: '#f7f2eb',
+            textSecondary: '#b5aa9d',
+            primary: '#E69F00',
+            primaryHover: '#ffb31a',
+            danger: '#f87171',
+            success: '#34d399',
+        }
+    },
+    {
+        id: 'wordmemo_dark',
+        name: 'Default',
+        mode: 'dark',
+        colors: {
+            background: '#0f1a18',
+            surface: '#1a2926',
+            border: '#2a3d3a',
+            text: '#ebf7f4',
+            textSecondary: '#9db5ae',
+            primary: '#117864',
+            primaryHover: '#179c82',
+            danger: '#f87171',
+            success: '#34d399',
+        }
+    },
+    {
+        id: 'bookmemo_dark',
+        name: 'Default',
+        mode: 'dark',
+        colors: {
+            background: '#140f1a',
+            surface: '#211a29',
+            border: '#342a3d',
+            text: '#f2ebf7',
+            textSecondary: '#aa9db5',
+            primary: '#6C3483',
+            primaryHover: '#8e54a3',
+            danger: '#f87171',
+            success: '#34d399',
+        }
+    },
+    {
+        id: 'dailymemo_dark',
+        name: 'Default',
+        mode: 'dark',
+        colors: {
+            background: '#1a0f14',
+            surface: '#291a21',
+            border: '#3d2a34',
+            text: '#f7ebf2',
+            textSecondary: '#b59daa',
+            primary: '#cc79a7',
+            primaryHover: '#d58bb3',
+            danger: '#f87171',
+            success: '#34d399',
+        }
+    },
     {
         id: 'dark',
         name: 'Dark',
@@ -1083,87 +1162,6 @@ export const darkThemes: ColorTheme[] = [
             glassBackground: 'rgba(15, 23, 42, 0.6)',
             glassBorder: 'rgba(255, 255, 255, 0.05)',
             shadowColor: 'rgba(0, 0, 0, 0.4)',
-        }
-    },
-    // App Specific Defaults (Dark)
-    {
-        id: 'llmemo_dark',
-        name: 'LLMemo Default',
-        mode: 'dark',
-        colors: {
-            background: '#0a0a0a',
-            surface: '#171717',
-            border: '#262626',
-            text: '#ededed',
-            textSecondary: '#a1a1a1',
-            primary: '#56B4E9',
-            primaryHover: '#7acdf5',
-            danger: '#f87171',
-            success: '#34d399',
-        }
-    },
-    {
-        id: 'handmemo_dark',
-        name: 'HandMemo Default',
-        mode: 'dark',
-        colors: {
-            background: '#0a0a0a',
-            surface: '#171717',
-            border: '#262626',
-            text: '#ededed',
-            textSecondary: '#a1a1a1',
-            primary: '#E69F00',
-            primaryHover: '#ffb31a',
-            danger: '#f87171',
-            success: '#34d399',
-        }
-    },
-    {
-        id: 'wordmemo_dark',
-        name: 'WordMemo Default',
-        mode: 'dark',
-        colors: {
-            background: '#0a0a0a',
-            surface: '#171717',
-            border: '#262626',
-            text: '#ededed',
-            textSecondary: '#a1a1a1',
-            primary: '#117864',
-            primaryHover: '#179c82',
-            danger: '#f87171',
-            success: '#34d399',
-        }
-    },
-    {
-        id: 'bookmemo_dark',
-        name: 'BookMemo Default',
-        mode: 'dark',
-        colors: {
-            background: '#0a0a0a',
-            surface: '#171717',
-            border: '#262626',
-            text: '#ededed',
-            textSecondary: '#a1a1a1',
-            primary: '#6C3483',
-            primaryHover: '#8e54a3',
-            danger: '#f87171',
-            success: '#34d399',
-        }
-    },
-    {
-        id: 'dailymemo_dark',
-        name: 'DailyMemo Default',
-        mode: 'dark',
-        colors: {
-            background: '#0a0a0a',
-            surface: '#171717',
-            border: '#262626',
-            text: '#ededed',
-            textSecondary: '#a1a1a1',
-            primary: '#cc79a7',
-            primaryHover: '#d58bb3',
-            danger: '#f87171',
-            success: '#34d399',
         }
     },
 ];
