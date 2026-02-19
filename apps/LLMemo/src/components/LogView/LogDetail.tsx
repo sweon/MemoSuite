@@ -242,7 +242,6 @@ const ActionBar = styled.div<{ $isEditing?: boolean }>`
 
   @media (max-width: 768px) {
     padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.xs}`};
-    ${({ $isEditing }) => $isEditing && "display: none;"}
   }
 
   @media (max-width: 480px) {
@@ -1191,9 +1190,7 @@ export const LogDetail: React.FC = () => {
 
         <ActionBar ref={actionBarRef} $isEditing={isEditing}>
           {isEditing ? (
-            <>
-              <div id="lexical-toolbar-portal" style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', marginLeft: '8px', borderLeft: '1px solid #eee', paddingLeft: '8px' }} />
-            </>
+            <div id="lexical-toolbar-portal" style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px' }} />
           ) : (
             <>
               <ActionButton onClick={handleStartEdit} $mobileOrder={1}>

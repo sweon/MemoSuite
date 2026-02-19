@@ -16,6 +16,7 @@ import { fabric } from 'fabric';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { calculateBackgroundColor, createBackgroundPattern } from '@memosuite/shared-drawing';
+import { BlurredText } from '../UI/BlurredText';
 import { FiMaximize, FiSun, FiVolume2, FiX, FiArrowDown, FiExternalLink, FiSettings } from 'react-icons/fi';
 import { FaYoutube } from 'react-icons/fa';
 
@@ -1422,8 +1423,8 @@ interface MarkdownViewProps {
 
 export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
   memoId,
-
-
+  wordTitle,
+  studyMode,
   isReadOnly = false,
   isComment = false,
   tableHeaderBg,
@@ -1433,8 +1434,8 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
 }) => {
   const theme = useTheme() as any;
   const isDark = theme.mode === 'dark';
-  const stateRef = React.useRef({ onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment });
-  stateRef.current = { onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment };
+  const stateRef = React.useRef({ onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment, wordTitle, studyMode });
+  stateRef.current = { onEditDrawing, onEditSpreadsheet, isDark, memoId, isReadOnly, isComment, wordTitle, studyMode };
 
   React.useEffect(() => {
     const handleSeek = (e: any) => {
@@ -1461,8 +1462,17 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
       /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
       (_, title, body) => `<details><summary>${title.trim() || 'Details'}</summary>\n\n${body}\n\n</details>`
     );
-    return result.replace(/^\\newpage\s*$/gm, '<div class="page-break"></div>');
-  }, [content]);
+    result = result.replace(/^\\newpage\s*$/gm, '<div class="page-break"></div>');
+
+    // Restore word blurring logic
+    if (studyMode === 'hide-words' && wordTitle && wordTitle.trim()) {
+      const escapedWord = wordTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(\\b${escapedWord}\\b)`, 'gi');
+      result = result.replace(regex, '<span class="blurred-word">$1</span>');
+    }
+
+    return result;
+  }, [content, studyMode, wordTitle]);
 
 
   const components = React.useMemo(() => ({
@@ -1516,7 +1526,19 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
             if (pathMatch && pathMatch[1]) videoId = pathMatch[1];
           }
           if (tMatch && tMatch[1]) timestamp = parseInt(tMatch[1]);
-          if (videoId) return (<div key={`yt-wrap-${videoId}`} id={`yt-player-container-${videoId}`} style={{ margin: '16px 0' }}><YouTubePlayer key={`yt-${videoId}`} videoId={videoId} startTimestamp={timestamp > 0 ? timestamp : undefined} memoId={stateRef.current.memoId} isShort={cleanHref.includes('shorts/')} /></div>);
+          if (videoId) return (
+            <div key={`yt-wrap-${videoId}`} id={`yt-player-container-${videoId}`} style={{ margin: '16px 0' }}>
+              <YouTubePlayer
+                key={`yt-${videoId}`}
+                videoId={videoId}
+                startTimestamp={timestamp > 0 ? timestamp : undefined}
+                memoId={stateRef.current.memoId}
+                wordTitle={stateRef.current.wordTitle}
+                studyMode={stateRef.current.studyMode}
+                isShort={cleanHref.includes('shorts/')}
+              />
+            </div>
+          );
           else {
             let playlistId = '';
             const listMatch = cleanHref.match(/[?&]list=([a-zA-Z0-9_-]+)/);
@@ -1571,7 +1593,14 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
         if (!inline) return (<SyntaxHighlighter style={stateRef.current.isDark ? vscDarkPlus : vs} language={language || 'text'} PreTag="div" {...props}>{json}</SyntaxHighlighter>);
         return <code className={className} {...props}>{children}</code>;
       } catch (e) { return <code className={className} {...props}>{children}</code>; }
-    }
+    },
+    span: ({ node, className, children, ...props }: any) => {
+      if (className === 'blurred-word') {
+        const isBlurred = stateRef.current.studyMode === 'hide-words';
+        return <BlurredText $isBlurred={isBlurred}>{children}</BlurredText>;
+      }
+      return <span className={className} {...props}>{children}</span>;
+    },
   }), []);
   return (
     <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>
