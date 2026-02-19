@@ -4,7 +4,7 @@ import { SyncModal, ThreadableList, useColorTheme, useLanguage } from '@memosuit
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
-import type { Log } from '../../db';
+import type { Log, Folder } from '../../db';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiCornerDownRight, FiArrowUp } from 'react-icons/fi';
 import { BreadcrumbNav } from '../UI/BreadcrumbNav';
@@ -21,6 +21,7 @@ import { useSearch } from '../../contexts/SearchContext';
 import { format } from 'date-fns';
 import { SidebarLogItem } from './SidebarLogItem';
 import { SidebarThreadItem } from './SidebarThreadItem';
+import { SidebarFolderItem } from './SidebarFolderItem';
 import pkg from '../../../package.json';
 
 const ScrollableArea = styled.div`
@@ -265,10 +266,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const {
     currentFolderId,
     homeFolder,
+    currentFolder,
+    subfolders,
     breadcrumbs,
     setShowFolderList,
     navigateToHome,
-    navigateToFolder
+    navigateToFolder,
+    navigateUp
   } = useFolder();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'model-desc' | 'model-asc' | 'comment-desc'>('date-desc');
 
@@ -433,6 +437,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   }, [allModels]);
 
   type FlatItem =
+    | { type: 'folder-up' }
+    | { type: 'folder', folder: Folder }
     | { type: 'single', log: Log }
     | { type: 'thread-header', log: Log, threadId: string, threadLogs: Log[] }
     | { type: 'thread-child', log: Log, threadId: string };
@@ -537,6 +543,19 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     });
 
     const flat: FlatItem[] = [];
+
+    // Add "Go Up" button if not in Home folder
+    if (currentFolderId !== null && homeFolder && currentFolder && !currentFolder.isHome) {
+      flat.push({ type: 'folder-up' });
+    }
+
+    // Add subfolders
+    if (subfolders && subfolders.length > 0) {
+      subfolders.forEach(f => {
+        flat.push({ type: 'folder', folder: f });
+      });
+    }
+
     sortableGroups.forEach(g => {
       if (g.type === 'single') {
         flat.push({ type: 'single', log: g.log });
@@ -596,7 +615,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
     const activeLogId = parseInt(id);
     if (!isNaN(activeLogId)) {
-      const isVisible = flatItems.some(it => it.log.id === activeLogId);
+      const isVisible = flatItems.some(it => ('log' in it) && it.log.id === activeLogId);
       if (!isVisible && searchQuery) {
         const exists = allLogs?.some(m => m.id === activeLogId);
         if (exists) {
@@ -660,7 +679,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       if (!sourceLog || !targetLog) return;
 
       const newThreadId = targetLog.threadId || crypto.randomUUID();
-      const targetItem = flatItems.find(it => it.log.id === targetId);
+      const targetItem = flatItems.find(it => ('log' in it) && it.log.id === targetId);
       const isTargetHeader = targetItem?.type === 'thread-header' || !targetLog.threadId;
 
       await db.transaction('rw', db.logs, async () => {
@@ -770,8 +789,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     } else if (targetItem?.type === 'thread-header') {
       // Dropped on/above header -> extract
       destThreadId = undefined;
-    } else if (prevItem?.log.threadId && sourceLog.threadId === prevItem.log.threadId) {
-      destThreadId = prevItem.log.threadId;
+    } else if ((prevItem as any)?.log?.threadId && sourceLog.threadId === (prevItem as any).log.threadId) {
+      destThreadId = (prevItem as any).log.threadId;
     }
 
     if (destThreadId) {
@@ -781,7 +800,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
         const filteredSiblings = sortedSiblings.filter(m => m.id !== sourceId);
 
-        const threadBlockStart = items.findIndex(it => it.log.threadId === destThreadId);
+        const threadBlockStart = items.findIndex(it => ('log' in it) && it.log.threadId === destThreadId);
         let positionInThread = destIndex - threadBlockStart;
 
         positionInThread = Math.max(0, Math.min(positionInThread, filteredSiblings.length));
@@ -801,17 +820,37 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     }
 
     // --- Generic Sort Reordering / Extraction ---
+    const logItems = items.filter(it => 'log' in it) as any[];
     let newTime: number;
-    if (destIndex === 0) {
-      newTime = items[0].log.createdAt.getTime() + 60000;
-    } else if (destIndex === items.length - 1) {
-      newTime = items[items.length - 1].log.createdAt.getTime() - 60000;
+    if (logItems.length === 0) {
+      newTime = Date.now();
     } else {
-      const beforeIdx = destIndex < sourceIndex ? destIndex - 1 : destIndex;
-      const afterIdx = destIndex < sourceIndex ? destIndex : destIndex + 1;
-      const t1 = items[beforeIdx].log.createdAt.getTime();
-      const t2 = items[afterIdx].log.createdAt.getTime();
-      newTime = (t1 + t2) / 2;
+      // Find where this log would land among other logs
+      // This is simplified: we just take the nearest logs in the flat list
+      let beforeLog = null;
+      for (let i = destIndex - 1; i >= 0; i--) {
+        if ('log' in items[i]) {
+          beforeLog = (items[i] as any).log;
+          break;
+        }
+      }
+      let afterLog = null;
+      for (let i = destIndex; i < items.length; i++) {
+        if ('log' in items[i]) {
+          afterLog = (items[i] as any).log;
+          break;
+        }
+      }
+
+      if (beforeLog && afterLog) {
+        newTime = (beforeLog.createdAt.getTime() + afterLog.createdAt.getTime()) / 2;
+      } else if (beforeLog) {
+        newTime = beforeLog.createdAt.getTime() - 60000;
+      } else if (afterLog) {
+        newTime = afterLog.createdAt.getTime() + 60000;
+      } else {
+        newTime = Date.now();
+      }
     }
 
     await db.logs.update(sourceId, {
@@ -1020,13 +1059,36 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           onDragEnd={onDragEnd}
           // onDragUpdate is handled by ThreadableList but we can pass it if we need extra logic
           getItemId={(item) => {
+            if (item.type === 'folder-up') return 'folder-up';
+            if (item.type === 'folder') return `folder-${item.folder.id}`;
             if (item.type === 'single') return item.log.id!;
             if (item.type === 'thread-header') return `thread-header-${item.log.id}`;
             if (item.type === 'thread-child') return `thread-child-${item.log.id}`;
             return '';
           }}
-          renderItem={(item, _index, isCombineTarget) => {
-            if (item.type === 'single') {
+          renderItem={(item: any, _index, isCombineTarget) => {
+            if (item.type === 'folder-up') {
+              return (
+                <SidebarFolderItem
+                  key="folder-up"
+                  name=".."
+                  onClick={() => {
+                    navigateUp();
+                  }}
+                  isUp={true}
+                />
+              );
+            } else if (item.type === 'folder') {
+              return (
+                <SidebarFolderItem
+                  key={`folder-${item.folder.id}`}
+                  name={item.folder.name}
+                  onClick={() => {
+                    navigateToFolder(item.folder.id!);
+                  }}
+                />
+              );
+            } else if (item.type === 'single') {
               const logId = item.log.id!;
               return (
                 <SidebarLogItem

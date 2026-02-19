@@ -3,7 +3,7 @@ import { SyncModal, ThreadableList, useColorTheme, useLanguage } from '@memosuit
 
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Memo } from '../../db';
+import { db, type Memo, type Folder } from '../../db';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiRefreshCw, FiMinus, FiPenTool, FiCornerDownRight, FiArrowUp } from 'react-icons/fi';
 import { BsKeyboard } from 'react-icons/bs';
@@ -16,6 +16,7 @@ import { Toast } from '../UI/Toast';
 
 import { useSearch } from '../../contexts/SearchContext';
 import { SidebarMemoItem } from './SidebarMemoItem';
+import { SidebarFolderItem } from './SidebarFolderItem';
 import { handMemoSyncAdapter } from '../../utils/backupAdapter';
 import type { DropResult } from '@hello-pangea/dnd';
 
@@ -276,10 +277,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
   const {
     currentFolderId,
     homeFolder,
+    currentFolder,
+    subfolders,
     breadcrumbs,
     setShowFolderList,
     navigateToHome,
-    navigateToFolder
+    navigateToFolder,
+    navigateUp
   } = useFolder();
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-edited' | 'last-commented'>(() => {
     return (localStorage.getItem('sidebar_sortBy') as any) || 'last-edited';
@@ -568,13 +572,27 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     if (!sortedMemos || !allMemos) return [];
 
     const items: Array<{
-      type: 'memo';
-      memo: Memo;
+      type: 'memo' | 'folder' | 'folder-up';
+      memo?: Memo;
+      folder?: Folder;
       isThreadHead?: boolean;
       isThreadChild?: boolean;
       threadId?: string;
       childCount?: number;
     }> = [];
+
+    // Add "Go Up" button if not in Home folder
+    if (currentFolderId !== null && homeFolder && currentFolder && !currentFolder.isHome) {
+      items.push({ type: 'folder-up' });
+    }
+
+    // Add subfolders
+    if (subfolders && subfolders.length > 0) {
+      subfolders.forEach(f => {
+        items.push({ type: 'folder', folder: f });
+      });
+    }
+
     const processedMemos = new Set<number>();
 
     sortedMemos.forEach(memo => {
@@ -623,7 +641,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     });
 
     return items;
-  }, [sortedMemos, allMemos, collapsedThreads]);
+  }, [sortedMemos, allMemos, collapsedThreads, currentFolderId, homeFolder, currentFolder, subfolders]);
 
   const activeId = location.pathname.split('/').pop();
   useEffect(() => {
@@ -631,7 +649,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
 
     const activeMemoId = parseInt(activeId);
     if (!isNaN(activeMemoId)) {
-      const isVisible = groupedItems.some(it => it.memo.id === activeMemoId);
+      const isVisible = groupedItems.some(it => it.type === 'memo' && it.memo?.id === activeMemoId);
       if (!isVisible && searchQuery) {
         const exists = allMemos?.some(m => m.id === activeMemoId);
         if (exists) {
@@ -667,8 +685,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       if (!sourceMemo || !targetMemo) return;
 
       const newThreadId = targetMemo.threadId || uuidv4();
-      const targetItem = groupedItems.find(it => it.memo.id === targetId);
-      const isTargetHeader = targetItem?.isThreadHead || !targetMemo.threadId;
+      const targetItem = groupedItems.find(it => it.type === 'memo' && it.memo?.id === targetId);
+      const isTargetHeader = (targetItem as any)?.isThreadHead || !targetMemo.threadId;
 
       await db.transaction('rw', db.memos, async () => {
         // Ensure target is in thread
@@ -687,7 +705,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
         if (sourceMemo.threadId) {
           const sSiblings = await db.memos.where('threadId').equals(sourceMemo.threadId).toArray();
           const sSorted = sSiblings.sort((a, b) => (a.threadOrder || 0) - (b.threadOrder || 0));
-          const isSourceHeader = groupedItems.find(it => it.memo.id === sourceId)?.isThreadHead;
+          const isSourceHeader = groupedItems.find(it => it.type === 'memo' && it.memo?.id === sourceId)?.isThreadHead;
           if (isSourceHeader) {
             sourceItems = sSorted;
           }
@@ -737,7 +755,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       if (!sourceMemo) return;
 
       // Check if it's a thread head
-      const isHeader = groupedItems.find(it => it.memo.id === sourceMemoId)?.isThreadHead;
+      const isHeader = groupedItems.find(it => it.type === 'memo' && it.memo?.id === sourceMemoId)?.isThreadHead;
 
       if (isHeader && sourceMemo.threadId) {
         // Move entire thread
@@ -801,7 +819,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
         const filteredSiblings = sortedSiblings.filter(m => m.id !== sourceMemoId);
 
         // Calculate relative position in thread
-        const threadBlockStart = items.findIndex(it => it.threadId === destThreadId);
+        const threadBlockStart = items.findIndex(it => it.type === 'memo' && it.threadId === destThreadId);
         let positionInThread = destIndex - threadBlockStart;
 
         // Clamp position
@@ -827,17 +845,39 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     // --- Generic Sort Reordering / Extraction ---
     // Calculate new position using updatedAt for sorting
     let newTime: number;
-    if (destIndex === 0) {
-      newTime = items[0].memo.updatedAt.getTime() + 60000; // 1 min later
-    } else if (destIndex === items.length - 1) {
-      newTime = items[items.length - 1].memo.updatedAt.getTime() - 60000;
+    const memoItems = items.filter(it => it.type === 'memo');
+    if (memoItems.length === 0) {
+      newTime = Date.now();
+    } else if (destIndex === 0) {
+      newTime = (items[0] as any).memo.updatedAt.getTime() + 60000;
+    } else if (destIndex >= items.length - 1) {
+      newTime = (items[items.length - 1] as any).memo.updatedAt.getTime() - 60000;
     } else {
-      const beforeIndex = destIndex < sourceIndex ? destIndex - 1 : destIndex;
-      const afterIndex = destIndex < sourceIndex ? destIndex : destIndex + 1;
+      // Find nearest memos before and after
+      let beforeMemo = null;
+      for (let i = destIndex - 1; i >= 0; i--) {
+        if (items[i].type === 'memo') {
+          beforeMemo = (items[i] as any).memo;
+          break;
+        }
+      }
+      let afterMemo = null;
+      for (let i = destIndex; i < items.length; i++) {
+        if (items[i].type === 'memo') {
+          afterMemo = (items[i] as any).memo;
+          break;
+        }
+      }
 
-      const t1 = items[beforeIndex].memo.updatedAt.getTime();
-      const t2 = items[afterIndex].memo.updatedAt.getTime();
-      newTime = (t1 + t2) / 2;
+      if (beforeMemo && afterMemo) {
+        newTime = (beforeMemo.updatedAt.getTime() + afterMemo.updatedAt.getTime()) / 2;
+      } else if (beforeMemo) {
+        newTime = beforeMemo.updatedAt.getTime() - 60000;
+      } else if (afterMemo) {
+        newTime = afterMemo.updatedAt.getTime() + 60000;
+      } else {
+        newTime = Date.now();
+      }
     }
 
     // If it was in a thread and moved to a non-thread position, extract it
@@ -1116,35 +1156,59 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
           onDragStart={() => { }}
           onDragEnd={onDragEnd}
           useExternalContext={true}
-          getItemId={(item) => item.memo.id!}
-          renderItem={(item, _index, isCombineTarget) => (
-
-            <SidebarMemoItem
-              key={item.memo.id}
-              memo={item.memo}
-              isActive={id !== undefined && id !== 'new' && id !== 'settings' && String(id) === String(item.memo.id)}
-              onClick={(skipHistory) => {
-                if (movingMemoId) {
-                  handleMove(item.memo.id!);
-                } else {
-                  onCloseMobile(skipHistory);
-                }
-              }}
-              formatDate={(date) => format(date, language === 'ko' ? 'yyyy.MM.dd' : 'MMM d, yyyy')}
-              untitledText={t.sidebar.untitled}
-              inThread={item.isThreadChild}
-              isThreadHead={item.isThreadHead}
-              childCount={item.childCount}
-              collapsed={collapsedThreads.has(item.threadId || '')}
-              isMovingMode={!!movingMemoId}
-              onToggle={toggleThread}
-              threadId={item.threadId}
-              collapseText={t.sidebar.collapse}
-              moreText={t.sidebar.more_memos}
-              isCombineTarget={isCombineTarget}
-              onTogglePin={handleTogglePin}
-            />
-          )}
+          getItemId={(item: any) => {
+            if (item.type === 'folder-up') return 'folder-up';
+            if (item.type === 'folder') return `folder-${item.folder.id}`;
+            return item.memo.id!;
+          }}
+          renderItem={(item: any, _index, isCombineTarget) => {
+            if (item.type === 'folder-up') {
+              return (
+                <SidebarFolderItem
+                  key="folder-up"
+                  name=".."
+                  onClick={() => navigateUp()}
+                  isUp={true}
+                />
+              );
+            }
+            if (item.type === 'folder') {
+              return (
+                <SidebarFolderItem
+                  key={`folder-${item.folder.id}`}
+                  name={item.folder.name}
+                  onClick={() => navigateToFolder(item.folder.id!)}
+                />
+              );
+            }
+            return (
+              <SidebarMemoItem
+                key={item.memo.id}
+                memo={item.memo}
+                isActive={id !== undefined && id !== 'new' && id !== 'settings' && String(id) === String(item.memo.id)}
+                onClick={(skipHistory) => {
+                  if (movingMemoId) {
+                    handleMove(item.memo.id!);
+                  } else {
+                    onCloseMobile(skipHistory);
+                  }
+                }}
+                formatDate={(date) => format(date, language === 'ko' ? 'yyyy.MM.dd' : 'MMM d, yyyy')}
+                untitledText={t.sidebar.untitled}
+                inThread={item.isThreadChild}
+                isThreadHead={item.isThreadHead}
+                childCount={item.childCount}
+                collapsed={collapsedThreads.has(item.threadId || '')}
+                isMovingMode={!!movingMemoId}
+                onToggle={toggleThread}
+                threadId={item.threadId}
+                collapseText={t.sidebar.collapse}
+                moreText={t.sidebar.more_memos}
+                isCombineTarget={isCombineTarget}
+                onTogglePin={handleTogglePin}
+              />
+            );
+          }}
 
           style={{
             flex: 1,

@@ -4,7 +4,7 @@ import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../db';
-import type { Word } from '../../db';
+import type { Word, Folder } from '../../db';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FiPlus, FiSettings, FiSun, FiMoon, FiSearch, FiX, FiEyeOff, FiStar, FiRefreshCw, FiMinus, FiCornerDownRight, FiArrowUp } from 'react-icons/fi';
 import { Tooltip } from '../UI/Tooltip';
@@ -20,6 +20,7 @@ import { useStudyMode } from '../../contexts/StudyModeContext';
 import { format } from 'date-fns';
 import { SidebarMemoItem } from './SidebarMemoItem';
 import { SidebarThreadItem } from './SidebarThreadItem';
+import { SidebarFolderItem } from './SidebarFolderItem';
 import { StarButton } from './itemStyles';
 import pkg from '../../../package.json';
 
@@ -332,10 +333,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const {
     currentFolderId,
     homeFolder,
+    currentFolder,
+    subfolders,
     breadcrumbs,
     setShowFolderList,
     navigateToHome,
-    navigateToFolder
+    navigateToFolder,
+    navigateUp
   } = useFolder();
 
 
@@ -539,6 +543,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   }, [allSources]);
 
   type FlatItem =
+    | { type: 'folder-up' }
+    | { type: 'folder', folder: Folder }
     | { type: 'single', log: Word }
     | { type: 'thread-header', log: Word, threadId: string, threadWords: Word[] }
     | { type: 'thread-child', log: Word, threadId: string };
@@ -595,6 +601,18 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     // 3. Flatten
     const items: FlatItem[] = [];
 
+    // Add "Go Up" button if not in Home folder
+    if (currentFolderId !== null && homeFolder && currentFolder && !currentFolder.isHome) {
+      items.push({ type: 'folder-up' });
+    }
+
+    // Add subfolders
+    if (subfolders && subfolders.length > 0) {
+      subfolders.forEach(f => {
+        items.push({ type: 'folder', folder: f });
+      });
+    }
+
     // First, process threads
     finalThreads.forEach((logs, tid) => {
       const sorted = logs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -612,32 +630,37 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     });
 
     // 4. Sort Flattened List
-    return items.sort((a, b) => {
-      const aPinnedAt = a.log.pinnedAt || (a.log.id ? justUnpinnedIds.get(a.log.id) : undefined);
-      const bPinnedAt = b.log.pinnedAt || (b.log.id ? justUnpinnedIds.get(b.log.id) : undefined);
+    const logItems = items.filter(it => 'log' in it) as FlatItem[];
+    const folderItems = items.filter(it => !('log' in it)) as FlatItem[];
 
-      // Pinned logic: pinned items always come first, sorted by pinnedAt desc
+    const sortedLogs = logItems.sort((a, b) => {
+      const aPinnedAt = (a as any).log.pinnedAt || ((a as any).log.id ? justUnpinnedIds.get((a as any).log.id) : undefined);
+      const bPinnedAt = (b as any).log.pinnedAt || ((b as any).log.id ? justUnpinnedIds.get((b as any).log.id) : undefined);
+
+      // ... rest of sort logic ...
       if (aPinnedAt && bPinnedAt) return new Date(bPinnedAt).getTime() - new Date(aPinnedAt).getTime();
       if (aPinnedAt) return -1;
       if (bPinnedAt) return 1;
 
       if (sortBy === 'starred') {
-        if (a.log.isStarred && !b.log.isStarred) return -1;
-        if (!a.log.isStarred && b.log.isStarred) return 1;
+        if ((a as any).log.isStarred && !(b as any).log.isStarred) return -1;
+        if (!(a as any).log.isStarred && (b as any).log.isStarred) return 1;
       }
-      if (sortBy === 'date-desc') return b.log.createdAt.getTime() - a.log.createdAt.getTime();
-      if (sortBy === 'date-asc') return a.log.createdAt.getTime() - b.log.createdAt.getTime();
-      if (sortBy === 'source-desc') return (sourceNameMap.get(b.log.sourceId!) || '').localeCompare(sourceNameMap.get(a.log.sourceId!) || '');
-      if (sortBy === 'source-asc') return (sourceNameMap.get(a.log.sourceId!) || '').localeCompare(sourceNameMap.get(b.log.sourceId!) || '');
-      if (sortBy === 'alpha') return a.log.title.localeCompare(b.log.title);
+      if (sortBy === 'date-desc') return (b as any).log.createdAt.getTime() - (a as any).log.createdAt.getTime();
+      if (sortBy === 'date-asc') return (a as any).log.createdAt.getTime() - (b as any).log.createdAt.getTime();
+      if (sortBy === 'source-desc') return (sourceNameMap.get((b as any).log.sourceId!) || '').localeCompare(sourceNameMap.get((a as any).log.sourceId!) || '');
+      if (sortBy === 'source-asc') return (sourceNameMap.get((a as any).log.sourceId!) || '').localeCompare(sourceNameMap.get((a as any).log.sourceId!) || '');
+      if (sortBy === 'alpha') return (a as any).log.title.localeCompare((b as any).log.title);
       if (sortBy === 'comment-desc') {
-        const aCount = allComments?.filter(oc => oc.wordId === a.log.id).length || 0;
-        const bCount = allComments?.filter(oc => oc.wordId === b.log.id).length || 0;
+        const aCount = allComments?.filter(oc => oc.wordId === (a as any).log.id).length || 0;
+        const bCount = allComments?.filter(oc => oc.wordId === (b as any).log.id).length || 0;
         return bCount - aCount;
       }
-      return b.log.createdAt.getTime() - a.log.createdAt.getTime();
+      return (b as any).log.createdAt.getTime() - (a as any).log.createdAt.getTime();
     });
-  }, [allWords, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap, justUnpinnedIds, currentFolderId, homeFolder]);
+
+    return [...folderItems, ...sortedLogs];
+  }, [allWords, allSources, allComments, searchQuery, sortBy, starredOnly, expandedThreads, sourceNameMap, justUnpinnedIds, currentFolderId, homeFolder, currentFolder, subfolders]);
 
   const handleTogglePinLog = async (logId: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -681,7 +704,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
     const activeWordId = parseInt(id);
     if (!isNaN(activeWordId)) {
-      const isVisible = flatItems.some(it => it.log.id === activeWordId);
+      const isVisible = flatItems.some(it => ('log' in it) && (it as any).log.id === activeWordId);
       if (!isVisible && (searchQuery || starredOnly)) {
         const exists = allWords?.some(m => m.id === activeWordId);
         if (exists) {
@@ -758,7 +781,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       if (!sourceWord || !targetWord) return;
 
       const newThreadId = targetWord.threadId || `thread-${Date.now()}`;
-      const targetItem = flatItems.find(it => it.log.id === targetId);
+      const targetItem = flatItems.find(it => ('log' in it) && (it as any).log.id === targetId);
       const isTargetHeader = targetItem?.type === 'thread-header' || !targetWord.threadId;
 
       await db.transaction('rw', db.words, async () => {
@@ -844,8 +867,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     } else if (targetItem?.type === 'thread-header') {
       // Dropped on/above header -> extract
       destThreadId = undefined;
-    } else if (prevItem?.log.threadId && sourceWord.threadId === prevItem.log.threadId) {
-      destThreadId = prevItem.log.threadId;
+    } else if ((prevItem as any)?.log?.threadId && sourceWord.threadId === (prevItem as any).log.threadId) {
+      destThreadId = (prevItem as any).log.threadId;
     }
 
     if (destThreadId) {
@@ -855,7 +878,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
 
         const filteredSiblings = sortedSiblings.filter(m => m.id !== sourceId);
 
-        const threadBlockStart = items.findIndex(it => it.log.threadId === destThreadId);
+        const threadBlockStart = items.findIndex(it => ('log' in it) && it.log.threadId === destThreadId);
         let positionInThread = destIndex - threadBlockStart;
 
         positionInThread = Math.max(0, Math.min(positionInThread, filteredSiblings.length));
@@ -876,17 +899,36 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     }
 
     // --- Generic Sort Reordering / Extraction ---
+    const logItems = items.filter(it => 'log' in it) as any[];
     let newTime: number;
-    if (destIndex === 0) {
-      newTime = items[0].log.createdAt.getTime() + 60000;
-    } else if (destIndex === items.length - 1) {
-      newTime = items[items.length - 1].log.createdAt.getTime() - 60000;
+    if (logItems.length === 0) {
+      newTime = Date.now();
     } else {
-      const beforeIdx = destIndex < sourceIndex ? destIndex - 1 : destIndex;
-      const afterIdx = destIndex < sourceIndex ? destIndex : destIndex + 1;
-      const t1 = items[beforeIdx].log.createdAt.getTime();
-      const t2 = items[afterIdx].log.createdAt.getTime();
-      newTime = (t1 + t2) / 2;
+      // Find where this log would land among other logs
+      let beforeLog = null;
+      for (let i = destIndex - 1; i >= 0; i--) {
+        if ('log' in items[i]) {
+          beforeLog = (items[i] as any).log;
+          break;
+        }
+      }
+      let afterLog = null;
+      for (let i = destIndex; i < items.length; i++) {
+        if ('log' in items[i]) {
+          afterLog = (items[i] as any).log;
+          break;
+        }
+      }
+
+      if (beforeLog && afterLog) {
+        newTime = (beforeLog.createdAt.getTime() + afterLog.createdAt.getTime()) / 2;
+      } else if (beforeLog) {
+        newTime = beforeLog.createdAt.getTime() - 60000;
+      } else if (afterLog) {
+        newTime = afterLog.createdAt.getTime() + 60000;
+      } else {
+        newTime = Date.now();
+      }
     }
 
     await db.words.update(sourceId, {
@@ -1144,6 +1186,25 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             {(provided) => (
               <div {...provided.droppableProps} ref={provided.innerRef} key={listKey}>
                 {flatItems.map((item, index) => {
+                  if (item.type === 'folder-up') {
+                    return (
+                      <SidebarFolderItem
+                        key="folder-up"
+                        name=".."
+                        onClick={() => navigateUp()}
+                        isUp={true}
+                      />
+                    );
+                  }
+                  if (item.type === 'folder') {
+                    return (
+                      <SidebarFolderItem
+                        key={`folder-${item.folder.id}`}
+                        name={item.folder.name}
+                        onClick={() => navigateToFolder(item.folder.id!)}
+                      />
+                    );
+                  }
                   if (item.type === 'thread-header') {
                     return (
                       <SidebarThreadItem

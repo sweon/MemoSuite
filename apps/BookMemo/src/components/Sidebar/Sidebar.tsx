@@ -17,6 +17,7 @@ import { Toast } from '../UI/Toast';
 
 import { useSearch } from '../../contexts/SearchContext';
 import { SidebarBookItem } from './SidebarBookItem';
+import { SidebarFolderItem } from './SidebarFolderItem';
 import { bookMemoSyncAdapter } from '../../utils/backupAdapter';
 
 import { ConfirmModal } from '../UI/ConfirmModal';
@@ -266,9 +267,7 @@ const AppVersion = styled.span`
   border: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
-export interface SidebarRef {
-  handleDragEnd: (result: DropResult) => Promise<void>;
-}
+// Interface already defined above
 
 export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false, movingMemoId, setMovingMemoId }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
@@ -304,10 +303,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
   const {
     currentFolderId,
     homeFolder,
+    currentFolder,
+    subfolders,
     breadcrumbs,
     setShowFolderList,
     navigateToHome,
-    navigateToFolder
+    navigateToFolder,
+    navigateUp
   } = useFolder();
   const navigate = useNavigate();
   const location = useLocation();
@@ -819,6 +821,22 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
               {...provided.droppableProps}
               style={{ opacity: isEditing ? 0.5 : 1, pointerEvents: isEditing ? 'none' : 'auto' }}
             >
+              {/* Folder Navigation Items */}
+              {currentFolderId !== null && homeFolder && currentFolder && !currentFolder.isHome && (
+                <SidebarFolderItem
+                  name=".."
+                  onClick={() => navigateUp()}
+                  isUp={true}
+                />
+              )}
+              {subfolders.map(folder => (
+                <SidebarFolderItem
+                  key={`folder-${folder.id}`}
+                  name={folder.name}
+                  onClick={() => navigateToFolder(folder.id!)}
+                />
+              ))}
+
               {sortedBooks?.map((book, index) => (
                 <Draggable key={book.id} draggableId={String(book.id)} index={index}>
                   {(provided) => (
