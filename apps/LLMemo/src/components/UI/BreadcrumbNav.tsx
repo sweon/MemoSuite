@@ -3,8 +3,6 @@ import { useLanguage } from '@memosuite/shared';
 import styled from 'styled-components';
 import { FiHome, FiChevronRight, FiFolder } from 'react-icons/fi';
 
-const APP_COLOR = '#56B4E9';
-
 interface BreadcrumbItem {
     id: number;
     name: string;
@@ -41,8 +39,8 @@ const BreadcrumbItemStyled = styled.button<{ $isActive?: boolean; $isHome?: bool
   gap: 4px;
   padding: 4px 8px;
   border: none;
-  background: ${({ $isActive }) => $isActive ? `${APP_COLOR}22` : 'transparent'};
-  color: ${({ $isActive, theme }) => $isActive ? APP_COLOR : theme.colors.text};
+  background: ${({ theme, $isActive }) => $isActive ? `${theme.colors.primary}22` : 'transparent'};
+  color: ${({ theme, $isActive }) => $isActive ? theme.colors.primary : theme.colors.text};
   font-size: 0.85rem;
   font-weight: ${({ $isActive }) => $isActive ? 700 : 500};
   border-radius: 6px;
@@ -54,8 +52,8 @@ const BreadcrumbItemStyled = styled.button<{ $isActive?: boolean; $isHome?: bool
   min-height: 28px;
   
   &:hover {
-    background: ${APP_COLOR}22;
-    color: ${APP_COLOR};
+    background: ${({ theme }) => theme.colors.primary}22;
+    color: ${({ theme }) => theme.colors.primary};
   }
   
   svg {

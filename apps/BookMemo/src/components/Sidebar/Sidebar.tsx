@@ -131,7 +131,7 @@ const Button = styled.button`
   border-radius: ${({ theme }) => theme.radius.small};
   border: none;
   cursor: pointer;
-  background: #6C3483;
+  background: ${({ theme }) => theme.colors.primary};
   color: white;
   flex-shrink: 0;
   transition: ${({ theme }) => theme.effects.transition};
@@ -655,7 +655,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       {movingMemoId && (
         <div style={{
           padding: '0.75rem',
-          background: '#6C3483',
+          background: theme.colors.primary,
           color: 'white',
           display: 'flex',
           justifyContent: 'space-between',

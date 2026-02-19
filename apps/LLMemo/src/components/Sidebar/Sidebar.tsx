@@ -1041,7 +1041,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                 navigate('/new');
                 onCloseMobile(true);
               }}
-              $color="#56B4E9"
+              $color={theme.colors.primary}
             >
               <FiPlus />
               {t.sidebar.new || 'New Log'}

@@ -12,7 +12,6 @@ import { useFolder } from '../../contexts/FolderContext';
 
 // Warning color constant (amber)
 const WARNING_COLOR = '#f59e0b';
-const APP_COLOR = '#56B4E9';
 
 const Container = styled.div`
   display: flex;
@@ -70,7 +69,7 @@ const GoUpButton = styled.button`
   padding: 4px 8px;
   background: transparent;
   border: none;
-  color: ${APP_COLOR};
+  color: ${({ theme }) => theme.colors.primary};
   font-size: 1.5rem;
   font-weight: 800;
   cursor: pointer;
@@ -79,7 +78,7 @@ const GoUpButton = styled.button`
   line-height: 1;
 
   &:hover {
-    background: ${APP_COLOR + '15'};
+    background: ${({ theme }) => theme.colors.primary + '15'};
     transform: translateY(-1px);
   }
 
@@ -114,7 +113,7 @@ const SearchInput = styled.input`
 
   &:focus {
     outline: none;
-    border-color: ${APP_COLOR};
+    border-color: ${({ theme }) => theme.colors.primary};
   }
 
   &::placeholder {
@@ -143,7 +142,7 @@ const SortSelect = styled.select`
 
   &:focus {
     outline: none;
-    border-color: ${APP_COLOR};
+    border-color: ${({ theme }) => theme.colors.primary};
   }
 `;
 
@@ -152,7 +151,7 @@ const AddButton = styled.button`
   align-items: center;
   gap: 6px;
   padding: 10px 16px;
-  background: ${APP_COLOR};
+  background: ${({ theme }) => theme.colors.primary};
   color: white;
   border: none;
   border-radius: ${({ theme }) => theme.radius.medium};
@@ -190,13 +189,13 @@ const ViewModeButton = styled.button<{ $active: boolean }>`
   height: 34px;
   border-radius: ${({ theme }) => theme.radius.small};
   border: none;
-  background: ${({ $active }) => $active ? APP_COLOR : 'transparent'};
+  background: ${({ $active, theme }) => $active ? theme.colors.primary : 'transparent'};
   color: ${({ $active, theme }) => $active ? 'white' : theme.colors.textSecondary};
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background: ${({ $active, theme }) => $active ? APP_COLOR : theme.colors.background};
+    background: ${({ $active, theme }) => $active ? theme.colors.primary : theme.colors.background};
     color: ${({ $active }) => $active ? 'white' : undefined};
   }
 
@@ -226,7 +225,7 @@ const FolderCard = styled.div<{ $viewMode: ViewMode; $isActive?: boolean; $isRea
   align-items: ${({ $viewMode }) => $viewMode === 'single-line' ? 'center' : 'stretch'};
   padding: ${({ theme, $viewMode }) => $viewMode === 'single-line' ? '12px 16px' : theme.spacing.lg};
   background: ${({ theme }) => theme.colors.surface};
-  border: 2px solid ${({ theme, $isActive }) => $isActive ? APP_COLOR : theme.colors.border};
+  border: 2px solid ${({ theme, $isActive }) => $isActive ? theme.colors.primary : theme.colors.border};
   border-radius: ${({ theme }) => theme.radius.large};
   cursor: pointer;
   transition: all 0.2s;
@@ -248,7 +247,7 @@ const FolderCard = styled.div<{ $viewMode: ViewMode; $isActive?: boolean; $isRea
   `}
 
   &:hover {
-    border-color: ${APP_COLOR};
+    border-color: ${({ theme }) => theme.colors.primary};
     box-shadow: ${({ theme }) => theme.shadows.medium};
     transform: ${({ $viewMode }) => $viewMode === 'single-line' ? 'scale(1.01)' : 'translateY(-2px)'};
   }
@@ -274,8 +273,8 @@ const FolderIcon = styled.div<{ $viewMode?: ViewMode; $isReadOnly?: boolean }>`
   width: ${({ $viewMode }) => $viewMode === 'single-line' ? '32px' : '40px'};
   height: ${({ $viewMode }) => $viewMode === 'single-line' ? '32px' : '40px'};
   border-radius: ${({ theme }) => theme.radius.medium};
-  background: ${({ $isReadOnly }) => $isReadOnly ? WARNING_COLOR + '20' : APP_COLOR + '20'};
-  color: ${({ $isReadOnly }) => $isReadOnly ? WARNING_COLOR : APP_COLOR};
+  background: ${({ theme, $isReadOnly }) => $isReadOnly ? WARNING_COLOR + '20' : theme.colors.primary + '20'};
+  color: ${({ $isReadOnly, theme }) => $isReadOnly ? WARNING_COLOR : theme.colors.primary};
   flex-shrink: 0;
 
   svg {
@@ -959,7 +958,7 @@ export const FolderList: React.FC<FolderListProps> = ({
                                                     onClick={() => handleTogglePin(folder)}
                                                     title={folder.pinnedAt ? t.tooltips.unpin : t.tooltips.pin}
                                                     style={{
-                                                        color: folder.pinnedAt ? APP_COLOR : undefined,
+                                                        color: folder.pinnedAt ? theme.colors.primary : undefined,
                                                     }}
                                                 >
                                                     {folder.pinnedAt ? <BsPinAngleFill size={16} /> : <BsPinAngle size={16} />}

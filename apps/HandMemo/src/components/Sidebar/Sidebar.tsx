@@ -240,7 +240,7 @@ const AppTitle = styled.div`
   font-size: 1.25rem;
   font-weight: 900;
   letter-spacing: -0.03em;
-  color: #9C640C;
+  color: #E69F00;
 `;
 
 const AppVersion = styled.span`
