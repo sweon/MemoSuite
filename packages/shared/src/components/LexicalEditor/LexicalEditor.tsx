@@ -92,7 +92,7 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
   padding: 0.5rem;
   padding-bottom: 5rem; /* Large bottom padding for easy clicking below last node */
   tab-size: ${props => props.$tabSize || 4};
-  font-size: ${props => props.$fontSize ? `${props.$fontSize}pt` : 'calc(1.85cqi)'};
+  font-size: ${props => props.$fontSize ? `${props.$fontSize}px` : 'calc(1.85cqi)'};
   line-height: 1.5;
 
   @container (min-width: 21cm) {
@@ -107,7 +107,7 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     text-overflow: ellipsis;
     top: 0px;
     left: 0rem;
-    font-size: ${props => props.$fontSize ? `${props.$fontSize}pt` : 'calc(1.85cqi)'};
+    font-size: ${props => props.$fontSize ? `${props.$fontSize}px` : 'calc(1.85cqi)'};
     user-select: none;
     display: inline-block;
     pointer-events: none;
@@ -556,7 +556,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   autoLink = true,
   tabIndentation = true,
   tabSize = 4,
-  fontSize = 11,
+  fontSize = 16,
   onSave,
   onExit,
   onDelete,

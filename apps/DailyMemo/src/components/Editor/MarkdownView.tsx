@@ -132,7 +132,7 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
   -webkit-user-select: text;
   user-select: text;
   -webkit-touch-callout: default;
-  font-size: ${props => props.$fontSize ? `${props.$fontSize}pt` : 'inherit'};
+  font-size: ${props => props.$fontSize ? `${props.$fontSize}px` : 'inherit'};
   
   /* Match LexicalEditor's sizing: 1px border + 0.5rem padding */
   padding: 0.5rem;

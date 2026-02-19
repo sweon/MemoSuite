@@ -439,7 +439,7 @@ export function ToolbarPlugin(props: {
     stickyOffset?: number,
     customButtons?: React.ReactNode
 }) {
-    const { onToggleSidebar, defaultFontSize = 11, stickyOffset = 0, customButtons } = props;
+    const { onToggleSidebar, defaultFontSize = 16, stickyOffset = 0, customButtons } = props;
     const { t } = useLanguage();
     const [editor] = useLexicalComposerContext();
     const [canUndo, setCanUndo] = useState(false);
@@ -452,7 +452,7 @@ export function ToolbarPlugin(props: {
     const [isCode, setIsCode] = useState(false);
     const [isLink, setIsLink] = useState(false);
     const [fontColor, setFontColor] = useState("#000000");
-    const [fontSize, setFontSize] = useState(`${defaultFontSize}pt`);
+    const [fontSize, setFontSize] = useState(`${defaultFontSize}px`);
     const [showColorMenu, setShowColorMenu] = useState(false);
     const [showTableMenu, setShowTableMenu] = useState(false);
     const tableMenuRef = useRef<HTMLDivElement>(null);
@@ -574,7 +574,7 @@ export function ToolbarPlugin(props: {
             setFontColor(color);
 
             // Update Font Size
-            const fs = $getSelectionStyleValueForProperty(selection, "font-size", `${defaultFontSize}pt`);
+            const fs = $getSelectionStyleValueForProperty(selection, "font-size", `${defaultFontSize}px`);
             setFontSize(fs);
         }
     }, [editor, defaultFontSize]);
@@ -753,7 +753,7 @@ export function ToolbarPlugin(props: {
         (increment: boolean) => {
             const currentSize = parseInt(latestFontSize.current) || defaultFontSize;
             const newSize = increment ? Math.min(99, currentSize + 1) : Math.max(1, currentSize - 1);
-            applyStyleText({ "font-size": `${newSize}pt` });
+            applyStyleText({ "font-size": `${newSize}px` });
         },
         [applyStyleText]
     );
@@ -791,7 +791,7 @@ export function ToolbarPlugin(props: {
         if (!isNaN(num)) {
             const clamped = Math.max(1, Math.min(99, num));
             editor.focus();
-            applyStyleText({ "font-size": `${clamped}pt` });
+            applyStyleText({ "font-size": `${clamped}px` });
         }
     };
 
@@ -993,10 +993,10 @@ export function ToolbarPlugin(props: {
                             <FontSizeDisplay>
                                 <FontSizeInput
                                     type="text"
-                                    value={fontSize.replace("pt", "")}
+                                    value={fontSize.replace("px", "")}
                                     onChange={onFontSizeChange}
                                 />
-                                <FontSizeUnit>pt</FontSizeUnit>
+                                <FontSizeUnit>px</FontSizeUnit>
                             </FontSizeDisplay>
                         </Tooltip>
                         <FontSizeControls>
