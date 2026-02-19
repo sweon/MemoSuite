@@ -622,7 +622,6 @@ export const MemoDetail: React.FC = () => {
         [bookId, memo]
     );
 
-    const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(
         (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
         (content || "") !== (lastSavedState.current.content || "") ||
@@ -633,13 +632,13 @@ export const MemoDetail: React.FC = () => {
     );
 
     useEffect(() => {
-        if (setIsDirty) setIsDirty(isEditing || hasDraftChanges);
+        if (setIsDirty) setIsDirty(isEditing || !!commentDraft);
         if (setAppIsEditing) setAppIsEditing(isEditing);
         return () => {
             if (setIsDirty) setIsDirty(false);
             if (setAppIsEditing) setAppIsEditing(false);
         };
-    }, [isEditing, hasDraftChanges, setIsDirty, setAppIsEditing]);
+    }, [isEditing, commentDraft, setIsDirty, setAppIsEditing]);
 
     // scroll 이벤트 리스너 등록 (memo가 로드된 후)
     useEffect(() => {

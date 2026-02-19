@@ -622,7 +622,6 @@ export const MemoDetail: React.FC = () => {
         }
     };
 
-    const hasDraftChanges = !!commentDraft;
     const isCurrentlyDirty = !!(
         (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
         (content || "") !== (lastSavedState.current.content || "") ||
