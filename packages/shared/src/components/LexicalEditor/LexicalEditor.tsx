@@ -225,19 +225,18 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     content: '';
     width: 16px;
     height: 16px;
-    top: 4px;
+    top: 1px;
     left: 4px;
     position: absolute;
     display: block;
-    border: 1px solid ${(props: any) => props.theme.colors?.border || '#555'};
-    border-radius: 2px;
+    border: 2px solid ${(props: any) => props.theme.colors?.primary || '#007bff'};
+    border-radius: 4px;
     background: ${(props: any) => props.theme.colors?.surface || '#2d2d2d'};
     transition: all 0.2s ease;
   }
 
   .editor-listitem-checked:before {
     background-color: ${(props: any) => props.theme.colors?.primary || "#007bff"};
-    border-color: ${(props: any) => props.theme.colors?.primary || "#007bff"};
   }
 
   .editor-listitem-checked:after {
@@ -245,8 +244,8 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     cursor: pointer;
     border-color: #fff;
     border-style: solid;
-    border-width: 0 2px 2px 0;
-    top: 6px;
+    border-width: 0 2.5px 2.5px 0;
+    top: 3px;
     left: 10px;
     width: 4px;
     height: 8px;

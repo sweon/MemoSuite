@@ -223,14 +223,15 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
   input[type="checkbox"] {
     -webkit-appearance: none;
     appearance: none;
-    width: 1.4em;
-    height: 1.4em;
+    width: 16px;
+    height: 16px;
     border: 2px solid ${({ theme }) => theme.colors.primary};
     border-radius: 4px;
-    margin: 0 0.4em 0.2em 0;
+    margin: 0 0.5em 0 0;
     vertical-align: middle;
-    cursor: pointer;
     position: relative;
+    top: -1px;
+    cursor: pointer;
     background: transparent;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
