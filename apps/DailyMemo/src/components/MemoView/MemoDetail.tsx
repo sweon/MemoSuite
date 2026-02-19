@@ -443,6 +443,7 @@ export const MemoDetail: React.FC = () => {
   const lastBackPress = useRef(0);
   const isClosingRef = useRef(false);
   const [isEditingInternal, setIsEditingInternal] = useState(() => {
+    if (searchParams.get("edit") === "true") return true;
     const isDrawing = searchParams.get("drawing") === "true";
     const isSheet = searchParams.get("spreadsheet") === "true";
     return isNew && !isDrawing && !isSheet;
@@ -485,7 +486,7 @@ export const MemoDetail: React.FC = () => {
   }, [id]);
 
   // Folder context for read-only mode
-  const { currentFolderId, currentFolder } = useFolder();
+  const { currentFolderId, currentFolder, breadcrumbs } = useFolder();
   const isCurrentFolderReadOnly = currentFolder?.isReadOnly ?? false;
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -1131,51 +1132,68 @@ export const MemoDetail: React.FC = () => {
         // New Memo Logic for Threading based on same day
         folderIdToUse = currentFolderId || undefined;
 
-        // Check for existing memos on the same day
-        const startOfDay = new Date(memoCreatedAt);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(memoCreatedAt);
-        endOfDay.setHours(23, 59, 59, 999);
+        // Check if current folder is the "Today's Folder" (current year/month)
+        const now = new Date();
+        const currentYearStr = now.getFullYear().toString();
+        const currentMonthStr = `${now.getMonth() + 1}월`;
 
-        const sameDayMemos = await db.memos
-          .where("createdAt")
-          .between(startOfDay, endOfDay, true, true)
-          .toArray();
+        const isTodayFolder = (() => {
+          if (!currentFolder || !currentFolderId) return false;
+          if (currentFolder.name !== currentMonthStr) return false;
 
-        if (sameDayMemos.length > 0) {
-          // Find the "header" memo (earliest one, or one with existing threadId)
-          // Sort by createdAt asc
-          sameDayMemos.sort(
-            (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-          );
-          const firstMemo = sameDayMemos[0];
+          // Find parent folder from allFolders or breadcrumbs
+          const parentFolder = breadcrumbs.length >= 2 ? breadcrumbs[breadcrumbs.length - 2] : null;
+          return parentFolder?.name === currentYearStr;
+        })();
 
-          if (firstMemo.threadId) {
-            // Use existing thread
-            threadIdToUse = firstMemo.threadId;
-            // Find max order
-            const threadMemos = await db.memos
-              .where("threadId")
-              .equals(threadIdToUse)
-              .toArray();
-            const maxOrder = Math.max(
-              ...threadMemos.map((m) => m.threadOrder || 0),
+        if (isTodayFolder) {
+          // Check for existing memos on the same day within the same folder
+          const startOfDay = new Date(memoCreatedAt);
+          startOfDay.setHours(0, 0, 0, 0);
+          const endOfDay = new Date(memoCreatedAt);
+          endOfDay.setHours(23, 59, 59, 999);
+
+          const sameDayMemos = await db.memos
+            .where("createdAt")
+            .between(startOfDay, endOfDay, true, true)
+            .filter(m => m.folderId === currentFolderId)
+            .toArray();
+
+          if (sameDayMemos.length > 0) {
+            // Find the "header" memo (earliest one, or one with existing threadId)
+            // Sort by createdAt asc
+            sameDayMemos.sort(
+              (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
             );
-            threadOrderToUse = maxOrder + 1;
-          } else {
-            // Create new thread starting with firstMemo
-            const newThreadId = crypto.randomUUID();
-            await db.memos.update(firstMemo.id!, {
-              threadId: newThreadId,
-              threadOrder: 0,
-            });
-            threadIdToUse = newThreadId;
-            threadOrderToUse = 1;
-          }
+            const firstMemo = sameDayMemos[0];
 
-          // Inherit folder from the thread/first memo if not explicitly set (though daily memo usually relies on date)
-          if (!folderIdToUse && firstMemo.folderId) {
-            folderIdToUse = firstMemo.folderId;
+            if (firstMemo.threadId) {
+              // Use existing thread
+              threadIdToUse = firstMemo.threadId;
+              // Find max order
+              const threadMemos = await db.memos
+                .where("threadId")
+                .equals(threadIdToUse)
+                .toArray();
+              const maxOrder = Math.max(
+                ...threadMemos.map((m) => m.threadOrder || 0),
+              );
+              threadOrderToUse = maxOrder + 1;
+            } else {
+              // Create new thread starting with firstMemo
+              const newThreadId = crypto.randomUUID();
+              await db.memos.update(firstMemo.id!, {
+                threadId: newThreadId,
+                threadOrder: 0,
+              });
+              threadIdToUse = newThreadId;
+              threadOrderToUse = 1;
+            }
+
+            // Inherit folder from the thread/first memo if not explicitly set (though daily memo usually relies on date)
+            if (!folderIdToUse && firstMemo.folderId) {
+              folderIdToUse = firstMemo.folderId;
+            }
           }
         }
       }
@@ -1194,15 +1212,22 @@ export const MemoDetail: React.FC = () => {
 
       // Cleanup all new memo autosaves
       await db.autosaves.filter((a) => a.originalId === undefined).delete();
+      currentAutosaveIdRef.current = undefined;
 
-      setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+      // Sync state with saved values to avoid "dirty" state before navigation
+      setTitle(finalTitle);
+      setContent(currentContent);
+      setTags(tagArray.join(", "));
       setCommentDraft(null);
+
       lastSavedState.current = {
         title: finalTitle,
         content: currentContent,
         tags: tagArray.join(", "),
         commentDraft: null,
       };
+
+      setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
 
       const search = _overrideSearch !== undefined ? _overrideSearch : searchParams.toString();
       const params = new URLSearchParams(search);

@@ -114,6 +114,29 @@ export const FolderProvider: React.FC<FolderProviderProps> = ({ children }) => {
         }
     }, [currentFolderId]);
 
+    // Initial navigation to current year/month folder
+    const [initialNavDone, setInitialNavDone] = useState(false);
+    useEffect(() => {
+        if (folders.length > 0 && !initialNavDone) {
+            const now = new Date();
+            const yearStr = now.getFullYear().toString();
+            const monthStr = `${now.getMonth() + 1}월`;
+
+            const yearFolder = folders.find(f => f.name === yearStr && f.parentId === homeFolder?.id);
+            if (yearFolder) {
+                const monthFolder = folders.find(f => f.name === monthStr && f.parentId === yearFolder.id);
+                if (monthFolder) {
+                    setCurrentFolderIdState(monthFolder.id!);
+                } else {
+                    setCurrentFolderIdState(yearFolder.id!);
+                }
+            } else if (homeFolder) {
+                setCurrentFolderIdState(homeFolder.id!);
+            }
+            setInitialNavDone(true);
+        }
+    }, [folders, homeFolder, initialNavDone]);
+
     const currentFolder = folders.find(f => f.id === currentFolderId) || null;
 
     // Get folder path from home to target folder
