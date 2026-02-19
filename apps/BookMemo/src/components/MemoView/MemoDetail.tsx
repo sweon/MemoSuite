@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SyncModal, useModal, useLanguage, metadataCache, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext, PrintSettingsModal, useColorTheme } from '@memosuite/shared';
+import { SyncModal, useModal, useLanguage, prepareThreadForNewItem, buildThreadNavigationUrl, extractThreadContext, PrintSettingsModal, useColorTheme } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useParams, useNavigate, useSearchParams, useOutletContext, useLocation } from 'react-router-dom';
