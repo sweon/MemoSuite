@@ -1110,7 +1110,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
                 onClick={() => setStarredOnly(!starredOnly)}
                 title={starredOnly ? t.sidebar.show_all : t.sidebar.show_starred}
               >
-                <FiStar size={16} fill={starredOnly ? '#E69F00' : 'none'} />
+                <FiStar size={16} fill={starredOnly ? theme.colors.primary : 'none'} />
               </StarFilterButton>
             )}
             {searchQuery && (

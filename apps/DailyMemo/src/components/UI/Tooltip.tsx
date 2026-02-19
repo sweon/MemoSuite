@@ -15,17 +15,18 @@ const TooltipBox = styled.div<{ $top: number; $left: number }>`
   left: ${props => props.$left}px;
   transform: translateX(-50%);
   padding: 2px 6px;
-  background-color: #333; // Dark background
-  color: #fff;
+  background-color: ${({ theme }) => theme.mode === 'dark' ? theme.colors.surface : '#333'};
+  color: ${({ theme }) => theme.mode === 'dark' ? theme.colors.text : '#fff'};
   border-radius: 4px;
   font-size: 0.65rem;
   white-space: nowrap;
   pointer-events: none;
   z-index: 9999;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: ${({ theme }) => theme.shadows.small};
   margin-top: -8px; // Offset slightly above
   opacity: 1;
   visibility: visible;
+  border: 1px solid ${({ theme }) => theme.mode === 'dark' ? theme.colors.border : 'transparent'};
   
   // Triangle arrow
   &::after {
@@ -36,7 +37,7 @@ const TooltipBox = styled.div<{ $top: number; $left: number }>`
     margin-left: -4px;
     border-width: 4px;
     border-style: solid;
-    border-color: #333 transparent transparent transparent;
+    border-color: ${({ theme }) => theme.mode === 'dark' ? theme.colors.surface : '#333'} transparent transparent transparent;
   }
 `;
 
