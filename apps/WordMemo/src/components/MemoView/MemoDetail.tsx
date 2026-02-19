@@ -22,7 +22,8 @@ import { db, type CommentDraft } from "../../db";
 import { useSearch } from "../../contexts/SearchContext";
 import { useStudyMode } from "../../contexts/StudyModeContext";
 
-import { MarkdownEditor } from "../Editor/MarkdownEditor";
+import { MarkdownEditor, ToolbarButton } from "../Editor/MarkdownEditor";
+import { Tooltip } from "@memosuite/shared";
 import { MarkdownView } from "../Editor/MarkdownView";
 import { BlurredText } from "../UI/BlurredText";
 
@@ -1576,12 +1577,6 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
           {isEditing ? (
             <>
               <div id="lexical-toolbar-portal" style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px', marginLeft: '8px', borderLeft: '1px solid #eee', paddingLeft: '8px' }} />
-              <ActionButton onClick={handleRandomWord}>
-                <FiList size={14} /> {t.word_detail.random_word}
-              </ActionButton>
-              <ActionButton onClick={() => setShowBulkAdd(true)}>
-                <FiPlus size={14} /> {t.word_detail.bulk_add}
-              </ActionButton>
             </>
           ) : (
             <ResponsiveGroup>
@@ -1686,6 +1681,20 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
               deleteLabel={t.word_detail.delete}
               saveDisabled={!isCurrentlyDirty}
               stickyOffset={headerHeight}
+              customButtons={
+                <>
+                  <Tooltip content={t.word_detail.random_word}>
+                    <ToolbarButton onClick={handleRandomWord}>
+                      <FiList size={16} />
+                    </ToolbarButton>
+                  </Tooltip>
+                  <Tooltip content={t.word_detail.bulk_add}>
+                    <ToolbarButton onClick={() => setShowBulkAdd(true)}>
+                      <FiPlus size={16} />
+                    </ToolbarButton>
+                  </Tooltip>
+                </>
+              }
             />
           </ContentPadding>
         ) : (

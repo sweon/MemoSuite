@@ -1,5 +1,6 @@
 import React from 'react';
-import { LexicalEditor } from '@memosuite/shared';
+import { LexicalEditor, ToolbarButton } from '@memosuite/shared';
+export { ToolbarButton };
 
 interface MarkdownEditorProps {
     value: string;
@@ -20,6 +21,7 @@ interface MarkdownEditorProps {
     saveDisabled?: boolean;
     stickyOffset?: number;
     onToggleSidebar?: () => void;
+    customButtons?: React.ReactNode;
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
@@ -40,7 +42,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     deleteLabel,
     saveDisabled,
     stickyOffset,
-    onToggleSidebar
+    onToggleSidebar,
+    customButtons
 }) => {
     return (
         <LexicalEditor
@@ -62,6 +65,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             saveDisabled={saveDisabled}
             stickyOffset={stickyOffset}
             onToggleSidebar={onToggleSidebar}
+            customButtons={customButtons}
         />
     );
 };

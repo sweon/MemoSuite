@@ -34,7 +34,8 @@ import { SpreadsheetNode, $createSpreadsheetNode, $isSpreadsheetNode } from "./n
 import { ImageNode, $createImageNode, $isImageNode } from "./nodes/ImageNode";
 import { CollapsibleNode, $createCollapsibleNode, $isCollapsibleNode } from "./nodes/CollapsibleNode";
 
-import { ToolbarPlugin } from "./plugins/ToolbarPlugin";
+import { ToolbarPlugin, ToolbarButton } from "./plugins/ToolbarPlugin";
+export { ToolbarButton };
 import { ListMaxIndentLevelPlugin } from "./plugins/ListMaxIndentLevelPlugin";
 import { TableResizerPlugin } from "./plugins/TableResizerPlugin";
 
@@ -532,6 +533,7 @@ export interface LexicalEditorProps {
   deleteLabel?: string;
   saveDisabled?: boolean;
   stickyOffset?: number;
+  customButtons?: React.ReactNode;
 }
 
 export const LexicalEditor: React.FC<LexicalEditorProps> = ({
@@ -553,7 +555,8 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   exitLabel,
   deleteLabel,
   saveDisabled,
-  stickyOffset
+  stickyOffset,
+  customButtons
 }) => {
   const initialConfig = useMemo(() => ({
     namespace: "MemoSuiteEditor",
@@ -596,6 +599,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
           deleteLabel={deleteLabel}
           saveDisabled={saveDisabled}
           stickyOffset={stickyOffset}
+          customButtons={customButtons}
         />
         <div className="editor-inner" style={{ position: 'relative' }}>
           <RichTextPlugin

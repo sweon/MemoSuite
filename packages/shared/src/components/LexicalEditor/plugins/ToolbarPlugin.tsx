@@ -102,7 +102,7 @@ const CoreToolbarRow = styled(ToolbarRow)`
   }
 `;
 
-const ToolbarButton = styled.button`
+export const ToolbarButton = styled.button`
   padding: 4px;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -433,9 +433,10 @@ export function ToolbarPlugin(props: {
     exitLabel?: string,
     deleteLabel?: string,
     saveDisabled?: boolean,
-    stickyOffset?: number
+    stickyOffset?: number,
+    customButtons?: React.ReactNode
 }) {
-    const { onToggleSidebar, defaultFontSize = 11, stickyOffset = 0 } = props;
+    const { onToggleSidebar, defaultFontSize = 11, stickyOffset = 0, customButtons } = props;
     const { t } = useLanguage();
     const [editor] = useLexicalComposerContext();
     const [canUndo, setCanUndo] = useState(false);
@@ -1251,9 +1252,11 @@ export function ToolbarPlugin(props: {
                             <FaEraser />
                         </ToolbarButton>
                     </Tooltip>
+
+                    {customButtons}
                 </ToolbarRow>
             )}
-        </ToolbarContainer>
+        </ToolbarContainer >
     );
 
     if (portalTarget) {
