@@ -354,7 +354,7 @@ export const LogDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const { t, language } = useLanguage();
-  const { confirm, choice, prompt: modalPrompt } = useModal();
+  const { confirm, choice } = useModal();
   const { fontSize } = useColorTheme();
 
   // Guard Hook
