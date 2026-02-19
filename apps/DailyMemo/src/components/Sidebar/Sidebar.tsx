@@ -449,7 +449,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     setShowFolderList,
     navigateToHome,
     navigateToFolder,
-    navigateUp
+    navigateUp,
+    allFolders
   } = useFolder();
 
 
@@ -581,6 +582,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
       isThreadChild?: boolean;
       threadId?: string;
       childCount?: number;
+      memoCount?: number;
+      subfolderCount?: number;
     }> = [];
 
     // Add "Go Up" button if not in Home folder
@@ -591,7 +594,9 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
     // Add subfolders
     if (subfolders && subfolders.length > 0) {
       subfolders.forEach(f => {
-        items.push({ type: 'folder', folder: f });
+        const mCount = allMemos?.filter(m => m.folderId === f.id).length || 0;
+        const sCount = allFolders?.filter(folder => folder.parentId === f.id).length || 0;
+        items.push({ type: 'folder', folder: f, memoCount: mCount, subfolderCount: sCount });
       });
     }
 
@@ -1160,6 +1165,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                   key={`folder-${item.folder.id}`}
                   name={item.folder.name}
                   onClick={() => navigateToFolder(item.folder.id!)}
+                  memoCount={item.memoCount}
+                  subfolderCount={item.subfolderCount}
                 />
               );
             }
