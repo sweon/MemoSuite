@@ -19,7 +19,7 @@ const ResizerHandle = styled.div`
   }
 `;
 
-export function TableResizerPlugin(): JSX.Element | null {
+export function TableResizerPlugin(): React.ReactNode | null {
     const [editor] = useLexicalComposerContext();
     const [resizerPos, setResizerPos] = useState<{ left: number; top: number; height: number; cellKey: string } | null>(null);
     const isDragging = useRef(false);

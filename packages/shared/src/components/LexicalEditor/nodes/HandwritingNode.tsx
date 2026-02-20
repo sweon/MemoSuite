@@ -1,4 +1,5 @@
 import { DecoratorNode } from "lexical";
+import React, { Suspense } from "react";
 import type {
     DOMConversionMap,
     DOMConversionOutput,
@@ -9,7 +10,6 @@ import type {
     SerializedLexicalNode,
     Spread,
 } from "lexical";
-import React, { Suspense } from "react";
 
 // Lazy load the component
 const HandwritingComponent = React.lazy(
@@ -23,7 +23,7 @@ export type SerializedHandwritingNode = Spread<
     SerializedLexicalNode
 >;
 
-export class HandwritingNode extends DecoratorNode<JSX.Element> {
+export class HandwritingNode extends DecoratorNode<React.ReactNode> {
     __data: string;
 
     static getType(): string {
@@ -80,7 +80,7 @@ export class HandwritingNode extends DecoratorNode<JSX.Element> {
         return `\n\`\`\`fabric\n${this.__data}\n\`\`\`\n`;
     }
 
-    decorate(): JSX.Element {
+    decorate(): React.ReactNode {
         return (
             <Suspense fallback={null}>
                 <HandwritingComponent

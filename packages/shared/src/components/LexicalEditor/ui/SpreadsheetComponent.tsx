@@ -1,7 +1,7 @@
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
 import { $getNodeByKey } from "lexical";
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import styled from "styled-components";
 import { SpreadsheetModal } from "@memosuite/shared-spreadsheet";
 import { useLanguage } from "../../../i18n";
@@ -98,7 +98,7 @@ export default function SpreadsheetComponent({
 }: {
     nodeKey: string;
     data: string;
-}): JSX.Element {
+}): React.ReactNode {
     const [editor] = useLexicalComposerContext();
     const [isSelected] = useLexicalNodeSelection(nodeKey);
     const [isModalOpen, setIsModalOpen] = useState(false);

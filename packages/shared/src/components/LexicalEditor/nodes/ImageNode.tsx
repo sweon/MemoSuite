@@ -1,4 +1,5 @@
 import { DecoratorNode } from "lexical";
+import React from "react";
 import type {
     DOMConversionMap,
     DOMConversionOutput,
@@ -35,7 +36,7 @@ export type SerializedImageNode = Spread<
     SerializedLexicalNode
 >;
 
-export class ImageNode extends DecoratorNode<JSX.Element> {
+export class ImageNode extends DecoratorNode<React.ReactNode> {
     __src: string;
     __altText: string;
     __width?: number;
@@ -88,7 +89,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
         return false;
     }
 
-    decorate(): JSX.Element {
+    decorate(): React.ReactNode {
         return (
             <ImageWrapper>
                 <StyledImage

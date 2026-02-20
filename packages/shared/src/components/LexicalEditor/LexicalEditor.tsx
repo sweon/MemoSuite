@@ -341,7 +341,7 @@ const COLLAPSIBLE_TRANSFORMER: Transformer = {
 
 const STYLE_TRANSFORMER: TextMatchTransformer = {
   dependencies: [],
-  export: (node, exportChildren, exportFormat) => {
+  export: (node, _exportChildren, exportFormat) => {
     if ($isTextNode(node)) {
       const style = node.getStyle();
       if (style) {

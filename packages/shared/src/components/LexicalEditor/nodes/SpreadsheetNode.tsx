@@ -22,7 +22,7 @@ export type SerializedSpreadsheetNode = Spread<
     SerializedLexicalNode
 >;
 
-export class SpreadsheetNode extends DecoratorNode<JSX.Element> {
+export class SpreadsheetNode extends DecoratorNode<React.ReactNode> {
     __data: string;
 
     static getType(): string {
@@ -79,7 +79,7 @@ export class SpreadsheetNode extends DecoratorNode<JSX.Element> {
         return `\n\`\`\`spreadsheet\n${this.__data}\n\`\`\`\n`;
     }
 
-    decorate(): JSX.Element {
+    decorate(): React.ReactNode {
         return (
             <Suspense fallback={null}>
                 <SpreadsheetComponent

@@ -77,7 +77,7 @@ export function isYouTubeUrl(url: string): boolean {
         url.includes('youtube.com/shorts/');
 }
 
-export class YouTubeNode extends DecoratorNode<JSX.Element> {
+export class YouTubeNode extends DecoratorNode<React.ReactNode> {
     __videoId: string;
     __startTimestamp?: number;
     __isShort: boolean;
@@ -163,7 +163,7 @@ export class YouTubeNode extends DecoratorNode<JSX.Element> {
         return `\n\`\`\`youtube\n${lines.join('\n')}\n\`\`\`\n`;
     }
 
-    decorate(): JSX.Element {
+    decorate(): React.ReactNode {
         return (
             <Suspense fallback={
                 <div style={{

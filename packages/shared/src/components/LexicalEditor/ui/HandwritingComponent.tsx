@@ -1,7 +1,7 @@
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
 import { $getNodeByKey } from "lexical";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { FabricCanvasModal } from "@memosuite/shared-drawing";
 import { FiPenTool } from "react-icons/fi";
@@ -67,7 +67,7 @@ export default function HandwritingComponent({
 }: {
     nodeKey: string;
     data: string;
-}): JSX.Element {
+}): React.ReactNode {
     const [editor] = useLexicalComposerContext();
     const [isSelected] = useLexicalNodeSelection(nodeKey);
     const [isModalOpen, setIsModalOpen] = useState(false);
