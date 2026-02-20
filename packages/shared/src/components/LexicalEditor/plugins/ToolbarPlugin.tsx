@@ -27,11 +27,9 @@ import {
     REMOVE_LIST_COMMAND,
 } from "@lexical/list";
 import {
-    $createHeadingNode,
     $createQuoteNode,
     $isHeadingNode,
 } from "@lexical/rich-text";
-import type { HeadingTagType } from "@lexical/rich-text";
 import { $setBlocksType, $patchStyleText, $getSelectionStyleValueForProperty } from "@lexical/selection";
 import { $getNearestNodeOfType, mergeRegister, $insertNodeToNearestRoot } from "@lexical/utils";
 import { TOGGLE_LINK_COMMAND, $isLinkNode } from "@lexical/link";
@@ -615,17 +613,6 @@ export function ToolbarPlugin(props: {
                 const selection = $getSelection();
                 if ($isRangeSelection(selection)) {
                     $setBlocksType(selection, () => $createParagraphNode());
-                }
-            });
-        }
-    };
-
-    const formatHeading = (headingSize: HeadingTagType) => {
-        if (blockType !== headingSize) {
-            editor.update(() => {
-                const selection = $getSelection();
-                if ($isRangeSelection(selection)) {
-                    $setBlocksType(selection, () => $createHeadingNode(headingSize));
                 }
             });
         }

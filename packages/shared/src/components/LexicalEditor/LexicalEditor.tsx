@@ -13,7 +13,7 @@ import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import { HorizontalRulePlugin } from "@lexical/react/LexicalHorizontalRulePlugin";
 import { AutoLinkPlugin } from "@lexical/react/LexicalAutoLinkPlugin";
 import { ClearEditorPlugin } from "@lexical/react/LexicalClearEditorPlugin";
-import { TRANSFORMERS, CHECK_LIST, HEADING } from "@lexical/markdown";
+import { TRANSFORMERS, CHECK_LIST } from "@lexical/markdown";
 import type { Transformer, TextMatchTransformer } from "@lexical/markdown";
 import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
 import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
