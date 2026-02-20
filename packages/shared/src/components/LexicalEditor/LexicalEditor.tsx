@@ -554,7 +554,7 @@ const ELEMENT_FORMAT_EXPORT_TRANSFORMER: Transformer = {
     return null;
   },
   regExp: /^<(p|h[1-6]|blockquote) align="(\w+)">(.*)<\/\1>$/,
-  replace: (parentNode: ElementNode, children: LexicalNode[], match: string[]) => {
+  replace: (parentNode: ElementNode, _children: LexicalNode[], match: string[]) => {
     const align = match[2];
     parentNode.setFormat(align as ElementFormatType);
     return false;
