@@ -1199,7 +1199,6 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
       if (!player) return;
       const key = e.key.toLowerCase();
       if (key === 'k' || e.key === ' ') {
-        if (e.key === ' ' && !isFullScreen) return;
         e.preventDefault();
         if (isPlaying) player.pauseVideo();
         else player.playVideo();
