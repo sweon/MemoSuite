@@ -27,6 +27,7 @@ export const MemoSuiteTheme: EditorThemeClasses = {
     },
     image: "editor-image",
     link: "editor-link",
+    hr: "editor-hr",
     text: {
         bold: "editor-text-bold",
         italic: "editor-text-italic",

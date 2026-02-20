@@ -30,7 +30,7 @@ import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { CodeHighlightNode, CodeNode } from "@lexical/code";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
-import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
+import { HorizontalRuleNode, $createHorizontalRuleNode, $isHorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { MemoSuiteTheme } from "./themes/MemoSuiteTheme";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import React, { useEffect, useRef, useMemo } from "react";
@@ -200,6 +200,20 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     color: ${(props: any) => props.theme.colors?.primary || "#007bff"};
     text-decoration: underline;
     cursor: pointer;
+  }
+
+  .editor-hr {
+    padding: 2px 2px;
+    border: none;
+    margin: 1em 0;
+    cursor: default;
+    &:after {
+      content: '';
+      display: block;
+      height: 2px;
+      background-color: ${(props: any) => props.theme.colors?.border || '#333'};
+      line-height: 2px;
+    }
   }
 
   /* Table Styles */
@@ -403,6 +417,26 @@ const HANDWRITING_TRANSFORMER: Transformer = {
   type: "element",
 };
 
+const HR_TRANSFORMER: Transformer = {
+  dependencies: [HorizontalRuleNode],
+  export: (node: LexicalNode) => {
+    return $isHorizontalRuleNode(node) ? '---' : null;
+  },
+  regExp: /^(---|\*\*\*|___)\s*$/,
+  replace: (parentNode, _1, _2, isFirstLine) => {
+    const line = $createHorizontalRuleNode();
+
+    if (isFirstLine) {
+      parentNode.replace(line);
+    } else {
+      parentNode.insertBefore(line);
+    }
+
+    line.selectNext();
+  },
+  type: "element",
+};
+
 const BOLD_ITALIC_STAR_REGEX = /(^|[^\*])\*\*\*([^\* \n][^\*\n]*[^\* \n]|\S)\*\*\*$/;
 const BOLD_STAR_REGEX = /(^|[^\*])\*\*([^\* \n][^\*\n]*[^\* \n]|\S)\*\*$/;
 const ITALIC_STAR_REGEX = /(^|[^\*])\*([^\* \n][^\*\n]*[^\* \n]|\S)\*$/;
@@ -509,6 +543,7 @@ const ALL_TRANSFORMERS: Transformer[] = [
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
   STYLE_TRANSFORMER,
+  HR_TRANSFORMER,
   ...TRANSFORMERS.filter(t =>
     t !== BOLD_ITALIC_STAR &&
     t !== BOLD_ITALIC_UNDERSCORE &&
@@ -516,7 +551,8 @@ const ALL_TRANSFORMERS: Transformer[] = [
     t !== BOLD_UNDERSCORE &&
     t !== ITALIC_STAR &&
     t !== ITALIC_UNDERSCORE &&
-    t !== STRIKETHROUGH
+    t !== STRIKETHROUGH &&
+    (t as any).regExp?.toString() !== /^(---|\*\*\*|___)\s*$/.toString()
   ),
 ];
 
@@ -535,6 +571,7 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
   SPREADSHEET_TRANSFORMER,
   HANDWRITING_TRANSFORMER,
   STYLE_TRANSFORMER,
+  HR_TRANSFORMER,
   ...TRANSFORMERS.filter(t =>
     t !== BOLD_ITALIC_STAR &&
     t !== BOLD_ITALIC_UNDERSCORE &&
@@ -542,7 +579,8 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
     t !== BOLD_UNDERSCORE &&
     t !== ITALIC_STAR &&
     t !== ITALIC_UNDERSCORE &&
-    t !== STRIKETHROUGH
+    t !== STRIKETHROUGH &&
+    (t as any).regExp?.toString() !== /^(---|\*\*\*|___)\s*$/.toString()
   ),
 ];
 

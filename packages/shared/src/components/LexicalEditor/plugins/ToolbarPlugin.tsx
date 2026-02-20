@@ -28,14 +28,14 @@ import { $setBlocksType, $patchStyleText, $getSelectionStyleValueForProperty } f
 import { $getNearestNodeOfType, mergeRegister, $insertNodeToNearestRoot } from "@lexical/utils";
 import { TOGGLE_LINK_COMMAND, $isLinkNode } from "@lexical/link";
 import { INSERT_TABLE_COMMAND } from "@lexical/table";
-import { INSERT_HORIZONTAL_RULE_COMMAND } from "@lexical/react/LexicalHorizontalRuleNode";
+
 import { useCallback, useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import styled from "styled-components";
 import {
     FaCode,
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
-    FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
+    FaTable, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
     FaRegSquare, FaClock, FaEllipsisH
 } from "react-icons/fa";
 import { FiPenTool, FiSidebar, FiX, FiTrash2, FiCheck } from "react-icons/fi";
@@ -1132,14 +1132,7 @@ export function ToolbarPlugin(props: {
                             </TableInsertMenu>
                         )}
                     </div>
-                    <Tooltip content={t.toolbar.horizontal_rule}>
-                        <ToolbarButton
-                            onClick={() => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)}
-                            title={t.toolbar.horizontal_rule}
-                        >
-                            <FaMinus />
-                        </ToolbarButton>
-                    </Tooltip>
+
 
                     <Tooltip content={t.toolbar.insert_time}>
                         <ToolbarButton
