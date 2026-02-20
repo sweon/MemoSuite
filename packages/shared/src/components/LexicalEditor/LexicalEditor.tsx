@@ -996,33 +996,20 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
           // nodes, we need \n\n. Each empty paragraph between them adds another \n.
           let chunkIdx = 0;
           let resultStr = '';
-          let lastWasNonEmpty = false;
-
           for (let i = 0; i < nodeMap.length; i++) {
+            let chunkContent = "";
             if (nodeMap[i]) {
-              // Empty paragraph
-              if (lastWasNonEmpty) {
-                // After non-empty content, add \n for this empty line
-                // (the \n\n separator will be added when the next non-empty node comes)
-                resultStr += '\n';
-              } else if (resultStr === '') {
-                // Leading empty paragraph
-                resultStr += '\n';
-              } else {
-                // Consecutive empty paragraphs
-                resultStr += '\n';
+              chunkContent = "\u200B";
+            } else if (chunkIdx < nonEmptyChunks.length) {
+              chunkContent = nonEmptyChunks[chunkIdx];
+              chunkIdx++;
+            }
+
+            if (chunkContent !== "") {
+              if (resultStr !== "") {
+                resultStr += "\n\n";
               }
-            } else {
-              // Non-empty node
-              if (chunkIdx < nonEmptyChunks.length) {
-                if (resultStr !== '') {
-                  // Add paragraph separator before this chunk
-                  resultStr += '\n\n';
-                }
-                resultStr += nonEmptyChunks[chunkIdx];
-                chunkIdx++;
-                lastWasNonEmpty = true;
-              }
+              resultStr += chunkContent;
             }
           }
 

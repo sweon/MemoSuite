@@ -781,22 +781,76 @@ function MarkdownSyncPlugin({ value, onChange }) {
                 return;
             editorState.read(() => {
                 let markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
-                // Rule 2 Fix: Preserve trailing empty paragraphs as newlines
-                // Lexical's $convertToMarkdownString often ignores trailing empty paragraphs.
-                const root = $nodesOfType(ParagraphNode);
-                if (root.length > 0) {
-                    let trailingNewlines = 0;
-                    for (let i = root.length - 1; i >= 0; i--) {
-                        if (root[i].getTextContentSize() === 0 && root[i].getChildrenSize() === 0) {
-                            trailingNewlines++;
+                // Preserve empty paragraphs: $convertToMarkdownString collapses them.
+                // Walk all root children and count the exact positions of empty paragraphs,
+                // then reconstruct the markdown with proper empty lines.
+                const rootNode = $getRoot();
+                const children = rootNode.getChildren();
+                // Build a structural map: true = empty paragraph, false = non-empty node
+                const nodeMap = [];
+                let hasEmptyParagraphs = false;
+                for (const child of children) {
+                    if ($isParagraphNode(child) && child.getTextContentSize() === 0 && child.getChildrenSize() === 0) {
+                        nodeMap.push(true);
+                        hasEmptyParagraphs = true;
+                    }
+                    else {
+                        nodeMap.push(false);
+                    }
+                }
+                if (hasEmptyParagraphs) {
+                    // Split markdown into chunks for each non-empty node.
+                    // Nodes are separated by \n\n (double newline = paragraph break).
+                    // Code blocks may contain internal \n\n, so we track them.
+                    const nonEmptyChunks = [];
+                    const stripped = markdown.replace(/^\n+/, '').replace(/\n+$/, '');
+                    if (stripped === '') {
+                        // All content is empty
+                    }
+                    else {
+                        const allLines = stripped.split('\n');
+                        let currentChunk = [];
+                        let inCodeBlock = false;
+                        for (let li = 0; li < allLines.length; li++) {
+                            const line = allLines[li];
+                            if (line.startsWith('```')) {
+                                inCodeBlock = !inCodeBlock;
+                            }
+                            if (line === '' && !inCodeBlock) {
+                                if (currentChunk.length > 0) {
+                                    nonEmptyChunks.push(currentChunk.join('\n'));
+                                    currentChunk = [];
+                                }
+                            }
+                            else {
+                                currentChunk.push(line);
+                            }
                         }
-                        else {
-                            break;
+                        if (currentChunk.length > 0) {
+                            nonEmptyChunks.push(currentChunk.join('\n'));
                         }
                     }
-                    if (trailingNewlines > 0) {
-                        markdown = markdown.replace(/\n+$/, '') + '\n'.repeat(trailingNewlines);
+                    // Reassemble: non-empty chunks need \n\n between them (standard paragraph separator).
+                    // Empty paragraphs add \u200B to represent the blank line.
+                    let chunkIdx = 0;
+                    let resultStr = '';
+                    for (let i = 0; i < nodeMap.length; i++) {
+                        let chunkContent = "";
+                        if (nodeMap[i]) {
+                            chunkContent = "\u200B";
+                        }
+                        else if (chunkIdx < nonEmptyChunks.length) {
+                            chunkContent = nonEmptyChunks[chunkIdx];
+                            chunkIdx++;
+                        }
+                        if (chunkContent !== "") {
+                            if (resultStr !== "") {
+                                resultStr += "\n\n";
+                            }
+                            resultStr += chunkContent;
+                        }
                     }
+                    markdown = resultStr;
                 }
                 // Safety: Prevent accidental wipe on empty initialization before import
                 if (markdown === "" && lastNormalizedValueRef.current !== "" && !tags.has('import')) {
