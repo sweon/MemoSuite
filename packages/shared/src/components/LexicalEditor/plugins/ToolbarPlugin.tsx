@@ -42,7 +42,7 @@ import {
     FaCode,
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
     FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
-    FaClock, FaEllipsisH
+    FaRegSquare, FaClock, FaEllipsisH
 } from "react-icons/fa";
 import { FiPenTool, FiSidebar, FiX, FiTrash2, FiCheck } from "react-icons/fi";
 import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
@@ -445,8 +445,9 @@ export function ToolbarPlugin(props: {
     const [editor] = useLexicalComposerContext();
     const [canUndo, setCanUndo] = useState(false);
     const [canRedo, setCanRedo] = useState(false);
-    const [blockType, setBlockType] = useState("paragraph");
+
     const [isUnderline, setIsUnderline] = useState(false);
+    const [isCheckList, setIsCheckList] = useState(false);
     const [isCode, setIsCode] = useState(false);
     const [isLink, setIsLink] = useState(false);
     const [fontColor, setFontColor] = useState("#000000");
@@ -456,7 +457,7 @@ export function ToolbarPlugin(props: {
     const tableMenuRef = useRef<HTMLDivElement>(null);
     const [tableConfig, setTableConfig] = useState({ rows: "3", columns: "3", headerRow: true, headerColumn: false });
     const [showMoreOnMobile, setShowMoreOnMobile] = useState(false);
-    const [showBlockMenu, setShowBlockMenu] = useState(false);
+
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     useEffect(() => {
@@ -487,7 +488,6 @@ export function ToolbarPlugin(props: {
 
     const colorInputRef = useRef<HTMLInputElement>(null);
     const colorMenuRef = useRef<HTMLDivElement>(null);
-    const blockMenuRef = useRef<HTMLDivElement>(null);
     const lineHeightMenuRef = useRef<HTMLDivElement>(null);
     const alignMenuRef = useRef<HTMLDivElement>(null);
     const indentMenuRef = useRef<HTMLDivElement>(null);
@@ -496,7 +496,6 @@ export function ToolbarPlugin(props: {
     // Menu alignment state
     const [menuAlignments, setMenuAlignments] = useState({
         color: false,
-        block: false,
         align: true,
         lineHeight: true,
         indent: true,
@@ -517,7 +516,6 @@ export function ToolbarPlugin(props: {
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as Node;
             if (colorMenuRef.current && !colorMenuRef.current.contains(target)) setShowColorMenu(false);
-            if (blockMenuRef.current && !blockMenuRef.current.contains(target)) setShowBlockMenu(false);
             if (lineHeightMenuRef.current && !lineHeightMenuRef.current.contains(target)) setShowLineHeightMenu(false);
             if (alignMenuRef.current && !alignMenuRef.current.contains(target)) setShowAlignMenu(false);
             if (indentMenuRef.current && !indentMenuRef.current.contains(target)) setShowIndentMenu(false);
@@ -541,13 +539,10 @@ export function ToolbarPlugin(props: {
             if (elementDOM !== null) {
                 if ($isListNode(element)) {
                     const parentList = $getNearestNodeOfType(anchorNode, ListNode);
-                    const type = parentList ? parentList.getListType() : element.getListType();
-                    setBlockType(type);
+                    const listType = parentList ? parentList.getListType() : element.getListType();
+                    setIsCheckList(listType === 'check');
                 } else {
-                    const type = $isHeadingNode(element)
-                        ? element.getTag()
-                        : element.getType();
-                    setBlockType(type);
+                    setIsCheckList(false);
                 }
             }
 
@@ -600,51 +595,7 @@ export function ToolbarPlugin(props: {
     }, [editor, updateToolbar]);
 
 
-    const formatParagraph = () => {
-        if (blockType !== "paragraph") {
-            editor.update(() => {
-                const selection = $getSelection();
-                if ($isRangeSelection(selection)) {
-                    $setBlocksType(selection, () => $createParagraphNode());
-                }
-            });
-        }
-    };
-
-    const formatBulletList = () => {
-        if (blockType !== "bullet") {
-            editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
-        } else {
-            editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-        }
-    };
-
-    const formatNumberedList = () => {
-        if (blockType !== "number") {
-            editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
-        } else {
-            editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-        }
-    };
-
-    const formatCheckList = () => {
-        if (blockType !== "check") {
-            editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined);
-        } else {
-            editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-        }
-    };
-
-    const formatQuote = () => {
-        if (blockType !== "quote") {
-            editor.update(() => {
-                const selection = $getSelection();
-                if ($isRangeSelection(selection)) {
-                    $setBlocksType(selection, () => $createQuoteNode());
-                }
-            });
-        }
-    };
+    // format functions removed
 
     const insertLink = useCallback(() => {
         if (!isLink) {
@@ -921,55 +872,20 @@ export function ToolbarPlugin(props: {
                         </ToolbarButton>
                     </Tooltip>
 
-                    {/* Block Type */}
-                    <div style={{ position: 'relative' }} ref={blockMenuRef}>
-                        <Tooltip content={t.toolbar.block_type}>
-                            <ToolbarButton
-                                onClick={() => {
-                                    updateMenuAlignment('block', blockMenuRef);
-                                    setShowBlockMenu(!showBlockMenu);
-                                }}
-                                className={showBlockMenu ? "is-active" : ""}
-                                style={{ minWidth: '80px', gap: '4px', padding: '4px 8px' }}
-                            >
-                                <span style={{ fontSize: '12px', fontWeight: 600 }}>
-                                    {blockType === "paragraph" ? t.toolbar.normal :
-                                        blockType === "h1" ? t.toolbar.h1 :
-                                            blockType === "h2" ? t.toolbar.h2 :
-                                                blockType === "h3" ? t.toolbar.h3 :
-                                                    blockType === "bullet" ? t.toolbar.bullet_list :
-                                                        blockType === "number" ? t.toolbar.numbered_list :
-                                                            blockType === "check" ? t.toolbar.check_list :
-                                                                blockType === "quote" ? t.toolbar.quote : t.toolbar.normal}
-                                </span>
-                                <FaCaretDown size={10} />
-                            </ToolbarButton>
-                        </Tooltip>
 
-                        {showBlockMenu && (
-                            <FormatMenu $rightAlign={menuAlignments.block} style={{ minWidth: '140px' }}>
-                                <FormatOption onClick={() => { formatParagraph(); setShowBlockMenu(false); }} style={{ fontWeight: blockType === 'paragraph' ? 700 : 400 }}>
-                                    {t.toolbar.normal}
-                                </FormatOption>
-
-                                <div style={{ height: '1px', background: '#eee', margin: '4px 0' }} />
-                                <FormatOption onClick={() => { formatBulletList(); setShowBlockMenu(false); }} style={{ fontWeight: blockType === 'bullet' ? 700 : 400 }}>
-                                    {t.toolbar.bullet_list}
-                                </FormatOption>
-                                <FormatOption onClick={() => { formatNumberedList(); setShowBlockMenu(false); }} style={{ fontWeight: blockType === 'number' ? 700 : 400 }}>
-                                    {t.toolbar.numbered_list}
-                                </FormatOption>
-                                <FormatOption onClick={() => { formatCheckList(); setShowBlockMenu(false); }} style={{ fontWeight: blockType === 'check' ? 700 : 400 }}>
-                                    {t.toolbar.check_list}
-                                </FormatOption>
-                                <FormatOption onClick={() => { formatQuote(); setShowBlockMenu(false); }} style={{ fontWeight: blockType === 'quote' ? 700 : 400 }}>
-                                    {t.toolbar.quote}
-                                </FormatOption>
-                            </FormatMenu>
-                        )}
-                    </div>
 
                     {/* Inline Formatting */}
+                    <Tooltip content={t.toolbar.check_list}>
+                        <ToolbarButton
+                            onClick={() => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined)}
+                            onMouseDown={(e) => e.preventDefault()}
+                            className={isCheckList ? "is-active" : ""}
+                            title={t.toolbar.check_list}
+                        >
+                            <FaRegSquare />
+                        </ToolbarButton>
+                    </Tooltip>
+
                     <Tooltip content={t.toolbar.underline}>
                         <ToolbarButton
                             onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}
