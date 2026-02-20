@@ -971,15 +971,7 @@ export function ToolbarPlugin(props: {
                                 <FormatOption onClick={() => { formatParagraph(); setShowBlockMenu(false); }} style={{ fontWeight: blockType === 'paragraph' ? 700 : 400 }}>
                                     {t.toolbar.normal}
                                 </FormatOption>
-                                <FormatOption onClick={() => { formatHeading('h1'); setShowBlockMenu(false); }} style={{ fontWeight: blockType === 'h1' ? 700 : 400, fontSize: '1.2em' }}>
-                                    {t.toolbar.h1}
-                                </FormatOption>
-                                <FormatOption onClick={() => { formatHeading('h2'); setShowBlockMenu(false); }} style={{ fontWeight: blockType === 'h2' ? 700 : 400, fontSize: '1.1em' }}>
-                                    {t.toolbar.h2}
-                                </FormatOption>
-                                <FormatOption onClick={() => { formatHeading('h3'); setShowBlockMenu(false); }} style={{ fontWeight: blockType === 'h3' ? 700 : 400, fontSize: '1.05em' }}>
-                                    {t.toolbar.h3}
-                                </FormatOption>
+
                                 <div style={{ height: '1px', background: '#eee', margin: '4px 0' }} />
                                 <FormatOption onClick={() => { formatBulletList(); setShowBlockMenu(false); }} style={{ fontWeight: blockType === 'bullet' ? 700 : 400 }}>
                                     {t.toolbar.bullet_list}

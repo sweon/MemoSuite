@@ -13,7 +13,7 @@ import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import { HorizontalRulePlugin } from "@lexical/react/LexicalHorizontalRulePlugin";
 import { AutoLinkPlugin } from "@lexical/react/LexicalAutoLinkPlugin";
 import { ClearEditorPlugin } from "@lexical/react/LexicalClearEditorPlugin";
-import { TRANSFORMERS, CHECK_LIST } from "@lexical/markdown";
+import { TRANSFORMERS, CHECK_LIST, HEADING } from "@lexical/markdown";
 import type { Transformer, TextMatchTransformer } from "@lexical/markdown";
 import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
 import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
@@ -138,9 +138,9 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
   .editor-quote {
     margin: 1em 0;
     margin-left: 0;
-    font-size: 15px;
-    color: ${(props: any) => props.theme.colors?.textSecondary || '#aaa'};
+    padding-left: 1em;
     border-left: 4px solid ${(props: any) => props.theme.colors?.border || '#444'};
+    color: ${(props: any) => props.theme.colors?.textSecondary || '#aaa'};
     padding-left: 16px;
     font-style: italic;
   }

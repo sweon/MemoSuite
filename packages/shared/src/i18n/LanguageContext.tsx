@@ -38,8 +38,12 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children, ap
 
     // 1. Language State
     const [language, setLanguageState] = useState<Language>(() => {
-        const saved = localStorage.getItem(STORAGE_KEY_LANG) as Language;
-        if (SUPPORTED_LANGUAGES.some(l => l.code === saved)) return saved;
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY_LANG) as Language;
+            if (SUPPORTED_LANGUAGES.some(l => l.code === saved)) return saved;
+        } catch (e) {
+            console.warn("localStorage not accessible:", e);
+        }
 
         const browserLang = navigator.language.toLowerCase();
 
@@ -59,7 +63,11 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children, ap
 
     const setLanguage = (lang: Language) => {
         setLanguageState(lang);
-        localStorage.setItem(STORAGE_KEY_LANG, lang);
+        try {
+            localStorage.setItem(STORAGE_KEY_LANG, lang);
+        } catch (e) {
+            console.warn("Failed to set language in localStorage:", e);
+        }
     };
 
     // 2. Translations State
@@ -76,7 +84,11 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children, ap
 
     // Save custom translations whenever they change
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY_CUSTOM, JSON.stringify(customTranslations));
+        try {
+            localStorage.setItem(STORAGE_KEY_CUSTOM, JSON.stringify(customTranslations));
+        } catch (e) {
+            console.warn("Failed to save custom translations to localStorage:", e);
+        }
     }, [customTranslations, STORAGE_KEY_CUSTOM]);
 
     // 3. Merged Translations (The Source of Truth)
