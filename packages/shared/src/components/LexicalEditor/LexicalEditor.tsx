@@ -45,6 +45,7 @@ import {
   $isElementNode,
   ElementNode,
   $isParagraphNode,
+  $getRoot,
   TextNode,
 } from "lexical";
 import type { LexicalNode, ElementFormatType } from "lexical";
@@ -555,9 +556,36 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
       // CRITICAL: Clear selection to avoid "selection lost" errors during bulk replacement
       $setSelection(null);
 
+      // 0. Pre-process empty lines: In standard markdown, \n\n is a paragraph separator.
+      //    Only blank lines BEYOND the first one in a group represent actual empty paragraphs.
+      //    We insert zero-width-space markers for these extra blank lines so
+      //    $convertFromMarkdownString creates actual empty paragraph nodes for them.
+      const EMPTY_LINE_MARKER = '\u200B';
+      let processed = markdown;
+      const lines = processed.split('\n');
+      const markedLines: string[] = [];
+      let i = 0;
+      while (i < lines.length) {
+        if (lines[i].trim() === '' && i > 0 && i < lines.length - 1) {
+          // Keep the first blank line as-is (paragraph separator)
+          markedLines.push(lines[i]);
+          i++;
+          // Any additional consecutive blank lines are actual empty paragraphs
+          while (i < lines.length && lines[i].trim() === '') {
+            markedLines.push(EMPTY_LINE_MARKER);
+            i++;
+          }
+        } else {
+          markedLines.push(lines[i]);
+          i++;
+        }
+      }
+      processed = markedLines.join('\n');
+
+
       // 1. Pre-process collapsible blocks
       const collapsibleBlocks: Array<{ title: string, content: string }> = [];
-      const preprocessed = markdown.replace(
+      const preprocessed = processed.replace(
         /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
         (_, title, content) => {
           const idx = collapsibleBlocks.length;
@@ -596,7 +624,17 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
         }
       });
 
-      // 4. Post-process: Restore alignment from HTML tags gracefully
+      // 4. Post-process: Remove zero-width-space markers from empty-line placeholders
+      //    These paragraphs should become truly empty paragraphs.
+      const allParagraphs = $nodesOfType(ParagraphNode);
+      allParagraphs.forEach((node) => {
+        const firstChild = node.getFirstChild();
+        if ($isTextNode(firstChild) && firstChild.getTextContent() === EMPTY_LINE_MARKER) {
+          firstChild.remove();
+        }
+      });
+
+      // 5. Post-process: Restore alignment from HTML tags gracefully
       const elements = [
         ...$nodesOfType(ParagraphNode),
         ...$nodesOfType(HeadingNode),
@@ -659,23 +697,102 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
       if (tags.has('import')) return;
 
       editorState.read(() => {
+        // Build markdown by walking through root children to preserve empty paragraphs.
+        // $convertToMarkdownString collapses consecutive empty paragraphs, so we
+        // reconstruct the output ourselves, using $convertToMarkdownString only for
+        // the actual content conversion, then inserting extra \n for each empty paragraph.
         let markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
 
-        // Rule 2 Fix: Preserve trailing empty paragraphs as newlines
-        // Lexical's $convertToMarkdownString often ignores trailing empty paragraphs.
-        const root = $nodesOfType(ParagraphNode);
-        if (root.length > 0) {
-          let trailingNewlines = 0;
-          for (let i = root.length - 1; i >= 0; i--) {
-            if (root[i].getTextContentSize() === 0 && root[i].getChildrenSize() === 0) {
-              trailingNewlines++;
-            } else {
-              break;
+        // Preserve empty paragraphs: $convertToMarkdownString collapses them.
+        // Walk all root children and count the exact positions of empty paragraphs,
+        // then reconstruct the markdown with proper empty lines.
+        const rootNode = $getRoot();
+        const children = rootNode.getChildren();
+
+        // Build a structural map: true = empty paragraph, false = non-empty node
+        const nodeMap: boolean[] = [];
+        let hasEmptyParagraphs = false;
+        for (const child of children) {
+          if ($isParagraphNode(child) && child.getTextContentSize() === 0 && child.getChildrenSize() === 0) {
+            nodeMap.push(true);
+            hasEmptyParagraphs = true;
+          } else {
+            nodeMap.push(false);
+          }
+        }
+
+        if (hasEmptyParagraphs) {
+          // Split markdown into chunks for each non-empty node.
+          // Nodes are separated by \n\n (double newline = paragraph break).
+          // Code blocks may contain internal \n\n, so we track them.
+          const nonEmptyChunks: string[] = [];
+          const stripped = markdown.replace(/^\n+/, '').replace(/\n+$/, '');
+
+          if (stripped === '') {
+            // All content is empty
+          } else {
+            const allLines = stripped.split('\n');
+            let currentChunk: string[] = [];
+            let inCodeBlock = false;
+
+            for (let li = 0; li < allLines.length; li++) {
+              const line = allLines[li];
+
+              if (line.startsWith('```')) {
+                inCodeBlock = !inCodeBlock;
+              }
+
+              if (line === '' && !inCodeBlock) {
+                if (currentChunk.length > 0) {
+                  nonEmptyChunks.push(currentChunk.join('\n'));
+                  currentChunk = [];
+                }
+              } else {
+                currentChunk.push(line);
+              }
+            }
+            if (currentChunk.length > 0) {
+              nonEmptyChunks.push(currentChunk.join('\n'));
             }
           }
-          if (trailingNewlines > 0) {
-            markdown = markdown.replace(/\n+$/, '') + '\n'.repeat(trailingNewlines);
+
+          // Reassemble: non-empty chunks need \n\n between them (standard paragraph separator).
+          // Empty paragraphs add an extra \n to represent the blank line.
+          // Strategy: build the output by walking nodeMap. Between consecutive non-empty
+          // nodes, we need \n\n. Each empty paragraph between them adds another \n.
+          let chunkIdx = 0;
+          let resultStr = '';
+          let lastWasNonEmpty = false;
+
+          for (let i = 0; i < nodeMap.length; i++) {
+            if (nodeMap[i]) {
+              // Empty paragraph
+              if (lastWasNonEmpty) {
+                // After non-empty content, add \n for this empty line
+                // (the \n\n separator will be added when the next non-empty node comes)
+                resultStr += '\n';
+              } else if (resultStr === '') {
+                // Leading empty paragraph
+                resultStr += '\n';
+              } else {
+                // Consecutive empty paragraphs
+                resultStr += '\n';
+              }
+            } else {
+              // Non-empty node
+              if (chunkIdx < nonEmptyChunks.length) {
+                if (resultStr !== '') {
+                  // Add paragraph separator before this chunk
+                  resultStr += '\n\n';
+                }
+                resultStr += nonEmptyChunks[chunkIdx];
+                chunkIdx++;
+                lastWasNonEmpty = true;
+              }
+            }
           }
+
+          markdown = resultStr;
         }
 
         // Safety: Prevent accidental wipe on empty initialization before import
@@ -686,10 +803,11 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
         if (markdown !== lastNormalizedValueRef.current) {
           // If this is the very first update after mount (and not an 'import' tag update),
           // it might be Lexical's internal normalization.
-          // We ignore it if the trimmed content is the same, to avoid marking the parent as dirty.
+          // We skip it ONLY if the content is truly identical (not using trim).
           if (firstUpdateRef.current) {
             firstUpdateRef.current = false;
-            if (markdown.trim() === value.trim()) {
+            // Use exact comparison - don't use trim() since whitespace/empty lines matter
+            if (markdown === value) {
               lastNormalizedValueRef.current = markdown;
               return;
             }
