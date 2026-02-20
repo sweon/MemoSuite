@@ -39,7 +39,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import styled from "styled-components";
 import {
-    FaStrikethrough, FaCode,
+    FaCode,
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
     FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
     FaClock, FaEllipsisH
@@ -447,7 +447,6 @@ export function ToolbarPlugin(props: {
     const [canRedo, setCanRedo] = useState(false);
     const [blockType, setBlockType] = useState("paragraph");
     const [isUnderline, setIsUnderline] = useState(false);
-    const [isStrikethrough, setIsStrikethrough] = useState(false);
     const [isCode, setIsCode] = useState(false);
     const [isLink, setIsLink] = useState(false);
     const [fontColor, setFontColor] = useState("#000000");
@@ -553,7 +552,6 @@ export function ToolbarPlugin(props: {
             }
 
             setIsUnderline(selection.hasFormat("underline"));
-            setIsStrikethrough(selection.hasFormat("strikethrough"));
             setIsCode(selection.hasFormat("code"));
 
             // Update Link
@@ -982,16 +980,6 @@ export function ToolbarPlugin(props: {
                             <FaUnderline />
                         </ToolbarButton>
                     </Tooltip>
-                    <Tooltip content={t.toolbar.strikethrough}>
-                        <ToolbarButton
-                            onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}
-                            onMouseDown={(e) => e.preventDefault()}
-                            className={isStrikethrough ? "is-active" : ""}
-                            title={t.toolbar.strikethrough}
-                        >
-                            <FaStrikethrough />
-                        </ToolbarButton>
-                    </Tooltip>
 
                     {/* Font Size Control */}
                     <FontSizeContainer>
@@ -1272,7 +1260,8 @@ export function ToolbarPlugin(props: {
 
                     {customButtons}
                 </ToolbarRow>
-            )}
+            )
+            }
         </ToolbarContainer >
     );
 
