@@ -21,15 +21,9 @@ import type { EditorState } from "lexical";
 import {
     $isListNode,
     ListNode,
-    INSERT_ORDERED_LIST_COMMAND,
-    INSERT_UNORDERED_LIST_COMMAND,
     INSERT_CHECK_LIST_COMMAND,
-    REMOVE_LIST_COMMAND,
 } from "@lexical/list";
-import {
-    $createQuoteNode,
-    $isHeadingNode,
-} from "@lexical/rich-text";
+
 import { $setBlocksType, $patchStyleText, $getSelectionStyleValueForProperty } from "@lexical/selection";
 import { $getNearestNodeOfType, mergeRegister, $insertNodeToNearestRoot } from "@lexical/utils";
 import { TOGGLE_LINK_COMMAND, $isLinkNode } from "@lexical/link";
