@@ -15,6 +15,8 @@ export function PageBreakPlugin() {
             if (focusNode !== null) {
                 const pbNode = $createPageBreakNode();
                 $insertNodeToNearestRoot(pbNode);
+                // Force an update to trigger sync
+                editor.update(() => { });
             }
             return true;
         }, COMMAND_PRIORITY_EDITOR);

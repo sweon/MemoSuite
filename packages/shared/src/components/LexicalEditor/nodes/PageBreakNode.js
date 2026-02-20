@@ -11,6 +11,40 @@ export class PageBreakNode extends DecoratorNode {
     constructor(key) {
         super(key);
     }
+    static importJSON(_serializedNode) {
+        return $createPageBreakNode();
+    }
+    exportJSON() {
+        return {
+            ...super.exportJSON(),
+            type: this.getType(),
+            version: 1,
+        };
+    }
+    exportDOM() {
+        const element = document.createElement("div");
+        element.setAttribute("data-type", "pagebreak");
+        element.className = "page-break";
+        element.style.pageBreakAfter = "always";
+        element.style.breakAfter = "page";
+        return { element };
+    }
+    static importDOM() {
+        return {
+            div: (domNode) => {
+                if (domNode.getAttribute("data-type") === "pagebreak" || domNode.classList.contains("page-break")) {
+                    return {
+                        conversion: () => ({ node: $createPageBreakNode() }),
+                        priority: 1,
+                    };
+                }
+                return null;
+            },
+        };
+    }
+    getTextContent() {
+        return "\\newpage";
+    }
     createDOM() {
         const el = document.createElement("div");
         el.className = "page-break-container";
@@ -20,15 +54,6 @@ export class PageBreakNode extends DecoratorNode {
     }
     updateDOM() {
         return false;
-    }
-    static importJSON(_serializedNode) {
-        return $createPageBreakNode();
-    }
-    exportJSON() {
-        return {
-            type: "pagebreak",
-            version: 1,
-        };
     }
     decorate() {
         return (_jsxs("div", { style: {
@@ -41,14 +66,14 @@ export class PageBreakNode extends DecoratorNode {
                 userSelect: 'none',
                 pageBreakAfter: 'always',
                 breakAfter: 'page'
-            }, contentEditable: false, children: [_jsx("div", { style: {
+            }, contentEditable: false, children: [_jsx("div", { className: "no-print", style: {
                         position: 'absolute',
                         top: '50%',
                         left: 0,
                         right: 0,
                         borderTop: '2px dashed #999',
                         zIndex: 0
-                    } }), _jsx("div", { style: {
+                    } }), _jsx("div", { className: "no-print", style: {
                         background: '#fff',
                         color: '#999',
                         padding: '2px 8px',
@@ -67,5 +92,5 @@ export function $createPageBreakNode() {
     return new PageBreakNode();
 }
 export function $isPageBreakNode(node) {
-    return node instanceof PageBreakNode;
+    return node?.getType() === "pagebreak";
 }

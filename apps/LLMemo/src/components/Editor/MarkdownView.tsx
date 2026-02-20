@@ -250,6 +250,8 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
       position: relative;
       height: 0;
       overflow: visible;
+      display: block;
+      width: 100%;
     }
     .page-break::after {
       content: "Page Break";
@@ -268,13 +270,14 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
 
   @media print {
     .page-break {
-      display: block;
-      height: 0;
-      page-break-before: always;
-      break-before: page;
-      border: none;
-      margin: 0;
-      padding: 0;
+      display: block !important;
+      height: 0 !important;
+      page-break-after: always !important;
+      break-after: page !important;
+      border: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      visibility: visible !important;
     }
   }
 
@@ -1450,7 +1453,8 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
       /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
       (_, title, body) => `<details><summary>${title.trim() || 'Details'}</summary>\n\n${body}\n\n</details>`
     );
-    return result.replace(/^\\newpage\s*$/gm, '<div class="page-break"></div>');
+    // Page break handling: handle \newpage with or without surrounding whitespace
+    return result.replace(/^\s*\\newpage\s*$/gm, '<div class="page-break"></div>');
   }, [content]);
 
 

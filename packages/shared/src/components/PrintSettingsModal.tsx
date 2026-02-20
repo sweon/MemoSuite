@@ -106,6 +106,16 @@ export function executePrint(settings: PrintSettings, title?: string) {
                 display: block !important;
             }
 
+            .page-break {
+                display: block !important;
+                height: 0 !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                border: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
             #print-header-container, #print-footer-container {
                 display: block !important;
                 position: fixed;

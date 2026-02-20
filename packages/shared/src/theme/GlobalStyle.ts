@@ -158,6 +158,9 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
     [class*="LogDetail"],
     [class*="MemoDetail"],
     [class*="ContentPadding"],
+    [class*="editor-container"],
+    [class*="editor-inner"],
+    [class*="editor-scroller"],
     .MarkdownView {
       display: block !important;
       height: auto !important;
@@ -180,10 +183,26 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
       page-break-inside: avoid;
       break-inside: avoid;
     }
+
+    /* Page Break Support */
+    .page-break,
+    .page-break-container,
+    [data-page-break="true"] {
+      display: block !important;
+      height: 0 !important;
+      max-height: 0 !important;
+      overflow: hidden !important;
+      border: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      page-break-after: always !important;
+      break-after: page !important;
+      visibility: hidden;
+    }
     
     /* Ensure all descendants of content area are visible and expanding */
-    #app-content-wrapper-area *,
-    .MarkdownView * {
+    #app-content-wrapper-area *:not(.page-break):not(.page-break-container):not([data-page-break]),
+    .MarkdownView *:not(.page-break):not(.page-break-container):not([data-page-break]) {
       overflow: visible !important;
       height: auto !important;
       max-height: none !important;

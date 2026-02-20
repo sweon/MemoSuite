@@ -173,17 +173,10 @@ const Content = styled(ContentEditable) `
   }
 
   .editor-hr {
-    padding: 2px 2px;
     border: none;
     margin: 1em 0;
     cursor: default;
-    &:after {
-      content: '';
-      display: block;
-      height: 2px;
-      background-color: ${(props) => props.theme.colors?.border || '#333'};
-      line-height: 2px;
-    }
+    border-top: 1px solid ${(props) => props.theme.colors?.border || '#333'};
   }
 
   /* Table Styles */
@@ -440,9 +433,9 @@ const HR_TRANSFORMER = {
 const PAGE_BREAK_TRANSFORMER = {
     dependencies: [PageBreakNode],
     export: (node) => {
-        return $isPageBreakNode(node) ? '<div style="page-break-after: always;"></div>' : null;
+        return $isPageBreakNode(node) ? '\n\\newpage\n' : null;
     },
-    regExp: /^<div style="page-break-after: always;"><\/div>$/,
+    regExp: /^\\newpage\s*$/,
     replace: (parentNode, _1, _2, isFirstLine) => {
         const pbNode = $createPageBreakNode();
         if (isFirstLine) {
@@ -451,7 +444,6 @@ const PAGE_BREAK_TRANSFORMER = {
         else {
             parentNode.insertBefore(pbNode);
         }
-        pbNode.selectNext();
     },
     type: "element",
 };
@@ -759,10 +751,12 @@ function MarkdownSyncPlugin({ value, onChange }) {
         editor.update(() => {
             // CRITICAL: Clear selection to avoid "selection lost" errors during bulk replacement
             $setSelection(null);
-            // 0. Normalize line endings and alignment tags
+            // 1. Normalize line endings and alignment tags
             const normalized = markdown.replace(/\r\n/g, '\n');
-            const alignmentCleaned = normalized.replace(/<(p|h[1-6]|blockquote) align="(\w+)">([\s\S]*?)<\/\1>/gi, '<$1 align="$2">$3');
-            // 1. Pre-process collapsible blocks
+            // 1B. Pre-process page breaks
+            const withPageBreaks = normalized.replace(/<div(?: class="page-break")? style="page-break-after: always;"><\/div>/g, '\\newpage');
+            const alignmentCleaned = withPageBreaks.replace(/<(p|h[1-6]|blockquote) align="(\w+)">([\s\S]*?)<\/\1>/gi, '<$1 align="$2">$3');
+            // 2. Pre-process collapsible blocks
             const collapsibleBlocks = [];
             const withCollapses = alignmentCleaned.replace(/^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm, (_, title, content) => {
                 const idx = collapsibleBlocks.length;
