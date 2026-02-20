@@ -55,6 +55,7 @@ export const ko = {
         horizontal_rule: "구분선",
         insert_time: "현재 시각 삽입",
         clear: "모든 내용 지우기",
+        clear_formatting: "모든 포맷 지우기",
         table_menu: {
             title: "표 삽입",
             rows: "행",

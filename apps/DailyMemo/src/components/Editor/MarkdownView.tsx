@@ -1594,7 +1594,53 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
         if (!inline) return (<SyntaxHighlighter style={stateRef.current.isDark ? vscDarkPlus : vs} language={language || 'text'} PreTag="div" {...props}>{json}</SyntaxHighlighter>);
         return <code className={className} {...props}>{children}</code>;
       } catch (e) { return <code className={className} {...props}>{children}</code>; }
-    }
+    },
+    span: ({ node, className, children, ...props }: any) => {
+      let styleObj = props.style;
+      if (typeof styleObj === 'string') {
+        const style: Record<string, string> = {};
+        styleObj.split(';').forEach(rule => {
+          const colonIdx = rule.indexOf(':');
+          if (colonIdx > -1) {
+            const key = rule.slice(0, colonIdx).trim();
+            const value = rule.slice(colonIdx + 1).trim();
+            if (key && value) {
+              const camelCaseKey = key.replace(/-([a-z])/g, g => g[1].toUpperCase());
+              style[camelCaseKey] = value;
+            }
+          }
+        });
+        styleObj = style;
+      }
+      return <span className={className} {...props} style={styleObj}>{children}</span>;
+    },
+    ...['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'].reduce((acc, tag) => {
+      acc[tag] = ({ node, children, ...props }: any) => {
+        let styleObj = props.style;
+        if (typeof styleObj === 'string') {
+          const style: Record<string, string> = {};
+          styleObj.split(';').forEach((rule: string) => {
+            const colonIdx = rule.indexOf(':');
+            if (colonIdx > -1) {
+              const key = rule.slice(0, colonIdx).trim();
+              const value = rule.slice(colonIdx + 1).trim();
+              if (key && value) {
+                const camelCaseKey = key.replace(/-([a-z])/g, (g: string) => g[1].toUpperCase());
+                style[camelCaseKey] = value;
+              }
+            }
+          });
+          styleObj = style;
+        }
+        if (props.align) {
+          styleObj = { ...styleObj, textAlign: props.align === 'justify' ? 'justify' : props.align };
+          delete props.align;
+        }
+        const Tag = tag as any;
+        return <Tag {...props} style={styleObj}>{children}</Tag>;
+      };
+      return acc;
+    }, {} as any)
   }), []);
   return (
     <MarkdownContainer $tableHeaderBg={tableHeaderBg} $fontSize={fontSize}>

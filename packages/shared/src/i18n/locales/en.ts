@@ -55,6 +55,7 @@ export const en = {
         horizontal_rule: "Horizontal Rule",
         insert_time: "Insert Current Time",
         clear: "Clear All Content",
+        clear_formatting: "Clear All Formatting",
         table_menu: {
             title: "Insert Table",
             rows: "Rows",

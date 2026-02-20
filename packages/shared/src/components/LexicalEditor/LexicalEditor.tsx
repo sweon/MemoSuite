@@ -341,18 +341,18 @@ const COLLAPSIBLE_TRANSFORMER: Transformer = {
 
 const STYLE_TRANSFORMER: TextMatchTransformer = {
   dependencies: [],
-  export: (node) => {
+  export: (node, exportChildren, exportFormat) => {
     if ($isTextNode(node)) {
       const style = node.getStyle();
       if (style) {
-        const textContent = node.getTextContent();
+        const textContent = exportFormat ? exportFormat(node, node.getTextContent()) : node.getTextContent();
         return `<span style="${style}">${textContent}</span>`;
       }
     }
     return null;
   },
-  importRegExp: /<span style="([^"]+)">([^<]+)<\/span>/,
-  regExp: /<span style="([^"]+)">([^<]+)<\/span>/,
+  importRegExp: /<span style="([^"]+)">([\s\S]+?)<\/span>/,
+  regExp: /<span style="([^"]+)">([\s\S]+?)<\/span>/,
   replace: (textNode, match) => {
     const style = match[1];
     const content = match[2];
@@ -412,7 +412,7 @@ const ELEMENT_FORMAT_EXPORT_TRANSFORMER: Transformer = {
     }
     return null;
   },
-  regExp: /^<([p|h1-6|blockquote]+) align="(\w+)">(.*)<\/\1>$/,
+  regExp: /^<(p|h[1-6]|blockquote) align="(\w+)">(.*)<\/\1>$/,
   replace: () => { },
   type: "element",
 };
@@ -486,22 +486,43 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
         }
       });
 
-      // 4. Post-process: Restore alignment from HTML tags
+      // 4. Post-process: Restore alignment from HTML tags gracefully
       const elements = [
         ...$nodesOfType(ParagraphNode),
         ...$nodesOfType(HeadingNode),
         ...$nodesOfType(QuoteNode),
       ];
       elements.forEach((node) => {
-        const text = node.getTextContent();
-        const match = text.match(
-          /<(p|h[1-6]|blockquote) align="(left|center|right|justify)">(.*)<\/\1>/
-        );
-        if (match) {
-          const [, , align, content] = match;
-          node.setFormat(align as ElementFormatType);
-          node.clear();
-          node.append($createTextNode(content));
+        const firstChild = node.getFirstChild();
+
+        if ($isTextNode(firstChild)) {
+          const text = firstChild.getTextContent();
+          const match = text.match(/^<(p|h[1-6]|blockquote) align="(left|center|right|justify|start|end)">/i);
+          if (match) {
+            node.setFormat(match[2] as ElementFormatType);
+            const remainder = text.substring(match[0].length);
+            if (remainder) {
+              firstChild.setTextContent(remainder);
+            } else {
+              firstChild.remove();
+            }
+          }
+        }
+
+        if (node.isAttached()) {
+          const lastChild = node.getLastChild();
+          if ($isTextNode(lastChild)) {
+            const text = lastChild.getTextContent();
+            const match = text.match(/<\/(p|h[1-6]|blockquote)>[\s]*$/i);
+            if (match) {
+              const remainder = text.substring(0, match.index);
+              if (remainder) {
+                lastChild.setTextContent(remainder);
+              } else {
+                lastChild.remove();
+              }
+            }
+          }
         }
       });
     }, { tag: 'import' });

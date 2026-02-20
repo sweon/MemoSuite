@@ -14,6 +14,8 @@ import {
     $createTextNode,
     INDENT_CONTENT_COMMAND,
     OUTDENT_CONTENT_COMMAND,
+    $isTextNode,
+    $isElementNode,
 } from "lexical";
 import type { EditorState } from "lexical";
 import {
@@ -46,6 +48,7 @@ import {
 } from "react-icons/fa";
 import { FiPenTool, FiSidebar, FiX, FiTrash2, FiCheck } from "react-icons/fi";
 import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
+import { MdFormatClear } from "react-icons/md";
 import { $createHandwritingNode } from "../nodes/HandwritingNode";
 import { $createSpreadsheetNode } from "../nodes/SpreadsheetNode";
 import { $createCollapsibleNode } from "../nodes/CollapsibleNode";
@@ -734,6 +737,55 @@ export function ToolbarPlugin(props: {
         });
     };
 
+    const clearFormatting = () => {
+        editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+                if (selection.isCollapsed()) return;
+
+                const isBackward = selection.isBackward();
+                const startPoint = isBackward ? selection.focus : selection.anchor;
+                const endPoint = isBackward ? selection.anchor : selection.focus;
+
+                const nodes = selection.getNodes();
+                const startNodeKey = startPoint.getNode().getKey();
+                const endNodeKey = endPoint.getNode().getKey();
+
+                nodes.forEach((node) => {
+                    if ($isTextNode(node)) {
+                        let textNode = node;
+                        const isStartNode = node.getKey() === startNodeKey;
+                        const isEndNode = node.getKey() === endNodeKey;
+
+                        if (isStartNode && startPoint.offset > 0) {
+                            textNode = textNode.splitText(startPoint.offset)[1] || textNode;
+                        }
+
+                        if (isEndNode) {
+                            const endOffset = isStartNode
+                                ? endPoint.offset - startPoint.offset
+                                : endPoint.offset;
+                            if (endOffset > 0 && endOffset < textNode.getTextContent().length) {
+                                textNode = textNode.splitText(endOffset)[0] || textNode;
+                            }
+                        }
+
+                        textNode.setFormat(0);
+                        textNode.setStyle("");
+
+                        const parent = textNode.getParent();
+                        if (parent && $isElementNode(parent)) {
+                            parent.setFormat("");
+                        }
+                    } else if ($isElementNode(node)) {
+                        node.setFormat("");
+                    }
+                });
+
+                $setBlocksType(selection, () => $createParagraphNode());
+            }
+        });
+    };
 
     const applyStyleText = useCallback(
         (styles: Record<string, string>) => {
@@ -1246,7 +1298,15 @@ export function ToolbarPlugin(props: {
                         </ToolbarButton>
                     </Tooltip>
 
-                    {/* Utility */}
+                    <Tooltip content={t.toolbar.clear_formatting || "Clear All Formatting"}>
+                        <ToolbarButton
+                            onClick={clearFormatting}
+                            title={t.toolbar.clear_formatting || "Clear All Formatting"}
+                        >
+                            <MdFormatClear size={18} />
+                        </ToolbarButton>
+                    </Tooltip>
+
                     <Tooltip content={t.toolbar.clear}>
                         <ToolbarButton
                             onClick={() => editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined)}
