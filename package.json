@@ -13,5 +13,10 @@
     },
     "dependencies": {
         "pdfjs-dist": "4.10.38"
+    },
+    "pnpm": {
+        "overrides": {
+            "@types/react": "18.3.12"
+        }
     }
 }

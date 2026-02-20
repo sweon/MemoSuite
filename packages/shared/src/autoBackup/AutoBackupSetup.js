@@ -1,0 +1,344 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+/**
+ * AutoBackupSetup - UI for setting up auto-backup.
+ */
+import { useState } from 'react';
+import styled from 'styled-components';
+const Container = styled.div `
+    padding: 20px;
+    background: ${({ theme }) => theme.colors.surface};
+    border-radius: ${({ theme }) => theme.radius.large};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+`;
+const Title = styled.h3 `
+    margin: 0 0 12px 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+`;
+const TitleNotice = styled.span `
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #cf6e15; /* Subdued, professional orange */
+    background: ${({ theme }) => theme.colors.background};
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1.2px solid #ed8936;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+    line-height: 1;
+`;
+const StatusText = styled.div `
+    font-size: 0.85rem;
+    color: ${({ $active, theme }) => $active ? '#2ecc71' : theme.colors.textSecondary};
+    margin-bottom: 20px;
+    font-weight: 500;
+`;
+const SetupCard = styled.div `
+    background: ${({ theme }) => theme.colors.background};
+    padding: 24px;
+    border-radius: ${({ theme }) => theme.radius.medium};
+    border: 1px dashed ${({ theme }) => theme.colors.border};
+`;
+const Description = styled.p `
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    margin: 0 0 20px 0;
+`;
+const FormGroup = styled.div `
+    margin-bottom: 16px;
+`;
+const Label = styled.label `
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: ${({ theme }) => theme.colors.text};
+`;
+const Input = styled.input `
+    width: 100%;
+    padding: 10px 12px;
+    padding-right: 40px;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.radius.medium};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.text};
+    font-size: 0.95rem;
+    box-sizing: border-box;
+
+    &:focus {
+        outline: none;
+        border-color: ${({ theme }) => theme.colors.primary};
+    }
+`;
+const PasswordWrapper = styled.div `
+    position: relative;
+    display: flex;
+    align-items: center;
+`;
+const VisibilityButton = styled.button `
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: opacity 0.2s, background-color 0.2s;
+    border-radius: 4px;
+
+    &:hover {
+        background: rgba(0, 0, 0, 0.05);
+        color: ${({ theme }) => theme.colors.text};
+        opacity: 1;
+    }
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+`;
+const EyeIcon = () => (_jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [_jsx("path", { d: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" }), _jsx("circle", { cx: "12", cy: "12", r: "3" })] }));
+const EyeOffIcon = () => (_jsxs("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [_jsx("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" }), _jsx("line", { x1: "1", y1: "1", x2: "23", y2: "23" })] }));
+const InfoRow = styled.div `
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.border};
+    font-size: 0.9rem;
+
+    &:last-of-type {
+        border-bottom: none;
+    }
+`;
+const InfoLabel = styled.span `
+    color: ${({ theme }) => theme.colors.textSecondary};
+`;
+const InfoValue = styled.span `
+    font-weight: 500;
+    color: ${({ theme }) => theme.colors.text};
+`;
+const Button = styled.button `
+    padding: ${({ $small }) => $small ? '6px 12px' : '10px 20px'};
+    font-size: ${({ $small }) => $small ? '0.8rem' : '0.95rem'};
+    font-weight: 600;
+    border: 1px solid ${({ theme, $primary }) => $primary ? theme.colors.primary : theme.colors.border};
+    border-radius: ${({ theme }) => theme.radius.medium};
+    background: ${({ $primary }) => $primary ? 'var(--primary, #ef8e13)' : 'transparent'};
+    color: ${({ $primary }) => $primary ? '#fff' : 'inherit'};
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+`;
+const ActionGroup = styled.div `
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+`;
+const MessageText = styled.div `
+    margin-top: 12px;
+    padding: 8px 12px;
+    border-radius: ${({ theme }) => theme.radius.small};
+    background: ${({ $error }) => $error ? 'rgba(231, 76, 60, 0.1)' : 'rgba(46, 204, 113, 0.1)'};
+    color: ${({ $error }) => $error ? '#e74c3c' : '#2ecc71'};
+    font-size: 0.85rem;
+`;
+const SpinnerContainer = styled.div `
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+`;
+const SpinnerButton = styled.button `
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.surface};
+    color: ${({ theme }) => theme.colors.text};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: bold;
+    transition: all 0.2s;
+
+    &:hover:not(:disabled) {
+        border-color: ${({ theme }) => theme.colors.primary};
+        background: ${({ theme }) => theme.colors.background};
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+
+    &:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+`;
+const SpinnerValue = styled.div `
+    font-size: 0.95rem;
+    font-weight: 600;
+    min-width: 100px;
+    text-align: center;
+    color: ${({ theme }) => theme.colors.text};
+`;
+const WarningBox = styled.div `
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(243, 156, 18, 0.1);
+    border-left: 3px solid #f39c12;
+    font-size: 0.8rem;
+    color: ${({ theme }) => theme.colors.text};
+    line-height: 1.4;
+`;
+const StopButton = styled.button `
+    display: block;
+    margin: 32px auto 0;
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: ${({ theme }) => theme.colors.textSecondary};
+    font-size: 0.75rem;
+    opacity: 0.4;
+    cursor: pointer;
+    text-decoration: underline;
+    transition: opacity 0.2s;
+
+    &:hover {
+        opacity: 0.8;
+    }
+`;
+const translations = {
+    ko: {
+        desktop_title: '자동 백업',
+        mobile_title: '원터치 백업',
+        essential_notice: '데이터 손실 방지를 위해 필수임',
+        desktop_desc: '데이터가 자동으로 암호화되어 선택한 폴더에 동기화됩니다. 브라우저가 초기화되어도 폴더의 파일은 안전하게 유지됩니다.',
+        mobile_desc: '아래 버튼을 눌러 데이터를 암호화된 파일로 내보낼 수 있습니다. 다운로드한 파일을 보관하면 브라우저 초기화 후에도 안전하게 복구할 수 있습니다.',
+        password_label: '백업 비밀번호 (선택)',
+        password_placeholder: '비워두면 시스템 기본 암호 사용',
+        folder_label: '백업 폴더',
+        select_folder: '폴더 선택',
+        status_enabled: '백업 기능 활성화됨',
+        status_disabled: '설정되지 않음',
+        last_backup: '마지막 백업',
+        never: '없음',
+        backup_now: '지금 백업',
+        platform_desktop: '데스크톱 모드 (동기화 중)',
+        platform_mobile: '모바일 모드 (수동 백업)',
+        mobile_backup_hint: '백업은 다운로드 폴더에 앱 이름으로 시작되는 파일로 저장됩니다. 파일 숫자가 계속 늘어나므로, 오래된 백업 파일을 수동으로 삭제를 해주어야 합니다.',
+        backup_success: '백업 완료!',
+        backup_failed: '백업 실패',
+        change_password: '비밀번호 변경',
+        change_folder: '폴더 변경',
+        setup_button: '백업 시작하기',
+        desktop_setup_alert: '자동 백업 파일을 저장할 새 폴더를 만드세요.',
+        password_warning: '⚠️ 시스템 기본 암호를 사용하면 같은 앱을 가진 다른 사람도 열어볼 수 있습니다.',
+        cancel: '취소',
+        stop_backup: '자동 백업 중지 및 설정 초기화',
+        stop_confirm: '자동 백업 설정을 모두 삭제하고 중지하시겠습니까?',
+        reminder_label: '백업 알림 주기',
+        days_suffix: '일 마다',
+        default_label: '기본',
+        reminder_days_never: '알림 끄기',
+        status_warning: '백업이 오래되었습니다!',
+    },
+    en: {
+        desktop_title: 'Auto Backup',
+        mobile_title: 'One-touch Backup',
+        essential_notice: 'Essential for data loss prevention',
+        desktop_desc: 'Data is automatically encrypted and synced to your chosen folder. Files remain safe even if browser data is cleared.',
+        mobile_desc: 'Export your data as an encrypted file. Keep the downloaded file safe to restore even after browser data is cleared.',
+        password_label: 'Backup Password (Optional)',
+        password_placeholder: 'Leave blank for automatic mode',
+        folder_label: 'Backup Folder',
+        select_folder: 'Select Folder',
+        status_enabled: 'Backup is active',
+        status_disabled: 'Not set up yet',
+        last_backup: 'Last backup',
+        never: 'Never',
+        backup_now: 'Backup Now',
+        platform_desktop: 'Desktop Mode (Syncing)',
+        platform_mobile: 'Mobile Mode (Manual)',
+        mobile_backup_hint: 'Backups are saved in the Downloads folder with files starting with the app name. Since files accumulate, please manually delete old backups.',
+        backup_success: 'Backup complete!',
+        backup_failed: 'Backup failed',
+        change_password: 'Change Password',
+        change_folder: 'Change Folder',
+        setup_button: 'Start Backup',
+        desktop_setup_alert: 'Please create a new folder to save the auto-backup file.',
+        password_warning: '⚠️ Note: Backups using the default system key can be opened by anyone using the same app.',
+        cancel: 'Cancel',
+        stop_backup: 'Stop Auto Backup & Reset Settings',
+        stop_confirm: 'Are you sure you want to delete all auto-backup settings and stop?',
+        reminder_label: 'Backup Reminder',
+        days_suffix: ' days',
+        default_label: 'Default',
+        reminder_days_never: 'Disable Reminder',
+        status_warning: 'Backup overdue!',
+    }
+};
+export const AutoBackupSetup = ({ autoBackup, language }) => {
+    const [password, setPassword] = useState('');
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [message, setMessage] = useState('');
+    const [isError, setIsError] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const t = translations[language] || translations.en;
+    const handleSetup = async (pwd) => {
+        setMessage('');
+        if (autoBackup.isDesktop) {
+            alert(t.desktop_setup_alert);
+        }
+        const success = await autoBackup.setup(pwd || '');
+        if (success) {
+            setPassword('');
+        }
+    };
+    const handleManualBackup = async () => {
+        const success = await autoBackup.manualBackup();
+        setIsError(!success);
+        setMessage(success ? t.backup_success : t.backup_failed);
+        setTimeout(() => setMessage(''), 3000);
+    };
+    const handleConfirmPasswordChange = async () => {
+        const success = await autoBackup.setup(newPassword);
+        if (success) {
+            setIsChangingPassword(false);
+            setNewPassword('');
+            setMessage(t.backup_success); // Or change_success if we add one
+            setTimeout(() => setMessage(''), 3000);
+        }
+    };
+    const handleStop = async () => {
+        if (window.confirm(t.stop_confirm)) {
+            await autoBackup.stop();
+        }
+    };
+    return (_jsxs(Container, { children: [_jsxs(Title, { children: [_jsxs("span", { style: { display: 'flex', alignItems: 'center', gap: '8px' }, children: [_jsx("span", { children: autoBackup.isDesktop ? '💻' : '📱' }), autoBackup.isDesktop ? t.desktop_title : t.mobile_title] }), _jsx(TitleNotice, { children: t.essential_notice })] }), _jsxs(StatusText, { "$active": autoBackup.isSetUp || autoBackup.state.isWarning, children: [autoBackup.state.isWarning ? `⚠️ ${t.status_warning}` : (autoBackup.isSetUp ? `✅ ${t.status_enabled}` : `⚠️ ${t.status_disabled}`), _jsx("div", { style: { fontWeight: 400, opacity: 0.8, marginTop: 4 }, children: autoBackup.isDesktop ? t.platform_desktop : t.platform_mobile }), !autoBackup.isDesktop && (_jsxs("div", { style: { fontWeight: 400, opacity: 0.6, marginTop: 10, fontSize: '0.8rem', lineHeight: 1.4, wordBreak: 'keep-all' }, children: ["\uD83D\uDCA1 ", t.mobile_backup_hint] }))] }), !autoBackup.isSetUp ? (_jsxs(SetupCard, { children: [_jsx(Description, { children: autoBackup.isDesktop ? t.desktop_desc : t.mobile_desc }), _jsxs(FormGroup, { children: [_jsx(Label, { children: t.password_label }), _jsxs(PasswordWrapper, { children: [_jsx(Input, { type: showPassword ? "text" : "password", placeholder: t.password_placeholder, value: password, onChange: (e) => setPassword(e.target.value) }), _jsx(VisibilityButton, { type: "button", onClick: () => setShowPassword(!showPassword), title: showPassword ? "Hide password" : "Show password", children: showPassword ? _jsx(EyeOffIcon, {}) : _jsx(EyeIcon, {}) })] })] }), !password.trim() && (_jsx(WarningBox, { children: t.password_warning })), _jsx(Button, { onClick: () => handleSetup(password), "$primary": true, style: { width: '100%', marginTop: 8 }, disabled: autoBackup.isProcessing, children: t.setup_button })] })) : (_jsxs(_Fragment, { children: [_jsxs(InfoRow, { children: [_jsx(InfoLabel, { children: t.last_backup }), _jsx(InfoValue, { children: autoBackup.lastBackupText || t.never })] }), autoBackup.isDesktop && (_jsxs(InfoRow, { children: [_jsx(InfoLabel, { children: t.folder_label }), _jsx(Button, { "$small": true, onClick: () => handleSetup(), children: t.change_folder })] })), !autoBackup.isDesktop && (_jsxs(InfoRow, { children: [_jsx(InfoLabel, { children: t.reminder_label }), _jsxs(SpinnerContainer, { children: [_jsx(SpinnerButton, { onClick: () => autoBackup.setMobileInterval(Math.max(0, (autoBackup.state.mobileWarningInterval ?? 3) - 1)), disabled: autoBackup.state.mobileWarningInterval === 0, children: "\u2212" }), _jsx(SpinnerValue, { children: autoBackup.state.mobileWarningInterval === 0
+                                            ? t.reminder_days_never
+                                            : `${autoBackup.state.mobileWarningInterval}${t.days_suffix}${autoBackup.state.mobileWarningInterval === 3 ? ` (${t.default_label})` : ''}` }), _jsx(SpinnerButton, { onClick: () => autoBackup.setMobileInterval(Math.min(14, (autoBackup.state.mobileWarningInterval ?? 3) + 1)), disabled: autoBackup.state.mobileWarningInterval === 14, children: "+" })] })] })), isChangingPassword ? (_jsxs(SetupCard, { style: { marginTop: 16 }, children: [_jsxs(FormGroup, { children: [_jsx(Label, { children: t.password_label }), _jsxs(PasswordWrapper, { children: [_jsx(Input, { type: showNewPassword ? "text" : "password", placeholder: t.password_placeholder, value: newPassword, onChange: (e) => setNewPassword(e.target.value) }), _jsx(VisibilityButton, { type: "button", onClick: () => setShowNewPassword(!showNewPassword), title: showNewPassword ? "Hide password" : "Show password", children: showNewPassword ? _jsx(EyeOffIcon, {}) : _jsx(EyeIcon, {}) })] }), !newPassword.trim() && (_jsx(WarningBox, { children: t.password_warning }))] }), _jsxs(ActionGroup, { children: [_jsx(Button, { "$primary": true, onClick: handleConfirmPasswordChange, disabled: autoBackup.isProcessing, children: t.change_password }), _jsx(Button, { onClick: () => setIsChangingPassword(false), children: t.cancel })] })] })) : (_jsxs(ActionGroup, { children: [_jsx(Button, { "$primary": true, onClick: handleManualBackup, disabled: autoBackup.isProcessing, children: t.backup_now }), _jsx(Button, { onClick: () => setIsChangingPassword(true), disabled: autoBackup.isProcessing, children: "\uD83D\uDD11" })] })), message && (_jsx(MessageText, { "$error": isError, children: message })), !isChangingPassword && (_jsx(StopButton, { onClick: handleStop, children: t.stop_backup }))] }))] }));
+};

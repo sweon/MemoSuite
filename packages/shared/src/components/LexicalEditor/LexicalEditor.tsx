@@ -24,7 +24,7 @@ import {
   ITALIC_UNDERSCORE,
   STRIKETHROUGH
 } from "@lexical/markdown";
-import type { Transformer, TextMatchTransformer, ElementTransformer } from "@lexical/markdown";
+import type { Transformer, TextMatchTransformer } from "@lexical/markdown";
 import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
 import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
@@ -45,7 +45,6 @@ import {
   $isElementNode,
   ElementNode,
   $isParagraphNode,
-  $getRoot,
   TextNode,
 } from "lexical";
 import type { LexicalNode, ElementFormatType } from "lexical";
