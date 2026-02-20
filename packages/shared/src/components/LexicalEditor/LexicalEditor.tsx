@@ -172,11 +172,12 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
   
   .editor-text-code {
     background-color: ${(props: any) => props.theme.colors?.surface || '#2d2d2d'};
-    color: ${(props: any) => props.theme.colors?.primary || '#ce9178'};
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-family: 'Fira Code', Menlo, Consolas, Monaco, monospace;
-    font-size: 90%;
+    color: ${(props: any) => props.theme.colors?.text || 'inherit'};
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    border: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9em;
   }
   
   .editor-code {
