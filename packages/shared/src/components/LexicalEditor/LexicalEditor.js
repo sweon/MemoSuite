@@ -366,6 +366,18 @@ const HTML_COMBINED_TRANSFORMER = {
     trigger: "<",
     type: "text-match",
 };
+const EMPTY_PARAGRAPH_TRANSFORMER = {
+    dependencies: [ParagraphNode],
+    export: (node) => {
+        if ($isParagraphNode(node) && node.getTextContentSize() === 0 && node.getChildrenSize() === 0) {
+            return "\n\u200B\n";
+        }
+        return null;
+    },
+    regExp: /^THIS_SHOULD_NEVER_MATCH$/,
+    replace: () => false,
+    type: "element",
+};
 const SPREADSHEET_TRANSFORMER = {
     dependencies: [SpreadsheetNode],
     export: (node) => {
@@ -462,13 +474,15 @@ const ELEMENT_FORMAT_EXPORT_TRANSFORMER = {
                             ? "blockquote"
                             : null;
                 if (tag) {
-                    return `<${tag} align="${format}">${traverseChildren(node)}</${tag}>`;
+                    const childrenContent = traverseChildren(node);
+                    const finalContent = (childrenContent === "" || childrenContent === "\u200B") ? "\u200B" : childrenContent;
+                    return `<${tag} align="${format}">${finalContent}</${tag}>`;
                 }
             }
         }
         return null;
     },
-    regExp: /^<(p|h[1-6]|blockquote) align="(\w+)">(.*)<\/\1>$/,
+    regExp: /^<(p|h[1-6]|blockquote) align="(\w+)">/,
     replace: (parentNode, children, match) => {
         const align = match[2];
         parentNode.setFormat(align);
@@ -633,6 +647,9 @@ const SAFE_STRIKETHROUGH = {
     type: "text-match",
 };
 const ALL_TRANSFORMERS = [
+    ELEMENT_FORMAT_EXPORT_TRANSFORMER,
+    HTML_COMBINED_TRANSFORMER,
+    EMPTY_PARAGRAPH_TRANSFORMER,
     SAFE_BOLD_ITALIC_STAR,
     SAFE_BOLD_ITALIC_UNDERSCORE,
     SAFE_BOLD_STAR,
@@ -640,7 +657,6 @@ const ALL_TRANSFORMERS = [
     SAFE_ITALIC_STAR,
     SAFE_ITALIC_UNDERSCORE,
     SAFE_STRIKETHROUGH,
-    HTML_COMBINED_TRANSFORMER,
     CHECK_LIST,
     IMAGE_TRANSFORMER,
     COLLAPSIBLE_TRANSFORMER,
@@ -654,6 +670,8 @@ const ALL_TRANSFORMERS = [
 ];
 const EXPORT_TRANSFORMERS = [
     ELEMENT_FORMAT_EXPORT_TRANSFORMER,
+    EMPTY_PARAGRAPH_TRANSFORMER,
+    HTML_COMBINED_TRANSFORMER,
     SAFE_BOLD_ITALIC_STAR,
     SAFE_BOLD_ITALIC_UNDERSCORE,
     SAFE_BOLD_STAR,
@@ -661,7 +679,6 @@ const EXPORT_TRANSFORMERS = [
     SAFE_ITALIC_STAR,
     SAFE_ITALIC_UNDERSCORE,
     SAFE_STRIKETHROUGH,
-    HTML_COMBINED_TRANSFORMER,
     CHECK_LIST,
     IMAGE_TRANSFORMER,
     COLLAPSIBLE_TRANSFORMER,
@@ -683,16 +700,30 @@ function MarkdownSyncPlugin({ value, onChange }) {
         editor.update(() => {
             // CRITICAL: Clear selection to avoid "selection lost" errors during bulk replacement
             $setSelection(null);
+            // 0. Normalize line endings and alignment tags
+            const normalized = markdown.replace(/\r\n/g, '\n');
+            const alignmentCleaned = normalized.replace(/<(p|h[1-6]|blockquote) align="(\w+)">([\s\S]*?)<\/\1>/gi, '<$1 align="$2">$3');
             // 1. Pre-process collapsible blocks
             const collapsibleBlocks = [];
-            const preprocessed = markdown.replace(/^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm, (_, title, content) => {
+            const withCollapses = alignmentCleaned.replace(/^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm, (_, title, content) => {
                 const idx = collapsibleBlocks.length;
                 collapsibleBlocks.push({ title: title.trim() || 'Details', content });
                 return '```__collapse_' + idx + '\n' + content + '\n```';
             });
-            // 2. Initial Markdown Import
-            $convertFromMarkdownString(preprocessed, ALL_TRANSFORMERS);
-            // 3. Post-process: Convert temporary code blocks to custom nodes
+            // 3. Initial Markdown Import
+            $convertFromMarkdownString(withCollapses, ALL_TRANSFORMERS);
+            // 3A. Post-process: Remove ZWSP markers to restore truly empty paragraphs
+            const textNodes = $nodesOfType(TextNode);
+            textNodes.forEach((node) => {
+                const text = node.getTextContent();
+                if (text === '\u200B') {
+                    node.remove();
+                }
+                else if (text.includes('\u200B')) {
+                    node.setTextContent(text.replace(/\u200B/g, ''));
+                }
+            });
+            // 3B. Post-process: Convert temporary code blocks to custom nodes
             const codeNodes = $nodesOfType(CodeNode);
             codeNodes.forEach((node) => {
                 const lang = node.getLanguage();
@@ -721,45 +752,6 @@ function MarkdownSyncPlugin({ value, onChange }) {
                     node.replace($createSpreadsheetNode(data));
                 }
             });
-            // 4. Post-process: Restore alignment from HTML tags gracefully
-            const elements = [
-                ...$nodesOfType(ParagraphNode),
-                ...$nodesOfType(HeadingNode),
-                ...$nodesOfType(QuoteNode),
-            ];
-            elements.forEach((node) => {
-                const firstChild = node.getFirstChild();
-                if ($isTextNode(firstChild)) {
-                    const text = firstChild.getTextContent();
-                    const match = text.match(/^<(p|h[1-6]|blockquote) align="(left|center|right|justify|start|end)">/i);
-                    if (match) {
-                        node.setFormat(match[2]);
-                        const remainder = text.substring(match[0].length);
-                        if (remainder) {
-                            firstChild.setTextContent(remainder);
-                        }
-                        else {
-                            firstChild.remove();
-                        }
-                    }
-                }
-                if (node.isAttached()) {
-                    const lastChild = node.getLastChild();
-                    if ($isTextNode(lastChild)) {
-                        const text = lastChild.getTextContent();
-                        const match = text.match(/<\/(p|h[1-6]|blockquote)>[\s]*$/i);
-                        if (match) {
-                            const remainder = text.substring(0, match.index);
-                            if (remainder) {
-                                lastChild.setTextContent(remainder);
-                            }
-                            else {
-                                lastChild.remove();
-                            }
-                        }
-                    }
-                }
-            });
         }, { tag: 'import' });
     };
     // Initial load
@@ -781,77 +773,6 @@ function MarkdownSyncPlugin({ value, onChange }) {
                 return;
             editorState.read(() => {
                 let markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
-                // Preserve empty paragraphs: $convertToMarkdownString collapses them.
-                // Walk all root children and count the exact positions of empty paragraphs,
-                // then reconstruct the markdown with proper empty lines.
-                const rootNode = $getRoot();
-                const children = rootNode.getChildren();
-                // Build a structural map: true = empty paragraph, false = non-empty node
-                const nodeMap = [];
-                let hasEmptyParagraphs = false;
-                for (const child of children) {
-                    if ($isParagraphNode(child) && child.getTextContentSize() === 0 && child.getChildrenSize() === 0) {
-                        nodeMap.push(true);
-                        hasEmptyParagraphs = true;
-                    }
-                    else {
-                        nodeMap.push(false);
-                    }
-                }
-                if (hasEmptyParagraphs) {
-                    // Split markdown into chunks for each non-empty node.
-                    // Nodes are separated by \n\n (double newline = paragraph break).
-                    // Code blocks may contain internal \n\n, so we track them.
-                    const nonEmptyChunks = [];
-                    const stripped = markdown.replace(/^\n+/, '').replace(/\n+$/, '');
-                    if (stripped === '') {
-                        // All content is empty
-                    }
-                    else {
-                        const allLines = stripped.split('\n');
-                        let currentChunk = [];
-                        let inCodeBlock = false;
-                        for (let li = 0; li < allLines.length; li++) {
-                            const line = allLines[li];
-                            if (line.startsWith('```')) {
-                                inCodeBlock = !inCodeBlock;
-                            }
-                            if (line === '' && !inCodeBlock) {
-                                if (currentChunk.length > 0) {
-                                    nonEmptyChunks.push(currentChunk.join('\n'));
-                                    currentChunk = [];
-                                }
-                            }
-                            else {
-                                currentChunk.push(line);
-                            }
-                        }
-                        if (currentChunk.length > 0) {
-                            nonEmptyChunks.push(currentChunk.join('\n'));
-                        }
-                    }
-                    // Reassemble: non-empty chunks need \n\n between them (standard paragraph separator).
-                    // Empty paragraphs add \u200B to represent the blank line.
-                    let chunkIdx = 0;
-                    let resultStr = '';
-                    for (let i = 0; i < nodeMap.length; i++) {
-                        let chunkContent = "";
-                        if (nodeMap[i]) {
-                            chunkContent = "\u200B";
-                        }
-                        else if (chunkIdx < nonEmptyChunks.length) {
-                            chunkContent = nonEmptyChunks[chunkIdx];
-                            chunkIdx++;
-                        }
-                        if (chunkContent !== "") {
-                            if (resultStr !== "") {
-                                resultStr += "\n\n";
-                            }
-                            resultStr += chunkContent;
-                        }
-                    }
-                    markdown = resultStr;
-                }
                 // Safety: Prevent accidental wipe on empty initialization before import
                 if (markdown === "" && lastNormalizedValueRef.current !== "" && !tags.has('import')) {
                     if (lastNormalizedValueRef.current.length > 10)

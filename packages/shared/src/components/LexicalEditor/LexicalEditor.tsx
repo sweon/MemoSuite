@@ -24,7 +24,7 @@ import {
   ITALIC_UNDERSCORE,
   STRIKETHROUGH
 } from "@lexical/markdown";
-import type { Transformer, TextMatchTransformer } from "@lexical/markdown";
+import type { Transformer, TextMatchTransformer, ElementTransformer } from "@lexical/markdown";
 import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
 import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
@@ -415,6 +415,19 @@ const HTML_COMBINED_TRANSFORMER: TextMatchTransformer = {
   type: "text-match",
 };
 
+const EMPTY_PARAGRAPH_TRANSFORMER: Transformer = {
+  dependencies: [ParagraphNode],
+  export: (node: LexicalNode) => {
+    if ($isParagraphNode(node) && node.getTextContentSize() === 0 && node.getChildrenSize() === 0) {
+      return "\n\u200B\n";
+    }
+    return null;
+  },
+  regExp: /^THIS_SHOULD_NEVER_MATCH$/,
+  replace: () => false,
+  type: "element",
+};
+
 const SPREADSHEET_TRANSFORMER: Transformer = {
   dependencies: [SpreadsheetNode],
   export: (node: LexicalNode) => {
@@ -545,15 +558,15 @@ const ELEMENT_FORMAT_EXPORT_TRANSFORMER: Transformer = {
               ? "blockquote"
               : null;
         if (tag) {
-          return `<${tag} align="${format}">${traverseChildren(
-            node
-          )}</${tag}>`;
+          const childrenContent = traverseChildren(node);
+          const finalContent = (childrenContent === "" || childrenContent === "\u200B") ? "\u200B" : childrenContent;
+          return `<${tag} align="${format}">${finalContent}</${tag}>`;
         }
       }
     }
     return null;
   },
-  regExp: /^<(p|h[1-6]|blockquote) align="(\w+)">(.*)<\/\1>$/,
+  regExp: /^<(p|h[1-6]|blockquote) align="(\w+)">/,
   replace: (parentNode: ElementNode, _children: LexicalNode[], match: string[]) => {
     const align = match[2];
     parentNode.setFormat(align as ElementFormatType);
@@ -728,6 +741,9 @@ const SAFE_STRIKETHROUGH: TextMatchTransformer = {
 };
 
 const ALL_TRANSFORMERS: Transformer[] = [
+  ELEMENT_FORMAT_EXPORT_TRANSFORMER,
+  HTML_COMBINED_TRANSFORMER,
+  EMPTY_PARAGRAPH_TRANSFORMER,
   SAFE_BOLD_ITALIC_STAR,
   SAFE_BOLD_ITALIC_UNDERSCORE,
   SAFE_BOLD_STAR,
@@ -735,7 +751,6 @@ const ALL_TRANSFORMERS: Transformer[] = [
   SAFE_ITALIC_STAR,
   SAFE_ITALIC_UNDERSCORE,
   SAFE_STRIKETHROUGH,
-  HTML_COMBINED_TRANSFORMER,
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
@@ -754,6 +769,8 @@ const ALL_TRANSFORMERS: Transformer[] = [
 
 const EXPORT_TRANSFORMERS: Transformer[] = [
   ELEMENT_FORMAT_EXPORT_TRANSFORMER,
+  EMPTY_PARAGRAPH_TRANSFORMER,
+  HTML_COMBINED_TRANSFORMER,
   SAFE_BOLD_ITALIC_STAR,
   SAFE_BOLD_ITALIC_UNDERSCORE,
   SAFE_BOLD_STAR,
@@ -761,7 +778,6 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
   SAFE_ITALIC_STAR,
   SAFE_ITALIC_UNDERSCORE,
   SAFE_STRIKETHROUGH,
-  HTML_COMBINED_TRANSFORMER,
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
@@ -790,48 +806,36 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
       // CRITICAL: Clear selection to avoid "selection lost" errors during bulk replacement
       $setSelection(null);
 
-      // 0. Pre-process empty lines: In standard markdown, \n\n is a paragraph separator.
-      //    Only blank lines BEYOND the first one in a group represent actual empty paragraphs.
-      //    We insert zero-width-space markers for these extra blank lines so
-      //    $convertFromMarkdownString creates actual empty paragraph nodes for them.
-      const EMPTY_LINE_MARKER = '\u200B';
-      let processed = markdown;
-      const lines = processed.split('\n');
-      const markedLines: string[] = [];
-      let i = 0;
-      while (i < lines.length) {
-        if (lines[i].trim() === '' && i > 0 && i < lines.length - 1) {
-          // Keep the first blank line as-is (paragraph separator)
-          markedLines.push(lines[i]);
-          i++;
-          // Any additional consecutive blank lines are actual empty paragraphs
-          while (i < lines.length && lines[i].trim() === '') {
-            markedLines.push(EMPTY_LINE_MARKER);
-            i++;
-          }
-        } else {
-          markedLines.push(lines[i]);
-          i++;
-        }
-      }
-      processed = markedLines.join('\n');
-
+      // 0. Normalize line endings and alignment tags
+      const normalized = markdown.replace(/\r\n/g, '\n');
+      const alignmentCleaned = normalized.replace(/<(p|h[1-6]|blockquote) align="(\w+)">([\s\S]*?)<\/\1>/gi, '<$1 align="$2">$3');
 
       // 1. Pre-process collapsible blocks
       const collapsibleBlocks: Array<{ title: string, content: string }> = [];
-      const preprocessed = processed.replace(
+      const withCollapses = alignmentCleaned.replace(
         /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
-        (_, title, content) => {
+        (_: any, title: string, content: string) => {
           const idx = collapsibleBlocks.length;
           collapsibleBlocks.push({ title: title.trim() || 'Details', content });
           return '```__collapse_' + idx + '\n' + content + '\n```';
         }
       );
 
-      // 2. Initial Markdown Import
-      $convertFromMarkdownString(preprocessed, ALL_TRANSFORMERS);
+      // 3. Initial Markdown Import
+      $convertFromMarkdownString(withCollapses, ALL_TRANSFORMERS);
 
-      // 3. Post-process: Convert temporary code blocks to custom nodes
+      // 3A. Post-process: Remove ZWSP markers to restore truly empty paragraphs
+      const textNodes = $nodesOfType(TextNode);
+      textNodes.forEach((node: TextNode) => {
+        const text = node.getTextContent();
+        if (text === '\u200B') {
+          node.remove();
+        } else if (text.includes('\u200B')) {
+          node.setTextContent(text.replace(/\u200B/g, ''));
+        }
+      });
+
+      // 3B. Post-process: Convert temporary code blocks to custom nodes
       const codeNodes = $nodesOfType(CodeNode);
       codeNodes.forEach((node: CodeNode) => {
         const lang = node.getLanguage();
@@ -858,58 +862,8 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
         }
       });
 
-      // 4. Post-process: Remove zero-width-space markers from empty-line placeholders
-      //    These paragraphs should become truly empty paragraphs.
-      const allParagraphs = $nodesOfType(ParagraphNode);
-      allParagraphs.forEach((node) => {
-        const firstChild = node.getFirstChild();
-        if ($isTextNode(firstChild) && firstChild.getTextContent() === EMPTY_LINE_MARKER) {
-          firstChild.remove();
-        }
-      });
-
-      // 5. Post-process: Restore alignment from HTML tags gracefully
-      const elements = [
-        ...$nodesOfType(ParagraphNode),
-        ...$nodesOfType(HeadingNode),
-        ...$nodesOfType(QuoteNode),
-      ];
-      elements.forEach((node) => {
-        const firstChild = node.getFirstChild();
-
-        if ($isTextNode(firstChild)) {
-          const text = firstChild.getTextContent();
-          const match = text.match(/^<(p|h[1-6]|blockquote) align="(left|center|right|justify|start|end)">/i);
-          if (match) {
-            node.setFormat(match[2] as ElementFormatType);
-            const remainder = text.substring(match[0].length);
-            if (remainder) {
-              firstChild.setTextContent(remainder);
-            } else {
-              firstChild.remove();
-            }
-          }
-        }
-
-        if (node.isAttached()) {
-          const lastChild = node.getLastChild();
-          if ($isTextNode(lastChild)) {
-            const text = lastChild.getTextContent();
-            const match = text.match(/<\/(p|h[1-6]|blockquote)>[\s]*$/i);
-            if (match) {
-              const remainder = text.substring(0, match.index);
-              if (remainder) {
-                lastChild.setTextContent(remainder);
-              } else {
-                lastChild.remove();
-              }
-            }
-          }
-        }
-      });
     }, { tag: 'import' });
   };
-
   // Initial load
   useEffect(() => {
     applyMarkdown(value);
@@ -931,90 +885,7 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
       if (tags.has('import')) return;
 
       editorState.read(() => {
-        // Build markdown by walking through root children to preserve empty paragraphs.
-        // $convertToMarkdownString collapses consecutive empty paragraphs, so we
-        // reconstruct the output ourselves, using $convertToMarkdownString only for
-        // the actual content conversion, then inserting extra \n for each empty paragraph.
         let markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
-
-        // Preserve empty paragraphs: $convertToMarkdownString collapses them.
-        // Walk all root children and count the exact positions of empty paragraphs,
-        // then reconstruct the markdown with proper empty lines.
-        const rootNode = $getRoot();
-        const children = rootNode.getChildren();
-
-        // Build a structural map: true = empty paragraph, false = non-empty node
-        const nodeMap: boolean[] = [];
-        let hasEmptyParagraphs = false;
-        for (const child of children) {
-          if ($isParagraphNode(child) && child.getTextContentSize() === 0 && child.getChildrenSize() === 0) {
-            nodeMap.push(true);
-            hasEmptyParagraphs = true;
-          } else {
-            nodeMap.push(false);
-          }
-        }
-
-        if (hasEmptyParagraphs) {
-          // Split markdown into chunks for each non-empty node.
-          // Nodes are separated by \n\n (double newline = paragraph break).
-          // Code blocks may contain internal \n\n, so we track them.
-          const nonEmptyChunks: string[] = [];
-          const stripped = markdown.replace(/^\n+/, '').replace(/\n+$/, '');
-
-          if (stripped === '') {
-            // All content is empty
-          } else {
-            const allLines = stripped.split('\n');
-            let currentChunk: string[] = [];
-            let inCodeBlock = false;
-
-            for (let li = 0; li < allLines.length; li++) {
-              const line = allLines[li];
-
-              if (line.startsWith('```')) {
-                inCodeBlock = !inCodeBlock;
-              }
-
-              if (line === '' && !inCodeBlock) {
-                if (currentChunk.length > 0) {
-                  nonEmptyChunks.push(currentChunk.join('\n'));
-                  currentChunk = [];
-                }
-              } else {
-                currentChunk.push(line);
-              }
-            }
-            if (currentChunk.length > 0) {
-              nonEmptyChunks.push(currentChunk.join('\n'));
-            }
-          }
-
-          // Reassemble: non-empty chunks need \n\n between them (standard paragraph separator).
-          // Empty paragraphs add an extra \n to represent the blank line.
-          // Strategy: build the output by walking nodeMap. Between consecutive non-empty
-          // nodes, we need \n\n. Each empty paragraph between them adds another \n.
-          let chunkIdx = 0;
-          let resultStr = '';
-          for (let i = 0; i < nodeMap.length; i++) {
-            let chunkContent = "";
-            if (nodeMap[i]) {
-              chunkContent = "\u200B";
-            } else if (chunkIdx < nonEmptyChunks.length) {
-              chunkContent = nonEmptyChunks[chunkIdx];
-              chunkIdx++;
-            }
-
-            if (chunkContent !== "") {
-              if (resultStr !== "") {
-                resultStr += "\n\n";
-              }
-              resultStr += chunkContent;
-            }
-          }
-
-          markdown = resultStr;
-        }
 
         // Safety: Prevent accidental wipe on empty initialization before import
         if (markdown === "" && lastNormalizedValueRef.current !== "" && !tags.has('import')) {
