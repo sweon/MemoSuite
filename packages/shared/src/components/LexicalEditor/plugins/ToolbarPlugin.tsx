@@ -39,7 +39,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import styled from "styled-components";
 import {
-    FaBold, FaItalic, FaStrikethrough, FaCode,
+    FaStrikethrough, FaCode,
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
     FaTable, FaMinus, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
     FaClock, FaEllipsisH
@@ -446,8 +446,6 @@ export function ToolbarPlugin(props: {
     const [canUndo, setCanUndo] = useState(false);
     const [canRedo, setCanRedo] = useState(false);
     const [blockType, setBlockType] = useState("paragraph");
-    const [isBold, setIsBold] = useState(false);
-    const [isItalic, setIsItalic] = useState(false);
     const [isUnderline, setIsUnderline] = useState(false);
     const [isStrikethrough, setIsStrikethrough] = useState(false);
     const [isCode, setIsCode] = useState(false);
@@ -554,9 +552,6 @@ export function ToolbarPlugin(props: {
                 }
             }
 
-            // Update Text Format
-            setIsBold(selection.hasFormat("bold"));
-            setIsItalic(selection.hasFormat("italic"));
             setIsUnderline(selection.hasFormat("underline"));
             setIsStrikethrough(selection.hasFormat("strikethrough"));
             setIsCode(selection.hasFormat("code"));
@@ -977,26 +972,6 @@ export function ToolbarPlugin(props: {
                     </div>
 
                     {/* Inline Formatting */}
-                    <Tooltip content={t.toolbar.bold}>
-                        <ToolbarButton
-                            onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
-                            onMouseDown={(e) => e.preventDefault()}
-                            className={isBold ? "is-active" : ""}
-                            title={t.toolbar.bold}
-                        >
-                            <FaBold />
-                        </ToolbarButton>
-                    </Tooltip>
-                    <Tooltip content={t.toolbar.italic}>
-                        <ToolbarButton
-                            onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
-                            onMouseDown={(e) => e.preventDefault()}
-                            className={isItalic ? "is-active" : ""}
-                            title={t.toolbar.italic}
-                        >
-                            <FaItalic />
-                        </ToolbarButton>
-                    </Tooltip>
                     <Tooltip content={t.toolbar.underline}>
                         <ToolbarButton
                             onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}

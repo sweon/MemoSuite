@@ -13,7 +13,17 @@ import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import { HorizontalRulePlugin } from "@lexical/react/LexicalHorizontalRulePlugin";
 import { AutoLinkPlugin } from "@lexical/react/LexicalAutoLinkPlugin";
 import { ClearEditorPlugin } from "@lexical/react/LexicalClearEditorPlugin";
-import { TRANSFORMERS, CHECK_LIST } from "@lexical/markdown";
+import {
+  TRANSFORMERS,
+  CHECK_LIST,
+  BOLD_ITALIC_STAR,
+  BOLD_ITALIC_UNDERSCORE,
+  BOLD_STAR,
+  BOLD_UNDERSCORE,
+  ITALIC_STAR,
+  ITALIC_UNDERSCORE,
+  STRIKETHROUGH
+} from "@lexical/markdown";
 import type { Transformer, TextMatchTransformer } from "@lexical/markdown";
 import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
 import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
@@ -35,6 +45,7 @@ import {
   $isElementNode,
   ElementNode,
   $isParagraphNode,
+  TextNode,
 } from "lexical";
 import type { LexicalNode, ElementFormatType } from "lexical";
 import { HeadingNode, QuoteNode, $isHeadingNode, $isQuoteNode } from "@lexical/rich-text";
@@ -390,6 +401,73 @@ const HANDWRITING_TRANSFORMER: Transformer = {
   type: "element",
 };
 
+const BOLD_ITALIC_STAR_REGEX = /(^|[^\*])\*\*\*([^\* \n][^\*\n]*[^\* \n]|\S)\*\*\*$/;
+const BOLD_STAR_REGEX = /(^|[^\*])\*\*([^\* \n][^\*\n]*[^\* \n]|\S)\*\*$/;
+const ITALIC_STAR_REGEX = /(^|[^\*])\*([^\* \n][^\*\n]*[^\* \n]|\S)\*$/;
+
+const BOLD_ITALIC_UNDERSCORE_REGEX = /(^|[^_])___([^_ \n][^_\n]*[^_ \n]|[^_ \s])___$/;
+const BOLD_UNDERSCORE_REGEX = /(^|[^_])__([^_ \n][^_\n]*[^_ \n]|[^_ \s])__$/;
+const ITALIC_UNDERSCORE_REGEX = /(^|[^_])_([^_ \n][^_\n]*[^_ \n]|[^_ \s])_$/;
+
+const STRIKETHROUGH_REGEX = /(^|[^~])~~([^~ \n][^~\n]*[^~ \n]|[^~ \s])~~$/;
+
+function MarkdownImmediatePlugin(): null {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    return editor.registerNodeTransform(TextNode, (node) => {
+      if (!node.isSimpleText() || !node.isAttached()) return;
+
+      const text = node.getTextContent();
+      const matchers = [
+        { regex: BOLD_ITALIC_STAR_REGEX, format: 'bold-italic' },
+        { regex: BOLD_ITALIC_UNDERSCORE_REGEX, format: 'bold-italic' },
+        { regex: BOLD_STAR_REGEX, format: 'bold' },
+        { regex: BOLD_UNDERSCORE_REGEX, format: 'bold' },
+        { regex: ITALIC_STAR_REGEX, format: 'italic' },
+        { regex: ITALIC_UNDERSCORE_REGEX, format: 'italic' },
+        { regex: STRIKETHROUGH_REGEX, format: 'strikethrough' },
+      ];
+
+      for (const { regex, format } of matchers) {
+        const match = text.match(regex);
+        if (match) {
+          const fullMatch = match[0];
+          const prefix = match[1];
+          const content = match[2];
+
+          const matchStart = match.index! + prefix.length;
+          const matchLength = fullMatch.length - prefix.length;
+
+          let targetNode = node;
+          if (matchStart > 0) {
+            const splitNodes = node.splitText(matchStart);
+            targetNode = splitNodes[1];
+          }
+
+          if (matchLength < targetNode.getTextContentSize()) {
+            targetNode.splitText(matchLength);
+          }
+
+          const newNode = $createTextNode(content);
+          if (format === 'bold-italic') {
+            newNode.toggleFormat('bold');
+            newNode.toggleFormat('italic');
+          } else {
+            newNode.toggleFormat(format as any);
+          }
+
+          targetNode.replace(newNode);
+          newNode.select(content.length, content.length);
+          break;
+        }
+      }
+    });
+  }, [editor]);
+
+  return null;
+}
+
 const ELEMENT_FORMAT_EXPORT_TRANSFORMER: Transformer = {
   dependencies: [ParagraphNode, HeadingNode, QuoteNode],
   export: (node: LexicalNode, traverseChildren: (node: ElementNode) => string) => {
@@ -418,21 +496,52 @@ const ELEMENT_FORMAT_EXPORT_TRANSFORMER: Transformer = {
 };
 
 const ALL_TRANSFORMERS: Transformer[] = [
+  BOLD_ITALIC_STAR,
+  BOLD_ITALIC_UNDERSCORE,
+  BOLD_STAR,
+  BOLD_UNDERSCORE,
+  ITALIC_STAR,
+  ITALIC_UNDERSCORE,
+  STRIKETHROUGH,
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
   STYLE_TRANSFORMER,
-  ...TRANSFORMERS,
+  ...TRANSFORMERS.filter(t =>
+    t !== BOLD_ITALIC_STAR &&
+    t !== BOLD_ITALIC_UNDERSCORE &&
+    t !== BOLD_STAR &&
+    t !== BOLD_UNDERSCORE &&
+    t !== ITALIC_STAR &&
+    t !== ITALIC_UNDERSCORE &&
+    t !== STRIKETHROUGH
+  ),
 ];
+
 const EXPORT_TRANSFORMERS: Transformer[] = [
   ELEMENT_FORMAT_EXPORT_TRANSFORMER,
+  BOLD_ITALIC_STAR,
+  BOLD_ITALIC_UNDERSCORE,
+  BOLD_STAR,
+  BOLD_UNDERSCORE,
+  ITALIC_STAR,
+  ITALIC_UNDERSCORE,
+  STRIKETHROUGH,
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
   SPREADSHEET_TRANSFORMER,
   HANDWRITING_TRANSFORMER,
   STYLE_TRANSFORMER,
-  ...TRANSFORMERS,
+  ...TRANSFORMERS.filter(t =>
+    t !== BOLD_ITALIC_STAR &&
+    t !== BOLD_ITALIC_UNDERSCORE &&
+    t !== BOLD_STAR &&
+    t !== BOLD_UNDERSCORE &&
+    t !== ITALIC_STAR &&
+    t !== ITALIC_UNDERSCORE &&
+    t !== STRIKETHROUGH
+  ),
 ];
 
 function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val: string) => void }) {
@@ -708,6 +817,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
 
           <ListMaxIndentLevelPlugin maxDepth={7} />
           <AutoFocusPlugin />
+          <MarkdownImmediatePlugin />
           <MarkdownSyncPlugin value={value} onChange={onChange} />
         </div>
       </LexicalComposer>
