@@ -366,26 +366,50 @@ const COLLAPSIBLE_TRANSFORMER: Transformer = {
   type: "element",
 };
 
-const STYLE_TRANSFORMER: TextMatchTransformer = {
+const HTML_COMBINED_TRANSFORMER: TextMatchTransformer = {
   dependencies: [],
-  export: (node, _exportChildren, exportFormat) => {
-    if ($isTextNode(node)) {
-      const style = node.getStyle();
-      if (style) {
-        const textContent = exportFormat ? exportFormat(node, node.getTextContent()) : node.getTextContent();
-        return `<span style="${style}">${textContent}</span>`;
-      }
-    }
-    return null;
+  export: (node: LexicalNode, _traverseChildren: any, exportFormat: any) => {
+    if (!$isTextNode(node)) return null;
+    const style = node.getStyle();
+    const hasUnderline = node.hasFormat("underline");
+    if (!style && !hasUnderline) return null;
+
+    let result = exportFormat ? exportFormat(node, node.getTextContent()) : node.getTextContent();
+    if (style) result = `<span style="${style}">${result}</span>`;
+    if (hasUnderline) result = `<u>${result}</u>`;
+    return result;
   },
-  importRegExp: /<span style="([^"]+)">([\s\S]+?)<\/span>/,
-  regExp: /<span style="([^"]+)">([\s\S]+?)<\/span>/,
-  replace: (textNode, match) => {
-    const style = match[1];
-    const content = match[2];
-    const node = $createTextNode(content);
-    node.setStyle(style);
-    textNode.replace(node);
+  importRegExp: /<(u|span)(?:\s+style="([^"]+)")?>([\s\S]+?)<\/\1>/,
+  regExp: /<(u|span)(?:\s+style="([^"]+)")?>([\s\S]+?)<\/\1>/,
+  replace: (textNode: TextNode, match: RegExpMatchArray) => {
+    const [, tag, style, content] = match;
+    let currentContent = content;
+    let combinedStyle = style || "";
+    let isUnderline = tag === 'u';
+
+    const innerRegex = /<(u|span)(?:\s+style="([^"]+)")?>([\s\S]+?)<\/\1>/;
+    let innerMatch;
+    while ((innerMatch = currentContent.match(innerRegex))) {
+      const [, nTag, nStyle, nContent] = innerMatch;
+      if (nTag === 'u') isUnderline = true;
+      if (nStyle) combinedStyle = combinedStyle ? `${combinedStyle};${nStyle}` : nStyle;
+      currentContent = nContent;
+    }
+
+    const cleanContent = currentContent.replace(/<\/?(u|span)(?:\s+style="[^"]+")?>/g, '');
+
+    const newNode = $createTextNode(cleanContent);
+    newNode.setFormat(textNode.getFormat());
+    if (isUnderline) newNode.toggleFormat("underline");
+
+    const existingStyle = textNode.getStyle();
+    if (existingStyle && combinedStyle) {
+      newNode.setStyle(`${existingStyle};${combinedStyle}`);
+    } else {
+      newNode.setStyle(combinedStyle || existingStyle);
+    }
+
+    textNode.replace(newNode);
   },
   trigger: "<",
   type: "text-match",
@@ -486,6 +510,9 @@ function MarkdownImmediatePlugin(): null {
           }
 
           const newNode = $createTextNode(content);
+          newNode.setFormat(targetNode.getFormat());
+          newNode.setStyle(targetNode.getStyle());
+
           if (format === 'bold-italic') {
             newNode.toggleFormat('bold');
             newNode.toggleFormat('italic');
@@ -527,22 +554,191 @@ const ELEMENT_FORMAT_EXPORT_TRANSFORMER: Transformer = {
     return null;
   },
   regExp: /^<(p|h[1-6]|blockquote) align="(\w+)">(.*)<\/\1>$/,
-  replace: () => { },
+  replace: (parentNode: ElementNode, children: LexicalNode[], match: string[]) => {
+    const align = match[2];
+    parentNode.setFormat(align as ElementFormatType);
+    return false;
+  },
   type: "element",
 };
 
+
+
+const SAFE_BOLD_ITALIC_STAR: TextMatchTransformer = {
+  dependencies: [],
+  export: (node: LexicalNode, _traverseChildren: any, exportFormat: any) => {
+    if ($isTextNode(node) && node.hasFormat("bold") && node.hasFormat("italic")) {
+      const textContent = node.getTextContent();
+      return `***${exportFormat ? exportFormat(node, textContent) : textContent}***`;
+    }
+    return null;
+  },
+  importRegExp: /\*\*\*([^\*]+?)\*\*\*/,
+  regExp: /\*\*\*([^\*]+?)\*\*\*/,
+  replace: (textNode: TextNode, match: RegExpMatchArray) => {
+    const content = match[1];
+    const newNode = $createTextNode(content);
+    newNode.setFormat(textNode.getFormat());
+    newNode.setStyle(textNode.getStyle());
+    newNode.toggleFormat("bold");
+    newNode.toggleFormat("italic");
+    textNode.replace(newNode);
+  },
+  trigger: "*",
+  type: "text-match",
+};
+
+const SAFE_BOLD_STAR: TextMatchTransformer = {
+  dependencies: [],
+  export: (node: LexicalNode, _traverseChildren: any, exportFormat: any) => {
+    if ($isTextNode(node) && node.hasFormat("bold")) {
+      const textContent = node.getTextContent();
+      return `**${exportFormat ? exportFormat(node, textContent) : textContent}**`;
+    }
+    return null;
+  },
+  importRegExp: /\*\*([^\*]+?)\*\*/,
+  regExp: /\*\*([^\*]+?)\*\*/,
+  replace: (textNode: TextNode, match: RegExpMatchArray) => {
+    const content = match[1];
+    const newNode = $createTextNode(content);
+    newNode.setFormat(textNode.getFormat());
+    newNode.setStyle(textNode.getStyle());
+    newNode.toggleFormat("bold");
+    textNode.replace(newNode);
+  },
+  trigger: "*",
+  type: "text-match",
+};
+
+const SAFE_ITALIC_STAR: TextMatchTransformer = {
+  dependencies: [],
+  export: (node: LexicalNode, _traverseChildren: any, exportFormat: any) => {
+    if ($isTextNode(node) && node.hasFormat("italic")) {
+      const textContent = node.getTextContent();
+      return `*${exportFormat ? exportFormat(node, textContent) : textContent}*`;
+    }
+    return null;
+  },
+  importRegExp: /\*([^\*]+?)\*/,
+  regExp: /\*([^\*]+?)\*/,
+  replace: (textNode: TextNode, match: RegExpMatchArray) => {
+    const content = match[1];
+    const newNode = $createTextNode(content);
+    newNode.setFormat(textNode.getFormat());
+    newNode.setStyle(textNode.getStyle());
+    newNode.toggleFormat("italic");
+    textNode.replace(newNode);
+  },
+  trigger: "*",
+  type: "text-match",
+};
+
+const SAFE_BOLD_ITALIC_UNDERSCORE: TextMatchTransformer = {
+  dependencies: [],
+  export: (node: LexicalNode, _traverseChildren: any, exportFormat: any) => {
+    if ($isTextNode(node) && node.hasFormat("bold") && node.hasFormat("italic")) {
+      const textContent = node.getTextContent();
+      return `___${exportFormat ? exportFormat(node, textContent) : textContent}___`;
+    }
+    return null;
+  },
+  importRegExp: /___([^_]+?)___/,
+  regExp: /___([^_]+?)___/,
+  replace: (textNode: TextNode, match: RegExpMatchArray) => {
+    const content = match[1];
+    const newNode = $createTextNode(content);
+    newNode.setFormat(textNode.getFormat());
+    newNode.setStyle(textNode.getStyle());
+    newNode.toggleFormat("bold");
+    newNode.toggleFormat("italic");
+    textNode.replace(newNode);
+  },
+  trigger: "_",
+  type: "text-match",
+};
+
+const SAFE_BOLD_UNDERSCORE: TextMatchTransformer = {
+  dependencies: [],
+  export: (node: LexicalNode, _traverseChildren: any, exportFormat: any) => {
+    if ($isTextNode(node) && node.hasFormat("bold")) {
+      const textContent = node.getTextContent();
+      return `__${exportFormat ? exportFormat(node, textContent) : textContent}__`;
+    }
+    return null;
+  },
+  importRegExp: /__([^_]+?)__/,
+  regExp: /__([^_]+?)__/,
+  replace: (textNode: TextNode, match: RegExpMatchArray) => {
+    const content = match[1];
+    const newNode = $createTextNode(content);
+    newNode.setFormat(textNode.getFormat());
+    newNode.setStyle(textNode.getStyle());
+    newNode.toggleFormat("bold");
+    textNode.replace(newNode);
+  },
+  trigger: "_",
+  type: "text-match",
+};
+
+const SAFE_ITALIC_UNDERSCORE: TextMatchTransformer = {
+  dependencies: [],
+  export: (node: LexicalNode, _traverseChildren: any, exportFormat: any) => {
+    if ($isTextNode(node) && node.hasFormat("italic")) {
+      const textContent = node.getTextContent();
+      return `_${exportFormat ? exportFormat(node, textContent) : textContent}_`;
+    }
+    return null;
+  },
+  importRegExp: /_([^_]+?)_/,
+  regExp: /_([^_]+?)_/,
+  replace: (textNode: TextNode, match: RegExpMatchArray) => {
+    const content = match[1];
+    const newNode = $createTextNode(content);
+    newNode.setFormat(textNode.getFormat());
+    newNode.setStyle(textNode.getStyle());
+    newNode.toggleFormat("italic");
+    textNode.replace(newNode);
+  },
+  trigger: "_",
+  type: "text-match",
+};
+
+const SAFE_STRIKETHROUGH: TextMatchTransformer = {
+  dependencies: [],
+  export: (node: LexicalNode, _traverseChildren: any, exportFormat: any) => {
+    if ($isTextNode(node) && node.hasFormat("strikethrough")) {
+      const textContent = node.getTextContent();
+      return `~~${exportFormat ? exportFormat(node, textContent) : textContent}~~`;
+    }
+    return null;
+  },
+  importRegExp: /~~([^~]+?)~~/,
+  regExp: /~~([^~]+?)~~/,
+  replace: (textNode: TextNode, match: RegExpMatchArray) => {
+    const content = match[1];
+    const newNode = $createTextNode(content);
+    newNode.setFormat(textNode.getFormat());
+    newNode.setStyle(textNode.getStyle());
+    newNode.toggleFormat("strikethrough");
+    textNode.replace(newNode);
+  },
+  trigger: "~",
+  type: "text-match",
+};
+
 const ALL_TRANSFORMERS: Transformer[] = [
-  BOLD_ITALIC_STAR,
-  BOLD_ITALIC_UNDERSCORE,
-  BOLD_STAR,
-  BOLD_UNDERSCORE,
-  ITALIC_STAR,
-  ITALIC_UNDERSCORE,
-  STRIKETHROUGH,
+  SAFE_BOLD_ITALIC_STAR,
+  SAFE_BOLD_ITALIC_UNDERSCORE,
+  SAFE_BOLD_STAR,
+  SAFE_BOLD_UNDERSCORE,
+  SAFE_ITALIC_STAR,
+  SAFE_ITALIC_UNDERSCORE,
+  SAFE_STRIKETHROUGH,
+  HTML_COMBINED_TRANSFORMER,
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
-  STYLE_TRANSFORMER,
   HR_TRANSFORMER,
   ...TRANSFORMERS.filter(t =>
     t !== BOLD_ITALIC_STAR &&
@@ -558,19 +754,19 @@ const ALL_TRANSFORMERS: Transformer[] = [
 
 const EXPORT_TRANSFORMERS: Transformer[] = [
   ELEMENT_FORMAT_EXPORT_TRANSFORMER,
-  BOLD_ITALIC_STAR,
-  BOLD_ITALIC_UNDERSCORE,
-  BOLD_STAR,
-  BOLD_UNDERSCORE,
-  ITALIC_STAR,
-  ITALIC_UNDERSCORE,
-  STRIKETHROUGH,
+  SAFE_BOLD_ITALIC_STAR,
+  SAFE_BOLD_ITALIC_UNDERSCORE,
+  SAFE_BOLD_STAR,
+  SAFE_BOLD_UNDERSCORE,
+  SAFE_ITALIC_STAR,
+  SAFE_ITALIC_UNDERSCORE,
+  SAFE_STRIKETHROUGH,
+  HTML_COMBINED_TRANSFORMER,
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
   SPREADSHEET_TRANSFORMER,
   HANDWRITING_TRANSFORMER,
-  STYLE_TRANSFORMER,
   HR_TRANSFORMER,
   ...TRANSFORMERS.filter(t =>
     t !== BOLD_ITALIC_STAR &&
@@ -581,7 +777,7 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
     t !== ITALIC_UNDERSCORE &&
     t !== STRIKETHROUGH &&
     (t as any).regExp?.toString() !== /^(---|\*\*\*|___)\s*$/.toString()
-  ),
+  )
 ];
 
 function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val: string) => void }) {
