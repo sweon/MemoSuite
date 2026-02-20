@@ -6,7 +6,7 @@ import { $setBlocksType, $patchStyleText, $getSelectionStyleValueForProperty } f
 import { $getNearestNodeOfType, mergeRegister, $insertNodeToNearestRoot } from "@lexical/utils";
 import { TOGGLE_LINK_COMMAND, $isLinkNode } from "@lexical/link";
 import { INSERT_TABLE_COMMAND } from "@lexical/table";
-import { INSERT_HORIZONTAL_RULE_COMMAND } from "@lexical/react/LexicalHorizontalRuleNode";
+import { INSERT_PAGE_BREAK_COMMAND } from "../nodes/PageBreakNode";
 import { useCallback, useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import styled from "styled-components";
@@ -21,7 +21,7 @@ import { $createImageNode } from "../nodes/ImageNode";
 import { format } from "date-fns";
 import { Tooltip } from "../../Tooltip";
 import { useLanguage } from "../../../i18n";
-const ToolbarContainer = styled.div`
+const ToolbarContainer = styled.div `
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -46,7 +46,7 @@ const ToolbarContainer = styled.div`
     gap: 1.5px;
   }
 `;
-const ToolbarRow = styled.div`
+const ToolbarRow = styled.div `
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -57,7 +57,7 @@ const ToolbarRow = styled.div`
     display: contents;
   }
 `;
-const CoreToolbarRow = styled(ToolbarRow)`
+const CoreToolbarRow = styled(ToolbarRow) `
   background: ${props => props.theme.colors?.surface || "#fff"};
   border-bottom: 1px solid ${props => props.theme.colors?.border || "#eee"};
   
@@ -65,7 +65,7 @@ const CoreToolbarRow = styled(ToolbarRow)`
     display: contents;
   }
 `;
-export const ToolbarButton = styled.button`
+export const ToolbarButton = styled.button `
   padding: 4px;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -103,12 +103,12 @@ export const ToolbarButton = styled.button`
     height: 16px;
   }
 `;
-const ColorPickerWrapper = styled.div`
+const ColorPickerWrapper = styled.div `
 position: relative;
 display: flex;
 align-items: center;
 `;
-const ColorMenu = styled.div`
+const ColorMenu = styled.div `
 position: absolute;
 top: 100%;
   ${props => props.$rightAlign ? 'right: 0;' : 'left: 0;'}
@@ -125,17 +125,17 @@ gap: 10px;
 min-width: 160px;
 margin-top: 4px;
 `;
-const ColorGrid = styled.div`
+const ColorGrid = styled.div `
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 4px;
 `;
-const ColorRow = styled.div`
+const ColorRow = styled.div `
 display: grid;
 grid-template-columns: repeat(6, 1fr);
 gap: 4px;
 `;
-const FormatMenu = styled.div`
+const FormatMenu = styled.div `
   position: absolute;
   top: 100%;
   ${props => props.$rightAlign ? 'right: 0;' : 'left: 0;'}
@@ -149,7 +149,7 @@ const FormatMenu = styled.div`
   max-width: 90vw;
   margin-top: 4px;
 `;
-const FormatOption = styled.div`
+const FormatOption = styled.div `
   padding: 8px 16px;
   cursor: pointer;
   font-size: 13px;
@@ -162,13 +162,13 @@ const FormatOption = styled.div`
     color: #000;
   }
 `;
-const FontSizeContainer = styled.div`
+const FontSizeContainer = styled.div `
   display: flex;
   align-items: center;
   gap: 4px;
   margin: 0 4px;
 `;
-const FontSizeDisplay = styled.div`
+const FontSizeDisplay = styled.div `
   display: flex;
   align-items: center;
   background: ${(props) => props.theme.colors?.surface || "#fff"};
@@ -182,7 +182,7 @@ const FontSizeDisplay = styled.div`
     border-color: ${(props) => props.theme.colors?.primary || "#007bff"};
   }
 `;
-const FontSizeInput = styled.input`
+const FontSizeInput = styled.input `
   width: 20px;
   border: none;
   background: transparent;
@@ -199,13 +199,13 @@ const FontSizeInput = styled.input`
     margin: 0;
   }
 `;
-const FontSizeUnit = styled.span`
+const FontSizeUnit = styled.span `
   font-size: 11px;
   color: #888;
   margin-left: 2px;
   user-select: none;
 `;
-const FontSizeControls = styled.div`
+const FontSizeControls = styled.div `
   display: flex;
   flex-direction: column;
   background: #eee;
@@ -214,7 +214,7 @@ const FontSizeControls = styled.div`
   width: 18px;
   height: 28px;
 `;
-const SpinButton = styled.button`
+const SpinButton = styled.button `
   border: none;
   background: transparent;
   width: 100%;
@@ -241,7 +241,7 @@ const SpinButton = styled.button`
   }
 `;
 const LINE_H_OPTIONS = ["1.0", "1.2", "1.5", "1.8", "2.0"];
-const ColorOption = styled.div`
+const ColorOption = styled.div `
   width: 18px;
   height: 18px;
   background-color: ${props => props.color};
@@ -256,7 +256,7 @@ const ColorOption = styled.div`
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 `;
-const CustomColorBtn = styled.button`
+const CustomColorBtn = styled.button `
   display: flex;
   align-items: center;
   justify-content: center;
@@ -275,7 +275,7 @@ const CustomColorBtn = styled.button`
     color: #333;
   }
 `;
-const HiddenColorInput = styled.input`
+const HiddenColorInput = styled.input `
   position: absolute;
   opacity: 0;
   width: 0;
@@ -283,18 +283,18 @@ const HiddenColorInput = styled.input`
   pointer-events: none;
 `;
 const COLOR_PALETTE = [
-  ["#000000", "#333333", "#666666", "#999999", "#cccccc", "#ffffff"], // Greyscale
-  ["#b71c1c", "#f44336", "#e57373", "#ef9a9a", "#ffcdd2", "#ffebee"], // Red
-  ["#880e4f", "#e91e63", "#f06292", "#f48fb1", "#f8bbd0", "#fce4ec"], // Pink
-  ["#4a148c", "#9c27b0", "#ba68c8", "#ce93d8", "#e1bee7", "#f3e5f5"], // Purple
-  ["#1a237e", "#3f51b5", "#7986cb", "#9fa8da", "#c5cae9", "#e8eaf6"], // Indigo
-  ["#0d47a1", "#2196f3", "#64b5f6", "#90caf9", "#bbdefb", "#e3f2fd"], // Blue
-  ["#004d40", "#009688", "#4db6ac", "#80cbc4", "#b2dfdb", "#e0f2f1"], // Teal/Cyan
-  ["#1b5e20", "#4caf50", "#81c784", "#a5d6a7", "#c8e6c9", "#e8f5e9"], // Green
-  ["#f57f17", "#ffeb3b", "#fff176", "#fff59d", "#fff9c4", "#fffde7"], // Yellow
-  ["#e65100", "#ff9800", "#ffb74d", "#ffcc80", "#ffe0b2", "#fff3e0"] // Orange
+    ["#000000", "#333333", "#666666", "#999999", "#cccccc", "#ffffff"], // Greyscale
+    ["#b71c1c", "#f44336", "#e57373", "#ef9a9a", "#ffcdd2", "#ffebee"], // Red
+    ["#880e4f", "#e91e63", "#f06292", "#f48fb1", "#f8bbd0", "#fce4ec"], // Pink
+    ["#4a148c", "#9c27b0", "#ba68c8", "#ce93d8", "#e1bee7", "#f3e5f5"], // Purple
+    ["#1a237e", "#3f51b5", "#7986cb", "#9fa8da", "#c5cae9", "#e8eaf6"], // Indigo
+    ["#0d47a1", "#2196f3", "#64b5f6", "#90caf9", "#bbdefb", "#e3f2fd"], // Blue
+    ["#004d40", "#009688", "#4db6ac", "#80cbc4", "#b2dfdb", "#e0f2f1"], // Teal/Cyan
+    ["#1b5e20", "#4caf50", "#81c784", "#a5d6a7", "#c8e6c9", "#e8f5e9"], // Green
+    ["#f57f17", "#ffeb3b", "#fff176", "#fff59d", "#fff9c4", "#fffde7"], // Yellow
+    ["#e65100", "#ff9800", "#ffb74d", "#ffcc80", "#ffe0b2", "#fff3e0"] // Orange
 ];
-const TableInsertMenu = styled.div`
+const TableInsertMenu = styled.div `
   position: absolute;
   top: 100%;
   ${props => props.$rightAlign ? 'right: 0;' : 'left: 0;'}
@@ -310,13 +310,13 @@ const TableInsertMenu = styled.div`
   flex-direction: column;
   gap: 12px;
 `;
-const MenuTitle = styled.div`
+const MenuTitle = styled.div `
   font-size: 14px;
   font-weight: 700;
   color: #333;
   margin-bottom: 4px;
 `;
-const InputGroup = styled.div`
+const InputGroup = styled.div `
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -334,7 +334,7 @@ const InputGroup = styled.div`
     font-size: 13px;
   }
 `;
-const CheckboxGroup = styled.div`
+const CheckboxGroup = styled.div `
   label {
     display: flex;
     align-items: center;
@@ -348,7 +348,7 @@ const CheckboxGroup = styled.div`
     cursor: pointer;
   }
 `;
-const CreateButton = styled.button`
+const CreateButton = styled.button `
   background: ${(props) => props.theme.colors?.primary || "#007bff"};
   color: white;
   border: none;
@@ -364,329 +364,305 @@ const CreateButton = styled.button`
   }
 `;
 export function ToolbarPlugin(props) {
-  const { onToggleSidebar, defaultFontSize = 16, stickyOffset = 0, customButtons } = props;
-  const { t } = useLanguage();
-  const [editor] = useLexicalComposerContext();
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
-  const [isUnderline, setIsUnderline] = useState(false);
-  const [isCheckList, setIsCheckList] = useState(false);
-  const [isCode, setIsCode] = useState(false);
-  const [isLink, setIsLink] = useState(false);
-  const [fontColor, setFontColor] = useState("#000000");
-  const [fontSize, setFontSize] = useState(`${defaultFontSize}px`);
-  const [showColorMenu, setShowColorMenu] = useState(false);
-  const [showTableMenu, setShowTableMenu] = useState(false);
-  const tableMenuRef = useRef(null);
-  const [tableConfig, setTableConfig] = useState({ rows: "3", columns: "3", headerRow: true, headerColumn: false });
-  const [showMoreOnMobile, setShowMoreOnMobile] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  // Destructure new props
-  const fontSizeIntervalRef = useRef(null);
-  const fsTimeoutRef = useRef(null);
-  const latestFontSize = useRef(fontSize);
-  useEffect(() => {
-    latestFontSize.current = fontSize;
-  }, [fontSize]);
-  const [showLineHeightMenu, setShowLineHeightMenu] = useState(false);
-  const [showAlignMenu, setShowAlignMenu] = useState(false);
-  const [showIndentMenu, setShowIndentMenu] = useState(false);
-  const [portalTarget, setPortalTarget] = useState(null);
-  useEffect(() => {
-    const target = document.getElementById("lexical-toolbar-portal");
-    if (target)
-      setPortalTarget(target);
-  }, []);
-  const colorInputRef = useRef(null);
-  const colorMenuRef = useRef(null);
-  const lineHeightMenuRef = useRef(null);
-  const alignMenuRef = useRef(null);
-  const indentMenuRef = useRef(null);
-  // tableMenuRef will now point to the wrapper div
-  // Menu alignment state
-  const [menuAlignments, setMenuAlignments] = useState({
-    color: false,
-    align: true,
-    lineHeight: true,
-    indent: true,
-    table: true
-  });
-  const updateMenuAlignment = (key, ref) => {
-    if (ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      // If the element is past the horizontal center of the screen, align right
-      const shouldAlignRight = rect.left > (window.innerWidth / 2);
-      setMenuAlignments(prev => ({ ...prev, [key]: shouldAlignRight }));
-    }
-  };
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      const target = event.target;
-      if (colorMenuRef.current && !colorMenuRef.current.contains(target))
-        setShowColorMenu(false);
-      if (lineHeightMenuRef.current && !lineHeightMenuRef.current.contains(target))
-        setShowLineHeightMenu(false);
-      if (alignMenuRef.current && !alignMenuRef.current.contains(target))
-        setShowAlignMenu(false);
-      if (indentMenuRef.current && !indentMenuRef.current.contains(target))
-        setShowIndentMenu(false);
-      if (tableMenuRef.current && !tableMenuRef.current.contains(target))
-        setShowTableMenu(false);
+    const { onToggleSidebar, defaultFontSize = 16, stickyOffset = 0, customButtons } = props;
+    const { t } = useLanguage();
+    const [editor] = useLexicalComposerContext();
+    const [canUndo, setCanUndo] = useState(false);
+    const [canRedo, setCanRedo] = useState(false);
+    const [isUnderline, setIsUnderline] = useState(false);
+    const [isCheckList, setIsCheckList] = useState(false);
+    const [isCode, setIsCode] = useState(false);
+    const [isLink, setIsLink] = useState(false);
+    const [fontColor, setFontColor] = useState("#000000");
+    const [fontSize, setFontSize] = useState(`${defaultFontSize}px`);
+    const [showColorMenu, setShowColorMenu] = useState(false);
+    const [showTableMenu, setShowTableMenu] = useState(false);
+    const tableMenuRef = useRef(null);
+    const [tableConfig, setTableConfig] = useState({ rows: "3", columns: "3", headerRow: true, headerColumn: false });
+    const [showMoreOnMobile, setShowMoreOnMobile] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+    // Destructure new props
+    const fontSizeIntervalRef = useRef(null);
+    const fsTimeoutRef = useRef(null);
+    const latestFontSize = useRef(fontSize);
+    useEffect(() => {
+        latestFontSize.current = fontSize;
+    }, [fontSize]);
+    const [showLineHeightMenu, setShowLineHeightMenu] = useState(false);
+    const [showAlignMenu, setShowAlignMenu] = useState(false);
+    const [showIndentMenu, setShowIndentMenu] = useState(false);
+    const [portalTarget, setPortalTarget] = useState(null);
+    useEffect(() => {
+        const target = document.getElementById("lexical-toolbar-portal");
+        if (target)
+            setPortalTarget(target);
+    }, []);
+    const colorInputRef = useRef(null);
+    const colorMenuRef = useRef(null);
+    const lineHeightMenuRef = useRef(null);
+    const alignMenuRef = useRef(null);
+    const indentMenuRef = useRef(null);
+    // tableMenuRef will now point to the wrapper div
+    // Menu alignment state
+    const [menuAlignments, setMenuAlignments] = useState({
+        color: false,
+        align: true,
+        lineHeight: true,
+        indent: true,
+        table: true
+    });
+    const updateMenuAlignment = (key, ref) => {
+        if (ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            // If the element is past the horizontal center of the screen, align right
+            const shouldAlignRight = rect.left > (window.innerWidth / 2);
+            setMenuAlignments(prev => ({ ...prev, [key]: shouldAlignRight }));
+        }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-  const updateToolbar = useCallback(() => {
-    const selection = $getSelection();
-    if ($isRangeSelection(selection)) {
-      const anchorNode = selection.anchor.getNode();
-      const element = anchorNode.getKey() === "root"
-        ? anchorNode
-        : anchorNode.getTopLevelElementOrThrow();
-      const elementKey = element.getKey();
-      const elementDOM = editor.getElementByKey(elementKey);
-      if (elementDOM !== null) {
-        if ($isListNode(element)) {
-          const parentList = $getNearestNodeOfType(anchorNode, ListNode);
-          const listType = parentList ? parentList.getListType() : element.getListType();
-          setIsCheckList(listType === 'check');
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            const target = event.target;
+            if (colorMenuRef.current && !colorMenuRef.current.contains(target))
+                setShowColorMenu(false);
+            if (lineHeightMenuRef.current && !lineHeightMenuRef.current.contains(target))
+                setShowLineHeightMenu(false);
+            if (alignMenuRef.current && !alignMenuRef.current.contains(target))
+                setShowAlignMenu(false);
+            if (indentMenuRef.current && !indentMenuRef.current.contains(target))
+                setShowIndentMenu(false);
+            if (tableMenuRef.current && !tableMenuRef.current.contains(target))
+                setShowTableMenu(false);
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+    const updateToolbar = useCallback(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+            const anchorNode = selection.anchor.getNode();
+            const element = anchorNode.getKey() === "root"
+                ? anchorNode
+                : anchorNode.getTopLevelElementOrThrow();
+            const elementKey = element.getKey();
+            const elementDOM = editor.getElementByKey(elementKey);
+            if (elementDOM !== null) {
+                if ($isListNode(element)) {
+                    const parentList = $getNearestNodeOfType(anchorNode, ListNode);
+                    const listType = parentList ? parentList.getListType() : element.getListType();
+                    setIsCheckList(listType === 'check');
+                }
+                else {
+                    setIsCheckList(false);
+                }
+            }
+            setIsUnderline(selection.hasFormat("underline"));
+            setIsCode(selection.hasFormat("code"));
+            // Update Link
+            const node = selection.anchor.getNode();
+            const parent = node.getParent();
+            if ($isLinkNode(parent) || $isLinkNode(node)) {
+                setIsLink(true);
+            }
+            else {
+                setIsLink(false);
+            }
+            // Update Font Color
+            const color = $getSelectionStyleValueForProperty(selection, "color", "#000000");
+            setFontColor(color);
+            // Update Font Size
+            const fs = $getSelectionStyleValueForProperty(selection, "font-size", `${defaultFontSize}px`);
+            setFontSize(fs);
+        }
+    }, [editor, defaultFontSize]);
+    useEffect(() => {
+        return mergeRegister(editor.registerUpdateListener(({ editorState }) => {
+            editorState.read(() => {
+                updateToolbar();
+            });
+        }), editor.registerCommand(CAN_UNDO_COMMAND, (payload) => {
+            setCanUndo(payload);
+            return false;
+        }, 1), editor.registerCommand(CAN_REDO_COMMAND, (payload) => {
+            setCanRedo(payload);
+            return false;
+        }, 1));
+    }, [editor, updateToolbar]);
+    // format functions removed
+    const insertLink = useCallback(() => {
+        if (!isLink) {
+            editor.dispatchCommand(TOGGLE_LINK_COMMAND, "https://");
         }
         else {
-          setIsCheckList(false);
+            editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
         }
-      }
-      setIsUnderline(selection.hasFormat("underline"));
-      setIsCode(selection.hasFormat("code"));
-      // Update Link
-      const node = selection.anchor.getNode();
-      const parent = node.getParent();
-      if ($isLinkNode(parent) || $isLinkNode(node)) {
-        setIsLink(true);
-      }
-      else {
-        setIsLink(false);
-      }
-      // Update Font Color
-      const color = $getSelectionStyleValueForProperty(selection, "color", "#000000");
-      setFontColor(color);
-      // Update Font Size
-      const fs = $getSelectionStyleValueForProperty(selection, "font-size", `${defaultFontSize}px`);
-      setFontSize(fs);
-    }
-  }, [editor, defaultFontSize]);
-  useEffect(() => {
-    return mergeRegister(editor.registerUpdateListener(({ editorState }) => {
-      editorState.read(() => {
-        updateToolbar();
-      });
-    }), editor.registerCommand(CAN_UNDO_COMMAND, (payload) => {
-      setCanUndo(payload);
-      return false;
-    }, 1), editor.registerCommand(CAN_REDO_COMMAND, (payload) => {
-      setCanRedo(payload);
-      return false;
-    }, 1));
-  }, [editor, updateToolbar]);
-  // format functions removed
-  const insertLink = useCallback(() => {
-    if (!isLink) {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, "https://");
-    }
-    else {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
-    }
-  }, [editor, isLink]);
-  const insertTable = () => {
-    const { rows, columns, headerRow, headerColumn } = tableConfig;
-    if (parseInt(rows) > 0 && parseInt(columns) > 0) {
-      editor.dispatchCommand(INSERT_TABLE_COMMAND, {
-        columns,
-        rows,
-        includeHeaders: { rows: headerRow, columns: headerColumn }
-      });
-      setShowTableMenu(false);
-    }
-  };
-  const insertHandwriting = () => {
-    editor.update(() => {
-      const node = $createHandwritingNode("");
-      $insertNodeToNearestRoot(node);
-    });
-  };
-  const insertSpreadsheet = () => {
-    editor.update(() => {
-      const node = $createSpreadsheetNode("");
-      $insertNodeToNearestRoot(node);
-    });
-  };
-  const insertImage = () => {
-    const url = window.prompt(t.toolbar.image_prompt);
-    if (url) {
-      editor.update(() => {
-        const node = $createImageNode({ src: url, altText: "Image" });
-        $insertNodeToNearestRoot(node);
-      });
-    }
-  };
-  const insertCollapsible = () => {
-    const title = window.prompt(t.toolbar.collapsible_prompt, t.toolbar.collapsible_default_title);
-    if (title !== null) {
-      editor.update(() => {
-        const node = $createCollapsibleNode(true, title || t.toolbar.collapsible_default_title);
-        const paragraph = $createParagraphNode();
-        node.append(paragraph);
-        const nextParagraph = $createParagraphNode();
-        $insertNodes([node, nextParagraph]);
-        paragraph.select();
-      });
-    }
-  };
-  const insertTime = () => {
-    editor.update(() => {
-      const now = new Date();
-      const timeString = format(now, "yyyy-MM-dd HH:mm:ss");
-      const textNode = $createTextNode(timeString);
-      $insertNodes([textNode]);
-    });
-  };
-  const clearFormatting = () => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        if (selection.isCollapsed())
-          return;
-        const isBackward = selection.isBackward();
-        const startPoint = isBackward ? selection.focus : selection.anchor;
-        const endPoint = isBackward ? selection.anchor : selection.focus;
-        const nodes = selection.getNodes();
-        const startNodeKey = startPoint.getNode().getKey();
-        const endNodeKey = endPoint.getNode().getKey();
-        nodes.forEach((node) => {
-          if ($isTextNode(node)) {
-            let textNode = node;
-            const isStartNode = node.getKey() === startNodeKey;
-            const isEndNode = node.getKey() === endNodeKey;
-            if (isStartNode && startPoint.offset > 0) {
-              textNode = textNode.splitText(startPoint.offset)[1] || textNode;
-            }
-            if (isEndNode) {
-              const endOffset = isStartNode
-                ? endPoint.offset - startPoint.offset
-                : endPoint.offset;
-              if (endOffset > 0 && endOffset < textNode.getTextContent().length) {
-                textNode = textNode.splitText(endOffset)[0] || textNode;
-              }
-            }
-            textNode.setFormat(0);
-            textNode.setStyle("");
-            const parent = textNode.getParent();
-            if (parent && $isElementNode(parent)) {
-              parent.setFormat("");
-            }
-          }
-          else if ($isElementNode(node)) {
-            node.setFormat("");
-          }
+    }, [editor, isLink]);
+    const insertTable = () => {
+        const { rows, columns, headerRow, headerColumn } = tableConfig;
+        if (parseInt(rows) > 0 && parseInt(columns) > 0) {
+            editor.dispatchCommand(INSERT_TABLE_COMMAND, {
+                columns,
+                rows,
+                includeHeaders: { rows: headerRow, columns: headerColumn }
+            });
+            setShowTableMenu(false);
+        }
+    };
+    const insertHandwriting = () => {
+        editor.update(() => {
+            const node = $createHandwritingNode("");
+            $insertNodeToNearestRoot(node);
         });
-        $setBlocksType(selection, () => $createParagraphNode());
-      }
-    });
-  };
-  const applyStyleText = useCallback((styles) => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        $patchStyleText(selection, styles);
-      }
-    });
-    editor.focus();
-    setShowColorMenu(false);
-  }, [editor]);
-  const updateFontSize = useCallback((increment) => {
-    const currentSize = parseInt(latestFontSize.current) || defaultFontSize;
-    const newSize = increment ? Math.min(99, currentSize + 1) : Math.max(1, currentSize - 1);
-    applyStyleText({ "font-size": `${newSize}px` });
-  }, [applyStyleText]);
-  const startFontSizeInterval = (increment) => {
-    if (fontSizeIntervalRef.current || fsTimeoutRef.current)
-      return;
-    updateFontSize(increment);
-    fsTimeoutRef.current = setTimeout(() => {
-      fontSizeIntervalRef.current = setInterval(() => {
+    };
+    const insertSpreadsheet = () => {
+        editor.update(() => {
+            const node = $createSpreadsheetNode("");
+            $insertNodeToNearestRoot(node);
+        });
+    };
+    const insertImage = () => {
+        const url = window.prompt(t.toolbar.image_prompt);
+        if (url) {
+            editor.update(() => {
+                const node = $createImageNode({ src: url, altText: "Image" });
+                $insertNodeToNearestRoot(node);
+            });
+        }
+    };
+    const insertCollapsible = () => {
+        const title = window.prompt(t.toolbar.collapsible_prompt, t.toolbar.collapsible_default_title);
+        if (title !== null) {
+            editor.update(() => {
+                const node = $createCollapsibleNode(true, title || t.toolbar.collapsible_default_title);
+                const paragraph = $createParagraphNode();
+                node.append(paragraph);
+                const nextParagraph = $createParagraphNode();
+                $insertNodes([node, nextParagraph]);
+                paragraph.select();
+            });
+        }
+    };
+    const insertTime = () => {
+        editor.update(() => {
+            const now = new Date();
+            const timeString = format(now, "yyyy-MM-dd HH:mm:ss");
+            const textNode = $createTextNode(timeString);
+            $insertNodes([textNode]);
+        });
+    };
+    const clearFormatting = () => {
+        editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+                if (selection.isCollapsed())
+                    return;
+                const isBackward = selection.isBackward();
+                const startPoint = isBackward ? selection.focus : selection.anchor;
+                const endPoint = isBackward ? selection.anchor : selection.focus;
+                const nodes = selection.getNodes();
+                const startNodeKey = startPoint.getNode().getKey();
+                const endNodeKey = endPoint.getNode().getKey();
+                nodes.forEach((node) => {
+                    if ($isTextNode(node)) {
+                        let textNode = node;
+                        const isStartNode = node.getKey() === startNodeKey;
+                        const isEndNode = node.getKey() === endNodeKey;
+                        if (isStartNode && startPoint.offset > 0) {
+                            textNode = textNode.splitText(startPoint.offset)[1] || textNode;
+                        }
+                        if (isEndNode) {
+                            const endOffset = isStartNode
+                                ? endPoint.offset - startPoint.offset
+                                : endPoint.offset;
+                            if (endOffset > 0 && endOffset < textNode.getTextContent().length) {
+                                textNode = textNode.splitText(endOffset)[0] || textNode;
+                            }
+                        }
+                        textNode.setFormat(0);
+                        textNode.setStyle("");
+                        const parent = textNode.getParent();
+                        if (parent && $isElementNode(parent)) {
+                            parent.setFormat("");
+                        }
+                    }
+                    else if ($isElementNode(node)) {
+                        node.setFormat("");
+                    }
+                });
+                $setBlocksType(selection, () => $createParagraphNode());
+            }
+        });
+    };
+    const applyStyleText = useCallback((styles) => {
+        editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+                $patchStyleText(selection, styles);
+            }
+        });
+        editor.focus();
+        setShowColorMenu(false);
+    }, [editor]);
+    const updateFontSize = useCallback((increment) => {
+        const currentSize = parseInt(latestFontSize.current) || defaultFontSize;
+        const newSize = increment ? Math.min(99, currentSize + 1) : Math.max(1, currentSize - 1);
+        applyStyleText({ "font-size": `${newSize}px` });
+    }, [applyStyleText]);
+    const startFontSizeInterval = (increment) => {
+        if (fontSizeIntervalRef.current || fsTimeoutRef.current)
+            return;
         updateFontSize(increment);
-      }, 80);
-    }, 500);
-  };
-  const stopFontSizeInterval = () => {
-    if (fontSizeIntervalRef.current) {
-      clearInterval(fontSizeIntervalRef.current);
-      fontSizeIntervalRef.current = null;
+        fsTimeoutRef.current = setTimeout(() => {
+            fontSizeIntervalRef.current = setInterval(() => {
+                updateFontSize(increment);
+            }, 80);
+        }, 500);
+    };
+    const stopFontSizeInterval = () => {
+        if (fontSizeIntervalRef.current) {
+            clearInterval(fontSizeIntervalRef.current);
+            fontSizeIntervalRef.current = null;
+        }
+        if (fsTimeoutRef.current) {
+            clearTimeout(fsTimeoutRef.current);
+            fsTimeoutRef.current = null;
+        }
+    };
+    const onFontSizeChange = (e) => {
+        const val = e.target.value;
+        if (val === "") {
+            setFontSize("");
+            return;
+        }
+        const num = parseInt(val);
+        if (!isNaN(num)) {
+            const clamped = Math.max(1, Math.min(99, num));
+            editor.focus();
+            applyStyleText({ "font-size": `${clamped}px` });
+        }
+    };
+    const onFontColorSelect = useCallback((e) => {
+        applyStyleText({ color: e.target.value });
+    }, [applyStyleText]);
+    const toolbarContent = (_jsxs(ToolbarContainer, { "$isPortaled": !!portalTarget, "$top": stickyOffset, children: [_jsxs(CoreToolbarRow, { children: [_jsx(Tooltip, { content: t.toolbar.handwriting, children: _jsx(ToolbarButton, { onClick: insertHandwriting, title: t.toolbar.handwriting, style: { color: "#D55E00" }, children: _jsx(FiPenTool, { size: 18 }) }) }), _jsx(Tooltip, { content: t.toolbar.spreadsheet, children: _jsx(ToolbarButton, { onClick: insertSpreadsheet, title: t.toolbar.spreadsheet, style: { color: "#009E73" }, children: _jsx(RiTable2, { size: 18 }) }) }), props.onSave && (_jsx(Tooltip, { content: props.saveLabel || "Save", children: _jsx(ToolbarButton, { onClick: props.onSave, title: props.saveLabel || "Save", disabled: props.saveDisabled, style: { opacity: props.saveDisabled ? 0.5 : 1, cursor: props.saveDisabled ? 'not-allowed' : 'pointer' }, children: _jsx(FiCheck, { size: 16 }) }) })), props.onExit && (_jsx(Tooltip, { content: props.exitLabel || "Exit", children: _jsx(ToolbarButton, { onClick: props.onExit, title: props.exitLabel || "Exit", children: _jsx(FiX, { size: 16 }) }) })), props.onDelete && (_jsx(Tooltip, { content: props.deleteLabel || "Delete", children: _jsx(ToolbarButton, { onClick: props.onDelete, title: props.deleteLabel || "Delete", style: { color: '#d32f2f' }, children: _jsx(FiTrash2, { size: 16 }) }) })), isMobile && (_jsx(ToolbarButton, { onClick: () => setShowMoreOnMobile(!showMoreOnMobile), className: showMoreOnMobile ? "is-active" : "", title: "More options", children: _jsx(FaEllipsisH, {}) }))] }), (!isMobile || showMoreOnMobile) && (_jsxs(ToolbarRow, { children: [onToggleSidebar && (_jsx(Tooltip, { content: t.toolbar.toggle_sidebar, children: _jsx(ToolbarButton, { onClick: onToggleSidebar, title: t.toolbar.toggle_sidebar, children: _jsx(FiSidebar, {}) }) })), _jsx(Tooltip, { content: t.toolbar.undo, children: _jsx(ToolbarButton, { disabled: !canUndo, onClick: () => editor.dispatchCommand(UNDO_COMMAND, undefined), title: t.toolbar.undo, children: _jsx(FaUndo, {}) }) }), _jsx(Tooltip, { content: t.toolbar.redo, children: _jsx(ToolbarButton, { disabled: !canRedo, onClick: () => editor.dispatchCommand(REDO_COMMAND, undefined), title: t.toolbar.redo, children: _jsx(FaRedo, {}) }) }), _jsx(Tooltip, { content: t.toolbar.check_list, children: _jsx(ToolbarButton, { onClick: () => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined), onMouseDown: (e) => e.preventDefault(), className: isCheckList ? "is-active" : "", title: t.toolbar.check_list, children: _jsx(FaRegSquare, {}) }) }), _jsx(Tooltip, { content: t.toolbar.underline, children: _jsx(ToolbarButton, { onClick: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline"), onMouseDown: (e) => e.preventDefault(), className: isUnderline ? "is-active" : "", title: t.toolbar.underline, children: _jsx(FaUnderline, {}) }) }), _jsxs(FontSizeContainer, { children: [_jsx(Tooltip, { content: t.toolbar.font_size, children: _jsxs(FontSizeDisplay, { children: [_jsx(FontSizeInput, { type: "text", value: fontSize.replace("px", ""), onChange: onFontSizeChange }), _jsx(FontSizeUnit, { children: "px" })] }) }), _jsxs(FontSizeControls, { children: [_jsx(SpinButton, { onMouseDown: (e) => {
+                                            e.preventDefault();
+                                            startFontSizeInterval(true);
+                                        }, onMouseUp: stopFontSizeInterval, onMouseLeave: stopFontSizeInterval, onPointerUp: stopFontSizeInterval, children: _jsx(FaChevronUp, {}) }), _jsx(SpinButton, { onMouseDown: (e) => {
+                                            e.preventDefault();
+                                            startFontSizeInterval(false);
+                                        }, onMouseUp: stopFontSizeInterval, onMouseLeave: stopFontSizeInterval, onPointerUp: stopFontSizeInterval, children: _jsx(FaChevronDown, {}) })] })] }), _jsxs(ColorPickerWrapper, { ref: colorMenuRef, children: [_jsx(Tooltip, { content: t.toolbar.font_color, children: _jsx(ToolbarButton, { onClick: () => {
+                                        updateMenuAlignment('color', colorMenuRef);
+                                        setShowColorMenu(!showColorMenu);
+                                    }, className: showColorMenu ? "is-active" : "", title: t.toolbar.font_color, style: { color: fontColor !== "#000000" ? fontColor : undefined }, children: _jsx(FaPalette, {}) }) }), showColorMenu && (_jsxs(ColorMenu, { "$rightAlign": menuAlignments.color, children: [_jsx(ColorGrid, { children: COLOR_PALETTE.map((row, rowIndex) => (_jsx(ColorRow, { children: row.map(color => (_jsx(ColorOption, { color: color, onClick: () => applyStyleText({ color }), title: color }, color))) }, `row - ${rowIndex} `))) }), _jsxs(CustomColorBtn, { onClick: () => colorInputRef.current?.click(), children: [_jsx(FaPlus, { size: 10 }), " ", t.toolbar.custom_color] })] })), _jsx(HiddenColorInput, { type: "color", ref: colorInputRef, value: fontColor, onChange: onFontColorSelect })] }), _jsx(Tooltip, { content: t.toolbar.inline_code, children: _jsx(ToolbarButton, { onClick: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code"), className: isCode ? "is-active" : "", title: t.toolbar.inline_code, children: _jsx(FaCode, {}) }) }), _jsx(Tooltip, { content: t.toolbar.link, children: _jsx(ToolbarButton, { onClick: insertLink, className: isLink ? "is-active" : "", title: t.toolbar.link, children: _jsx(FaLink, {}) }) }), _jsx(Tooltip, { content: t.toolbar.image, children: _jsx(ToolbarButton, { onClick: insertImage, title: t.toolbar.image, children: _jsx(FaImage, {}) }) }), _jsx(Tooltip, { content: t.toolbar.collapsible, children: _jsx(ToolbarButton, { onClick: insertCollapsible, title: t.toolbar.collapsible, children: _jsx(FaCaretDown, {}) }) }), _jsxs(ColorPickerWrapper, { ref: alignMenuRef, children: [_jsx(Tooltip, { content: t.toolbar.alignment, children: _jsx(ToolbarButton, { onClick: () => { updateMenuAlignment('align', alignMenuRef); setShowAlignMenu(!showAlignMenu); }, title: t.toolbar.alignment, children: _jsx(FaAlignLeft, {}) }) }), showAlignMenu && (_jsxs(FormatMenu, { "$rightAlign": menuAlignments.align, style: { minWidth: '120px' }, children: [_jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left"); setShowAlignMenu(false); }, children: [_jsx(FaAlignLeft, { style: { marginRight: '8px' } }), " ", t.toolbar.align.left] }), _jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "center"); setShowAlignMenu(false); }, children: [_jsx(FaAlignCenter, { style: { marginRight: '8px' } }), " ", t.toolbar.align.center] }), _jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "right"); setShowAlignMenu(false); }, children: [_jsx(FaAlignRight, { style: { marginRight: '8px' } }), " ", t.toolbar.align.right] }), _jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "justify"); setShowAlignMenu(false); }, children: [_jsx(FaAlignJustify, { style: { marginRight: '8px' } }), " ", t.toolbar.align.justify] })] }))] }), _jsxs(ColorPickerWrapper, { ref: lineHeightMenuRef, children: [_jsx(Tooltip, { content: t.toolbar.line_spacing, children: _jsx(ToolbarButton, { onClick: () => { updateMenuAlignment('lineHeight', lineHeightMenuRef); setShowLineHeightMenu(!showLineHeightMenu); }, title: t.toolbar.line_spacing, children: _jsx(RiLineHeight, {}) }) }), showLineHeightMenu && (_jsx(FormatMenu, { "$rightAlign": menuAlignments.lineHeight, children: LINE_H_OPTIONS.map(height => (_jsx(FormatOption, { onClick: () => {
+                                        applyStyleText({ 'line-height': height });
+                                        setShowLineHeightMenu(false);
+                                    }, children: height }, height))) }))] }), _jsxs(ColorPickerWrapper, { ref: indentMenuRef, children: [_jsx(Tooltip, { content: t.toolbar.indent, children: _jsx(ToolbarButton, { onClick: () => { updateMenuAlignment('indent', indentMenuRef); setShowIndentMenu(!showIndentMenu); }, title: t.toolbar.indent, children: _jsx(RiIndentIncrease, {}) }) }), showIndentMenu && (_jsxs(FormatMenu, { "$rightAlign": menuAlignments.indent, style: { minWidth: '140px' }, children: [_jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }, children: [_jsx(RiIndentIncrease, { style: { marginRight: '8px' } }), " ", t.toolbar.indent_options.indent] }), _jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }, children: [_jsx(RiIndentDecrease, { style: { marginRight: '8px' } }), " ", t.toolbar.indent_options.outdent] })] }))] }), _jsxs("div", { style: { position: 'relative' }, ref: tableMenuRef, children: [_jsx(Tooltip, { content: t.toolbar.table, children: _jsx(ToolbarButton, { onClick: () => { updateMenuAlignment('table', tableMenuRef); setShowTableMenu(!showTableMenu); }, className: showTableMenu ? "is-active" : "", children: _jsx(FaTable, {}) }) }), showTableMenu && (_jsxs(TableInsertMenu, { "$rightAlign": menuAlignments.table, children: [_jsx(MenuTitle, { children: t.toolbar.table_menu.title }), _jsxs(InputGroup, { children: [_jsx("label", { children: t.toolbar.table_menu.rows }), _jsx("input", { type: "number", value: tableConfig.rows, onChange: (e) => setTableConfig({ ...tableConfig, rows: e.target.value }), min: "1" })] }), _jsxs(InputGroup, { children: [_jsx("label", { children: t.toolbar.table_menu.columns }), _jsx("input", { type: "number", value: tableConfig.columns, onChange: (e) => setTableConfig({ ...tableConfig, columns: e.target.value }), min: "1" })] }), _jsx(CheckboxGroup, { children: _jsxs("label", { children: [_jsx("input", { type: "checkbox", checked: tableConfig.headerRow, onChange: (e) => setTableConfig({ ...tableConfig, headerRow: e.target.checked }) }), t.toolbar.table_menu.header_row] }) }), _jsx(CheckboxGroup, { children: _jsxs("label", { children: [_jsx("input", { type: "checkbox", checked: tableConfig.headerColumn, onChange: (e) => setTableConfig({ ...tableConfig, headerColumn: e.target.checked }) }), t.toolbar.table_menu.header_column] }) }), _jsx(CreateButton, { onClick: insertTable, children: t.toolbar.table_menu.create })] }))] }), _jsx(Tooltip, { content: t.toolbar.insert_time, children: _jsx(ToolbarButton, { onClick: insertTime, title: t.toolbar.insert_time, children: _jsx(FaClock, {}) }) }), _jsx(Tooltip, { content: t.toolbar.page_break || "Page Break", children: _jsx(ToolbarButton, { onClick: () => editor.dispatchCommand(INSERT_PAGE_BREAK_COMMAND, undefined), title: t.toolbar.page_break || "Page Break", children: _jsx(MdOutlineInsertPageBreak, { size: 18 }) }) }), _jsx(Tooltip, { content: t.toolbar.clear_formatting || "Clear All Formatting", children: _jsx(ToolbarButton, { onClick: clearFormatting, title: t.toolbar.clear_formatting || "Clear All Formatting", children: _jsx(MdFormatClear, { size: 18 }) }) }), _jsx(Tooltip, { content: t.toolbar.clear, children: _jsx(ToolbarButton, { onClick: () => editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined), title: t.toolbar.clear, children: _jsx(FaEraser, {}) }) }), customButtons] }))] }));
+    if (portalTarget) {
+        return createPortal(toolbarContent, portalTarget);
     }
-    if (fsTimeoutRef.current) {
-      clearTimeout(fsTimeoutRef.current);
-      fsTimeoutRef.current = null;
-    }
-  };
-  const onFontSizeChange = (e) => {
-    const val = e.target.value;
-    if (val === "") {
-      setFontSize("");
-      return;
-    }
-    const num = parseInt(val);
-    if (!isNaN(num)) {
-      const clamped = Math.max(1, Math.min(99, num));
-      editor.focus();
-      applyStyleText({ "font-size": `${clamped}px` });
-    }
-  };
-  const onFontColorSelect = useCallback((e) => {
-    applyStyleText({ color: e.target.value });
-  }, [applyStyleText]);
-  const toolbarContent = (_jsxs(ToolbarContainer, {
-    "$isPortaled": !!portalTarget, "$top": stickyOffset, children: [_jsxs(CoreToolbarRow, { children: [_jsx(Tooltip, { content: t.toolbar.handwriting, children: _jsx(ToolbarButton, { onClick: insertHandwriting, title: t.toolbar.handwriting, style: { color: "#D55E00" }, children: _jsx(FiPenTool, { size: 18 }) }) }), _jsx(Tooltip, { content: t.toolbar.spreadsheet, children: _jsx(ToolbarButton, { onClick: insertSpreadsheet, title: t.toolbar.spreadsheet, style: { color: "#009E73" }, children: _jsx(RiTable2, { size: 18 }) }) }), props.onSave && (_jsx(Tooltip, { content: props.saveLabel || "Save", children: _jsx(ToolbarButton, { onClick: props.onSave, title: props.saveLabel || "Save", disabled: props.saveDisabled, style: { opacity: props.saveDisabled ? 0.5 : 1, cursor: props.saveDisabled ? 'not-allowed' : 'pointer' }, children: _jsx(FiCheck, { size: 16 }) }) })), props.onExit && (_jsx(Tooltip, { content: props.exitLabel || "Exit", children: _jsx(ToolbarButton, { onClick: props.onExit, title: props.exitLabel || "Exit", children: _jsx(FiX, { size: 16 }) }) })), props.onDelete && (_jsx(Tooltip, { content: props.deleteLabel || "Delete", children: _jsx(ToolbarButton, { onClick: props.onDelete, title: props.deleteLabel || "Delete", style: { color: '#d32f2f' }, children: _jsx(FiTrash2, { size: 16 }) }) })), isMobile && (_jsx(ToolbarButton, { onClick: () => setShowMoreOnMobile(!showMoreOnMobile), className: showMoreOnMobile ? "is-active" : "", title: "More options", children: _jsx(FaEllipsisH, {}) }))] }), (!isMobile || showMoreOnMobile) && (_jsxs(ToolbarRow, {
-      children: [onToggleSidebar && (_jsx(Tooltip, { content: t.toolbar.toggle_sidebar, children: _jsx(ToolbarButton, { onClick: onToggleSidebar, title: t.toolbar.toggle_sidebar, children: _jsx(FiSidebar, {}) }) })), _jsx(Tooltip, { content: t.toolbar.undo, children: _jsx(ToolbarButton, { disabled: !canUndo, onClick: () => editor.dispatchCommand(UNDO_COMMAND, undefined), title: t.toolbar.undo, children: _jsx(FaUndo, {}) }) }), _jsx(Tooltip, { content: t.toolbar.redo, children: _jsx(ToolbarButton, { disabled: !canRedo, onClick: () => editor.dispatchCommand(REDO_COMMAND, undefined), title: t.toolbar.redo, children: _jsx(FaRedo, {}) }) }), _jsx(Tooltip, { content: t.toolbar.check_list, children: _jsx(ToolbarButton, { onClick: () => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined), onMouseDown: (e) => e.preventDefault(), className: isCheckList ? "is-active" : "", title: t.toolbar.check_list, children: _jsx(FaRegSquare, {}) }) }), _jsx(Tooltip, { content: t.toolbar.underline, children: _jsx(ToolbarButton, { onClick: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline"), onMouseDown: (e) => e.preventDefault(), className: isUnderline ? "is-active" : "", title: t.toolbar.underline, children: _jsx(FaUnderline, {}) }) }), _jsxs(FontSizeContainer, {
-        children: [_jsx(Tooltip, { content: t.toolbar.font_size, children: _jsxs(FontSizeDisplay, { children: [_jsx(FontSizeInput, { type: "text", value: fontSize.replace("px", ""), onChange: onFontSizeChange }), _jsx(FontSizeUnit, { children: "px" })] }) }), _jsxs(FontSizeControls, {
-          children: [_jsx(SpinButton, {
-            onMouseDown: (e) => {
-              e.preventDefault();
-              startFontSizeInterval(true);
-            }, onMouseUp: stopFontSizeInterval, onMouseLeave: stopFontSizeInterval, onPointerUp: stopFontSizeInterval, children: _jsx(FaChevronUp, {})
-          }), _jsx(SpinButton, {
-            onMouseDown: (e) => {
-              e.preventDefault();
-              startFontSizeInterval(false);
-            }, onMouseUp: stopFontSizeInterval, onMouseLeave: stopFontSizeInterval, onPointerUp: stopFontSizeInterval, children: _jsx(FaChevronDown, {})
-          })]
-        })]
-      }), _jsxs(ColorPickerWrapper, {
-        ref: colorMenuRef, children: [_jsx(Tooltip, {
-          content: t.toolbar.font_color, children: _jsx(ToolbarButton, {
-            onClick: () => {
-              updateMenuAlignment('color', colorMenuRef);
-              setShowColorMenu(!showColorMenu);
-            }, className: showColorMenu ? "is-active" : "", title: t.toolbar.font_color, style: { color: fontColor !== "#000000" ? fontColor : undefined }, children: _jsx(FaPalette, {})
-          })
-        }), showColorMenu && (_jsxs(ColorMenu, { "$rightAlign": menuAlignments.color, children: [_jsx(ColorGrid, { children: COLOR_PALETTE.map((row, rowIndex) => (_jsx(ColorRow, { children: row.map(color => (_jsx(ColorOption, { color: color, onClick: () => applyStyleText({ color }), title: color }, color))) }, `row - ${rowIndex} `))) }), _jsxs(CustomColorBtn, { onClick: () => colorInputRef.current?.click(), children: [_jsx(FaPlus, { size: 10 }), " ", t.toolbar.custom_color] })] })), _jsx(HiddenColorInput, { type: "color", ref: colorInputRef, value: fontColor, onChange: onFontColorSelect })]
-      }), _jsx(Tooltip, { content: t.toolbar.inline_code, children: _jsx(ToolbarButton, { onClick: () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code"), className: isCode ? "is-active" : "", title: t.toolbar.inline_code, children: _jsx(FaCode, {}) }) }), _jsx(Tooltip, { content: t.toolbar.link, children: _jsx(ToolbarButton, { onClick: insertLink, className: isLink ? "is-active" : "", title: t.toolbar.link, children: _jsx(FaLink, {}) }) }), _jsx(Tooltip, { content: t.toolbar.image, children: _jsx(ToolbarButton, { onClick: insertImage, title: t.toolbar.image, children: _jsx(FaImage, {}) }) }), _jsx(Tooltip, { content: t.toolbar.collapsible, children: _jsx(ToolbarButton, { onClick: insertCollapsible, title: t.toolbar.collapsible, children: _jsx(FaCaretDown, {}) }) }), _jsxs(ColorPickerWrapper, { ref: alignMenuRef, children: [_jsx(Tooltip, { content: t.toolbar.alignment, children: _jsx(ToolbarButton, { onClick: () => { updateMenuAlignment('align', alignMenuRef); setShowAlignMenu(!showAlignMenu); }, title: t.toolbar.alignment, children: _jsx(FaAlignLeft, {}) }) }), showAlignMenu && (_jsxs(FormatMenu, { "$rightAlign": menuAlignments.align, style: { minWidth: '120px' }, children: [_jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left"); setShowAlignMenu(false); }, children: [_jsx(FaAlignLeft, { style: { marginRight: '8px' } }), " ", t.toolbar.align.left] }), _jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "center"); setShowAlignMenu(false); }, children: [_jsx(FaAlignCenter, { style: { marginRight: '8px' } }), " ", t.toolbar.align.center] }), _jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "right"); setShowAlignMenu(false); }, children: [_jsx(FaAlignRight, { style: { marginRight: '8px' } }), " ", t.toolbar.align.right] }), _jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "justify"); setShowAlignMenu(false); }, children: [_jsx(FaAlignJustify, { style: { marginRight: '8px' } }), " ", t.toolbar.align.justify] })] }))] }), _jsxs(ColorPickerWrapper, {
-        ref: lineHeightMenuRef, children: [_jsx(Tooltip, { content: t.toolbar.line_spacing, children: _jsx(ToolbarButton, { onClick: () => { updateMenuAlignment('lineHeight', lineHeightMenuRef); setShowLineHeightMenu(!showLineHeightMenu); }, title: t.toolbar.line_spacing, children: _jsx(RiLineHeight, {}) }) }), showLineHeightMenu && (_jsx(FormatMenu, {
-          "$rightAlign": menuAlignments.lineHeight, children: LINE_H_OPTIONS.map(height => (_jsx(FormatOption, {
-            onClick: () => {
-              applyStyleText({ 'line-height': height });
-              setShowLineHeightMenu(false);
-            }, children: height
-          }, height)))
-        }))]
-      }), _jsxs(ColorPickerWrapper, { ref: indentMenuRef, children: [_jsx(Tooltip, { content: t.toolbar.indent, children: _jsx(ToolbarButton, { onClick: () => { updateMenuAlignment('indent', indentMenuRef); setShowIndentMenu(!showIndentMenu); }, title: t.toolbar.indent, children: _jsx(RiIndentIncrease, {}) }) }), showIndentMenu && (_jsxs(FormatMenu, { "$rightAlign": menuAlignments.indent, style: { minWidth: '140px' }, children: [_jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }, children: [_jsx(RiIndentIncrease, { style: { marginRight: '8px' } }), " ", t.toolbar.indent_options.indent] }), _jsxs(FormatOption, { onClick: () => { editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }, children: [_jsx(RiIndentDecrease, { style: { marginRight: '8px' } }), " ", t.toolbar.indent_options.outdent] })] }))] }), _jsxs("div", { style: { position: 'relative' }, ref: tableMenuRef, children: [_jsx(Tooltip, { content: t.toolbar.table, children: _jsx(ToolbarButton, { onClick: () => { updateMenuAlignment('table', tableMenuRef); setShowTableMenu(!showTableMenu); }, className: showTableMenu ? "is-active" : "", children: _jsx(FaTable, {}) }) }), showTableMenu && (_jsxs(TableInsertMenu, { "$rightAlign": menuAlignments.table, children: [_jsx(MenuTitle, { children: t.toolbar.table_menu.title }), _jsxs(InputGroup, { children: [_jsx("label", { children: t.toolbar.table_menu.rows }), _jsx("input", { type: "number", value: tableConfig.rows, onChange: (e) => setTableConfig({ ...tableConfig, rows: e.target.value }), min: "1" })] }), _jsxs(InputGroup, { children: [_jsx("label", { children: t.toolbar.table_menu.columns }), _jsx("input", { type: "number", value: tableConfig.columns, onChange: (e) => setTableConfig({ ...tableConfig, columns: e.target.value }), min: "1" })] }), _jsx(CheckboxGroup, { children: _jsxs("label", { children: [_jsx("input", { type: "checkbox", checked: tableConfig.headerRow, onChange: (e) => setTableConfig({ ...tableConfig, headerRow: e.target.checked }) }), t.toolbar.table_menu.header_row] }) }), _jsx(CheckboxGroup, { children: _jsxs("label", { children: [_jsx("input", { type: "checkbox", checked: tableConfig.headerColumn, onChange: (e) => setTableConfig({ ...tableConfig, headerColumn: e.target.checked }) }), t.toolbar.table_menu.header_column] }) }), _jsx(CreateButton, { onClick: insertTable, children: t.toolbar.table_menu.create })] }))] }), _jsx(Tooltip, { content: t.toolbar.insert_time, children: _jsx(ToolbarButton, { onClick: insertTime, title: t.toolbar.insert_time, children: _jsx(FaClock, {}) }) }), _jsx(Tooltip, { content: t.toolbar.page_break || "Page Break", children: _jsx(ToolbarButton, { onClick: () => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined), title: t.toolbar.page_break || "Page Break", children: _jsx(MdOutlineInsertPageBreak, { size: 18 }) }) }), _jsx(Tooltip, { content: t.toolbar.clear_formatting || "Clear All Formatting", children: _jsx(ToolbarButton, { onClick: clearFormatting, title: t.toolbar.clear_formatting || "Clear All Formatting", children: _jsx(MdFormatClear, { size: 18 }) }) }), _jsx(Tooltip, { content: t.toolbar.clear, children: _jsx(ToolbarButton, { onClick: () => editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined), title: t.toolbar.clear, children: _jsx(FaEraser, {}) }) }), customButtons]
-    }))]
-  }));
-  if (portalTarget) {
-    return createPortal(toolbarContent, portalTarget);
-  }
-  return toolbarContent;
+    return toolbarContent;
 }

@@ -316,6 +316,12 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
     }
   }
 
+  hr {
+    border: none;
+    margin: 1em 0;
+    border-top: 1px solid ${({ theme }) => theme.colors.border};
+  }
+
   /* Collapsible / Details Styles */
   details {
     border-radius: 6px;

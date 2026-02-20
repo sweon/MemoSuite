@@ -54,11 +54,13 @@ import { HandwritingNode, $createHandwritingNode, $isHandwritingNode } from "./n
 import { SpreadsheetNode, $createSpreadsheetNode, $isSpreadsheetNode } from "./nodes/SpreadsheetNode";
 import { ImageNode, $createImageNode, $isImageNode } from "./nodes/ImageNode";
 import { CollapsibleNode, $createCollapsibleNode, $isCollapsibleNode } from "./nodes/CollapsibleNode";
+import { PageBreakNode, $createPageBreakNode, $isPageBreakNode } from "./nodes/PageBreakNode";
 
 import { ToolbarPlugin, ToolbarButton } from "./plugins/ToolbarPlugin";
 export { ToolbarButton };
 import { ListMaxIndentLevelPlugin } from "./plugins/ListMaxIndentLevelPlugin";
 import { TableResizerPlugin } from "./plugins/TableResizerPlugin";
+import { PageBreakPlugin } from "./plugins/PageBreakPlugin";
 
 const URL_REGEX =
   /((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/;
@@ -202,17 +204,10 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
   }
 
   .editor-hr {
-    padding: 2px 2px;
     border: none;
     margin: 1em 0;
     cursor: default;
-    &:after {
-      content: '';
-      display: block;
-      height: 2px;
-      background-color: ${(props: any) => props.theme.colors?.border || '#333'};
-      line-height: 2px;
-    }
+    border-top: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
   }
 
   /* Table Styles */
@@ -469,6 +464,24 @@ const HR_TRANSFORMER: Transformer = {
     }
 
     line.selectNext();
+  },
+  type: "element",
+};
+
+const PAGE_BREAK_TRANSFORMER: Transformer = {
+  dependencies: [PageBreakNode],
+  export: (node: LexicalNode) => {
+    return $isPageBreakNode(node) ? '<div style="page-break-after: always;"></div>' : null;
+  },
+  regExp: /^<div style="page-break-after: always;"><\/div>$/,
+  replace: (parentNode, _1, _2, isFirstLine) => {
+    const pbNode = $createPageBreakNode();
+    if (isFirstLine) {
+      parentNode.replace(pbNode);
+    } else {
+      parentNode.insertBefore(pbNode);
+    }
+    pbNode.selectNext();
   },
   type: "element",
 };
@@ -753,6 +766,7 @@ const ALL_TRANSFORMERS: Transformer[] = [
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
+  PAGE_BREAK_TRANSFORMER,
   HR_TRANSFORMER,
   ...TRANSFORMERS.filter(t =>
     t !== BOLD_ITALIC_STAR &&
@@ -782,6 +796,7 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
   COLLAPSIBLE_TRANSFORMER,
   SPREADSHEET_TRANSFORMER,
   HANDWRITING_TRANSFORMER,
+  PAGE_BREAK_TRANSFORMER,
   HR_TRANSFORMER,
   ...TRANSFORMERS.filter(t =>
     t !== BOLD_ITALIC_STAR &&
@@ -982,6 +997,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       AutoLinkNode,
       LinkNode,
       HorizontalRuleNode,
+      PageBreakNode,
       HandwritingNode,
       SpreadsheetNode,
       ImageNode,
@@ -1015,6 +1031,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
           />
           <HistoryPlugin />
           {markdownShortcuts && <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />}
+          <PageBreakPlugin />
           <ListPlugin />
           <LinkPlugin />
           {autoLink && <AutoLinkPlugin matchers={MATCHERS} />}

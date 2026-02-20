@@ -28,6 +28,7 @@ import { $setBlocksType, $patchStyleText, $getSelectionStyleValueForProperty } f
 import { $getNearestNodeOfType, mergeRegister, $insertNodeToNearestRoot } from "@lexical/utils";
 import { TOGGLE_LINK_COMMAND, $isLinkNode } from "@lexical/link";
 import { INSERT_TABLE_COMMAND } from "@lexical/table";
+import { INSERT_PAGE_BREAK_COMMAND } from "../nodes/PageBreakNode";
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -40,7 +41,7 @@ import {
 } from "react-icons/fa";
 import { FiPenTool, FiSidebar, FiX, FiTrash2, FiCheck } from "react-icons/fi";
 import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
-import { MdFormatClear } from "react-icons/md";
+import { MdFormatClear, MdOutlineInsertPageBreak } from "react-icons/md";
 import { $createHandwritingNode } from "../nodes/HandwritingNode";
 import { $createSpreadsheetNode } from "../nodes/SpreadsheetNode";
 import { $createCollapsibleNode } from "../nodes/CollapsibleNode";
@@ -1140,6 +1141,15 @@ export function ToolbarPlugin(props: {
                             title={t.toolbar.insert_time}
                         >
                             <FaClock />
+                        </ToolbarButton>
+                    </Tooltip>
+
+                    <Tooltip content={t.toolbar.page_break || "Page Break"}>
+                        <ToolbarButton
+                            onClick={() => editor.dispatchCommand(INSERT_PAGE_BREAK_COMMAND, undefined)}
+                            title={t.toolbar.page_break || "Page Break"}
+                        >
+                            <MdOutlineInsertPageBreak size={18} />
                         </ToolbarButton>
                     </Tooltip>
 

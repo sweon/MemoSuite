@@ -20,7 +20,7 @@ import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { CodeHighlightNode, CodeNode } from "@lexical/code";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
-import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
+import { HorizontalRuleNode, $createHorizontalRuleNode, $isHorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { MemoSuiteTheme } from "./themes/MemoSuiteTheme";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useEffect, useRef, useMemo } from "react";
@@ -31,10 +31,12 @@ import { HandwritingNode, $createHandwritingNode, $isHandwritingNode } from "./n
 import { SpreadsheetNode, $createSpreadsheetNode, $isSpreadsheetNode } from "./nodes/SpreadsheetNode";
 import { ImageNode, $createImageNode, $isImageNode } from "./nodes/ImageNode";
 import { CollapsibleNode, $createCollapsibleNode, $isCollapsibleNode } from "./nodes/CollapsibleNode";
+import { PageBreakNode, $createPageBreakNode, $isPageBreakNode } from "./nodes/PageBreakNode";
 import { ToolbarPlugin, ToolbarButton } from "./plugins/ToolbarPlugin";
 export { ToolbarButton };
 import { ListMaxIndentLevelPlugin } from "./plugins/ListMaxIndentLevelPlugin";
 import { TableResizerPlugin } from "./plugins/TableResizerPlugin";
+import { PageBreakPlugin } from "./plugins/PageBreakPlugin";
 const URL_REGEX = /((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)/;
 const EMAIL_REGEX = /(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/;
 const MATCHERS = [
@@ -65,7 +67,7 @@ const MATCHERS = [
         };
     },
 ];
-const EditorContainer = styled.div`
+const EditorContainer = styled.div `
   position: relative;
   text-align: left;
   border-radius: 8px;
@@ -76,7 +78,7 @@ const EditorContainer = styled.div`
   overflow: visible;
   container-type: inline-size;
 `;
-const Content = styled(ContentEditable)`
+const Content = styled(ContentEditable) `
   min-height: 300px;
   outline: none;
   padding: 0.5rem;
@@ -141,11 +143,12 @@ const Content = styled(ContentEditable)`
   
   .editor-text-code {
     background-color: ${(props) => props.theme.colors?.surface || '#2d2d2d'};
-    color: ${(props) => props.theme.colors?.primary || '#ce9178'};
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-family: 'Fira Code', Menlo, Consolas, Monaco, monospace;
-    font-size: 90%;
+    color: ${(props) => props.theme.colors?.text || 'inherit'};
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    border: 1px solid ${(props) => props.theme.colors?.border || '#333'};
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9em;
   }
   
   .editor-code {
@@ -167,6 +170,20 @@ const Content = styled(ContentEditable)`
     color: ${(props) => props.theme.colors?.primary || "#007bff"};
     text-decoration: underline;
     cursor: pointer;
+  }
+
+  .editor-hr {
+    padding: 2px 2px;
+    border: none;
+    margin: 1em 0;
+    cursor: default;
+    &:after {
+      content: '';
+      display: block;
+      height: 2px;
+      background-color: ${(props) => props.theme.colors?.border || '#333'};
+      line-height: 2px;
+    }
   }
 
   /* Table Styles */
@@ -402,6 +419,42 @@ const HANDWRITING_TRANSFORMER = {
     replace: () => { },
     type: "element",
 };
+const HR_TRANSFORMER = {
+    dependencies: [HorizontalRuleNode],
+    export: (node) => {
+        return $isHorizontalRuleNode(node) ? '---' : null;
+    },
+    regExp: /^(---|\*\*\*|___)\s*$/,
+    replace: (parentNode, _1, _2, isFirstLine) => {
+        const line = $createHorizontalRuleNode();
+        if (isFirstLine) {
+            parentNode.replace(line);
+        }
+        else {
+            parentNode.insertBefore(line);
+        }
+        line.selectNext();
+    },
+    type: "element",
+};
+const PAGE_BREAK_TRANSFORMER = {
+    dependencies: [PageBreakNode],
+    export: (node) => {
+        return $isPageBreakNode(node) ? '<div style="page-break-after: always;"></div>' : null;
+    },
+    regExp: /^<div style="page-break-after: always;"><\/div>$/,
+    replace: (parentNode, _1, _2, isFirstLine) => {
+        const pbNode = $createPageBreakNode();
+        if (isFirstLine) {
+            parentNode.replace(pbNode);
+        }
+        else {
+            parentNode.insertBefore(pbNode);
+        }
+        pbNode.selectNext();
+    },
+    type: "element",
+};
 const BOLD_ITALIC_STAR_REGEX = /(^|[^\*])\*\*\*([^\* \n][^\*\n]*[^\* \n]|\S)\*\*\*$/;
 const BOLD_STAR_REGEX = /(^|[^\*])\*\*([^\* \n][^\*\n]*[^\* \n]|\S)\*\*$/;
 const ITALIC_STAR_REGEX = /(^|[^\*])\*([^\* \n][^\*\n]*[^\* \n]|\S)\*$/;
@@ -483,7 +536,7 @@ const ELEMENT_FORMAT_EXPORT_TRANSFORMER = {
         return null;
     },
     regExp: /^<(p|h[1-6]|blockquote) align="(\w+)">/,
-    replace: (parentNode, children, match) => {
+    replace: (parentNode, _children, match) => {
         const align = match[2];
         parentNode.setFormat(align);
         return false;
@@ -660,13 +713,16 @@ const ALL_TRANSFORMERS = [
     CHECK_LIST,
     IMAGE_TRANSFORMER,
     COLLAPSIBLE_TRANSFORMER,
+    PAGE_BREAK_TRANSFORMER,
+    HR_TRANSFORMER,
     ...TRANSFORMERS.filter(t => t !== BOLD_ITALIC_STAR &&
         t !== BOLD_ITALIC_UNDERSCORE &&
         t !== BOLD_STAR &&
         t !== BOLD_UNDERSCORE &&
         t !== ITALIC_STAR &&
         t !== ITALIC_UNDERSCORE &&
-        t !== STRIKETHROUGH),
+        t !== STRIKETHROUGH &&
+        t.regExp?.toString() !== /^(---|\*\*\*|___)\s*$/.toString()),
 ];
 const EXPORT_TRANSFORMERS = [
     ELEMENT_FORMAT_EXPORT_TRANSFORMER,
@@ -684,13 +740,16 @@ const EXPORT_TRANSFORMERS = [
     COLLAPSIBLE_TRANSFORMER,
     SPREADSHEET_TRANSFORMER,
     HANDWRITING_TRANSFORMER,
+    PAGE_BREAK_TRANSFORMER,
+    HR_TRANSFORMER,
     ...TRANSFORMERS.filter(t => t !== BOLD_ITALIC_STAR &&
         t !== BOLD_ITALIC_UNDERSCORE &&
         t !== BOLD_STAR &&
         t !== BOLD_UNDERSCORE &&
         t !== ITALIC_STAR &&
         t !== ITALIC_UNDERSCORE &&
-        t !== STRIKETHROUGH),
+        t !== STRIKETHROUGH &&
+        t.regExp?.toString() !== /^(---|\*\*\*|___)\s*$/.toString())
 ];
 function MarkdownSyncPlugin({ value, onChange }) {
     const [editor] = useLexicalComposerContext();
@@ -781,10 +840,11 @@ function MarkdownSyncPlugin({ value, onChange }) {
                 if (markdown !== lastNormalizedValueRef.current) {
                     // If this is the very first update after mount (and not an 'import' tag update),
                     // it might be Lexical's internal normalization.
-                    // We ignore it if the trimmed content is the same, to avoid marking the parent as dirty.
+                    // We skip it ONLY if the content is truly identical (not using trim).
                     if (firstUpdateRef.current) {
                         firstUpdateRef.current = false;
-                        if (markdown.trim() === value.trim()) {
+                        // Use exact comparison - don't use trim() since whitespace/empty lines matter
+                        if (markdown === value) {
                             lastNormalizedValueRef.current = markdown;
                             return;
                         }
@@ -821,11 +881,12 @@ export const LexicalEditor = ({ value, onChange, className, placeholder, onToggl
             AutoLinkNode,
             LinkNode,
             HorizontalRuleNode,
+            PageBreakNode,
             HandwritingNode,
             SpreadsheetNode,
             ImageNode,
             CollapsibleNode
         ]
     }), []);
-    return (_jsx(EditorContainer, { className: className, children: _jsxs(LexicalComposer, { initialConfig: initialConfig, children: [_jsx(ToolbarPlugin, { onToggleSidebar: onToggleSidebar, defaultFontSize: fontSize, onSave: onSave, onExit: onExit, onDelete: onDelete, saveLabel: saveLabel, exitLabel: exitLabel, deleteLabel: deleteLabel, saveDisabled: saveDisabled, stickyOffset: stickyOffset, customButtons: customButtons }), _jsxs("div", { className: "editor-inner", style: { position: 'relative' }, children: [_jsx(RichTextPlugin, { contentEditable: _jsx(Content, { spellCheck: spellCheck, "$tabSize": tabSize, "$fontSize": fontSize }), placeholder: _jsx("div", { className: "editor-placeholder", children: placeholder }), ErrorBoundary: LexicalErrorBoundary }), _jsx(HistoryPlugin, {}), markdownShortcuts && _jsx(MarkdownShortcutPlugin, { transformers: ALL_TRANSFORMERS }), _jsx(ListPlugin, {}), _jsx(LinkPlugin, {}), autoLink && _jsx(AutoLinkPlugin, { matchers: MATCHERS }), _jsx(CheckListPlugin, {}), _jsx(TablePlugin, {}), _jsx(TableResizerPlugin, {}), tabIndentation && _jsx(TabIndentationPlugin, {}), _jsx(HorizontalRulePlugin, {}), _jsx(ClearEditorPlugin, {}), _jsx(ListMaxIndentLevelPlugin, { maxDepth: 7 }), _jsx(AutoFocusPlugin, {}), _jsx(MarkdownImmediatePlugin, {}), _jsx(MarkdownSyncPlugin, { value: value, onChange: onChange })] })] }) }));
+    return (_jsx(EditorContainer, { className: className, children: _jsxs(LexicalComposer, { initialConfig: initialConfig, children: [_jsx(ToolbarPlugin, { onToggleSidebar: onToggleSidebar, defaultFontSize: fontSize, onSave: onSave, onExit: onExit, onDelete: onDelete, saveLabel: saveLabel, exitLabel: exitLabel, deleteLabel: deleteLabel, saveDisabled: saveDisabled, stickyOffset: stickyOffset, customButtons: customButtons }), _jsxs("div", { className: "editor-inner", style: { position: 'relative' }, children: [_jsx(RichTextPlugin, { contentEditable: _jsx(Content, { spellCheck: spellCheck, "$tabSize": tabSize, "$fontSize": fontSize }), placeholder: _jsx("div", { className: "editor-placeholder", children: placeholder }), ErrorBoundary: LexicalErrorBoundary }), _jsx(HistoryPlugin, {}), markdownShortcuts && _jsx(MarkdownShortcutPlugin, { transformers: ALL_TRANSFORMERS }), _jsx(PageBreakPlugin, {}), _jsx(ListPlugin, {}), _jsx(LinkPlugin, {}), autoLink && _jsx(AutoLinkPlugin, { matchers: MATCHERS }), _jsx(CheckListPlugin, {}), _jsx(TablePlugin, {}), _jsx(TableResizerPlugin, {}), tabIndentation && _jsx(TabIndentationPlugin, {}), _jsx(HorizontalRulePlugin, {}), _jsx(ClearEditorPlugin, {}), _jsx(ListMaxIndentLevelPlugin, { maxDepth: 7 }), _jsx(AutoFocusPlugin, {}), _jsx(MarkdownImmediatePlugin, {}), _jsx(MarkdownSyncPlugin, { value: value, onChange: onChange })] })] }) }));
 };

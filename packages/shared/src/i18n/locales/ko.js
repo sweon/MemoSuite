@@ -53,7 +53,6 @@ export const ko = {
         indent: "들여쓰기 옵션",
         table: "표 삽입",
         horizontal_rule: "구분선",
-        page_break: "페이지 나누기",
         insert_time: "현재 시각 삽입",
         clear: "모든 내용 지우기",
         clear_formatting: "모든 포맷 지우기",
