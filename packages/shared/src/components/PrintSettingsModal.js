@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
     margins: { top: 15, right: 15, bottom: 15, left: 15 },
     showBorder: false,
     includeComments: false,
+    excludeFirstPageNumber: false,
 };
 // ─── Storage helpers ─────────────────────────────────────────────────────
 const STORAGE_KEY = (appName) => `${appName}-print-settings`;
@@ -71,6 +72,10 @@ export function executePrint(settings, title) {
             #root, #app-root {
                 width: 100% !important;
                 display: block !important;
+            }
+
+            :root {
+                --print-total-pages: "0";
             }
 
             /* Prevent content from overlapping headers/footers if they are fixed */
@@ -150,7 +155,7 @@ export function executePrint(settings, title) {
             
             /* Ensure page counter starts correctly */
             body {
-                counter-reset: page 1;
+                counter-reset: page 0;
             }
 
             /* Hide UI elements */
@@ -206,6 +211,55 @@ export function executePrint(settings, title) {
     const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
     const filename = `${title || 'Untitled'}_${dateStr}_${timeStr}`;
     document.title = filename;
+    // --- Precise Page Measurement ---
+    let effectiveTotal = 1;
+    try {
+        const contentEl = document.querySelector('.markdown-view') || document.querySelector('.MainWrapper') || document.getElementById('root') || document.body;
+        const pxPerMm = 96 / 25.4;
+        const widthPx = (210 - m.left - m.right) * pxPerMm;
+        const heightPx = (297 - m.top - m.bottom) * pxPerMm;
+        // Clone content to measure in A4 context
+        const clone = contentEl.cloneNode(true);
+        clone.id = 'print-measurement-clone';
+        clone.style.cssText = `
+            position: absolute !important;
+            left: -10000px !important;
+            top: 0 !important;
+            width: ${widthPx}px !important;
+            height: auto !important;
+            visibility: hidden !important;
+            display: block !important;
+            margin: 0 !important;
+            padding: 10mm !important; 
+        `;
+        // Match child element styles for measurement
+        const style = document.createElement('style');
+        style.id = 'print-measurement-style';
+        style.textContent = `
+            #print-measurement-clone * { 
+                height: auto !important; 
+                min-height: 0 !important; 
+                overflow: visible !important; 
+                display: block !important;
+            }
+        `;
+        document.head.appendChild(style);
+        document.body.appendChild(clone);
+        const totalH = clone.offsetHeight;
+        const total = Math.ceil(totalH / heightPx) || 1;
+        effectiveTotal = settings.excludeFirstPageNumber ? Math.max(1, total - 1) : total;
+        // Inject measured total
+        const totalVarStyle = document.createElement('style');
+        totalVarStyle.id = 'print-total-pages-var';
+        totalVarStyle.textContent = `:root { --print-total-pages: "${effectiveTotal}"; }`;
+        document.head.appendChild(totalVarStyle);
+        // Cleanup measurement artifacts
+        document.body.removeChild(clone);
+        document.getElementById('print-measurement-style')?.remove();
+    }
+    catch (e) {
+        console.error('JS measurement failed', e);
+    }
     // Wait a tick for the browser to apply styles, then print
     requestAnimationFrame(() => {
         window.print();
@@ -213,6 +267,7 @@ export function executePrint(settings, title) {
         setTimeout(() => {
             document.title = originalTitle;
             document.getElementById('print-settings-style')?.remove();
+            document.getElementById('print-total-pages-var')?.remove();
             document.getElementById('print-hf-wrapper')?.remove();
         }, 1000);
     });
@@ -260,6 +315,10 @@ function buildPageNumberCss(settings) {
     if (settings.pageNumber === 'none')
         return '';
     let counterContent;
+    let totalContent = 'counter(pages)';
+    if (settings.excludeFirstPageNumber) {
+        totalContent = 'var(--print-total-pages)';
+    }
     switch (settings.pageNumberFormat) {
         case 'dash-number':
             counterContent = `"- " counter(page) " -"`;
@@ -268,7 +327,7 @@ function buildPageNumberCss(settings) {
             counterContent = `"Page " counter(page)`;
             break;
         case 'n-of-total':
-            counterContent = `counter(page) " / " counter(pages)`;
+            counterContent = `counter(page) " / " ${totalContent}`;
             break;
         default:
             counterContent = `counter(page)`;
@@ -287,6 +346,7 @@ function buildPageNumberCss(settings) {
     return `
         @media print {
             @page {
+                counter-increment: page;
                 ${marginBox ? `${marginBox} { 
                     content: ${counterContent}; 
                     font-size: 8pt; 
@@ -294,6 +354,14 @@ function buildPageNumberCss(settings) {
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 }` : ''}
             }
+
+            ${settings.excludeFirstPageNumber && marginBox ? `
+            @page :first {
+                ${marginBox} { content: none !important; }
+                counter-increment: none;
+                counter-set: page 0;
+            }
+            ` : ''}
             
             /* Fallback/Legacy technique for page numbers */
             .print-page-number::after {
@@ -356,6 +424,7 @@ const T = {
         fmtPage: 'Page 1, Page 2',
         fmtTotal: '1 / 5',
         includeComments: 'Include Comments',
+        excludeFirstPageNumber: 'Exclude on first page',
     },
     ko: {
         title: '인쇄 설정',
@@ -387,6 +456,7 @@ const T = {
         fmtPage: 'Page 1, Page 2',
         fmtTotal: '1 / 5',
         includeComments: '댓글 포함',
+        excludeFirstPageNumber: '첫 페이지는 페이지 번호 제외',
     },
 };
 // ─── Styled Components ───────────────────────────────────────────────────
@@ -579,5 +649,5 @@ export const PrintSettingsModal = ({ isOpen, onClose, appName, language = 'en', 
     }, [appName, settings, onClose, title]);
     if (!isOpen)
         return null;
-    return (_jsx(Overlay, { onClick: onClose, children: _jsxs(ModalBox, { onClick: e => e.stopPropagation(), children: [_jsx(ModalHeader, { children: t.title }), _jsxs(ModalBody, { children: [_jsx(Section, { children: _jsxs(CheckboxRow, { children: [_jsx("input", { type: "checkbox", checked: settings.includeComments, onChange: e => update('includeComments', e.target.checked) }), _jsx("span", { style: { fontWeight: 600 }, children: t.includeComments })] }) }), _jsxs(Section, { children: [_jsx(SectionTitle, { children: t.presets }), _jsx(PresetRow, { children: PRESETS.map((p, i) => (_jsx(PresetChip, { "$active": activePreset === i, onClick: () => applyPreset(i), children: language === 'ko' ? p.labelKo : p.label }, i))) })] }), _jsxs(Section, { children: [_jsx(SectionTitle, { children: t.header }), _jsxs(InputRow, { children: [_jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.left }), _jsx(StyledInput, { value: settings.headerLeft, onChange: e => update('headerLeft', e.target.value), placeholder: "" })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.center }), _jsx(StyledInput, { value: settings.headerCenter, onChange: e => update('headerCenter', e.target.value), placeholder: "" })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.right }), _jsx(StyledInput, { value: settings.headerRight, onChange: e => update('headerRight', e.target.value), placeholder: "" })] })] })] }), _jsxs(Section, { children: [_jsx(SectionTitle, { children: t.footer }), _jsxs(InputRow, { children: [_jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.left }), _jsx(StyledInput, { value: settings.footerLeft, onChange: e => update('footerLeft', e.target.value), placeholder: "" })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.center }), _jsx(StyledInput, { value: settings.footerCenter, onChange: e => update('footerCenter', e.target.value), placeholder: "" })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.right }), _jsx(StyledInput, { value: settings.footerRight, onChange: e => update('footerRight', e.target.value), placeholder: "" })] })] }), _jsx(VariableHint, { children: t.variables })] }), _jsxs(Section, { children: [_jsx(SectionTitle, { children: t.pageNumber }), _jsxs(InputRow, { children: [_jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.position }), _jsxs(SelectWrapper, { value: settings.pageNumber, onChange: e => update('pageNumber', e.target.value), children: [_jsx("option", { value: "none", children: t.none }), _jsx("option", { value: "bottom-center", children: t.bottomCenter }), _jsx("option", { value: "bottom-left", children: t.bottomLeft }), _jsx("option", { value: "bottom-right", children: t.bottomRight }), _jsx("option", { value: "top-center", children: t.topCenter }), _jsx("option", { value: "top-left", children: t.topLeft }), _jsx("option", { value: "top-right", children: t.topRight })] })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.format }), _jsxs(SelectWrapper, { value: settings.pageNumberFormat, onChange: e => update('pageNumberFormat', e.target.value), disabled: settings.pageNumber === 'none', children: [_jsx("option", { value: "number", children: t.fmtNumber }), _jsx("option", { value: "dash-number", children: t.fmtDash }), _jsx("option", { value: "page-n", children: t.fmtPage }), _jsx("option", { value: "n-of-total", children: t.fmtTotal })] })] }), _jsx(InputGroup, { style: { justifyContent: 'flex-end' }, children: _jsxs(CheckboxRow, { children: [_jsx("input", { type: "checkbox", checked: settings.showBorder, onChange: e => update('showBorder', e.target.checked) }), t.showBorder] }) })] })] }), _jsxs(Section, { children: [_jsx(SectionTitle, { children: t.margins }), _jsxs(MarginGrid, { children: [_jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.top }), _jsx(NumberInput, { value: settings.margins.top, min: 0, max: 50, onChange: e => updateMargin('top', Number(e.target.value)) })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.right }), _jsx(NumberInput, { value: settings.margins.right, min: 0, max: 50, onChange: e => updateMargin('right', Number(e.target.value)) })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.bottom }), _jsx(NumberInput, { value: settings.margins.bottom, min: 0, max: 50, onChange: e => updateMargin('bottom', Number(e.target.value)) })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.left }), _jsx(NumberInput, { value: settings.margins.left, min: 0, max: 50, onChange: e => updateMargin('left', Number(e.target.value)) })] })] })] })] }), _jsxs(ModalFooter, { children: [_jsx(FooterButton, { onClick: onClose, children: t.cancel }), _jsx(FooterButton, { "$primary": true, onClick: handlePrint, children: t.print })] })] }) }));
+    return (_jsx(Overlay, { onClick: onClose, children: _jsxs(ModalBox, { onClick: e => e.stopPropagation(), children: [_jsx(ModalHeader, { children: t.title }), _jsxs(ModalBody, { children: [_jsx(Section, { children: _jsxs(CheckboxRow, { children: [_jsx("input", { type: "checkbox", checked: settings.includeComments, onChange: e => update('includeComments', e.target.checked) }), _jsx("span", { style: { fontWeight: 600 }, children: t.includeComments })] }) }), _jsxs(Section, { children: [_jsx(SectionTitle, { children: t.presets }), _jsx(PresetRow, { children: PRESETS.map((p, i) => (_jsx(PresetChip, { "$active": activePreset === i, onClick: () => applyPreset(i), children: language === 'ko' ? p.labelKo : p.label }, i))) })] }), _jsxs(Section, { children: [_jsx(SectionTitle, { children: t.header }), _jsxs(InputRow, { children: [_jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.left }), _jsx(StyledInput, { value: settings.headerLeft, onChange: e => update('headerLeft', e.target.value), placeholder: "" })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.center }), _jsx(StyledInput, { value: settings.headerCenter, onChange: e => update('headerCenter', e.target.value), placeholder: "" })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.right }), _jsx(StyledInput, { value: settings.headerRight, onChange: e => update('headerRight', e.target.value), placeholder: "" })] })] })] }), _jsxs(Section, { children: [_jsx(SectionTitle, { children: t.footer }), _jsxs(InputRow, { children: [_jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.left }), _jsx(StyledInput, { value: settings.footerLeft, onChange: e => update('footerLeft', e.target.value), placeholder: "" })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.center }), _jsx(StyledInput, { value: settings.footerCenter, onChange: e => update('footerCenter', e.target.value), placeholder: "" })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.right }), _jsx(StyledInput, { value: settings.footerRight, onChange: e => update('footerRight', e.target.value), placeholder: "" })] })] }), _jsx(VariableHint, { children: t.variables })] }), _jsxs(Section, { children: [_jsx(SectionTitle, { children: t.pageNumber }), _jsxs(InputRow, { children: [_jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.position }), _jsxs(SelectWrapper, { value: settings.pageNumber, onChange: e => update('pageNumber', e.target.value), children: [_jsx("option", { value: "none", children: t.none }), _jsx("option", { value: "bottom-center", children: t.bottomCenter }), _jsx("option", { value: "bottom-left", children: t.bottomLeft }), _jsx("option", { value: "bottom-right", children: t.bottomRight }), _jsx("option", { value: "top-center", children: t.topCenter }), _jsx("option", { value: "top-left", children: t.topLeft }), _jsx("option", { value: "top-right", children: t.topRight })] })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.format }), _jsxs(SelectWrapper, { value: settings.pageNumberFormat, onChange: e => update('pageNumberFormat', e.target.value), disabled: settings.pageNumber === 'none', children: [_jsx("option", { value: "number", children: t.fmtNumber }), _jsx("option", { value: "dash-number", children: t.fmtDash }), _jsx("option", { value: "page-n", children: t.fmtPage }), _jsx("option", { value: "n-of-total", children: t.fmtTotal })] })] }), _jsx(InputGroup, { style: { justifyContent: 'flex-end' }, children: _jsxs(CheckboxRow, { children: [_jsx("input", { type: "checkbox", checked: settings.showBorder, onChange: e => update('showBorder', e.target.checked) }), t.showBorder] }) })] }), _jsxs(CheckboxRow, { style: { marginTop: '8px' }, children: [_jsx("input", { type: "checkbox", checked: settings.excludeFirstPageNumber, onChange: e => update('excludeFirstPageNumber', e.target.checked), disabled: settings.pageNumber === 'none' }), t.excludeFirstPageNumber] })] }), _jsxs(Section, { children: [_jsx(SectionTitle, { children: t.margins }), _jsxs(MarginGrid, { children: [_jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.top }), _jsx(NumberInput, { value: settings.margins.top, min: 0, max: 50, onChange: e => updateMargin('top', Number(e.target.value)) })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.right }), _jsx(NumberInput, { value: settings.margins.right, min: 0, max: 50, onChange: e => updateMargin('right', Number(e.target.value)) })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.bottom }), _jsx(NumberInput, { value: settings.margins.bottom, min: 0, max: 50, onChange: e => updateMargin('bottom', Number(e.target.value)) })] }), _jsxs(InputGroup, { children: [_jsx(InputLabel, { children: t.left }), _jsx(NumberInput, { value: settings.margins.left, min: 0, max: 50, onChange: e => updateMargin('left', Number(e.target.value)) })] })] })] })] }), _jsxs(ModalFooter, { children: [_jsx(FooterButton, { onClick: onClose, children: t.cancel }), _jsx(FooterButton, { "$primary": true, onClick: handlePrint, children: t.print })] })] }) }));
 };

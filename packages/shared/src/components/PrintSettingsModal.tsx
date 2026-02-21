@@ -24,6 +24,7 @@ export interface PrintSettings {
     margins: PrintMargins;
     showBorder: boolean;
     includeComments: boolean;
+    excludeFirstPageNumber: boolean;
 }
 
 const DEFAULT_SETTINGS: PrintSettings = {
@@ -38,6 +39,7 @@ const DEFAULT_SETTINGS: PrintSettings = {
     margins: { top: 15, right: 15, bottom: 15, left: 15 },
     showBorder: false,
     includeComments: false,
+    excludeFirstPageNumber: false,
 };
 
 // ─── Storage helpers ─────────────────────────────────────────────────────
@@ -102,6 +104,10 @@ export function executePrint(settings: PrintSettings, title?: string) {
             #root, #app-root {
                 width: 100% !important;
                 display: block !important;
+            }
+
+            :root {
+                --print-total-pages: "0";
             }
 
             /* Prevent content from overlapping headers/footers if they are fixed */
@@ -181,7 +187,7 @@ export function executePrint(settings: PrintSettings, title?: string) {
             
             /* Ensure page counter starts correctly */
             body {
-                counter-reset: page 1;
+                counter-reset: page 0;
             }
 
             /* Hide UI elements */
@@ -240,6 +246,60 @@ export function executePrint(settings: PrintSettings, title?: string) {
     const filename = `${title || 'Untitled'}_${dateStr}_${timeStr}`;
     document.title = filename;
 
+    // --- Precise Page Measurement ---
+    let effectiveTotal = 1;
+    try {
+        const contentEl = document.querySelector('.markdown-view') || document.querySelector('.MainWrapper') || document.getElementById('root') || document.body;
+        const pxPerMm = 96 / 25.4;
+        const widthPx = (210 - m.left - m.right) * pxPerMm;
+        const heightPx = (297 - m.top - m.bottom) * pxPerMm;
+
+        // Clone content to measure in A4 context
+        const clone = contentEl.cloneNode(true) as HTMLElement;
+        clone.id = 'print-measurement-clone';
+        clone.style.cssText = `
+            position: absolute !important;
+            left: -10000px !important;
+            top: 0 !important;
+            width: ${widthPx}px !important;
+            height: auto !important;
+            visibility: hidden !important;
+            display: block !important;
+            margin: 0 !important;
+            padding: 10mm !important; 
+        `;
+
+        // Match child element styles for measurement
+        const style = document.createElement('style');
+        style.id = 'print-measurement-style';
+        style.textContent = `
+            #print-measurement-clone * { 
+                height: auto !important; 
+                min-height: 0 !important; 
+                overflow: visible !important; 
+                display: block !important;
+            }
+        `;
+        document.head.appendChild(style);
+        document.body.appendChild(clone);
+
+        const totalH = clone.offsetHeight;
+        const total = Math.ceil(totalH / heightPx) || 1;
+        effectiveTotal = settings.excludeFirstPageNumber ? Math.max(1, total - 1) : total;
+
+        // Inject measured total
+        const totalVarStyle = document.createElement('style');
+        totalVarStyle.id = 'print-total-pages-var';
+        totalVarStyle.textContent = `:root { --print-total-pages: "${effectiveTotal}"; }`;
+        document.head.appendChild(totalVarStyle);
+
+        // Cleanup measurement artifacts
+        document.body.removeChild(clone);
+        document.getElementById('print-measurement-style')?.remove();
+    } catch (e) {
+        console.error('JS measurement failed', e);
+    }
+
     // Wait a tick for the browser to apply styles, then print
     requestAnimationFrame(() => {
         window.print();
@@ -247,6 +307,7 @@ export function executePrint(settings: PrintSettings, title?: string) {
         setTimeout(() => {
             document.title = originalTitle;
             document.getElementById('print-settings-style')?.remove();
+            document.getElementById('print-total-pages-var')?.remove();
             document.getElementById('print-hf-wrapper')?.remove();
         }, 1000);
     });
@@ -305,10 +366,16 @@ function buildPageNumberCss(settings: PrintSettings): string {
     if (settings.pageNumber === 'none') return '';
 
     let counterContent: string;
+    let totalContent: string = 'counter(pages)';
+
+    if (settings.excludeFirstPageNumber) {
+        totalContent = 'var(--print-total-pages)';
+    }
+
     switch (settings.pageNumberFormat) {
         case 'dash-number': counterContent = `"- " counter(page) " -"`; break;
         case 'page-n': counterContent = `"Page " counter(page)`; break;
-        case 'n-of-total': counterContent = `counter(page) " / " counter(pages)`; break;
+        case 'n-of-total': counterContent = `counter(page) " / " ${totalContent}`; break;
         default: counterContent = `counter(page)`; break;
     }
 
@@ -327,6 +394,7 @@ function buildPageNumberCss(settings: PrintSettings): string {
     return `
         @media print {
             @page {
+                counter-increment: page;
                 ${marginBox ? `${marginBox} { 
                     content: ${counterContent}; 
                     font-size: 8pt; 
@@ -334,6 +402,14 @@ function buildPageNumberCss(settings: PrintSettings): string {
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 }` : ''}
             }
+
+            ${settings.excludeFirstPageNumber && marginBox ? `
+            @page :first {
+                ${marginBox} { content: none !important; }
+                counter-increment: none;
+                counter-set: page 0;
+            }
+            ` : ''}
             
             /* Fallback/Legacy technique for page numbers */
             .print-page-number::after {
@@ -405,6 +481,7 @@ const T = {
         fmtPage: 'Page 1, Page 2',
         fmtTotal: '1 / 5',
         includeComments: 'Include Comments',
+        excludeFirstPageNumber: 'Exclude on first page',
     },
     ko: {
         title: '인쇄 설정',
@@ -436,6 +513,7 @@ const T = {
         fmtPage: 'Page 1, Page 2',
         fmtTotal: '1 / 5',
         includeComments: '댓글 포함',
+        excludeFirstPageNumber: '첫 페이지는 페이지 번호 제외',
     },
 };
 
@@ -761,6 +839,10 @@ export const PrintSettingsModal: React.FC<PrintSettingsModalProps> = ({
                                 </CheckboxRow>
                             </InputGroup>
                         </InputRow>
+                        <CheckboxRow style={{ marginTop: '8px' }}>
+                            <input type="checkbox" checked={settings.excludeFirstPageNumber} onChange={e => update('excludeFirstPageNumber', e.target.checked)} disabled={settings.pageNumber === 'none'} />
+                            {t.excludeFirstPageNumber}
+                        </CheckboxRow>
                     </Section>
 
                     {/* Margins */}
@@ -792,6 +874,6 @@ export const PrintSettingsModal: React.FC<PrintSettingsModalProps> = ({
                     <FooterButton $primary onClick={handlePrint}>{t.print}</FooterButton>
                 </ModalFooter>
             </ModalBox>
-        </Overlay>
+        </Overlay >
     );
 };
