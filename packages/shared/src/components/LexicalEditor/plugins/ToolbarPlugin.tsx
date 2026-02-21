@@ -1147,6 +1147,7 @@ export function ToolbarPlugin(props: {
                     <Tooltip content={t.toolbar.page_break || "Page Break"}>
                         <ToolbarButton
                             onClick={() => editor.dispatchCommand(INSERT_PAGE_BREAK_COMMAND, undefined)}
+                            onMouseDown={(e) => e.preventDefault()}
                             title={t.toolbar.page_break || "Page Break"}
                         >
                             <MdOutlineInsertPageBreak size={18} />

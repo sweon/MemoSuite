@@ -67,7 +67,7 @@ const MATCHERS = [
         };
     },
 ];
-const EditorContainer = styled.div `
+const EditorContainer = styled.div`
   position: relative;
   text-align: left;
   border-radius: 8px;
@@ -78,7 +78,7 @@ const EditorContainer = styled.div `
   overflow: visible;
   container-type: inline-size;
 `;
-const Content = styled(ContentEditable) `
+const Content = styled(ContentEditable)`
   min-height: 300px;
   outline: none;
   padding: 0.5rem;
@@ -754,7 +754,9 @@ function MarkdownSyncPlugin({ value, onChange }) {
             // 1. Normalize line endings and alignment tags
             const normalized = markdown.replace(/\r\n/g, '\n');
             // 1B. Pre-process page breaks
-            const withPageBreaks = normalized.replace(/<div(?: class="page-break")? style="page-break-after: always;"><\/div>/g, '\\newpage');
+            const withPageBreaks = normalized.replace(/<div(?: class="page-break")? style="page-break-after: always;"><\/div>/g, '\\newpage')
+                .replace(/\\newpage/g, '\n\n\\newpage\n\n')
+                .replace(/\n\n\n+/g, '\n\n');
             const alignmentCleaned = withPageBreaks.replace(/<(p|h[1-6]|blockquote) align="(\w+)">([\s\S]*?)<\/\1>/gi, '<$1 align="$2">$3');
             // 2. Pre-process collapsible blocks
             const collapsibleBlocks = [];

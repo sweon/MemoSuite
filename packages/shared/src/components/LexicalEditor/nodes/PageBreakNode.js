@@ -43,7 +43,7 @@ export class PageBreakNode extends DecoratorNode {
         };
     }
     getTextContent() {
-        return "\\newpage";
+        return "\n\n\\newpage\n\n";
     }
     createDOM() {
         const el = document.createElement("div");
@@ -56,7 +56,8 @@ export class PageBreakNode extends DecoratorNode {
         return false;
     }
     decorate() {
-        return (_jsxs("div", { style: {
+        return (_jsxs("div", {
+            style: {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'flex-end',
@@ -66,26 +67,31 @@ export class PageBreakNode extends DecoratorNode {
                 userSelect: 'none',
                 pageBreakAfter: 'always',
                 breakAfter: 'page'
-            }, contentEditable: false, children: [_jsx("div", { className: "no-print", style: {
-                        position: 'absolute',
-                        top: '50%',
-                        left: 0,
-                        right: 0,
-                        borderTop: '2px dashed #999',
-                        zIndex: 0
-                    } }), _jsx("div", { className: "no-print", style: {
-                        background: '#fff',
-                        color: '#999',
-                        padding: '2px 8px',
-                        fontSize: '12px',
-                        borderRadius: '4px',
-                        border: '1px solid #ddd',
-                        zIndex: 1,
-                        position: 'relative',
-                        textTransform: 'uppercase',
-                        letterSpacing: '1px',
-                        marginRight: '20px'
-                    }, children: "Page Break" })] }));
+            }, contentEditable: false, children: [_jsx("div", {
+                className: "no-print", style: {
+                    position: 'absolute',
+                    top: '50%',
+                    left: 0,
+                    right: 0,
+                    borderTop: '2px dashed #999',
+                    zIndex: 0
+                }
+            }), _jsx("div", {
+                className: "no-print", style: {
+                    background: '#fff',
+                    color: '#999',
+                    padding: '2px 8px',
+                    fontSize: '12px',
+                    borderRadius: '4px',
+                    border: '1px solid #ddd',
+                    zIndex: 1,
+                    position: 'relative',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    marginRight: '20px'
+                }, children: "Page Break"
+            })]
+        }));
     }
 }
 export function $createPageBreakNode() {

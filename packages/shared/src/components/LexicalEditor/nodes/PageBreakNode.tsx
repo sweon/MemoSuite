@@ -55,7 +55,7 @@ export class PageBreakNode extends DecoratorNode<React.JSX.Element> {
     }
 
     getTextContent(): string {
-        return "\\newpage";
+        return "\n\n\\newpage\n\n";
     }
 
     createDOM(): HTMLElement {

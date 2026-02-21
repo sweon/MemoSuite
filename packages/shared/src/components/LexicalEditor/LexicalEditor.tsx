@@ -823,7 +823,10 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
       const normalized = markdown.replace(/\r\n/g, '\n');
 
       // 1B. Pre-process page breaks
-      const withPageBreaks = normalized.replace(/<div(?: class="page-break")? style="page-break-after: always;"><\/div>/g, '\\newpage');
+      const withPageBreaks = normalized
+        .replace(/<div(?: class="page-break")? style="page-break-after: always;"><\/div>/g, '\\newpage')
+        .replace(/\\newpage/g, '\n\n\\newpage\n\n')
+        .replace(/\n\n\n+/g, '\n\n');
 
       const alignmentCleaned = withPageBreaks.replace(/<(p|h[1-6]|blockquote) align="(\w+)">([\s\S]*?)<\/\1>/gi, '<$1 align="$2">$3');
 
