@@ -67,7 +67,6 @@ export function executePrint(settings: PrintSettings, title?: string) {
     document.getElementById('print-settings-style')?.remove();
     document.getElementById('print-total-pages-var')?.remove();
 
-    const m = settings.margins;
     const printLayoutCss = buildPrintLayoutStyles(settings, title);
 
     // Inject unified style
