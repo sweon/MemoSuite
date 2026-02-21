@@ -1641,7 +1641,7 @@ export const MemoDetail: React.FC = () => {
         )}
 
         {!isEditing && !isNew && memo && (
-          <CommentsWrapper>
+          <CommentsWrapper className="print-comments-section">
             <CommentsSection
               key={`${memo.id!}-${commentRestorationVersion}`}
               memoId={memo.id!}

@@ -1290,7 +1290,7 @@ export const LogDetail: React.FC = () => {
         </ContentPadding>
 
         {!isEditing && !isNew && log && (
-          <CommentsWrapper>
+          <CommentsWrapper className="print-comments-section">
             <CommentsSection logId={Number(id)} />
           </CommentsWrapper>
         )}

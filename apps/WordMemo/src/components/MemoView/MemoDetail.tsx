@@ -1734,7 +1734,7 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
           </ContentPadding>
         )}
         {!isEditing && !isNew && word && (
-          <CommentsWrapper>
+          <CommentsWrapper className="print-comments-section">
             <CommentsSection
               wordId={word.id!}
               initialEditingState={commentDraft}

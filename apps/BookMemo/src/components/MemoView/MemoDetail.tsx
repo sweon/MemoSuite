@@ -1413,7 +1413,7 @@ export const MemoDetail: React.FC = () => {
                 )}
 
                 {!isEditing && !isNew && memo && (
-                    <CommentsWrapper>
+                    <CommentsWrapper className="print-comments-section">
                         <CommentsSection
                             memoId={memo.id!}
                             initialEditingState={commentDraft}

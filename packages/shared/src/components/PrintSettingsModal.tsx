@@ -23,6 +23,7 @@ export interface PrintSettings {
     pageNumberFormat: PageNumberFormat;
     margins: PrintMargins;
     showBorder: boolean;
+    includeComments: boolean;
 }
 
 const DEFAULT_SETTINGS: PrintSettings = {
@@ -36,6 +37,7 @@ const DEFAULT_SETTINGS: PrintSettings = {
     pageNumberFormat: 'number',
     margins: { top: 15, right: 15, bottom: 15, left: 15 },
     showBorder: false,
+    includeComments: false,
 };
 
 // ─── Storage helpers ─────────────────────────────────────────────────────
@@ -90,13 +92,16 @@ export function executePrint(settings: PrintSettings, title?: string) {
                 overflow: visible !important;
             }
             
-            #root, #app-root {
+            #root, #app-root, .MainWrapper, [class*="MainWrapper"], .ScrollContainer, [class*="ScrollContainer"], body * {
                 height: auto !important;
                 min-height: 0 !important;
                 overflow: visible !important;
+                position: static !important;
+            }
+            
+            #root, #app-root {
                 width: 100% !important;
                 display: block !important;
-                position: static !important;
             }
 
             /* Prevent content from overlapping headers/footers if they are fixed */
@@ -189,6 +194,32 @@ export function executePrint(settings: PrintSettings, title?: string) {
             .no-print, button {
                 display: none !important;
             }
+
+            /* Conditional display for comments */
+            .print-comments-section {
+                display: ${settings.includeComments ? 'block' : 'none'} !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                height: auto !important;
+                overflow: visible !important;
+                page-break-before: auto !important;
+            }
+
+            /* Ensure comment content within the section is visible */
+            ${settings.includeComments ? `
+            .print-comments-section * {
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            .print-comments-section [class*="Header"], 
+            .print-comments-section [class*="header"] {
+                display: flex !important;
+            }
+            .print-comments-section [class*="CommentItem"],
+            .print-comments-section [class*="MarkdownContainer"] {
+                display: block !important;
+            }
+            ` : ''}
         }
         @media screen {
             #print-hf-wrapper { display: none !important; }
@@ -373,6 +404,7 @@ const T = {
         fmtDash: '- 1 -, - 2 -',
         fmtPage: 'Page 1, Page 2',
         fmtTotal: '1 / 5',
+        includeComments: 'Include Comments',
     },
     ko: {
         title: '인쇄 설정',
@@ -403,6 +435,7 @@ const T = {
         fmtDash: '- 1 -, - 2 -',
         fmtPage: 'Page 1, Page 2',
         fmtTotal: '1 / 5',
+        includeComments: '댓글 포함',
     },
 };
 
@@ -637,6 +670,14 @@ export const PrintSettingsModal: React.FC<PrintSettingsModalProps> = ({
             <ModalBox onClick={e => e.stopPropagation()}>
                 <ModalHeader>{t.title}</ModalHeader>
                 <ModalBody>
+                    {/* General Options */}
+                    <Section>
+                        <CheckboxRow>
+                            <input type="checkbox" checked={settings.includeComments} onChange={e => update('includeComments', e.target.checked)} />
+                            <span style={{ fontWeight: 600 }}>{t.includeComments}</span>
+                        </CheckboxRow>
+                    </Section>
+
                     {/* Presets */}
                     <Section>
                         <SectionTitle>{t.presets}</SectionTitle>
