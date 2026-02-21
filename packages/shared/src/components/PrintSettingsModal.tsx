@@ -3,7 +3,7 @@ import styled from 'styled-components';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 export type PageNumberPosition = 'none' | 'bottom-center' | 'bottom-left' | 'bottom-right' | 'top-center' | 'top-left' | 'top-right';
-export type PageNumberFormat = 'number' | 'dash-number' | 'page-n' | 'n-of-total';
+export type PageNumberFormat = 'number' | 'dash-number' | 'page-n';
 
 export interface PrintMargins {
     top: number;    // mm
@@ -87,7 +87,7 @@ export function executePrint(settings: PrintSettings, title?: string) {
                 color: black !important;
             }
             
-            #root, #app-root, .MainWrapper, [class*="MainWrapper"], .ScrollContainer, [class*="ScrollContainer"], body * {
+            #root, #app-root, .MainWrapper, [class*="MainWrapper"], .ScrollContainer, [class*="ScrollContainer"] {
                 height: auto !important;
                 min-height: 0 !important;
                 overflow: visible !important;
@@ -99,9 +99,7 @@ export function executePrint(settings: PrintSettings, title?: string) {
                 display: block !important;
             }
 
-            :root {
-                --print-total-pages: "0";
-            }
+
 
             .page-break {
                 display: block !important;
@@ -154,33 +152,8 @@ export function executePrint(settings: PrintSettings, title?: string) {
     const filename = `${title || 'Untitled'}_${dateStr}_${timeStr}`;
     document.title = filename;
 
-    // --- Page Counting ---
-    const contentEl = document.querySelector('.markdown-view') || document.querySelector('.MainWrapper') || document.getElementById('root') || document.body;
-    if (contentEl) {
-        try {
-            const pxPerMm = 96 / 25.4;
-            const widthPx = (210 - m.left - m.right) * pxPerMm;
-            const heightPx = (297 - m.top - m.bottom) * pxPerMm;
-            const clone = contentEl.cloneNode(true) as HTMLElement;
-            clone.id = 'print-measurement-clone';
-            clone.style.cssText = `position:absolute;left:-10000px;width:${widthPx}px;height:auto;visibility:hidden;display:block;margin:0;padding:10mm;`;
-            const mStyle = document.createElement('style');
-            mStyle.id = 'print-measurement-style';
-            mStyle.textContent = `#print-measurement-clone * { height:auto !important; min-height:0 !important; overflow:visible !important; display:block !important; }`;
-            document.head.appendChild(mStyle);
-            document.body.appendChild(clone);
-            const total = Math.ceil(clone.offsetHeight / heightPx) || 1;
-            const effectiveTotal = settings.excludeFirstPageNumber ? Math.max(1, total - 1) : total;
-            const totalVarStyle = document.createElement('style');
-            totalVarStyle.id = 'print-total-pages-var';
-            totalVarStyle.textContent = `:root { --print-total-pages: "${effectiveTotal}"; }`;
-            document.head.appendChild(totalVarStyle);
-            document.body.removeChild(clone);
-            mStyle.remove();
-        } catch (e) {
-            console.error('Measurement failed', e);
-        }
-    }
+    // We completely skip the flawed JS-based clone height measurement.
+    // Instead, we will rely entirely on the native browser CSS counter(pages).
 
     // Stabilizing Delay
     setTimeout(() => {
@@ -218,11 +191,10 @@ function buildPrintLayoutStyles(settings: PrintSettings, title?: string): string
     };
 
     const counterContent = (format: PageNumberFormat) => {
-        const total = 'var(--print-total-pages)';
+        // Use browser-native CSS page counters instead of JS-calculated variables!
         switch (format) {
             case 'dash-number': return `"- " counter(page) " -"`;
             case 'page-n': return `"Page " counter(page)`;
-            case 'n-of-total': return `counter(page) " / " ${total}`;
             default: return `counter(page)`;
         }
     };
@@ -299,7 +271,7 @@ const PRESETS: Preset[] = [
     },
     {
         label: 'Standard', labelKo: '표준',
-        apply: s => ({ ...s, headerLeft: '{title}', headerCenter: '', headerRight: '{date}', footerLeft: '', footerCenter: '', footerRight: '', pageNumber: 'bottom-center' as PageNumberPosition, pageNumberFormat: 'n-of-total' as PageNumberFormat, showBorder: true }),
+        apply: s => ({ ...s, headerLeft: '{title}', headerCenter: '', headerRight: '{date}', footerLeft: '', footerCenter: '', footerRight: '', pageNumber: 'bottom-center' as PageNumberPosition, pageNumberFormat: 'number' as PageNumberFormat, showBorder: true }),
     },
     {
         label: 'Academic', labelKo: '학술용',
@@ -691,7 +663,6 @@ export const PrintSettingsModal: React.FC<PrintSettingsModalProps> = ({
                                     <option value="number">{t.fmtNumber}</option>
                                     <option value="dash-number">{t.fmtDash}</option>
                                     <option value="page-n">{t.fmtPage}</option>
-                                    <option value="n-of-total">{t.fmtTotal}</option>
                                 </SelectWrapper>
                             </InputGroup>
                             <InputGroup style={{ justifyContent: 'flex-end' }}>

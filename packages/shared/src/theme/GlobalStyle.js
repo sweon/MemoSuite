@@ -198,9 +198,9 @@ export const GlobalStyle = createGlobalStyle `
       visibility: hidden;
     }
     
-    /* Ensure all descendants of content area are visible and expanding */
-    #app-content-wrapper-area *:not(.page-break):not(.page-break-container):not([data-page-break]),
-    .MarkdownView *:not(.page-break):not(.page-break-container):not([data-page-break]) {
+    /* Ensure content area and scroll bounds expand to visible */
+    #app-content-wrapper-area,
+    .MarkdownView {
       overflow: visible !important;
       height: auto !important;
       max-height: none !important;
