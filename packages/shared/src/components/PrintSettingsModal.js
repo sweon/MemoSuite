@@ -32,26 +32,19 @@ function savePrintSettings(appName, settings) {
     localStorage.setItem(STORAGE_KEY(appName), JSON.stringify(settings));
 }
 // ─── Print execution ─────────────────────────────────────────────────────
+// ─── Print execution ─────────────────────────────────────────────────────
 export function executePrint(settings, title) {
-    // Build @page CSS
+    // Cleanup any existing print artifacts from previous runs
+    document.getElementById('print-settings-style')?.remove();
+    document.getElementById('print-total-pages-var')?.remove();
     const m = settings.margins;
-    const pageCss = `@page { 
-        size: auto;
-        margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; 
-    }`;
-    // Build page numbers via @page margin boxes for modern browsers (Chrome 131+, Firefox)
-    const pageNumCss = buildPageNumberCss(settings);
-    // Build header / footer running elements via fixed-position boxes
-    const headerHtml = buildRunningElement('print-header', settings.headerLeft, settings.headerCenter, settings.headerRight, 'top', m, settings.showBorder, title, settings.pageNumber);
-    const footerHtml = buildRunningElement('print-footer', settings.footerLeft, settings.footerCenter, settings.footerRight, 'bottom', m, settings.showBorder, title, settings.pageNumber);
-    // Inject style + elements
+    const printLayoutCss = buildPrintLayoutStyles(settings, title);
+    // Inject unified style
     const styleEl = document.createElement('style');
     styleEl.id = 'print-settings-style';
     styleEl.textContent = `
-        ${pageCss}
-        ${pageNumCss}
         @media print {
-            /* Global Reset for Print */
+            /* Global Reset & Page Metrics */
             html, body {
                 margin: 0 !important;
                 padding: 0 !important;
@@ -60,6 +53,7 @@ export function executePrint(settings, title) {
                 height: auto !important;
                 display: block !important;
                 overflow: visible !important;
+                color: black !important;
             }
             
             #root, #app-root, .MainWrapper, [class*="MainWrapper"], .ScrollContainer, [class*="ScrollContainer"], body * {
@@ -78,13 +72,6 @@ export function executePrint(settings, title) {
                 --print-total-pages: "0";
             }
 
-            /* Prevent content from overlapping headers/footers if they are fixed */
-            /* We use fixed positioning to repeat on every page */
-            
-            #print-hf-wrapper {
-                display: block !important;
-            }
-
             .page-break {
                 display: block !important;
                 height: 0 !important;
@@ -95,65 +82,7 @@ export function executePrint(settings, title) {
                 padding: 0 !important;
             }
 
-            #print-header-container, #print-footer-container {
-                display: block !important;
-                position: fixed;
-                left: 0; 
-                right: 0;
-                z-index: 99999;
-                font-size: 8pt;
-                color: #666;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                background: transparent;
-                pointer-events: none;
-                width: 100%;
-                box-sizing: border-box;
-            }
-
-            #print-header-container {
-                /* Place it within the top margin */
-                top: calc(-${m.top}mm + 5mm);
-            }
-
-            #print-footer-container {
-                /* Place it within the bottom margin */
-                bottom: calc(-${m.bottom}mm + 5mm);
-            }
-
-            .print-hf-row {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                width: 100%;
-                padding: 0;
-            }
-
-            .print-hf-cell {
-                flex: 1;
-                /* Limit height to prevent expansion */
-                max-height: 10mm;
-                overflow: hidden;
-                white-space: nowrap;
-                text-overflow: ellipsis;
-            }
-
-            .print-hf-cell.left { text-align: left; }
-            .print-hf-cell.center { text-align: center; }
-            .print-hf-cell.right { text-align: right; }
-
-            #print-header-container .print-border-line {
-                border-bottom: 0.2pt solid #ccc;
-                margin-top: 2px;
-                width: 100%;
-            }
-
-            #print-footer-container .print-border-line {
-                border-top: 0.2pt solid #ccc;
-                margin-bottom: 2px;
-                width: 100%;
-            }
-            
-            /* Ensure page counter starts correctly */
+            /* Ensure page counter starts correctly (Cover: 0, Page 2: 1) */
             body {
                 counter-reset: page 0;
             }
@@ -172,105 +101,63 @@ export function executePrint(settings, title) {
             /* Conditional display for comments */
             .print-comments-section {
                 display: ${settings.includeComments ? 'block' : 'none'} !important;
-                visibility: visible !important;
-                opacity: 1 !important;
                 height: auto !important;
                 overflow: visible !important;
-                page-break-before: auto !important;
             }
-
-            /* Ensure comment content within the section is visible */
             ${settings.includeComments ? `
-            .print-comments-section * {
-                visibility: visible !important;
-                opacity: 1 !important;
-            }
-            .print-comments-section [class*="Header"], 
-            .print-comments-section [class*="header"] {
-                display: flex !important;
-            }
-            .print-comments-section [class*="CommentItem"],
-            .print-comments-section [class*="MarkdownContainer"] {
-                display: block !important;
-            }
+            .print-comments-section * { visibility: visible !important; opacity: 1 !important; }
+            .print-comments-section [class*="Header"], .print-comments-section [class*="header"] { display: flex !important; }
             ` : ''}
-        }
-        @media screen {
-            #print-hf-wrapper { display: none !important; }
+
+            /* Header/Footer Layouts via @page margin boxes */
+            ${printLayoutCss}
         }
     `;
     document.head.appendChild(styleEl);
-    const wrapper = document.createElement('div');
-    wrapper.id = 'print-hf-wrapper';
-    wrapper.innerHTML = headerHtml + footerHtml;
-    document.body.appendChild(wrapper);
-    // Temporarily change document title for filename when saving as PDF
+    // Temporarily change document title for filename
     const originalTitle = document.title;
     const now = new Date();
     const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
     const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
     const filename = `${title || 'Untitled'}_${dateStr}_${timeStr}`;
     document.title = filename;
-    // --- Precise Page Measurement ---
-    let effectiveTotal = 1;
-    try {
-        const contentEl = document.querySelector('.markdown-view') || document.querySelector('.MainWrapper') || document.getElementById('root') || document.body;
-        const pxPerMm = 96 / 25.4;
-        const widthPx = (210 - m.left - m.right) * pxPerMm;
-        const heightPx = (297 - m.top - m.bottom) * pxPerMm;
-        // Clone content to measure in A4 context
-        const clone = contentEl.cloneNode(true);
-        clone.id = 'print-measurement-clone';
-        clone.style.cssText = `
-            position: absolute !important;
-            left: -10000px !important;
-            top: 0 !important;
-            width: ${widthPx}px !important;
-            height: auto !important;
-            visibility: hidden !important;
-            display: block !important;
-            margin: 0 !important;
-            padding: 10mm !important; 
-        `;
-        // Match child element styles for measurement
-        const style = document.createElement('style');
-        style.id = 'print-measurement-style';
-        style.textContent = `
-            #print-measurement-clone * { 
-                height: auto !important; 
-                min-height: 0 !important; 
-                overflow: visible !important; 
-                display: block !important;
-            }
-        `;
-        document.head.appendChild(style);
-        document.body.appendChild(clone);
-        const totalH = clone.offsetHeight;
-        const total = Math.ceil(totalH / heightPx) || 1;
-        effectiveTotal = settings.excludeFirstPageNumber ? Math.max(1, total - 1) : total;
-        // Inject measured total
-        const totalVarStyle = document.createElement('style');
-        totalVarStyle.id = 'print-total-pages-var';
-        totalVarStyle.textContent = `:root { --print-total-pages: "${effectiveTotal}"; }`;
-        document.head.appendChild(totalVarStyle);
-        // Cleanup measurement artifacts
-        document.body.removeChild(clone);
-        document.getElementById('print-measurement-style')?.remove();
+    // --- Page Counting ---
+    const contentEl = document.querySelector('.markdown-view') || document.querySelector('.MainWrapper') || document.getElementById('root') || document.body;
+    if (contentEl) {
+        try {
+            const pxPerMm = 96 / 25.4;
+            const widthPx = (210 - m.left - m.right) * pxPerMm;
+            const heightPx = (297 - m.top - m.bottom) * pxPerMm;
+            const clone = contentEl.cloneNode(true);
+            clone.id = 'print-measurement-clone';
+            clone.style.cssText = `position:absolute;left:-10000px;width:${widthPx}px;height:auto;visibility:hidden;display:block;margin:0;padding:10mm;`;
+            const mStyle = document.createElement('style');
+            mStyle.id = 'print-measurement-style';
+            mStyle.textContent = `#print-measurement-clone * { height:auto !important; min-height:0 !important; overflow:visible !important; display:block !important; }`;
+            document.head.appendChild(mStyle);
+            document.body.appendChild(clone);
+            const total = Math.ceil(clone.offsetHeight / heightPx) || 1;
+            const effectiveTotal = settings.excludeFirstPageNumber ? Math.max(1, total - 1) : total;
+            const totalVarStyle = document.createElement('style');
+            totalVarStyle.id = 'print-total-pages-var';
+            totalVarStyle.textContent = `:root { --print-total-pages: "${effectiveTotal}"; }`;
+            document.head.appendChild(totalVarStyle);
+            document.body.removeChild(clone);
+            mStyle.remove();
+        }
+        catch (e) {
+            console.error('Measurement failed', e);
+        }
     }
-    catch (e) {
-        console.error('JS measurement failed', e);
-    }
-    // Wait a tick for the browser to apply styles, then print
-    requestAnimationFrame(() => {
+    // Stabilizing Delay
+    setTimeout(() => {
         window.print();
-        // Cleanup after print dialog closes
         setTimeout(() => {
             document.title = originalTitle;
             document.getElementById('print-settings-style')?.remove();
             document.getElementById('print-total-pages-var')?.remove();
-            document.getElementById('print-hf-wrapper')?.remove();
         }, 1000);
-    });
+    }, 300);
 }
 function resolveVariable(text, title) {
     const now = new Date();
@@ -280,94 +167,75 @@ function resolveVariable(text, title) {
         .replace(/\{time\}/gi, now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
         .replace(/\{datetime\}/gi, now.toLocaleString());
 }
-function buildRunningElement(id, left, center, right, position, margins, showBorder, title, pageNumberPos = 'none') {
-    let resolvedL = resolveVariable(left, title);
-    let resolvedC = resolveVariable(center, title);
-    let resolvedR = resolveVariable(right, title);
-    if (pageNumberPos && pageNumberPos !== 'none') {
-        const [vPos, hPos] = pageNumberPos.split('-');
-        if (vPos === position) {
-            const pageNumHtml = '<span class="print-page-number"></span>';
-            if (hPos === 'left')
-                resolvedL = resolvedL ? `${resolvedL} ${pageNumHtml}` : pageNumHtml;
-            else if (hPos === 'center')
-                resolvedC = resolvedC ? `${resolvedC} ${pageNumHtml}` : pageNumHtml;
-            else if (hPos === 'right')
-                resolvedR = resolvedR ? `${resolvedR} ${pageNumHtml}` : pageNumHtml;
-        }
-    }
-    const hasContent = resolvedL || resolvedC || resolvedR;
-    if (!hasContent && !showBorder)
-        return '';
-    const borderHtml = showBorder ? `<div class="print-border-line"></div>` : '';
-    const containerStyle = `padding: 0 ${margins.right}mm 0 ${margins.left}mm;`;
-    return `<div id="${id}-container" style="${containerStyle}">
-        ${position === 'bottom' ? borderHtml : ''}
-        <div class="print-hf-row">
-            <div class="print-hf-cell left">${resolvedL}</div>
-            <div class="print-hf-cell center">${resolvedC}</div>
-            <div class="print-hf-cell right">${resolvedR}</div>
-        </div>
-        ${position === 'top' ? borderHtml : ''}
-    </div>`;
-}
-function buildPageNumberCss(settings) {
-    if (settings.pageNumber === 'none')
-        return '';
-    let counterContent;
-    let totalContent = 'counter(pages)';
-    if (settings.excludeFirstPageNumber) {
-        totalContent = 'var(--print-total-pages)';
-    }
-    switch (settings.pageNumberFormat) {
-        case 'dash-number':
-            counterContent = `"- " counter(page) " -"`;
-            break;
-        case 'page-n':
-            counterContent = `"Page " counter(page)`;
-            break;
-        case 'n-of-total':
-            counterContent = `counter(page) " / " ${totalContent}`;
-            break;
-        default:
-            counterContent = `counter(page)`;
-            break;
-    }
-    const posMap = {
-        'none': '',
-        'top-left': '@top-left',
-        'top-center': '@top-center',
-        'top-right': '@top-right',
-        'bottom-left': '@bottom-left',
-        'bottom-center': '@bottom-center',
-        'bottom-right': '@bottom-right',
+function buildPrintLayoutStyles(settings, title) {
+    const m = settings.margins;
+    const borderStyleValue = settings.showBorder ? '0.2pt solid #ccc' : 'none';
+    const resolver = (text) => resolveVariable(text, title);
+    const escape = (s) => s.replace(/"/g, '\\"');
+    const regions = {
+        '@top-left': escape(resolver(settings.headerLeft)),
+        '@top-center': escape(resolver(settings.headerCenter)),
+        '@top-right': escape(resolver(settings.headerRight)),
+        '@bottom-left': escape(resolver(settings.footerLeft)),
+        '@bottom-center': escape(resolver(settings.footerCenter)),
+        '@bottom-right': escape(resolver(settings.footerRight)),
     };
-    const marginBox = posMap[settings.pageNumber];
-    return `
-        @media print {
-            @page {
-                counter-increment: page;
-                ${marginBox ? `${marginBox} { 
-                    content: ${counterContent}; 
-                    font-size: 8pt; 
-                    color: #666; 
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                }` : ''}
-            }
-
-            ${settings.excludeFirstPageNumber && marginBox ? `
-            @page :first {
-                ${marginBox} { content: none !important; }
-                counter-increment: none;
-                counter-set: page 0;
-            }
-            ` : ''}
-            
-            /* Fallback/Legacy technique for page numbers */
-            .print-page-number::after {
-                content: ${counterContent};
-            }
+    const counterContent = (format) => {
+        const total = 'var(--print-total-pages)';
+        switch (format) {
+            case 'dash-number': return `"- " counter(page) " -"`;
+            case 'page-n': return `"Page " counter(page)`;
+            case 'n-of-total': return `counter(page) " / " ${total}`;
+            default: return `counter(page)`;
         }
+    };
+    const processedRegions = {};
+    for (const [region, content] of Object.entries(regions)) {
+        if (content)
+            processedRegions[region] = `"${content}"`;
+    }
+    if (settings.pageNumber !== 'none') {
+        const pNumRegion = `@${settings.pageNumber}`;
+        const existing = processedRegions[pNumRegion];
+        const pNumContent = counterContent(settings.pageNumberFormat);
+        processedRegions[pNumRegion] = existing ? `${existing} " " ${pNumContent}` : pNumContent;
+    }
+    const hasAnyTop = !!(processedRegions['@top-left'] || processedRegions['@top-center'] || processedRegions['@top-right']);
+    const hasAnyBottom = !!(processedRegions['@bottom-left'] || processedRegions['@bottom-center'] || processedRegions['@bottom-right']);
+    const topBorder = settings.showBorder && hasAnyTop ? borderStyleValue : 'none';
+    const bottomBorder = settings.showBorder && hasAnyBottom ? borderStyleValue : 'none';
+    const marginBoxBase = `font-size: 8pt; color: #666; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;`;
+    const clearAllMargins = `
+        @top-left { content: none !important; border: none !important; }
+        @top-center { content: none !important; border: none !important; }
+        @top-right { content: none !important; border: none !important; }
+        @bottom-left { content: none !important; border: none !important; }
+        @bottom-center { content: none !important; border: none !important; }
+        @bottom-right { content: none !important; border: none !important; }
+    `;
+    return `
+        /* Default Page Style */
+        @page {
+            size: auto;
+            margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm;
+            counter-increment: page;
+            
+            @top-left { content: ${processedRegions['@top-left'] || 'none'}; ${marginBoxBase} vertical-align: bottom; padding-bottom: 2mm; border-bottom: ${topBorder}; }
+            @top-center { content: ${processedRegions['@top-center'] || 'none'}; ${marginBoxBase} vertical-align: bottom; padding-bottom: 2mm; border-bottom: ${topBorder}; }
+            @top-right { content: ${processedRegions['@top-right'] || 'none'}; ${marginBoxBase} vertical-align: bottom; padding-bottom: 2mm; border-bottom: ${topBorder}; }
+            @bottom-left { content: ${processedRegions['@bottom-left'] || 'none'}; ${marginBoxBase} vertical-align: top; padding-top: 2mm; border-top: ${bottomBorder}; }
+            @bottom-center { content: ${processedRegions['@bottom-center'] || 'none'}; ${marginBoxBase} vertical-align: top; padding-top: 2mm; border-top: ${bottomBorder}; }
+            @bottom-right { content: ${processedRegions['@bottom-right'] || 'none'}; ${marginBoxBase} vertical-align: top; padding-top: 2mm; border-top: ${bottomBorder}; }
+        }
+
+        /* Exclusion for first page */
+        ${settings.excludeFirstPageNumber ? `
+        @page :first {
+            counter-increment: none;
+            counter-set: page 0;
+            ${clearAllMargins}
+        }
+        ` : ''}
     `;
 }
 const PRESETS = [
