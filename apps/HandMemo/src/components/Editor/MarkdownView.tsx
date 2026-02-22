@@ -958,6 +958,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
   const [duration, setDuration] = React.useState(0);
   const [playbackRateToast, setPlaybackRateToast] = React.useState<number | null>(null);
   const [isCaptionsOn, setIsCaptionsOn] = React.useState(false);
+  const isCaptionsOnRef = React.useRef(false);
   const [isCCSettingsOpen, setIsCCSettingsOpen] = React.useState(false);
   const [ccTracks, setCCTracks] = React.useState<any[]>([]);
   const [activeTrackCode, setActiveTrackCode] = React.useState<string>('off');
@@ -1097,6 +1098,12 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
               setIsPlaying(event.data === 1);
               if (event.data === 1) { // playing
                 ACTIVE_YT_VIDEO_ID = videoId;
+                if (isCaptionsOnRef.current && playerRef.current) {
+                  playerRef.current.loadModule('captions');
+                  setTimeout(() => {
+                    applyPreferredCaptionTrack();
+                  }, 500);
+                }
                 if (!intervalRef.current) {
                   intervalRef.current = setInterval(() => {
                     if (playerRef.current && playerRef.current.getCurrentTime) {
@@ -1300,6 +1307,54 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
     }
   };
 
+  const applyPreferredCaptionTrack = React.useCallback(() => {
+    const player = playerRef.current;
+    if (!player || !player.getOption) return;
+    try {
+      const tracks = player.getOption('captions', 'tracklist') || [];
+
+      // Re-calculate the options exactly as they appear in the <select>
+      const hasManualEn = tracks.some((t: any) => (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) && t.kind !== 'asr' && !t.languageCode?.startsWith('a.'));
+      const hasKo = tracks.some((t: any) => t.languageCode === 'ko' || t.languageCode === 'ko-KR');
+
+      const options: { code: string, isKoAuto?: boolean, isEnForce?: boolean }[] = [];
+      // 1. Manual tracks
+      tracks.forEach((t: any) => options.push({ code: t.languageCode }));
+      // 2. en-force
+      if (!hasManualEn) options.push({ code: 'en-force', isEnForce: true });
+      // 3. ko-auto
+      if (!hasKo) options.push({ code: 'ko-auto', isKoAuto: true });
+
+      if (options.length > 0) {
+        // Prioritize track matching UI language
+        const preferredOpt = options.find(opt => opt.code === language) ||
+          (language === 'ko' ? options.find(opt => opt.isKoAuto) : null) ||
+          (language === 'en' ? options.find(opt => opt.isEnForce) : null) ||
+          options[0];
+
+        if (preferredOpt.isKoAuto) {
+          const enTrack = tracks.find((t: any) => t.languageCode?.includes('en')) || tracks[0] || { languageCode: 'en' };
+          player.setOption('captions', 'track', { languageCode: enTrack.languageCode, translationLanguage: { languageCode: 'ko' } });
+          setActiveTrackCode('ko-auto');
+        } else if (preferredOpt.isEnForce) {
+          const enTrack = tracks.find((t: any) => (t.kind === 'asr' || t.languageCode?.startsWith('a.')) && t.languageCode?.includes('en')) || tracks.find((t: any) => t.languageCode?.includes('en')) || { languageCode: 'en' };
+          player.setOption('captions', 'track', { languageCode: enTrack.languageCode });
+          setActiveTrackCode('en-force');
+        } else {
+          player.setOption('captions', 'track', { languageCode: preferredOpt.code });
+          setActiveTrackCode(preferredOpt.code);
+        }
+      } else {
+        // No options available, turn off
+        player.unloadModule('captions');
+        setIsCaptionsOn(false);
+        isCaptionsOnRef.current = false;
+        setActiveTrackCode('off');
+      }
+      applyCaptionStyles();
+    } catch (e) { }
+  }, [language, applyCaptionStyles]);
+
   const toggleCaptions = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     const player = playerRef.current;
@@ -1308,53 +1363,14 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
       if (isCaptionsOn) {
         player.unloadModule('captions');
         setIsCaptionsOn(false);
+        isCaptionsOnRef.current = false;
         setActiveTrackCode('off');
       } else {
         player.loadModule('captions');
         setIsCaptionsOn(true);
+        isCaptionsOnRef.current = true;
         setTimeout(() => {
-          if (player.getOption) {
-            const tracks = player.getOption('captions', 'tracklist') || [];
-
-            // Re-calculate the options exactly as they appear in the <select>
-            const hasManualEn = tracks.some((t: any) => (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) && t.kind !== 'asr' && !t.languageCode?.startsWith('a.'));
-            const hasKo = tracks.some((t: any) => t.languageCode === 'ko' || t.languageCode === 'ko-KR');
-
-            const options: { code: string, isKoAuto?: boolean, isEnForce?: boolean }[] = [];
-            // 1. Manual tracks
-            tracks.forEach((t: any) => options.push({ code: t.languageCode }));
-            // 2. en-force
-            if (!hasManualEn) options.push({ code: 'en-force', isEnForce: true });
-            // 3. ko-auto
-            if (!hasKo) options.push({ code: 'ko-auto', isKoAuto: true });
-
-            if (options.length > 0) {
-              // Prioritize track matching UI language
-              const preferredOpt = options.find(opt => opt.code === language) ||
-                (language === 'ko' ? options.find(opt => opt.isKoAuto) : null) ||
-                (language === 'en' ? options.find(opt => opt.isEnForce) : null) ||
-                options[0];
-
-              if (preferredOpt.isKoAuto) {
-                const enTrack = tracks.find((t: any) => t.languageCode?.includes('en')) || tracks[0] || { languageCode: 'en' };
-                player.setOption('captions', 'track', { languageCode: enTrack.languageCode, translationLanguage: { languageCode: 'ko' } });
-                setActiveTrackCode('ko-auto');
-              } else if (preferredOpt.isEnForce) {
-                const enTrack = tracks.find((t: any) => (t.kind === 'asr' || t.languageCode?.startsWith('a.')) && t.languageCode?.includes('en')) || tracks.find((t: any) => t.languageCode?.includes('en')) || { languageCode: 'en' };
-                player.setOption('captions', 'track', { languageCode: enTrack.languageCode });
-                setActiveTrackCode('en-force');
-              } else {
-                player.setOption('captions', 'track', { languageCode: preferredOpt.code });
-                setActiveTrackCode(preferredOpt.code);
-              }
-            } else {
-              // No options available, turn off
-              player.unloadModule('captions');
-              setIsCaptionsOn(false);
-              setActiveTrackCode('off');
-            }
-          }
-          applyCaptionStyles();
+          applyPreferredCaptionTrack();
         }, 500);
       }
     } catch (e) { }
