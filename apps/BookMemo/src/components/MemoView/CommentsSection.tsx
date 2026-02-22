@@ -312,22 +312,46 @@ export const CommentsSection: React.FC<{
 
     const handleStartAdding = async () => {
         setIsAdding(true);
-        const lastActive = localStorage.getItem('yt_last_active');
-        if (lastActive) {
-            try {
-                const { videoId, time, timestamp } = JSON.parse(lastActive);
-                if (Date.now() - timestamp < 1000 * 60 * 60) {
-                    const videoTitle = await fetchYoutubeTitle(videoId);
-                    const timeStr = `${Math.floor(time / 60)}:${(time % 60).toString().padStart(2, '0')}`;
-                    const videoLink = `[${videoTitle ? `${videoTitle} (${timeStr})` : timeStr}](https://www.youtube.com/watch?v=${videoId}&t=${time})`;
+        try {
+            const lastActiveStr = localStorage.getItem('yt_last_active');
+            if (!lastActiveStr) return;
 
-                    if (newContent.trim()) {
-                        setNewContent(prev => prev.trim() + '\n' + videoLink);
-                    } else {
-                        setNewContent(videoLink);
-                    }
+            const { videoId: activeVideoId, time, timestamp } = JSON.parse(lastActiveStr);
+            if (Date.now() - timestamp > 60 * 60 * 1000) return;
+
+            // Retry mechanism for DB content check to handle sync lag
+            let doc = null;
+            for (let i = 0; i < 5; i++) {
+                doc = await db.memos.get(memoId);
+                if (doc && doc.content.includes(activeVideoId)) break;
+                await new Promise(r => setTimeout(r, 100 * (i + 1)));
+            }
+
+            if (!doc || !doc.content.includes(activeVideoId)) return;
+
+            // Fetch video title
+            let prefixLabel = '';
+            try {
+                const title = await fetchYoutubeTitle(activeVideoId);
+                if (title) {
+                    prefixLabel = title.trim() + ' ';
                 }
             } catch (e) { }
+
+            const hours = Math.floor(time / 3600);
+            const mins = Math.floor((time % 3600) / 60);
+            const secs = Math.floor(time % 60);
+            const timeStr = hours > 0
+                ? `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+                : `${mins}:${String(secs).padStart(2, '0')}`;
+
+            const link = `[${prefixLabel}${timeStr}](https://youtu.be/${activeVideoId}?t=${Math.floor(time)}) `;
+            setNewContent(prev => {
+                if (prev.includes(`https://youtu.be/${activeVideoId}?t=${Math.floor(time)}`)) return prev;
+                return (prev.trim() ? link + '\n\n' + prev : link);
+            });
+        } catch (e) {
+            console.error('Failed to auto-insert YT link', e);
         }
     };
 

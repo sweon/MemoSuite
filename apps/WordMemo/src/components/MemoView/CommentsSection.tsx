@@ -292,9 +292,16 @@ export const CommentsSection: React.FC<{
             if (!lastActiveStr) return;
 
             const { videoId: activeVideoId, time, timestamp } = JSON.parse(lastActiveStr);
-            if (Date.now() - timestamp > 30 * 60 * 1000) return;
+            if (Date.now() - timestamp > 60 * 60 * 1000) return; // 1 hour window
 
-            const wordDoc = await db.words.get(wordId);
+            // Retry mechanism for DB content check to handle sync lag
+            let wordDoc = null;
+            for (let i = 0; i < 5; i++) {
+                wordDoc = await db.words.get(wordId);
+                if (wordDoc && wordDoc.content.includes(activeVideoId)) break;
+                await new Promise(r => setTimeout(r, 100 * (i + 1)));
+            }
+
             if (!wordDoc || !wordDoc.content.includes(activeVideoId)) return;
 
             // Fetch video title
@@ -314,7 +321,10 @@ export const CommentsSection: React.FC<{
                 : `${mins}:${String(secs).padStart(2, '0')}`;
 
             const link = `[${prefixLabel}${timeStr}](https://youtu.be/${activeVideoId}?t=${Math.floor(time)}) `;
-            setNewContent(prev => (prev.trim() ? link + '\n\n' + prev : link));
+            setNewContent(prev => {
+                if (prev.includes(`https://youtu.be/${activeVideoId}?t=${Math.floor(time)}`)) return prev;
+                return (prev.trim() ? link + '\n\n' + prev : link);
+            });
         } catch (e) {
             console.error('Failed to auto-insert YT link', e);
         }
