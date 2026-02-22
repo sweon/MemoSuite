@@ -925,44 +925,6 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
                   applyCaptionStyles();
                 }, 1500);
 
-                // Auto-enable English ASR if no manual En tracks exist (likely an English video)
-                const player = playerRef.current;
-                setTimeout(() => {
-                  try {
-                    const tryAutoEnable = () => {
-                      if (!isMounted.current || !player.getOption) return false;
-                      const tracks = player.getOption('captions', 'tracklist') || [];
-
-                      // Check for manual English tracks
-                      const hasManualEn = tracks.some((t: any) =>
-                        (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) &&
-                        t.kind !== 'asr' && !t.languageCode?.startsWith('a.')
-                      );
-
-                      // Check for ASR English tracks
-                      const asrEn = tracks.find((t: any) =>
-                        (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) &&
-                        (t.kind === 'asr' || t.languageCode?.startsWith('a.'))
-                      );
-
-                      if (!hasManualEn && asrEn) {
-                        player.setOption('captions', 'track', { languageCode: asrEn.languageCode });
-                        setActiveTrackCode(asrEn.languageCode);
-                        setIsCaptionsOn(true);
-                        setTimeout(() => {
-                          if (isMounted.current) applyCaptionStyles();
-                        }, 500);
-                        return true;
-                      }
-                      return false;
-                    };
-
-                    // Initial try + retries since metadata can be slow
-                    if (!tryAutoEnable()) {
-                      setTimeout(() => { if (isMounted.current && !tryAutoEnable()) setTimeout(() => isMounted.current && tryAutoEnable(), 2000); }, 1000);
-                    }
-                  } catch (e) { }
-                }, 1500);
               }
             },
             onStateChange: (event: any) => {
@@ -1161,8 +1123,42 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
         player.loadModule('captions');
         setIsCaptionsOn(true);
         setTimeout(() => {
-          const currentTrack = player.getOption('captions', 'track');
-          if (currentTrack?.languageCode) setActiveTrackCode(currentTrack.languageCode);
+          if (player.getOption) {
+            const tracks = player.getOption('captions', 'tracklist') || [];
+
+            // Re-calculate the options exactly as they appear in the <select>
+            const hasManualEn = tracks.some((t: any) => (t.languageCode?.includes('en') || t.displayName?.toLowerCase().includes('english')) && t.kind !== 'asr' && !t.languageCode?.startsWith('a.'));
+            const hasKo = tracks.some((t: any) => t.languageCode === 'ko' || t.languageCode === 'ko-KR');
+
+            const options: { code: string, isKoAuto?: boolean, isEnForce?: boolean }[] = [];
+            // 1. Manual tracks
+            tracks.forEach((t: any) => options.push({ code: t.languageCode }));
+            // 2. en-force
+            if (!hasManualEn) options.push({ code: 'en-force', isEnForce: true });
+            // 3. ko-auto
+            if (!hasKo) options.push({ code: 'ko-auto', isKoAuto: true });
+
+            if (options.length > 0) {
+              const firstOpt = options[0];
+              if (firstOpt.isKoAuto) {
+                const enTrack = tracks.find((t: any) => t.languageCode?.includes('en')) || tracks[0] || { languageCode: 'en' };
+                player.setOption('captions', 'track', { languageCode: enTrack.languageCode, translationLanguage: { languageCode: 'ko' } });
+                setActiveTrackCode('ko-auto');
+              } else if (firstOpt.isEnForce) {
+                const enTrack = tracks.find((t: any) => (t.kind === 'asr' || t.languageCode?.startsWith('a.')) && t.languageCode?.includes('en')) || tracks.find((t: any) => t.languageCode?.includes('en')) || { languageCode: 'en' };
+                player.setOption('captions', 'track', { languageCode: enTrack.languageCode });
+                setActiveTrackCode('en-force');
+              } else {
+                player.setOption('captions', 'track', { languageCode: firstOpt.code });
+                setActiveTrackCode(firstOpt.code);
+              }
+            } else {
+              // No options available, turn off
+              player.unloadModule('captions');
+              setIsCaptionsOn(false);
+              setActiveTrackCode('off');
+            }
+          }
           applyCaptionStyles();
         }, 500);
       }
