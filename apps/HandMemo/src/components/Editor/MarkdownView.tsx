@@ -961,7 +961,10 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
   const [isCCSettingsOpen, setIsCCSettingsOpen] = React.useState(false);
   const [ccTracks, setCCTracks] = React.useState<any[]>([]);
   const [activeTrackCode, setActiveTrackCode] = React.useState<string>('off');
-  const [ccFontSize, setCCFontSize] = React.useState(0);
+  const [ccFontSize, setCCFontSize] = React.useState(() => {
+    const saved = localStorage.getItem('yt_cc_font_size');
+    return saved ? parseInt(saved, 10) : 0;
+  });
   const [volumeToast, setVolumeToast] = React.useState<number | null>(null);
 
   const ccTimersRef = React.useRef<any[]>([]);
@@ -1891,6 +1894,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
                           key={size.val}
                           onClick={() => {
                             setCCFontSize(size.val);
+                            localStorage.setItem('yt_cc_font_size', String(size.val));
                             applyCaptionStyles(size.val);
                           }}
                           style={{

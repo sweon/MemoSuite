@@ -800,7 +800,10 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
   const [isCCSettingsOpen, setIsCCSettingsOpen] = React.useState(false);
   const [ccTracks, setCCTracks] = React.useState<any[]>([]);
   const [activeTrackCode, setActiveTrackCode] = React.useState<string>('off');
-  const [ccFontSize, setCCFontSize] = React.useState(0);
+  const [ccFontSize, setCCFontSize] = React.useState(() => {
+    const saved = localStorage.getItem('yt_cc_font_size');
+    return saved ? parseInt(saved, 10) : 0;
+  });
   const [volumeToast, setVolumeToast] = React.useState<number | null>(null);
 
 
@@ -1339,7 +1342,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
                     {!ccTracks.some((t: any) => t.languageCode === 'ko' || t.languageCode === 'ko-KR') && <option value="ko-auto" style={{ background: '#1c1c1c' }}>{language === 'ko' ? '한국어 (자동 번역)' : 'Korean (auto-translate)'}</option>}
                   </select></div>
                 <div><div style={{ fontSize: '13px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{language === 'ko' ? '글자 크기' : 'Font Size'}</div>
-                  <div style={{ display: 'flex', gap: '4px' }}>{[{ label: '50%', val: -1 }, { label: '100%', val: 0 }, { label: '150%', val: 1 }, { label: '200%', val: 2 }, { label: '300%', val: 3 }].map(size => <button key={size.val} onClick={() => { setCCFontSize(size.val); applyCaptionStyles(size.val); }} style={{ flex: 1, padding: '5px 0', background: ccFontSize === size.val ? 'rgba(239, 142, 19, 0.2)' : 'rgba(255,255,255,0.08)', border: ccFontSize === size.val ? '1px solid #ef8e13' : '1px solid transparent', borderRadius: '4px', color: ccFontSize === size.val ? '#ef8e13' : '#ddd', fontSize: '13px', cursor: 'pointer' }}>{size.label}</button>)}</div></div>
+                  <div style={{ display: 'flex', gap: '4px' }}>{[{ label: '50%', val: -1 }, { label: '100%', val: 0 }, { label: '150%', val: 1 }, { label: '200%', val: 2 }, { label: '300%', val: 3 }].map(size => <button key={size.val} onClick={() => { setCCFontSize(size.val); localStorage.setItem('yt_cc_font_size', String(size.val)); applyCaptionStyles(size.val); }} style={{ flex: 1, padding: '5px 0', background: ccFontSize === size.val ? 'rgba(239, 142, 19, 0.2)' : 'rgba(255,255,255,0.08)', border: ccFontSize === size.val ? '1px solid #ef8e13' : '1px solid transparent', borderRadius: '4px', color: ccFontSize === size.val ? '#ef8e13' : '#ddd', fontSize: '13px', cursor: 'pointer' }}>{size.label}</button>)}</div></div>
               </div>)}
             {playbackRateToast !== null && <div style={{ position: 'absolute', top: '20%', background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '8px 16px', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold', pointerEvents: 'none', zIndex: 20 }}>{playbackRateToast}x</div>}
             {volumeToast !== null && <div style={{ position: 'absolute', top: '20%', background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '8px 16px', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold', pointerEvents: 'none', zIndex: 20, display: 'flex', alignItems: 'center', gap: '8px' }}><FiVolume2 size={16} /> {volumeToast}%</div>}
