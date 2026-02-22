@@ -932,7 +932,9 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
             iv_load_policy: 3,
             fs: 1,
             disablekb: 1,
-            cc_load_policy: 0
+            cc_load_policy: 0,
+            hl: language,
+            cc_lang_pref: language
           },
           events: {
             onReady: () => {
@@ -1170,18 +1172,23 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
             if (!hasKo) options.push({ code: 'ko-auto', isKoAuto: true });
 
             if (options.length > 0) {
-              const firstOpt = options[0];
-              if (firstOpt.isKoAuto) {
+              // Prioritize track matching UI language
+              const preferredOpt = options.find(opt => opt.code === language) ||
+                (language === 'ko' ? options.find(opt => opt.isKoAuto) : null) ||
+                (language === 'en' ? options.find(opt => opt.isEnForce) : null) ||
+                options[0];
+
+              if (preferredOpt.isKoAuto) {
                 const enTrack = tracks.find((t: any) => t.languageCode?.includes('en')) || tracks[0] || { languageCode: 'en' };
                 player.setOption('captions', 'track', { languageCode: enTrack.languageCode, translationLanguage: { languageCode: 'ko' } });
                 setActiveTrackCode('ko-auto');
-              } else if (firstOpt.isEnForce) {
+              } else if (preferredOpt.isEnForce) {
                 const enTrack = tracks.find((t: any) => (t.kind === 'asr' || t.languageCode?.startsWith('a.')) && t.languageCode?.includes('en')) || tracks.find((t: any) => t.languageCode?.includes('en')) || { languageCode: 'en' };
                 player.setOption('captions', 'track', { languageCode: enTrack.languageCode });
                 setActiveTrackCode('en-force');
               } else {
-                player.setOption('captions', 'track', { languageCode: firstOpt.code });
-                setActiveTrackCode(firstOpt.code);
+                player.setOption('captions', 'track', { languageCode: preferredOpt.code });
+                setActiveTrackCode(preferredOpt.code);
               }
             } else {
               // No options available, turn off
