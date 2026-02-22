@@ -1201,12 +1201,40 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
       applyCaptionStyles();
     } catch (e) { }
   }, [language, applyCaptionStyles]);
+  const applyCCSettings = React.useCallback((retries = 50, isExplicitToggle = false) => {
+    const player = playerRef.current;
+    if (!player || !player.getOption) return;
+    try {
+      const tracks = player.getOption('captions', 'tracklist');
+      if (tracks && tracks.length > 0) {
+        applyPreferredCaptionTrack(isExplicitToggle);
+        return;
+      }
+    } catch (e) { }
+    if (retries > 0) setTimeout(() => applyCCSettings(retries - 1, isExplicitToggle), 100);
+  }, [applyPreferredCaptionTrack]);
 
+  const toggleCaptions = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const player = playerRef.current;
+    if (!player) return;
+    try {
+      if (isCaptionsOn) {
+        player.unloadModule('captions');
+        setIsCaptionsOn(false);
+        isCaptionsOnRef.current = false;
+        setActiveTrackCode('off');
+      } else {
+        player.loadModule('captions');
+        setIsCaptionsOn(true);
+        isCaptionsOnRef.current = true;
         applyCCSettings(50, true);
       }
     } catch (e) { }
     ACTIVE_YT_VIDEO_ID = videoId;
   };
+
+
 
   const toggleCCSettings = (e?: React.MouseEvent) => {
     e?.stopPropagation();
