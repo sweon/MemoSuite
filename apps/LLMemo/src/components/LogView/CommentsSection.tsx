@@ -282,6 +282,12 @@ export const CommentsSection: React.FC<{
         setIsAdding(false);
     };
 
+    const handleCancelAdding = () => {
+        setIsAdding(false);
+        setNewContent('');
+        localStorage.removeItem('yt_last_active');
+    };
+
     const handleStartAdding = async () => {
         setIsAdding(true);
         try {
@@ -318,10 +324,9 @@ export const CommentsSection: React.FC<{
                 : `${mins}:${String(secs).padStart(2, '0')}`;
 
             const link = `[${prefixLabel}${timeStr}](https://youtu.be/${activeVideoId}?t=${Math.floor(time)}) `;
-            setNewContent(prev => {
-                if (prev.includes(`https://youtu.be/${activeVideoId}?t=${Math.floor(time)}`)) return prev;
-                return (prev.trim() ? link + '\n\n' + prev : link);
-            });
+
+            // Fix: Reset content to only the new link to prevent accumulation
+            setNewContent(link);
         } catch (e) {
             console.error('Failed to auto-insert YT link', e);
         }
@@ -440,7 +445,7 @@ export const CommentsSection: React.FC<{
                             </HeaderButton>
                         )}
                         <div style={{ flex: 1 }} />
-                        <HeaderButton onClick={() => setIsAdding(false)} $variant="secondary">{t.comments.cancel}</HeaderButton>
+                        <HeaderButton onClick={handleCancelAdding} $variant="secondary">{t.comments.cancel}</HeaderButton>
                         <HeaderButton onClick={handleAdd} $variant="primary">{t.comments.save_comment}</HeaderButton>
                     </EditorHeader>
                     <MarkdownEditor
