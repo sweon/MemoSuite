@@ -939,7 +939,6 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
                 // Set default caption styles to transparent background
                 setTimeout(() => {
                   applyCaptionStylesRef.current?.();
-                  if (isCaptionsOnRef.current) applyCCSettingsRef.current?.(50, false);
                 }, 1500);
 
 
@@ -950,7 +949,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
               setIsPlaying(event.data === 1);
               if (event.data === 1) { // playing
                 ACTIVE_YT_VIDEO_ID = videoId;
-                if (isCaptionsOnRef.current) applyCCSettingsRef.current?.(50, false);
+                if (isCaptionsOnRef.current) applyCaptionStylesRef.current?.();
                 if (!intervalRef.current) {
                   intervalRef.current = setInterval(() => {
                     if (playerRef.current && playerRef.current.getCurrentTime) {
@@ -1114,7 +1113,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
 
   const containerId = `yt-player-container-${videoId}`;
 
-    const fetchTracks = (retries = 3) => {
+  const fetchTracks = (retries = 3) => {
     const player = playerRef.current;
     if (!player || !player.getOption) return;
     try {
@@ -1126,6 +1125,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
     }
   };
 
+  const lastAppliedTrackRef = React.useRef<string | null>(null);
   const applyPreferredCaptionTrack = React.useCallback((isExplicitToggle = false) => {
     const player = playerRef.current;
     if (!player || !player.getOption) return;
@@ -1142,27 +1142,32 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
         const savedTrack = safeStorage.getItem('yt_cc_track');
         let preferredOpt = null;
         if (savedTrack && savedTrack !== 'off') {
-          preferredOpt = options.find(opt => opt.code === savedTrack) || 
-                         (savedTrack === 'ko-auto' ? options.find(opt => opt.isKoAuto) : null) || 
-                         (savedTrack === 'en-force' ? options.find(opt => opt.isEnForce) : null);
+          preferredOpt = options.find(opt => opt.code === savedTrack) ||
+            (savedTrack === 'ko-auto' ? options.find(opt => opt.isKoAuto) : null) ||
+            (savedTrack === 'en-force' ? options.find(opt => opt.isEnForce) : null);
           if (!preferredOpt) {
             const base = savedTrack.split('-')[0].toLowerCase();
-            preferredOpt = options.find(opt => opt.code.toLowerCase() === base) || 
-                           options.find(opt => opt.code.toLowerCase().startsWith(base + '-')) ||
-                           (base === 'ko' ? options.find(opt => opt.isKoAuto) : null) ||
-                           (base === 'en' ? options.find(opt => opt.isEnForce) : null);
+            preferredOpt = options.find(opt => opt.code.toLowerCase() === base) ||
+              options.find(opt => opt.code.toLowerCase().startsWith(base + '-')) ||
+              (base === 'ko' ? options.find(opt => opt.isKoAuto) : null) ||
+              (base === 'en' ? options.find(opt => opt.isEnForce) : null);
           }
         }
         if (!preferredOpt && isExplicitToggle) {
           preferredOpt = options.find(opt => opt.code === language) ||
-                         (language === 'ko' ? options.find(opt => opt.isKoAuto) : null) ||
-                         (language === 'en' ? options.find(opt => opt.isEnForce) : null);
+            (language === 'ko' ? options.find(opt => opt.isKoAuto) : null) ||
+            (language === 'en' ? options.find(opt => opt.isEnForce) : null);
           if (preferredOpt) {
             const saveCode = preferredOpt.isKoAuto ? 'ko-auto' : (preferredOpt.isEnForce ? 'en-force' : preferredOpt.code);
             safeStorage.setItem('yt_cc_track', saveCode);
           }
         }
         if (preferredOpt) {
+          const targetCode = preferredOpt.isKoAuto ? 'ko-auto' : (preferredOpt.isEnForce ? 'en-force' : preferredOpt.code);
+          if (lastAppliedTrackRef.current === targetCode && !isExplicitToggle) {
+            applyCaptionStylesRef.current?.();
+            return;
+          }
           if (preferredOpt.isKoAuto) {
             const enTrack = tracks.find((t: any) => t.languageCode?.includes('en')) || tracks[0] || { languageCode: 'en' };
             player.setOption('captions', 'track', { languageCode: enTrack.languageCode, translationLanguage: { languageCode: 'ko' } });
@@ -1175,12 +1180,14 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
             player.setOption('captions', 'track', { languageCode: preferredOpt.code });
             setActiveTrackCode(preferredOpt.code);
           }
+          lastAppliedTrackRef.current = targetCode;
         }
       } else {
         player.unloadModule('captions');
         setIsCaptionsOn(false);
         isCaptionsOnRef.current = false;
         setActiveTrackCode('off');
+        lastAppliedTrackRef.current = null;
       }
       applyCaptionStylesRef.current?.();
     } catch (e) { }
