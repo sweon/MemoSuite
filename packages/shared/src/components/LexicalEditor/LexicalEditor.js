@@ -67,7 +67,7 @@ const MATCHERS = [
         };
     },
 ];
-const EditorContainer = styled.div `
+const EditorContainer = styled.div`
   position: relative;
   text-align: left;
   border-radius: 8px;
@@ -78,7 +78,7 @@ const EditorContainer = styled.div `
   overflow: visible;
   container-type: inline-size;
 `;
-const Content = styled(ContentEditable) `
+const Content = styled(ContentEditable)`
   min-height: 300px;
   outline: none;
   padding: 0.5rem;
@@ -176,7 +176,7 @@ const Content = styled(ContentEditable) `
     border: none;
     margin: 1em 0;
     cursor: default;
-    border-top: 1px solid ${(props) => props.theme.colors?.border || '#333'};
+    border-top: 2px solid ${(props) => props.theme.colors?.textSecondary || '#888'} !important;
   }
 
   /* Table Styles */
@@ -544,8 +544,8 @@ const SAFE_BOLD_ITALIC_STAR = {
         }
         return null;
     },
-    importRegExp: /\*\*\*([^\*]+?)\*\*\*/,
-    regExp: /\*\*\*([^\*]+?)\*\*\*/,
+    importRegExp: /(?<!\*)\*\*\*([^\*]+?)\*\*\*(?!\*)/,
+    regExp: /(?<!\*)\*\*\*([^\*]+?)\*\*\*(?!\*)/,
     replace: (textNode, match) => {
         const content = match[1];
         const newNode = $createTextNode(content);
@@ -567,8 +567,8 @@ const SAFE_BOLD_STAR = {
         }
         return null;
     },
-    importRegExp: /\*\*([^\*]+?)\*\*/,
-    regExp: /\*\*([^\*]+?)\*\*/,
+    importRegExp: /(?<!\*)\*\*([^\*]+?)\*\*(?!\*)/,
+    regExp: /(?<!\*)\*\*([^\*]+?)\*\*(?!\*)/,
     replace: (textNode, match) => {
         const content = match[1];
         const newNode = $createTextNode(content);
@@ -589,8 +589,8 @@ const SAFE_ITALIC_STAR = {
         }
         return null;
     },
-    importRegExp: /\*([^\*]+?)\*/,
-    regExp: /\*([^\*]+?)\*/,
+    importRegExp: /(?<!\*)\*([^\*]+?)\*(?!\*)/,
+    regExp: /(?<!\*)\*([^\*]+?)\*(?!\*)/,
     replace: (textNode, match) => {
         const content = match[1];
         const newNode = $createTextNode(content);
@@ -611,8 +611,8 @@ const SAFE_BOLD_ITALIC_UNDERSCORE = {
         }
         return null;
     },
-    importRegExp: /___([^_]+?)___/,
-    regExp: /___([^_]+?)___/,
+    importRegExp: /(?<!_)___([^_]+?)___(?!_)/,
+    regExp: /(?<!_)___([^_]+?)___(?!_)/,
     replace: (textNode, match) => {
         const content = match[1];
         const newNode = $createTextNode(content);
@@ -634,8 +634,8 @@ const SAFE_BOLD_UNDERSCORE = {
         }
         return null;
     },
-    importRegExp: /__([^_]+?)__/,
-    regExp: /__([^_]+?)__/,
+    importRegExp: /(?<!_)__([^_]+?)__(?!_)/,
+    regExp: /(?<!_)__([^_]+?)__(?!_)/,
     replace: (textNode, match) => {
         const content = match[1];
         const newNode = $createTextNode(content);
@@ -656,8 +656,8 @@ const SAFE_ITALIC_UNDERSCORE = {
         }
         return null;
     },
-    importRegExp: /_([^_]+?)_/,
-    regExp: /_([^_]+?)_/,
+    importRegExp: /(?<!_)_([^_]+?)_(?!_)/,
+    regExp: /(?<!_)_([^_]+?)_(?!_)/,
     replace: (textNode, match) => {
         const content = match[1];
         const newNode = $createTextNode(content);

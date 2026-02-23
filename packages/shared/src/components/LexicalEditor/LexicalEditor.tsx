@@ -207,7 +207,7 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     border: none;
     margin: 1em 0;
     cursor: default;
-    border-top: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
+    border-top: 2px solid ${(props: any) => props.theme.colors?.textSecondary || '#888'} !important;
   }
 
   /* Table Styles */
@@ -597,8 +597,8 @@ const SAFE_BOLD_ITALIC_STAR: TextMatchTransformer = {
     }
     return null;
   },
-  importRegExp: /\*\*\*([^\*]+?)\*\*\*/,
-  regExp: /\*\*\*([^\*]+?)\*\*\*/,
+  importRegExp: /(?<!\*)\*\*\*([^\*]+?)\*\*\*(?!\*)/,
+  regExp: /(?<!\*)\*\*\*([^\*]+?)\*\*\*(?!\*)/,
   replace: (textNode: TextNode, match: RegExpMatchArray) => {
     const content = match[1];
     const newNode = $createTextNode(content);
@@ -621,8 +621,8 @@ const SAFE_BOLD_STAR: TextMatchTransformer = {
     }
     return null;
   },
-  importRegExp: /\*\*([^\*]+?)\*\*/,
-  regExp: /\*\*([^\*]+?)\*\*/,
+  importRegExp: /(?<!\*)\*\*([^\*]+?)\*\*(?!\*)/,
+  regExp: /(?<!\*)\*\*([^\*]+?)\*\*(?!\*)/,
   replace: (textNode: TextNode, match: RegExpMatchArray) => {
     const content = match[1];
     const newNode = $createTextNode(content);
@@ -644,8 +644,8 @@ const SAFE_ITALIC_STAR: TextMatchTransformer = {
     }
     return null;
   },
-  importRegExp: /\*([^\*]+?)\*/,
-  regExp: /\*([^\*]+?)\*/,
+  importRegExp: /(?<!\*)\*([^\*]+?)\*(?!\*)/,
+  regExp: /(?<!\*)\*([^\*]+?)\*(?!\*)/,
   replace: (textNode: TextNode, match: RegExpMatchArray) => {
     const content = match[1];
     const newNode = $createTextNode(content);
@@ -667,8 +667,8 @@ const SAFE_BOLD_ITALIC_UNDERSCORE: TextMatchTransformer = {
     }
     return null;
   },
-  importRegExp: /___([^_]+?)___/,
-  regExp: /___([^_]+?)___/,
+  importRegExp: /(?<!_)___([^_]+?)___(?!_)/,
+  regExp: /(?<!_)___([^_]+?)___(?!_)/,
   replace: (textNode: TextNode, match: RegExpMatchArray) => {
     const content = match[1];
     const newNode = $createTextNode(content);
@@ -691,8 +691,8 @@ const SAFE_BOLD_UNDERSCORE: TextMatchTransformer = {
     }
     return null;
   },
-  importRegExp: /__([^_]+?)__/,
-  regExp: /__([^_]+?)__/,
+  importRegExp: /(?<!_)__([^_]+?)__(?!_)/,
+  regExp: /(?<!_)__([^_]+?)__(?!_)/,
   replace: (textNode: TextNode, match: RegExpMatchArray) => {
     const content = match[1];
     const newNode = $createTextNode(content);
@@ -714,8 +714,8 @@ const SAFE_ITALIC_UNDERSCORE: TextMatchTransformer = {
     }
     return null;
   },
-  importRegExp: /_([^_]+?)_/,
-  regExp: /_([^_]+?)_/,
+  importRegExp: /(?<!_)_([^_]+?)_(?!_)/,
+  regExp: /(?<!_)_([^_]+?)_(?!_)/,
   replace: (textNode: TextNode, match: RegExpMatchArray) => {
     const content = match[1];
     const newNode = $createTextNode(content);

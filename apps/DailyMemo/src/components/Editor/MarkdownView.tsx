@@ -297,9 +297,9 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
   }
 
   hr {
-    border: none;
-    margin: 1em 0;
-    border-top: 1px solid ${({ theme }) => theme.colors.border};
+    border: none !important;
+    margin: 1em 0 !important;
+    border-top: 2px solid ${({ theme }) => theme.colors.textSecondary} !important;
   }
 
   /* Collapsible / Details Styles */
