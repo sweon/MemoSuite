@@ -966,6 +966,8 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
   const [playbackRateToast, setPlaybackRateToast] = React.useState<number | null>(null);
   const [isCaptionsOn, setIsCaptionsOn] = React.useState(false);
   const isCaptionsOnRef = React.useRef(false);
+  const applyCCSettingsRef = React.useRef<any>(null);
+  const applyCaptionStylesRef = React.useRef<any>(null);
   const [isCCSettingsOpen, setIsCCSettingsOpen] = React.useState(false);
   const [ccTracks, setCCTracks] = React.useState<any[]>([]);
   const [activeTrackCode, setActiveTrackCode] = React.useState<string>('off');
@@ -1013,7 +1015,8 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
     const player = playerRef.current;
     if (!player || !player.setOption) return;
     try {
-      const fontSize = overrideFontSize !== undefined ? overrideFontSize : ccFontSize;
+      const savedSize = safeStorage.getItem('yt_cc_font_size');
+      const fontSize = overrideFontSize !== undefined ? overrideFontSize : (savedSize !== null ? parseInt(savedSize, 10) : ccFontSize);
       player.setOption('captions', 'backgroundOpacity', 0);
       player.setOption('captions', 'windowOpacity', 0);
       player.setOption('captions', 'fontSize', fontSize);
@@ -1096,8 +1099,8 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
 
                 // Set default caption styles to transparent background
                 setTimeout(() => {
-                  applyCaptionStyles();
-                  if (isCaptionsOnRef.current) applyCCSettings(50, false);
+                  applyCaptionStylesRef.current?.();
+                  if (isCaptionsOnRef.current) applyCCSettingsRef.current?.(50, false);
                 }, 1500);
               }
             },
@@ -1106,7 +1109,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
               setIsPlaying(event.data === 1);
               if (event.data === 1) { // playing
                 ACTIVE_YT_VIDEO_ID = videoId;
-                if (isCaptionsOnRef.current) applyCCSettings(50, false);
+                if (isCaptionsOnRef.current) applyCCSettingsRef.current?.(50, false);
                 if (!intervalRef.current) {
                   intervalRef.current = setInterval(() => {
                     if (playerRef.current && playerRef.current.getCurrentTime) {
@@ -1338,7 +1341,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
         isCaptionsOnRef.current = false;
         setActiveTrackCode('off');
       }
-      applyCaptionStyles();
+      applyCaptionStylesRef.current?.();
     } catch (e) { }
   }, [language, applyCaptionStyles]);
   const applyCCSettings = React.useCallback((retries = 50, isExplicitToggle = false) => {
@@ -1351,8 +1354,10 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
         return;
       }
     } catch (e) { }
-    if (retries > 0) setTimeout(() => applyCCSettings(retries - 1, isExplicitToggle), 100);
+    if (retries > 0) setTimeout(() => applyCCSettingsRef.current?.(retries - 1, isExplicitToggle), 100);
   }, [applyPreferredCaptionTrack]);
+  applyCCSettingsRef.current = applyCCSettings;
+  applyCaptionStylesRef.current = applyCaptionStyles;
 
   const toggleCaptions = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -1368,7 +1373,7 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
         player.loadModule('captions');
         setIsCaptionsOn(true);
         isCaptionsOnRef.current = true;
-        applyCCSettings(50, true);
+        applyCCSettingsRef.current?.(50, true);
       }
     } catch (e) { }
     ACTIVE_YT_VIDEO_ID = videoId;
@@ -1796,9 +1801,9 @@ const YouTubePlayer = React.memo(({ videoId, startTimestamp, memoId,
                     else {
                       if (!isCaptionsOn) { playerRef.current?.loadModule('captions'); setIsCaptionsOn(true); isCaptionsOnRef.current = true; }
                       const wasTranslating = Boolean(playerRef.current?.getOption('captions', 'track')?.translationLanguage?.languageCode);
-                      if (code === 'ko-auto') { safeStorage.setItem('yt_cc_track', 'ko-auto'); setTimeout(() => { const tracks = playerRef.current?.getOption('captions', 'tracklist') || []; const enTrack = tracks.find((t: any) => t.languageCode?.includes('en')) || tracks[0] || { languageCode: 'en' }; playerRef.current?.setOption('captions', 'track', { languageCode: enTrack.languageCode, translationLanguage: { languageCode: 'ko' } }); applyCaptionStyles(); setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500); }, 100); }
-                      else if (code === 'en-force') { safeStorage.setItem('yt_cc_track', 'en-force'); if (wasTranslating) { playerRef.current?.unloadModule('captions'); playerRef.current?.loadModule('captions'); } setTimeout(() => { const tracks = playerRef.current?.getOption('captions', 'tracklist') || []; const enTrack = tracks.find((t: any) => (t.kind === 'asr' || t.languageCode?.startsWith('a.')) && t.languageCode?.includes('en')) || tracks.find((t: any) => t.languageCode?.includes('en')) || { languageCode: 'en' }; playerRef.current?.setOption('captions', 'track', { languageCode: enTrack.languageCode }); applyCaptionStyles(); setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500); }, wasTranslating ? 300 : 100); }
-                      else { safeStorage.setItem('yt_cc_track', code); if (wasTranslating) { playerRef.current?.unloadModule('captions'); playerRef.current?.loadModule('captions'); } setTimeout(() => { playerRef.current?.setOption('captions', 'track', { languageCode: code }); applyCaptionStyles(); setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500); }, wasTranslating ? 300 : 100); }
+                      if (code === 'ko-auto') { safeStorage.setItem('yt_cc_track', 'ko-auto'); setTimeout(() => { const tracks = playerRef.current?.getOption('captions', 'tracklist') || []; const enTrack = tracks.find((t: any) => t.languageCode?.includes('en')) || tracks[0] || { languageCode: 'en' }; playerRef.current?.setOption('captions', 'track', { languageCode: enTrack.languageCode, translationLanguage: { languageCode: 'ko' } }); applyCaptionStylesRef.current?.(); setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500); }, 100); }
+                      else if (code === 'en-force') { safeStorage.setItem('yt_cc_track', 'en-force'); if (wasTranslating) { playerRef.current?.unloadModule('captions'); playerRef.current?.loadModule('captions'); } setTimeout(() => { const tracks = playerRef.current?.getOption('captions', 'tracklist') || []; const enTrack = tracks.find((t: any) => (t.kind === 'asr' || t.languageCode?.startsWith('a.')) && t.languageCode?.includes('en')) || tracks.find((t: any) => t.languageCode?.includes('en')) || { languageCode: 'en' }; playerRef.current?.setOption('captions', 'track', { languageCode: enTrack.languageCode }); applyCaptionStylesRef.current?.(); setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500); }, wasTranslating ? 300 : 100); }
+                      else { safeStorage.setItem('yt_cc_track', code); if (wasTranslating) { playerRef.current?.unloadModule('captions'); playerRef.current?.loadModule('captions'); } setTimeout(() => { playerRef.current?.setOption('captions', 'track', { languageCode: code }); applyCaptionStylesRef.current?.(); setTimeout(() => { isSwitchingCCTrack.current = false; }, 1500); }, wasTranslating ? 300 : 100); }
                     } setIsCCSettingsOpen(false);
                   }}
                     style={{
