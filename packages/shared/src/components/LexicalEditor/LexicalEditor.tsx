@@ -39,7 +39,7 @@ import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { HorizontalRuleNode, $createHorizontalRuleNode, $isHorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { MemoSuiteTheme } from "./themes/MemoSuiteTheme";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useState } from "react";
 import styled from "styled-components";
 import {
   $nodesOfType,
@@ -1409,6 +1409,58 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   stickyOffset,
   customButtons
 }) => {
+  const [isPhysicalKeyboard, setIsPhysicalKeyboard] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('lexical_physical_keyboard');
+      if (saved) return saved === 'true';
+      // Heuristic: If device has a fine pointer (mouse/trackpad) on a mobile device, it likely has a keyboard
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        ('maxTouchPoints' in navigator && navigator.maxTouchPoints > 0 && window.matchMedia('(max-width: 1600px)').matches);
+      return isMobile && window.matchMedia('(pointer: fine)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Physical keyboard detection heuristic
+      const isPhysical = (
+        e.key === 'Tab' ||
+        e.key === 'Escape' ||
+        e.key.startsWith('Arrow') ||
+        e.metaKey || e.ctrlKey || e.altKey ||
+        (e.key.length === 1 && e.keyCode !== 229 && !e.isComposing)
+      );
+
+      if (isPhysical && !isPhysicalKeyboard) {
+        setIsPhysicalKeyboard(true);
+        sessionStorage.setItem('lexical_physical_keyboard', 'true');
+      }
+    };
+
+    const mediaQuery = window.matchMedia('(pointer: fine)');
+    const handlePointerChange = (e: MediaQueryListEvent) => {
+      if (e.matches && !isPhysicalKeyboard) {
+        setIsPhysicalKeyboard(true);
+        sessionStorage.setItem('lexical_physical_keyboard', 'true');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handlePointerChange);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handlePointerChange);
+      }
+    };
+  }, [isPhysicalKeyboard]);
+
   const initialConfig = useMemo(() => ({
     namespace: "MemoSuiteEditor",
     theme: MemoSuiteTheme,
@@ -1455,7 +1507,14 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
         />
         <div className="editor-inner" style={{ position: 'relative' }}>
           <RichTextPlugin
-            contentEditable={<Content spellCheck={spellCheck} $tabSize={tabSize} $fontSize={fontSize} />}
+            contentEditable={
+              <Content
+                spellCheck={spellCheck}
+                $tabSize={tabSize}
+                $fontSize={fontSize}
+                inputMode={isPhysicalKeyboard ? 'none' : undefined}
+              />
+            }
             placeholder={
               <div className="editor-placeholder">{placeholder}</div>
             }
