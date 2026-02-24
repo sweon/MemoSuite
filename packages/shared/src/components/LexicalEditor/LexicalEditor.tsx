@@ -626,7 +626,12 @@ function MarkdownImmediatePlugin(): null {
           }
 
           targetNode.replace(newNode);
-          newNode.select(content.length, content.length);
+
+          const nextNode = $createTextNode("");
+          nextNode.setFormat(targetNode.getFormat());
+          nextNode.setStyle(targetNode.getStyle());
+          newNode.insertAfter(nextNode);
+          nextNode.select();
           break;
         }
       }
