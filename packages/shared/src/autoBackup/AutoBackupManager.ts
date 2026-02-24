@@ -480,8 +480,31 @@ export function createDesktopAutoBackupScheduler(
 ): () => void {
     let intervalId: ReturnType<typeof setInterval> | null = null;
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastDataHash = '';
+    let lastDataString = '';
     let isRunning = false;
+
+    // Ensure we have write permission as soon as the user interacts with the app
+    // This handles the case where permission is dropped across browser sessions
+    let permissionEnsured = false;
+    const ensurePermission = async () => {
+        if (permissionEnsured) return;
+        try {
+            const handle = await getStoredDirectoryHandle(appName);
+            if (!handle) return;
+            const permStatus = await (handle as any).queryPermission({ mode: 'readwrite' });
+            if (permStatus !== 'granted') {
+                // Request permission on user's first interaction
+                await (handle as any).requestPermission({ mode: 'readwrite' });
+            }
+            permissionEnsured = true;
+        } catch {
+            // Silently ignore, we'll try again next interaction if it failed
+        }
+    };
+
+    const interactionHandler = () => ensurePermission();
+    window.addEventListener('pointerdown', interactionHandler, { once: true });
+    window.addEventListener('keydown', interactionHandler, { once: true });
 
     const performBackup = async () => {
         if (isRunning) return;
@@ -494,11 +517,11 @@ export function createDesktopAutoBackupScheduler(
                 return;
             }
 
-            // Simple change detection: compare data hash
+            // Proper change detection: compare full serialized data, not just length
             const data = await adapter.getBackupData();
-            const currentHash = JSON.stringify(data).length.toString(); // Simple size-based check
+            const currentString = JSON.stringify(data);
 
-            if (currentHash === lastDataHash) {
+            if (currentString === lastDataString) {
                 isRunning = false;
                 return; // No changes
             }
@@ -506,7 +529,7 @@ export function createDesktopAutoBackupScheduler(
             const password = getActivePassword(appName);
             const success = await writeBackupToDirectory(handle, appName, adapter, password);
             if (success) {
-                lastDataHash = currentHash;
+                lastDataString = currentString;
             }
             onBackupComplete?.(success);
         } catch (err) {
@@ -533,6 +556,8 @@ export function createDesktopAutoBackupScheduler(
         if (intervalId) clearInterval(intervalId);
         if (debounceTimer) clearTimeout(debounceTimer);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('pointerdown', interactionHandler);
+        window.removeEventListener('keydown', interactionHandler);
     };
 }
 
