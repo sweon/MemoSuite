@@ -225,24 +225,40 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     border-collapse: collapse;
     width: 100%;
     margin: 16px 0;
-    border: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
-    /* Remove table-layout: fixed to allow resizer to control widths */
+    border: 2px solid ${(props: any) => props.theme.mode === 'dark' ? '#888' : '#666'};
+    background-color: ${(props: any) => props.theme.colors?.background || 'transparent'};
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, ${(props: any) => props.theme.mode === 'dark' ? '0.2' : '0.05'});
   }
   th, td {
-    border: 1px solid ${(props: any) => props.theme.colors?.border || '#333'};
-    padding: 8px;
+    border: 1px solid ${(props: any) => props.theme.mode === 'dark' ? '#888' : '#666'};
+    padding: 3px 12px;
     text-align: left;
-    color: ${(props: any) => props.theme.colors?.text || '#d4d4d4'};
-    word-break: break-word; /* Enable wrapping within cells */
+    color: ${(props: any) => props.theme.colors?.text || 'inherit'};
+    word-break: break-word;
     overflow-wrap: break-word;
     min-width: 40px;
+    height: 1.5rem; /* Ensure empty rows have consistent height */
+    line-height: 1.4;
   }
   th {
-    background-color: ${(props: any) => props.theme.colors?.surface || '#2d2d2d'};
-    font-weight: 600;
+    background-color: ${(props: any) => props.theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.05)'};
+    color: ${(props: any) => props.theme.colors?.text || 'inherit'};
+    font-weight: 700;
+    text-transform: none;
+    font-size: 0.95rem;
+    letter-spacing: normal;
+    border-bottom: 2px solid ${(props: any) => props.theme.mode === 'dark' ? '#aaa' : '#444'};
   }
   td {
-    background-color: ${(props: any) => props.theme.colors?.background || '#1e1e1e'};
+    background-color: transparent;
+  }
+  tr:nth-child(even) td {
+    background-color: ${(props: any) => props.theme.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'};
+  }
+  tr:hover td {
+    background-color: ${(props: any) => props.theme.colors?.primary || '#007bff'}08;
   }
 
   /* Checklist Styles */

@@ -240,17 +240,48 @@ const MarkdownContainer = styled.div.attrs({ className: 'markdown-view markdown-
   table {
     border-collapse: collapse;
     width: 100%;
-    margin-bottom: 1em;
+    margin: 16px 0;
+    border: 2px solid ${({ theme }) => theme.mode === 'dark' ? '#888' : '#666'};
+    background-color: ${({ theme }) => theme.colors.background};
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, ${({ theme }) => theme.mode === 'dark' ? '0.2' : '0.05'});
     
     th, td {
-      border: 1px solid ${({ theme }) => theme.colors.border};
-      padding: 0.5rem;
+      border: 1px solid ${({ theme }) => theme.mode === 'dark' ? '#888' : '#666'};
+      padding: 3px 12px;
       text-align: left;
+      color: ${({ theme }) => theme.colors.text};
+      word-break: break-word;
+      overflow-wrap: break-word;
+      line-height: 1.4;
+
+      &:empty::after {
+        content: '\\00a0';
+        visibility: hidden;
+      }
     }
 
     th {
-      background: ${({ theme, $tableHeaderBg }) => $tableHeaderBg || theme.colors.surface};
-      font-weight: 600;
+      background: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.05)'} !important;
+      color: ${({ theme }) => theme.colors.text} !important;
+      font-weight: 700;
+      text-transform: none;
+      font-size: 0.95rem;
+      letter-spacing: normal;
+      border-bottom: 2px solid ${({ theme }) => theme.mode === 'dark' ? '#aaa' : '#444'};
+    }
+
+    td {
+      background-color: transparent;
+    }
+
+    tr:nth-child(even) td {
+      background-color: ${({ theme }) => theme.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'};
+    }
+
+    tr:hover td {
+      background-color: ${({ theme }) => theme.colors.primary}08;
     }
   }
 
