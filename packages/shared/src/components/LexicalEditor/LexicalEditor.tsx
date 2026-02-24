@@ -576,14 +576,59 @@ const ITALIC_UNDERSCORE_REGEX = /(^|[^_])_([^_ \n][^_\n]*[^_ \n]|[^_ \s])_$/;
 
 const STRIKETHROUGH_REGEX = /(^|[^~])~~([^~ \n][^~\n]*[^~ \n]|[^~ \s])~~$/;
 
+// Zero-width space used as a "format break" to prevent mobile browsers
+// from inheriting the format of an adjacent formatted DOM element.
+const ZWSP = "\u200B";
+
+// Helper: insert a ZWSP text node after a formatted node and place cursor there.
+// This physically moves the cursor out of the formatted DOM element (e.g. <strong>),
+// which is the only reliable way to prevent mobile browsers from inheriting that format.
+function $insertFormatBreak(afterNode: TextNode): void {
+  const breakNode = $createTextNode(ZWSP);
+  breakNode.setFormat(0);
+  breakNode.setStyle("");
+  afterNode.insertAfter(breakNode);
+  breakNode.select(1, 1);
+}
+
 function MarkdownImmediatePlugin(): null {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
     return editor.registerNodeTransform(TextNode, (node) => {
-      if (!node.isSimpleText() || !node.isAttached()) return;
+      if (!node.isSimpleText() || !node.isAttached() || editor.isComposing()) return;
 
       const text = node.getTextContent();
+
+      // --- ZWSP cleanup ---
+      // Case 1: Pure ZWSP node (format break) — remove when cursor is no longer in it
+      if (text === ZWSP && node.getFormat() === 0) {
+        const sel = $getSelection();
+        const cursorHere = $isRangeSelection(sel) && sel.isCollapsed() &&
+          sel.anchor.getNode().getKey() === node.getKey();
+        if (!cursorHere) {
+          node.remove();
+        }
+        return;
+      }
+
+      // Case 2: User typed into a ZWSP node — strip the ZWSP, keep the typed text
+      if (text.includes(ZWSP) && text.length > 1) {
+        const sel = $getSelection();
+        let offset = -1;
+        if ($isRangeSelection(sel) && sel.isCollapsed() &&
+          sel.anchor.getNode().getKey() === node.getKey()) {
+          const before = text.substring(0, sel.anchor.offset);
+          offset = sel.anchor.offset - (before.match(/\u200B/g) || []).length;
+        }
+        node.setTextContent(text.replace(/\u200B/g, ''));
+        if (offset >= 0) {
+          node.select(offset, offset);
+        }
+        return;
+      }
+
+      // --- Markdown format detection ---
       const matchers = [
         { regex: BOLD_ITALIC_STAR_REGEX, format: 'bold-italic' },
         { regex: BOLD_ITALIC_UNDERSCORE_REGEX, format: 'bold-italic' },
@@ -626,12 +671,7 @@ function MarkdownImmediatePlugin(): null {
           }
 
           targetNode.replace(newNode);
-
-          const nextNode = $createTextNode("");
-          nextNode.setFormat(targetNode.getFormat());
-          nextNode.setStyle(targetNode.getStyle());
-          newNode.insertAfter(nextNode);
-          nextNode.select();
+          $insertFormatBreak(newNode);
           break;
         }
       }
@@ -833,6 +873,7 @@ const SAFE_BOLD_ITALIC_STAR: TextMatchTransformer = {
     newNode.toggleFormat("bold");
     newNode.toggleFormat("italic");
     textNode.replace(newNode);
+    $insertFormatBreak(newNode);
   },
   trigger: "*",
   type: "text-match",
@@ -856,6 +897,7 @@ const SAFE_BOLD_STAR: TextMatchTransformer = {
     newNode.setStyle(textNode.getStyle());
     newNode.toggleFormat("bold");
     textNode.replace(newNode);
+    $insertFormatBreak(newNode);
   },
   trigger: "*",
   type: "text-match",
@@ -879,6 +921,7 @@ const SAFE_ITALIC_STAR: TextMatchTransformer = {
     newNode.setStyle(textNode.getStyle());
     newNode.toggleFormat("italic");
     textNode.replace(newNode);
+    $insertFormatBreak(newNode);
   },
   trigger: "*",
   type: "text-match",
@@ -903,6 +946,7 @@ const SAFE_BOLD_ITALIC_UNDERSCORE: TextMatchTransformer = {
     newNode.toggleFormat("bold");
     newNode.toggleFormat("italic");
     textNode.replace(newNode);
+    $insertFormatBreak(newNode);
   },
   trigger: "_",
   type: "text-match",
@@ -926,6 +970,7 @@ const SAFE_BOLD_UNDERSCORE: TextMatchTransformer = {
     newNode.setStyle(textNode.getStyle());
     newNode.toggleFormat("bold");
     textNode.replace(newNode);
+    $insertFormatBreak(newNode);
   },
   trigger: "_",
   type: "text-match",
@@ -949,6 +994,7 @@ const SAFE_ITALIC_UNDERSCORE: TextMatchTransformer = {
     newNode.setStyle(textNode.getStyle());
     newNode.toggleFormat("italic");
     textNode.replace(newNode);
+    $insertFormatBreak(newNode);
   },
   trigger: "_",
   type: "text-match",
@@ -972,6 +1018,7 @@ const SAFE_STRIKETHROUGH: TextMatchTransformer = {
     newNode.setStyle(textNode.getStyle());
     newNode.toggleFormat("strikethrough");
     textNode.replace(newNode);
+    $insertFormatBreak(newNode);
   },
   trigger: "~",
   type: "text-match",
@@ -982,12 +1029,12 @@ const ALL_TRANSFORMERS: Transformer[] = [
   ELEMENT_FORMAT_EXPORT_TRANSFORMER,
   HTML_COMBINED_TRANSFORMER,
   EMPTY_PARAGRAPH_TRANSFORMER,
-  SAFE_BOLD_ITALIC_UNDERSCORE,
   SAFE_BOLD_ITALIC_STAR,
-  SAFE_BOLD_UNDERSCORE,
+  SAFE_BOLD_ITALIC_UNDERSCORE,
   SAFE_BOLD_STAR,
-  SAFE_ITALIC_UNDERSCORE,
+  SAFE_BOLD_UNDERSCORE,
   SAFE_ITALIC_STAR,
+  SAFE_ITALIC_UNDERSCORE,
   SAFE_STRIKETHROUGH,
   CHECK_LIST,
   IMAGE_TRANSFORMER,
@@ -1012,12 +1059,12 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
   ELEMENT_FORMAT_EXPORT_TRANSFORMER,
   EMPTY_PARAGRAPH_TRANSFORMER,
   HTML_COMBINED_TRANSFORMER,
-  SAFE_BOLD_ITALIC_UNDERSCORE,
   SAFE_BOLD_ITALIC_STAR,
-  SAFE_BOLD_UNDERSCORE,
+  SAFE_BOLD_ITALIC_UNDERSCORE,
   SAFE_BOLD_STAR,
-  SAFE_ITALIC_UNDERSCORE,
+  SAFE_BOLD_UNDERSCORE,
   SAFE_ITALIC_STAR,
+  SAFE_ITALIC_UNDERSCORE,
   SAFE_STRIKETHROUGH,
   CHECK_LIST,
   IMAGE_TRANSFORMER,
@@ -1263,6 +1310,8 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
 
       editorState.read(() => {
         let markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
+        // Strip any leftover ZWSP format-break characters
+        markdown = markdown.replace(/\u200B/g, '');
 
         // Safety: Prevent accidental wipe on empty initialization before import
         if (markdown === "" && lastNormalizedValueRef.current !== "" && !tags.has('import')) {
