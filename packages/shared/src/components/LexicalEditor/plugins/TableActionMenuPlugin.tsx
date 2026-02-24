@@ -7,8 +7,6 @@ import {
     SELECTION_CHANGE_COMMAND,
 } from "lexical";
 import {
-    $isTableCellNode,
-    $isTableNode,
     TableCellNode,
     TableNode,
     $insertTableRowAtSelection,
