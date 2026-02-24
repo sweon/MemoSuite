@@ -12,8 +12,6 @@ import {
     CLEAR_EDITOR_COMMAND,
     $insertNodes,
     $createTextNode,
-    INDENT_CONTENT_COMMAND,
-    OUTDENT_CONTENT_COMMAND,
     $isTextNode,
     $isElementNode,
 } from "lexical";
@@ -39,7 +37,7 @@ import {
     FaRegSquare, FaClock, FaEllipsisH
 } from "react-icons/fa";
 import { FiPenTool, FiSidebar, FiX, FiTrash2, FiCheck } from "react-icons/fi";
-import { RiTable2, RiLineHeight, RiIndentIncrease, RiIndentDecrease } from "react-icons/ri";
+import { RiTable2, RiLineHeight } from "react-icons/ri";
 import { MdFormatClear, MdOutlineInsertPageBreak } from "react-icons/md";
 import { $createHandwritingNode } from "../nodes/HandwritingNode";
 import { $createSpreadsheetNode } from "../nodes/SpreadsheetNode";
@@ -471,7 +469,7 @@ export function ToolbarPlugin(props: {
     }, [fontSize]);
     const [showLineHeightMenu, setShowLineHeightMenu] = useState(false);
     const [showAlignMenu, setShowAlignMenu] = useState(false);
-    const [showIndentMenu, setShowIndentMenu] = useState(false);
+
     const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
     useEffect(() => {
@@ -483,7 +481,7 @@ export function ToolbarPlugin(props: {
     const colorMenuRef = useRef<HTMLDivElement>(null);
     const lineHeightMenuRef = useRef<HTMLDivElement>(null);
     const alignMenuRef = useRef<HTMLDivElement>(null);
-    const indentMenuRef = useRef<HTMLDivElement>(null);
+
     // tableMenuRef will now point to the wrapper div
 
     // Menu alignment state
@@ -491,7 +489,6 @@ export function ToolbarPlugin(props: {
         color: false,
         align: true,
         lineHeight: true,
-        indent: true,
         table: true
     });
 
@@ -511,7 +508,6 @@ export function ToolbarPlugin(props: {
             if (colorMenuRef.current && !colorMenuRef.current.contains(target)) setShowColorMenu(false);
             if (lineHeightMenuRef.current && !lineHeightMenuRef.current.contains(target)) setShowLineHeightMenu(false);
             if (alignMenuRef.current && !alignMenuRef.current.contains(target)) setShowAlignMenu(false);
-            if (indentMenuRef.current && !indentMenuRef.current.contains(target)) setShowIndentMenu(false);
             if (tableMenuRef.current && !tableMenuRef.current.contains(target)) setShowTableMenu(false);
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -1046,24 +1042,6 @@ export function ToolbarPlugin(props: {
                                         {height}
                                     </FormatOption>
                                 ))}
-                            </FormatMenu>
-                        )}
-                    </ColorPickerWrapper>
-
-                    <ColorPickerWrapper ref={indentMenuRef}>
-                        <Tooltip content={t.toolbar.indent}>
-                            <ToolbarButton onClick={() => { updateMenuAlignment('indent', indentMenuRef); setShowIndentMenu(!showIndentMenu); }} title={t.toolbar.indent}>
-                                <RiIndentIncrease />
-                            </ToolbarButton>
-                        </Tooltip>
-                        {showIndentMenu && (
-                            <FormatMenu $rightAlign={menuAlignments.indent} style={{ minWidth: '140px' }}>
-                                <FormatOption onClick={() => { editor.dispatchCommand(INDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }}>
-                                    <RiIndentIncrease style={{ marginRight: '8px' }} /> {t.toolbar.indent_options.indent}
-                                </FormatOption>
-                                <FormatOption onClick={() => { editor.dispatchCommand(OUTDENT_CONTENT_COMMAND, undefined); setShowIndentMenu(false); }}>
-                                    <RiIndentDecrease style={{ marginRight: '8px' }} /> {t.toolbar.indent_options.outdent}
-                                </FormatOption>
                             </FormatMenu>
                         )}
                     </ColorPickerWrapper>
