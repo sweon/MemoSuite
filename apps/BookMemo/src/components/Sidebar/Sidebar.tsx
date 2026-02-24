@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
+import { SyncModal, useColorTheme, useLanguage, SortSelect } from '@memosuite/shared';
 import { Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 
 import styled from 'styled-components';
@@ -774,25 +774,18 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             )}
           </SearchInputWrapper>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <select
+            <SortSelect
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              style={{
-                flex: 1,
-                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-                fontSize: window.innerWidth <= 768 ? '13px' : '0.75rem',
-                borderRadius: '6px',
-                border: `1px solid ${theme.colors.border}`,
-                background: theme.colors.surface,
-                color: theme.colors.text
-              }}
-            >
-              <option value="date-desc">{t.sidebar.newest}</option>
-              <option value="date-asc">{t.sidebar.oldest}</option>
-              <option value="last-memo-desc">{t.sidebar.last_memoed}</option>
-              <option value="last-comment-desc">{t.sidebar.last_commented}</option>
-              <option value="title-asc">Title (A-Z)</option>
-            </select>
+              onChange={(val) => setSortBy(val as any)}
+              title={t.sidebar.sort_by || 'Sort By'}
+              options={[
+                { value: 'date-desc', label: t.sidebar.newest },
+                { value: 'date-asc', label: t.sidebar.oldest },
+                { value: 'last-memo-desc', label: t.sidebar.last_memoed },
+                { value: 'last-comment-desc', label: t.sidebar.last_commented },
+                { value: 'title-asc', label: 'Title (A-Z)' },
+              ]}
+            />
           </div>
         </BrandArea>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { SyncModal, ThreadableList, useColorTheme, useLanguage } from '@memosuite/shared';
+import { SyncModal, ThreadableList, useColorTheme, useLanguage, SortSelect } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -1009,25 +1009,18 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
             )}
           </SearchInputWrapper>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <select
+            <SortSelect
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              style={{
-                flex: 1,
-                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-                fontSize: window.innerWidth <= 768 ? '13px' : '0.75rem',
-                borderRadius: '6px',
-                border: `1px solid ${theme.colors.border}`,
-                background: theme.colors.surface,
-                color: theme.colors.text
-              }}
-            >
-              <option value="date-desc">{t.sidebar.newest}</option>
-              <option value="date-asc">{t.sidebar.oldest}</option>
-              <option value="model-desc">{t.sidebar.model_newest}</option>
-              <option value="model-asc">{t.sidebar.model_oldest}</option>
-              <option value="comment-desc">{t.sidebar.last_commented}</option>
-            </select>
+              onChange={(val) => setSortBy(val as any)}
+              title={t.sidebar.sort_by || 'Sort By'}
+              options={[
+                { value: 'date-desc', label: t.sidebar.newest },
+                { value: 'date-asc', label: t.sidebar.oldest },
+                { value: 'model-desc', label: t.sidebar.model_newest },
+                { value: 'model-asc', label: t.sidebar.model_oldest },
+                { value: 'comment-desc', label: t.sidebar.last_commented },
+              ]}
+            />
           </div>
         </BrandArea>
 

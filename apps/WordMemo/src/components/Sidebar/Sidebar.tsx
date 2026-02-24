@@ -1,5 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
-import { SyncModal, useColorTheme, useLanguage } from '@memosuite/shared';
+import { SyncModal, useColorTheme, useLanguage, SortSelect } from '@memosuite/shared';
 
 import styled from 'styled-components';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -1121,27 +1121,20 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           </SearchInputWrapper>
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <select
+            <SortSelect
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              style={{
-                flex: 1,
-                padding: window.innerWidth <= 768 ? '8px' : '0.5rem',
-                fontSize: window.innerWidth <= 768 ? '13px' : '0.75rem',
-                borderRadius: '6px',
-                border: `1px solid ${theme.colors.border}`,
-                background: theme.colors.surface,
-                color: theme.colors.text
-              }}
-            >
-              <option value="date-desc">{language === 'ko' ? '최신순' : 'Newest'}</option>
-              <option value="date-asc">{language === 'ko' ? '오래된순' : 'Oldest'}</option>
-              <option value="alpha">{language === 'ko' ? '제목순' : 'Title A-Z'}</option>
-              <option value="starred">{language === 'ko' ? '중요한 것 먼저' : 'Starred First'}</option>
-              <option value="comment-desc">{language === 'ko' ? '댓글 많은 순' : 'Most Commented'}</option>
-              <option value="source-desc">{language === 'ko' ? '출처 (내림차순)' : 'Source (Desc)'}</option>
-              <option value="source-asc">{language === 'ko' ? '출처 (오름차순)' : 'Source (Asc)'}</option>
-            </select>
+              onChange={(val) => setSortBy(val as any)}
+              title={t.sidebar.sort_by || (language === 'ko' ? '정렬 기준' : 'Sort By')}
+              options={[
+                { value: 'date-desc', label: language === 'ko' ? '최신순' : 'Newest' },
+                { value: 'date-asc', label: language === 'ko' ? '오래된순' : 'Oldest' },
+                { value: 'alpha', label: language === 'ko' ? '제목순' : 'Title A-Z' },
+                { value: 'starred', label: language === 'ko' ? '중요한 것 먼저' : 'Starred First' },
+                { value: 'comment-desc', label: language === 'ko' ? '댓글 많은 순' : 'Most Commented' },
+                { value: 'source-desc', label: language === 'ko' ? '출처 (내림차순)' : 'Source (Desc)' },
+                { value: 'source-asc', label: language === 'ko' ? '출처 (오름차순)' : 'Source (Asc)' },
+              ]}
+            />
           </div>
         </BrandArea>
 
