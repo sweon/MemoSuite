@@ -34,7 +34,6 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import styled from "styled-components";
 import {
-    FaCode,
     FaUndo, FaRedo, FaUnderline, FaLink, FaAlignCenter, FaAlignLeft, FaAlignRight, FaAlignJustify,
     FaTable, FaEraser, FaPalette, FaPlus, FaImage, FaCaretDown, FaChevronUp, FaChevronDown,
     FaRegSquare, FaClock, FaEllipsisH
@@ -979,15 +978,6 @@ export function ToolbarPlugin(props: {
                             onChange={onFontColorSelect}
                         />
                     </ColorPickerWrapper>
-                    <Tooltip content={t.toolbar.inline_code}>
-                        <ToolbarButton
-                            onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code")}
-                            className={isCode ? "is-active" : ""}
-                            title={t.toolbar.inline_code}
-                        >
-                            <FaCode />
-                        </ToolbarButton>
-                    </Tooltip>
                     <Tooltip content={t.toolbar.link}>
                         <ToolbarButton
                             onClick={insertLink}
