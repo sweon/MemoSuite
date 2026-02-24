@@ -594,11 +594,15 @@ export function ToolbarPlugin(props: {
 
     const insertLink = useCallback(() => {
         if (!isLink) {
-            editor.dispatchCommand(TOGGLE_LINK_COMMAND, "https://");
+            const url = window.prompt(t.toolbar.link_prompt || "URL:", "https://");
+            if (url !== null && url !== "") {
+                editor.focus();
+                editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
+            }
         } else {
             editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
         }
-    }, [editor, isLink]);
+    }, [editor, isLink, t]);
 
     const insertTable = () => {
         const { rows, columns, headerRow, headerColumn } = tableConfig;

@@ -79,6 +79,7 @@ export const ko = {
         youtube: "유튜브 동영상 삽입",
         youtube_prompt: "유튜브 URL을 입력하세요:",
         youtube_invalid: "유효하지 않은 유튜브 URL입니다. youtube.com 또는 youtu.be URL을 입력해주세요.",
+        link_prompt: "링크 URL을 입력하세요:",
         collapsible_prompt: "제목을 입력하세요:",
         collapsible_default_title: "상세 내용"
     }

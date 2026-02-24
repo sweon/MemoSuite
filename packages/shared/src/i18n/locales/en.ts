@@ -79,6 +79,7 @@ export const en = {
         youtube: "Insert YouTube Video",
         youtube_prompt: "Enter YouTube URL:",
         youtube_invalid: "Invalid YouTube URL. Please enter a valid youtube.com or youtu.be URL.",
+        link_prompt: "Enter link URL:",
         collapsible_prompt: "Enter title:",
         collapsible_default_title: "Details"
     }
