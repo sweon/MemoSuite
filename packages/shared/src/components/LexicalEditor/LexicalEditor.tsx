@@ -177,6 +177,24 @@ const Content = styled(ContentEditable) <{ $tabSize?: number; $fontSize?: number
     list-style-type: none;
   }
 
+  /* Nested list bullet/number styles */
+  .editor-list-ul .editor-nested-listitem > .editor-list-ul {
+    list-style-type: circle;
+    margin: 0 0 0 24px;
+  }
+  .editor-list-ul .editor-nested-listitem > .editor-list-ul .editor-nested-listitem > .editor-list-ul {
+    list-style-type: square;
+    margin: 0 0 0 24px;
+  }
+  .editor-list-ol .editor-nested-listitem > .editor-list-ol {
+    list-style-type: lower-alpha;
+    margin: 0 0 0 24px;
+  }
+  .editor-list-ol .editor-nested-listitem > .editor-list-ol .editor-nested-listitem > .editor-list-ol {
+    list-style-type: lower-roman;
+    margin: 0 0 0 24px;
+  }
+
   .editor-text-bold { font-weight: bold; }
   .editor-text-italic { font-style: italic; }
   .editor-text-underline { text-decoration: underline; }
