@@ -38,7 +38,7 @@ import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { HorizontalRuleNode, $createHorizontalRuleNode, $isHorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { MemoSuiteTheme } from "./themes/MemoSuiteTheme";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import React, { useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import styled from "styled-components";
 import {
   $nodesOfType,
@@ -50,7 +50,6 @@ import {
   $isElementNode,
   ElementNode,
   $isParagraphNode,
-  $getRoot,
   TextNode,
   KEY_ENTER_COMMAND,
   COMMAND_PRIORITY_HIGH,
