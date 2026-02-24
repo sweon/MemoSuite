@@ -26,14 +26,19 @@ import {
 } from "@lexical/markdown";
 import type { Transformer, TextMatchTransformer } from "@lexical/markdown";
 import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
-import { TableNode, TableCellNode, TableRowNode } from "@lexical/table";
+import {
+  TableNode, TableCellNode, TableRowNode,
+  $createTableNode, $createTableRowNode, $createTableCellNode,
+  $isTableNode, $isTableRowNode, $isTableCellNode,
+  TableCellHeaderStates
+} from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { CodeHighlightNode, CodeNode } from "@lexical/code";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { HorizontalRuleNode, $createHorizontalRuleNode, $isHorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { MemoSuiteTheme } from "./themes/MemoSuiteTheme";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import {
   $nodesOfType,
@@ -45,7 +50,12 @@ import {
   $isElementNode,
   ElementNode,
   $isParagraphNode,
+  $getRoot,
   TextNode,
+  KEY_ENTER_COMMAND,
+  COMMAND_PRIORITY_HIGH,
+  $getSelection,
+  $isRangeSelection,
 } from "lexical";
 import type { LexicalNode, ElementFormatType } from "lexical";
 import { HeadingNode, QuoteNode, $isHeadingNode, $isQuoteNode } from "@lexical/rich-text";
@@ -468,6 +478,60 @@ const HR_TRANSFORMER: Transformer = {
   type: "element",
 };
 
+const TABLE_TRANSFORMER: Transformer = {
+  dependencies: [TableNode, TableRowNode, TableCellNode],
+  export: (node: LexicalNode, traverseChildren: (node: ElementNode) => string) => {
+    if (!$isTableNode(node)) return null;
+    const rows = node.getChildren();
+    if (rows.length === 0) return null;
+
+    const tableRows: string[][] = [];
+
+    rows.forEach((row: any) => {
+      if (!$isTableRowNode(row)) return;
+      const cells: string[] = [];
+      row.getChildren().forEach((cell: any) => {
+        if ($isTableCellNode(cell)) {
+          // Use traverseChildren to preserve nested markdown formats (bold, italic, links)
+          // Also escape pipe characters to avoid breaking markdown tables
+          let text = traverseChildren(cell) || ' ';
+          text = text.replace(/\|/g, '\\|').replace(/\n/g, '<br>');
+          cells.push(text.trim());
+        }
+      });
+      tableRows.push(cells);
+    });
+
+    if (tableRows.length === 0) return null;
+
+    const colCount = Math.max(...tableRows.map(r => r.length));
+    const lines: string[] = [];
+    const formatRow = (cells: string[]) => {
+      const padded = Array(colCount).fill('').map((_, i) => cells[i] || ' ');
+      return '| ' + padded.join(' | ') + ' |';
+    };
+
+    // First row
+    lines.push(formatRow(tableRows[0]));
+    // Separator
+    const sep = Array(colCount).fill('---');
+    lines.push('| ' + sep.join(' | ') + ' |');
+    // Remaining rows
+    for (let i = 1; i < tableRows.length; i++) {
+      lines.push(formatRow(tableRows[i]));
+    }
+
+    // Ensure there's a blank line before and after the table output string
+    return '\n' + lines.join('\n') + '\n';
+  },
+  regExp: /^\|(.+)\|\s*$/,
+  replace: () => {
+    // Import is handled by MarkdownSyncPlugin pre-processing
+    return false;
+  },
+  type: "element",
+};
+
 const PAGE_BREAK_TRANSFORMER: Transformer = {
   dependencies: [PageBreakNode],
   export: (node: LexicalNode) => {
@@ -550,6 +614,125 @@ function MarkdownImmediatePlugin(): null {
         }
       }
     });
+  }, [editor]);
+
+  return null;
+}
+
+// Helper: parse a markdown table row into cells
+// Helper: parse a markdown table row into cells safely (without regex lookbehind)
+function parseTableRow(line: string): string[] {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) return [];
+  const inner = trimmed.substring(1, trimmed.length - 1);
+
+  const cells: string[] = [];
+  let currentCell = '';
+
+  for (let i = 0; i < inner.length; i++) {
+    const char = inner[i];
+    if (char === '\\' && inner[i + 1] === '|') {
+      currentCell += '|';
+      i++; // skip next char
+    } else if (char === '|') {
+      cells.push(currentCell.trim());
+      currentCell = '';
+    } else {
+      currentCell += char;
+    }
+  }
+  cells.push(currentCell.trim()); // push last cell
+
+  return cells;
+}
+
+// Helper: check if a line is a separator row
+function isSeparatorRow(line: string): boolean {
+  const cells = parseTableRow(line);
+  if (cells.length === 0) return false;
+  return cells.every(cell => /^:?-{1,}:?$/.test(cell.trim()));
+}
+
+// Plugin: detects markdown table input in real-time and converts to Lexical table
+function MarkdownTablePlugin(): null {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    return editor.registerCommand(
+      KEY_ENTER_COMMAND,
+      (event) => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+
+        const anchorNode = selection.anchor.getNode();
+        const currentBlock = anchorNode.getTopLevelElementOrThrow();
+        if (!$isParagraphNode(currentBlock)) return false;
+
+        const currentText = currentBlock.getTextContent().trim();
+
+        // Check if current line looks like a separator row: | --- | --- |
+        if (!isSeparatorRow(currentText)) return false;
+
+        // Look for the header row above
+        const prevSibling = currentBlock.getPreviousSibling();
+        if (!prevSibling || !$isParagraphNode(prevSibling)) return false;
+
+        const headerText = prevSibling.getTextContent().trim();
+        if (!headerText.startsWith('|') || !headerText.endsWith('|')) return false;
+
+        const headerCells = parseTableRow(headerText);
+        const separatorCells = parseTableRow(currentText);
+
+        if (headerCells.length === 0 || separatorCells.length === 0) return false;
+
+        // The number of columns is determined by the header
+        const colCount = headerCells.length;
+
+        // Prevent default enter behavior
+        if (event) event.preventDefault();
+
+        // Create the table
+        const tableNode = $createTableNode();
+
+        // Header row
+        const headerRow = $createTableRowNode();
+        for (let i = 0; i < colCount; i++) {
+          const cell = $createTableCellNode(TableCellHeaderStates.ROW);
+          const paragraph = $createParagraphNode();
+          const text = headerCells[i] || '';
+          if (text) paragraph.append($createTextNode(text));
+          cell.append(paragraph);
+          headerRow.append(cell);
+        }
+        tableNode.append(headerRow);
+
+        // Add one empty data row to start with
+        const dataRow = $createTableRowNode();
+        for (let i = 0; i < colCount; i++) {
+          const cell = $createTableCellNode(TableCellHeaderStates.NO_STATUS);
+          const paragraph = $createParagraphNode();
+          cell.append(paragraph);
+          dataRow.append(cell);
+        }
+        tableNode.append(dataRow);
+
+        // Replace the header line and separator line with the table
+        prevSibling.remove();
+        currentBlock.replace(tableNode);
+
+        // Focus the first cell of the data row
+        const firstDataCell = dataRow.getFirstChild();
+        if (firstDataCell && $isTableCellNode(firstDataCell)) {
+          const firstParagraph = firstDataCell.getFirstChild();
+          if (firstParagraph) {
+            firstParagraph.selectEnd();
+          }
+        }
+
+        return true;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
   }, [editor]);
 
   return null;
@@ -765,6 +948,7 @@ const ALL_TRANSFORMERS: Transformer[] = [
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
+  TABLE_TRANSFORMER,
   PAGE_BREAK_TRANSFORMER,
   HR_TRANSFORMER,
   ...TRANSFORMERS.filter(t =>
@@ -793,6 +977,7 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
   CHECK_LIST,
   IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
+  TABLE_TRANSFORMER,
   SPREADSHEET_TRANSFORMER,
   HANDWRITING_TRANSFORMER,
   PAGE_BREAK_TRANSFORMER,
@@ -830,9 +1015,57 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
 
       const alignmentCleaned = withPageBreaks.replace(/<(p|h[1-6]|blockquote) align="(\w+)">([\s\S]*?)<\/\1>/gi, '<$1 align="$2">$3');
 
-      // 2. Pre-process collapsible blocks
+      // 2. Pre-process markdown tables with a reliable line scanner
+      const tableBlocks: Array<{ headerCells: string[], dataRows: string[][] }> = [];
+      const lines = alignmentCleaned.split('\n');
+      const processedLines: string[] = [];
+      let inTable = false;
+      let curHeader: string[] = [];
+      let curDataRows: string[][] = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('|') && line.endsWith('|')) {
+          if (!inTable) {
+            const nextLine = (lines[i + 1] || '').trim();
+            if (nextLine.startsWith('|') && nextLine.endsWith('|') && nextLine.includes('-')) {
+              // Confirm separator
+              if (isSeparatorRow(nextLine)) {
+                inTable = true;
+                curHeader = parseTableRow(line);
+                curDataRows = [];
+                i++; // Skip separator line
+                continue;
+              }
+            }
+          }
+          if (inTable) {
+            curDataRows.push(parseTableRow(line));
+            continue;
+          }
+        }
+
+        // If we reach here, it's not a table line OR we broke out of table
+        if (inTable) {
+          const idx = tableBlocks.length;
+          tableBlocks.push({ headerCells: curHeader, dataRows: curDataRows });
+          processedLines.push('\n\n```__table_' + idx + '\n__table_placeholder\n```\n\n');
+          inTable = false;
+        }
+        processedLines.push(lines[i]);
+      }
+
+      if (inTable) {
+        const idx = tableBlocks.length;
+        tableBlocks.push({ headerCells: curHeader, dataRows: curDataRows });
+        processedLines.push('\n\n```__table_' + idx + '\n__table_placeholder\n```\n\n');
+      }
+
+      const withTables = processedLines.join('\n');
+
+      // 2B. Pre-process collapsible blocks
       const collapsibleBlocks: Array<{ title: string, content: string }> = [];
-      const withCollapses = alignmentCleaned.replace(
+      const withCollapses = withTables.replace(
         /^:::collapse\s*(.*?)\n([\s\S]*?)\n:::$/gm,
         (_: any, title: string, content: string) => {
           const idx = collapsibleBlocks.length;
@@ -849,7 +1082,8 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
       textNodes.forEach((node: TextNode) => {
         const text = node.getTextContent();
         if (text === '\u200B') {
-          node.remove();
+          // Instead of removing, replace with empty text node to keep the paragraph alive
+          node.setTextContent('');
         } else if (text.includes('\u200B')) {
           node.setTextContent(text.replace(/\u200B/g, ''));
         }
@@ -859,7 +1093,67 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
       const codeNodes = $nodesOfType(CodeNode);
       codeNodes.forEach((node: CodeNode) => {
         const lang = node.getLanguage();
-        if (lang?.startsWith('__collapse_')) {
+        if (lang?.startsWith('__table_')) {
+          const idx = parseInt(lang.substring('__table_'.length));
+          const block = tableBlocks[idx];
+          if (block) {
+            const tableNode = $createTableNode();
+            const colCount = block.headerCells.length;
+
+            // Handle internal markdown processing for imported table cells
+            const createCellNodes = (text: string) => {
+              // Convert inline <br> to actual line breaks
+              const lines = text.split('<br>');
+              return lines.map(line => {
+                const paragraph = $createParagraphNode();
+                if (line.trim() !== '') {
+                  paragraph.append($createTextNode(line.replace(/\\\|/g, '|').trim()));
+                }
+                return paragraph;
+              });
+            };
+
+            // Header row
+            const headerRow = $createTableRowNode();
+            for (let i = 0; i < colCount; i++) {
+              const cell = $createTableCellNode(TableCellHeaderStates.ROW);
+              const text = block.headerCells[i] || '';
+              const nodes = createCellNodes(text);
+              if (nodes.length === 0) nodes.push($createParagraphNode());
+              nodes.forEach(n => cell.append(n));
+              headerRow.append(cell);
+            }
+            tableNode.append(headerRow);
+
+            // Data rows
+            for (const rowCells of block.dataRows) {
+              const row = $createTableRowNode();
+              for (let i = 0; i < colCount; i++) {
+                const cell = $createTableCellNode(TableCellHeaderStates.NO_STATUS);
+                const text = rowCells[i] || '';
+                const nodes = createCellNodes(text);
+                if (nodes.length === 0) nodes.push($createParagraphNode());
+                nodes.forEach(n => cell.append(n));
+                row.append(cell);
+              }
+              tableNode.append(row);
+            }
+
+            // If no data rows, add one empty row
+            if (block.dataRows.length === 0) {
+              const emptyRow = $createTableRowNode();
+              for (let i = 0; i < colCount; i++) {
+                const cell = $createTableCellNode(TableCellHeaderStates.NO_STATUS);
+                const paragraph = $createParagraphNode();
+                cell.append(paragraph);
+                emptyRow.append(cell);
+              }
+              tableNode.append(emptyRow);
+            }
+
+            node.replace(tableNode);
+          }
+        } else if (lang?.startsWith('__collapse_')) {
           const idx = parseInt(lang.substring('__collapse_'.length));
           const block = collapsibleBlocks[idx];
           if (block) {
@@ -1050,6 +1344,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
           <ListMaxIndentLevelPlugin maxDepth={7} />
           <AutoFocusPlugin />
           <MarkdownImmediatePlugin />
+          <MarkdownTablePlugin />
           <MarkdownSyncPlugin value={value} onChange={onChange} />
         </div>
       </LexicalComposer>
