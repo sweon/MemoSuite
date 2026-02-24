@@ -69,6 +69,7 @@ import { ToolbarPlugin, ToolbarButton } from "./plugins/ToolbarPlugin";
 export { ToolbarButton };
 import { ListMaxIndentLevelPlugin } from "./plugins/ListMaxIndentLevelPlugin";
 import { TableResizerPlugin } from "./plugins/TableResizerPlugin";
+import { TableActionMenuPlugin } from "./plugins/TableActionMenuPlugin";
 import { PageBreakPlugin } from "./plugins/PageBreakPlugin";
 
 const URL_REGEX =
@@ -1336,6 +1337,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
           <CheckListPlugin />
           <TablePlugin />
           <TableResizerPlugin />
+          <TableActionMenuPlugin />
           {tabIndentation && <TabIndentationPlugin />}
           <HorizontalRulePlugin />
           <ClearEditorPlugin />
