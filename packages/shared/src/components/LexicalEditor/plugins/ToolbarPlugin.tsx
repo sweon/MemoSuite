@@ -442,7 +442,6 @@ export function ToolbarPlugin(props: {
 
     const [isUnderline, setIsUnderline] = useState(false);
     const [isCheckList, setIsCheckList] = useState(false);
-    const [isCode, setIsCode] = useState(false);
     const [isLink, setIsLink] = useState(false);
     const [fontColor, setFontColor] = useState("#000000");
     const [fontSize, setFontSize] = useState(`${defaultFontSize}px`);
@@ -541,7 +540,6 @@ export function ToolbarPlugin(props: {
             }
 
             setIsUnderline(selection.hasFormat("underline"));
-            setIsCode(selection.hasFormat("code"));
 
             // Update Link
             const node = selection.anchor.getNode();
