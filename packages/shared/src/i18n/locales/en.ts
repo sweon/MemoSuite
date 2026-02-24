@@ -53,6 +53,7 @@ export const en = {
         indent: "Indent Options",
         table: "Insert Table",
         horizontal_rule: "Horizontal Rule",
+        page_break: "Page Break",
         insert_time: "Insert Current Time",
         clear: "Clear All Content",
         clear_formatting: "Clear All Formatting",
