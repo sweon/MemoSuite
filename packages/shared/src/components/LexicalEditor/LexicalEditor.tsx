@@ -15,7 +15,11 @@ import { AutoLinkPlugin } from "@lexical/react/LexicalAutoLinkPlugin";
 import { ClearEditorPlugin } from "@lexical/react/LexicalClearEditorPlugin";
 import {
   TRANSFORMERS,
+  ELEMENT_TRANSFORMERS,
+  TEXT_FORMAT_TRANSFORMERS,
+  TEXT_MATCH_TRANSFORMERS,
   CHECK_LIST,
+  CODE,
   BOLD_ITALIC_STAR,
   BOLD_ITALIC_UNDERSCORE,
   BOLD_STAR,
@@ -24,7 +28,7 @@ import {
   ITALIC_UNDERSCORE,
   STRIKETHROUGH
 } from "@lexical/markdown";
-import type { Transformer, TextMatchTransformer } from "@lexical/markdown";
+import type { Transformer, TextMatchTransformer, ElementTransformer } from "@lexical/markdown";
 import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
 import {
   TableNode, TableCellNode, TableRowNode,
@@ -33,7 +37,7 @@ import {
   TableCellHeaderStates
 } from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
-import { CodeHighlightNode, CodeNode } from "@lexical/code";
+import { CodeHighlightNode, CodeNode, $createCodeNode, $isCodeNode, registerCodeHighlighting } from "@lexical/code";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { HorizontalRuleNode, $createHorizontalRuleNode, $isHorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { MemoSuiteTheme } from "./themes/MemoSuiteTheme";
@@ -669,7 +673,15 @@ function isSeparatorRow(line: string): boolean {
   return cells.every(cell => /^:?-{1,}:?$/.test(cell.trim()));
 }
 
-// Plugin: detects markdown table input in real-time and converts to Lexical table
+function CodeHighlightPlugin(): null {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    return registerCodeHighlighting(editor);
+  }, [editor]);
+  return null;
+}
+
+// Plugin: detects markdown table input in real-time and converts to Lexical
 function MarkdownTablePlugin(): null {
   const [editor] = useLexicalComposerContext();
 
@@ -686,7 +698,20 @@ function MarkdownTablePlugin(): null {
 
         const currentText = currentBlock.getTextContent().trim();
 
-        // Check if current line looks like a separator row: | --- | --- |
+        // 1. Detect Code Block Shortcut: ```lang + Enter
+        if (currentText.startsWith('```')) {
+          const match = currentText.match(/^```(\w*)\s*$/); // Flexible regex
+          if (match) {
+            if (event) event.preventDefault();
+            const language = match[1];
+            const codeNode = $createCodeNode(language);
+            currentBlock.replace(codeNode);
+            codeNode.select();
+            return true;
+          }
+        }
+
+        // 2. Detect Markdown Table Separator: | --- | --- |
         if (!isSeparatorRow(currentText)) return false;
 
         // Look for the header row above
@@ -951,6 +976,7 @@ const SAFE_STRIKETHROUGH: TextMatchTransformer = {
 };
 
 const ALL_TRANSFORMERS: Transformer[] = [
+  CODE,
   ELEMENT_FORMAT_EXPORT_TRANSFORMER,
   HTML_COMBINED_TRANSFORMER,
   EMPTY_PARAGRAPH_TRANSFORMER,
@@ -980,6 +1006,7 @@ const ALL_TRANSFORMERS: Transformer[] = [
 ];
 
 const EXPORT_TRANSFORMERS: Transformer[] = [
+  CODE,
   ELEMENT_FORMAT_EXPORT_TRANSFORMER,
   EMPTY_PARAGRAPH_TRANSFORMER,
   HTML_COMBINED_TRANSFORMER,
@@ -1090,8 +1117,19 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
         }
       );
 
+      // 2C. Pre-process native code blocks
+      const realCodeBlocks: Array<{ lang: string, content: string }> = [];
+      const withCodeBlocks = withCollapses.replace(
+        /^```(\w*)\n([\s\S]*?)\n```$/gm,
+        (_: any, lang: string, content: string) => {
+          const idx = realCodeBlocks.length;
+          realCodeBlocks.push({ lang, content });
+          return '```__real_code_' + idx + '\n' + content + '\n```';
+        }
+      );
+
       // 3. Initial Markdown Import
-      $convertFromMarkdownString(withCollapses, ALL_TRANSFORMERS);
+      $convertFromMarkdownString(withCodeBlocks, ALL_TRANSFORMERS);
 
       // 3A. Post-process: Remove ZWSP markers to restore truly empty paragraphs
       const textNodes = $nodesOfType(TextNode);
@@ -1182,6 +1220,14 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
               collapsibleNode.append(paragraph);
             }
             node.replace(collapsibleNode);
+          }
+        } else if (lang?.startsWith('__real_code_')) {
+          const idx = parseInt(lang.substring('__real_code_'.length));
+          const block = realCodeBlocks[idx];
+          if (block) {
+            const codeNode = $createCodeNode(block.lang);
+            codeNode.append($createTextNode(block.content));
+            node.replace(codeNode);
           }
         } else if (lang === "fabric") {
           const data = node.getTextContent();
@@ -1348,6 +1394,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
           {markdownShortcuts && <MarkdownShortcutPlugin transformers={ALL_TRANSFORMERS} />}
           <PageBreakPlugin />
           <ListPlugin />
+          <CodeHighlightPlugin />
           <LinkPlugin />
           {autoLink && <AutoLinkPlugin matchers={MATCHERS} />}
           <CheckListPlugin />
