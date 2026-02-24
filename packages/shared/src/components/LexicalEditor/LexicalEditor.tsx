@@ -15,9 +15,6 @@ import { AutoLinkPlugin } from "@lexical/react/LexicalAutoLinkPlugin";
 import { ClearEditorPlugin } from "@lexical/react/LexicalClearEditorPlugin";
 import {
   TRANSFORMERS,
-  ELEMENT_TRANSFORMERS,
-  TEXT_FORMAT_TRANSFORMERS,
-  TEXT_MATCH_TRANSFORMERS,
   CHECK_LIST,
   CODE,
   BOLD_ITALIC_STAR,
@@ -28,7 +25,7 @@ import {
   ITALIC_UNDERSCORE,
   STRIKETHROUGH
 } from "@lexical/markdown";
-import type { Transformer, TextMatchTransformer, ElementTransformer } from "@lexical/markdown";
+import type { Transformer, TextMatchTransformer } from "@lexical/markdown";
 import { $convertFromMarkdownString, $convertToMarkdownString } from "@lexical/markdown";
 import {
   TableNode, TableCellNode, TableRowNode,
@@ -37,7 +34,7 @@ import {
   TableCellHeaderStates
 } from "@lexical/table";
 import { ListItemNode, ListNode } from "@lexical/list";
-import { CodeHighlightNode, CodeNode, $createCodeNode, $isCodeNode, registerCodeHighlighting } from "@lexical/code";
+import { CodeHighlightNode, CodeNode, $createCodeNode, registerCodeHighlighting } from "@lexical/code";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { HorizontalRuleNode, $createHorizontalRuleNode, $isHorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { MemoSuiteTheme } from "./themes/MemoSuiteTheme";
