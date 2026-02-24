@@ -670,6 +670,16 @@ const WebPreview = React.memo(({ url }: { url: string }) => {
   const domain = new URL(url).hostname;
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 
+  const previewUrl = React.useMemo(() => {
+    try {
+      const fileIdMatch = url.match(/\/file\/d\/([^\/]+)/) || url.match(/[?&]id=([^&]+)/);
+      if (fileIdMatch && (url.includes('drive.google.com') || url.includes('docs.google.com'))) {
+        return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+      }
+    } catch (e) { }
+    return url;
+  }, [url]);
+
   return (
     <div style={{
       margin: '20px 0',
@@ -761,7 +771,7 @@ const WebPreview = React.memo(({ url }: { url: string }) => {
             </div>
           </div>
           <iframe
-            src={url}
+            src={previewUrl}
             style={{
               width: '100%',
               height: '100%',
@@ -1641,6 +1651,24 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
     },
     img: ({ src, alt }: any) => {
       try {
+        if (src) {
+          const fileIdMatch = src.match(/\/file\/d\/([^\/]+)/) || src.match(/[?&]id=([^&]+)/);
+          if (fileIdMatch && (src.includes('drive.google.com') || src.includes('docs.google.com'))) {
+            const previewUrl = `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+            return (
+              <div style={{ width: '100%', aspectRatio: '16/9', maxHeight: '500px', margin: '1em 0' }}>
+                <iframe
+                  src={previewUrl}
+                  width="100%"
+                  height="100%"
+                  style={{ border: '1px solid #ddd', borderRadius: '8px' }}
+                  allow="autoplay"
+                  title={alt}
+                />
+              </div>
+            );
+          }
+        }
         const meta = metadataCache.get(src || '');
         if (meta) {
           return (<img src={src} alt={alt} width={meta.width} height={meta.height} style={{ aspectRatio: `${meta.width} / ${meta.height}`, height: 'auto', maxWidth: '100%', display: 'block', margin: '1em auto' }} />);

@@ -376,12 +376,14 @@ const IMAGE_TRANSFORMER: Transformer = {
     }
     return null;
   },
+  importRegExp: /!\[([^\]]*)\]\(([^)]*)\)/,
   regExp: /!\[([^\]]*)\]\(([^)]*)\)/,
   replace: (textNode: any, match: any) => {
     const [, altText, src] = match;
     const imageNode = $createImageNode({ src, altText });
     textNode.replace(imageNode);
   },
+  trigger: ")",
   type: "text-match",
 };
 
@@ -1043,6 +1045,7 @@ const SAFE_STRIKETHROUGH: TextMatchTransformer = {
 };
 
 const ALL_TRANSFORMERS: Transformer[] = [
+  IMAGE_TRANSFORMER,
   CODE,
   ELEMENT_FORMAT_EXPORT_TRANSFORMER,
   HTML_COMBINED_TRANSFORMER,
@@ -1055,7 +1058,6 @@ const ALL_TRANSFORMERS: Transformer[] = [
   SAFE_ITALIC_UNDERSCORE,
   SAFE_STRIKETHROUGH,
   CHECK_LIST,
-  IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
   TABLE_TRANSFORMER,
   PAGE_BREAK_TRANSFORMER,
@@ -1073,6 +1075,7 @@ const ALL_TRANSFORMERS: Transformer[] = [
 ];
 
 const EXPORT_TRANSFORMERS: Transformer[] = [
+  IMAGE_TRANSFORMER,
   CODE,
   ELEMENT_FORMAT_EXPORT_TRANSFORMER,
   EMPTY_PARAGRAPH_TRANSFORMER,
@@ -1085,7 +1088,6 @@ const EXPORT_TRANSFORMERS: Transformer[] = [
   SAFE_ITALIC_UNDERSCORE,
   SAFE_STRIKETHROUGH,
   CHECK_LIST,
-  IMAGE_TRANSFORMER,
   COLLAPSIBLE_TRANSFORMER,
   TABLE_TRANSFORMER,
   SPREADSHEET_TRANSFORMER,

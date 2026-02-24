@@ -36,6 +36,15 @@ export type SerializedImageNode = Spread<
     SerializedLexicalNode
 >;
 
+const getGoogleDrivePreviewLink = (url: string): string | null => {
+    if (!url) return null;
+    const fileIdMatch = url.match(/\/file\/d\/([^\/]+)/) || url.match(/[?&]id=([^&]+)/);
+    if (fileIdMatch && (url.includes('drive.google.com') || url.includes('docs.google.com'))) {
+        return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+    }
+    return null;
+};
+
 export class ImageNode extends DecoratorNode<React.ReactNode> {
     __src: string;
     __altText: string;
@@ -90,6 +99,23 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
     }
 
     decorate(): React.ReactNode {
+        const drivePreviewUrl = getGoogleDrivePreviewLink(this.__src);
+
+        if (drivePreviewUrl) {
+            return (
+                <ImageWrapper style={{ width: '100%', aspectRatio: '16/9', maxHeight: '500px' }}>
+                    <iframe
+                        src={drivePreviewUrl}
+                        width="100%"
+                        height="100%"
+                        style={{ border: '1px solid #ddd', borderRadius: '8px' }}
+                        allow="autoplay"
+                        title={this.__altText}
+                    />
+                </ImageWrapper>
+            );
+        }
+
         return (
             <ImageWrapper>
                 <StyledImage
