@@ -274,7 +274,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
     navigateToFolder,
     navigateUp
   } = useFolder();
-  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'model-desc' | 'model-asc' | 'comment-desc'>('date-desc');
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'model-desc' | 'model-asc' | 'comment-desc'>(() => {
+    return (localStorage.getItem('llmemo_sidebar_sortBy') as any) || 'date-desc';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('llmemo_sidebar_sortBy', sortBy);
+  }, [sortBy]);
 
   // Expansion state (now collapsed by default)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
@@ -537,6 +543,13 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
           // Same model order: sort by date (newest first)
           return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
         }
+      }
+
+      if (sortBy === 'comment-desc') {
+        const aCount = allComments?.filter(c => c.logId === aLog.id).length || 0;
+        const bCount = allComments?.filter(c => c.logId === bLog.id).length || 0;
+        if (aCount !== bCount) return bCount - aCount;
+        return new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime();
       }
 
       return 0;

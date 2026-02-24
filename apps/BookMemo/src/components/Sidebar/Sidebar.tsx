@@ -272,7 +272,13 @@ const AppVersion = styled.span`
 export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false, movingMemoId, setMovingMemoId }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
-  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-memo-asc' | 'last-comment-desc'>('date-desc');
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'title-asc' | 'last-memo-desc' | 'last-memo-asc' | 'last-comment-desc'>(() => {
+    return (localStorage.getItem('book_sidebar_sortBy') as any) || 'date-desc';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('book_sidebar_sortBy', sortBy);
+  }, [sortBy]);
   const [justUnpinnedIds, setJustUnpinnedIds] = useState<Map<number, Date>>(new Map());
   const [expandedBookIds, setExpandedBookIds] = useState<Set<number>>(new Set());
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -536,37 +542,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       });
     }
 
-    if (sortBy === 'last-memo-desc') {
-      const lastMemoMap = new Map<number, number>();
-      allMemos?.forEach(m => {
-        if (m.bookId === undefined) return;
-        const current = lastMemoMap.get(m.bookId) || 0;
-        const mTime = new Date(m.updatedAt).getTime();
-        if (mTime > current) lastMemoMap.set(m.bookId, mTime);
-      });
-      return books.sort((a, b) => (lastMemoMap.get(b.id!) || 0) - (lastMemoMap.get(a.id!) || 0));
-    }
-
-    if (sortBy === 'last-comment-desc') {
-      const memoToBookMap = new Map<number, number>();
-      allMemos?.forEach(m => {
-        if (m.id !== undefined && m.bookId !== undefined) {
-          memoToBookMap.set(m.id, m.bookId);
-        }
-      });
-
-      const lastCommentMap = new Map<number, number>();
-      allComments?.forEach(c => {
-        const bookId = memoToBookMap.get(c.memoId);
-        if (bookId !== undefined) {
-          const current = lastCommentMap.get(bookId) || 0;
-          const cTime = new Date(c.updatedAt).getTime();
-          if (cTime > current) lastCommentMap.set(bookId, cTime);
-        }
-      });
-      return books.sort((a, b) => (lastCommentMap.get(b.id!) || 0) - (lastCommentMap.get(a.id!) || 0));
-    }
-
     return books.sort((a, b) => {
       const aPinnedAt = a.pinnedAt || (a.id ? justUnpinnedIds.get(a.id) : undefined);
       const bPinnedAt = b.pinnedAt || (b.id ? justUnpinnedIds.get(b.id) : undefined);
@@ -575,6 +550,46 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       if (aPinnedAt && bPinnedAt) return new Date(bPinnedAt).getTime() - new Date(aPinnedAt).getTime();
       if (aPinnedAt) return -1;
       if (bPinnedAt) return 1;
+
+      // Handle unpinned item sorting based on sortBy
+      if (sortBy === 'last-memo-desc' || sortBy === 'last-memo-asc') {
+        const lastMemoMap = new Map<number, number>();
+        allMemos?.forEach(m => {
+          if (m.bookId === undefined) return;
+          const current = lastMemoMap.get(m.bookId) || 0;
+          const mTime = new Date(m.updatedAt).getTime();
+          if (mTime > current) lastMemoMap.set(m.bookId, mTime);
+        });
+        const aTime = lastMemoMap.get(a.id!) || 0;
+        const bTime = lastMemoMap.get(b.id!) || 0;
+        if (aTime !== bTime) {
+          return sortBy === 'last-memo-desc' ? bTime - aTime : aTime - bTime;
+        }
+      }
+
+      if (sortBy === 'last-comment-desc') {
+        const memoToBookMap = new Map<number, number>();
+        allMemos?.forEach(m => {
+          if (m.id !== undefined && m.bookId !== undefined) {
+            memoToBookMap.set(m.id, m.bookId);
+          }
+        });
+
+        const lastCommentMap = new Map<number, number>();
+        allComments?.forEach(c => {
+          const bookId = memoToBookMap.get(c.memoId);
+          if (bookId !== undefined) {
+            const current = lastCommentMap.get(bookId) || 0;
+            const cTime = new Date(c.updatedAt).getTime();
+            if (cTime > current) lastCommentMap.set(bookId, cTime);
+          }
+        });
+        const aTime = lastCommentMap.get(a.id!) || 0;
+        const bTime = lastCommentMap.get(b.id!) || 0;
+        if (aTime !== bTime) {
+          return bTime - aTime;
+        }
+      }
 
       if (sortBy === 'date-desc') return b.updatedAt.getTime() - a.updatedAt.getTime();
       if (sortBy === 'date-asc') return a.updatedAt.getTime() - b.updatedAt.getTime();

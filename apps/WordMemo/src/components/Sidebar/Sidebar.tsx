@@ -327,7 +327,13 @@ export interface SidebarRef {
 export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, isEditing = false, movingWordId, setMovingWordId }, ref) => {
   const { searchQuery, setSearchQuery } = useSearch();
   const { t, language } = useLanguage();
-  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'source-desc' | 'source-asc' | 'comment-desc' | 'alpha' | 'starred'>('date-desc');
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'source-desc' | 'source-asc' | 'comment-desc' | 'alpha' | 'starred'>(() => {
+    return (localStorage.getItem('word_sidebar_sortBy') as any) || 'date-desc';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('word_sidebar_sortBy', sortBy);
+  }, [sortBy]);
   const [starredOnly, setStarredOnly] = useState(false);
   const { studyMode, setStudyMode } = useStudyMode();
   const {
@@ -637,7 +643,6 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       const aPinnedAt = (a as any).log.pinnedAt || ((a as any).log.id ? justUnpinnedIds.get((a as any).log.id) : undefined);
       const bPinnedAt = (b as any).log.pinnedAt || ((b as any).log.id ? justUnpinnedIds.get((b as any).log.id) : undefined);
 
-      // ... rest of sort logic ...
       if (aPinnedAt && bPinnedAt) return new Date(bPinnedAt).getTime() - new Date(aPinnedAt).getTime();
       if (aPinnedAt) return -1;
       if (bPinnedAt) return 1;
@@ -645,17 +650,41 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({ onCloseMobile, is
       if (sortBy === 'starred') {
         if ((a as any).log.isStarred && !(b as any).log.isStarred) return -1;
         if (!(a as any).log.isStarred && (b as any).log.isStarred) return 1;
+        return (b as any).log.createdAt.getTime() - (a as any).log.createdAt.getTime();
       }
-      if (sortBy === 'date-desc') return (b as any).log.createdAt.getTime() - (a as any).log.createdAt.getTime();
-      if (sortBy === 'date-asc') return (a as any).log.createdAt.getTime() - (b as any).log.createdAt.getTime();
-      if (sortBy === 'source-desc') return (sourceNameMap.get((b as any).log.sourceId!) || '').localeCompare(sourceNameMap.get((a as any).log.sourceId!) || '');
-      if (sortBy === 'source-asc') return (sourceNameMap.get((a as any).log.sourceId!) || '').localeCompare(sourceNameMap.get((a as any).log.sourceId!) || '');
-      if (sortBy === 'alpha') return (a as any).log.title.localeCompare((b as any).log.title);
+
+      if (sortBy === 'source-desc') {
+        const aSource = sourceNameMap.get((a as any).log.sourceId!) || '';
+        const bSource = sourceNameMap.get((b as any).log.sourceId!) || '';
+        const cmp = bSource.localeCompare(aSource);
+        if (cmp !== 0) return cmp;
+        return (b as any).log.createdAt.getTime() - (a as any).log.createdAt.getTime();
+      }
+
+      if (sortBy === 'source-asc') {
+        const aSource = sourceNameMap.get((a as any).log.sourceId!) || '';
+        const bSource = sourceNameMap.get((b as any).log.sourceId!) || '';
+        const cmp = aSource.localeCompare(bSource);
+        if (cmp !== 0) return cmp;
+        return (b as any).log.createdAt.getTime() - (a as any).log.createdAt.getTime();
+      }
+
+      if (sortBy === 'alpha') {
+        const cmp = (a as any).log.title.localeCompare((b as any).log.title);
+        if (cmp !== 0) return cmp;
+        return (b as any).log.createdAt.getTime() - (a as any).log.createdAt.getTime();
+      }
+
       if (sortBy === 'comment-desc') {
         const aCount = allComments?.filter(oc => oc.wordId === (a as any).log.id).length || 0;
         const bCount = allComments?.filter(oc => oc.wordId === (b as any).log.id).length || 0;
-        return bCount - aCount;
+        if (bCount !== aCount) return bCount - aCount;
+        return (b as any).log.createdAt.getTime() - (a as any).log.createdAt.getTime();
       }
+
+      if (sortBy === 'date-desc') return (b as any).log.createdAt.getTime() - (a as any).log.createdAt.getTime();
+      if (sortBy === 'date-asc') return (a as any).log.createdAt.getTime() - (b as any).log.createdAt.getTime();
+
       return (b as any).log.createdAt.getTime() - (a as any).log.createdAt.getTime();
     });
 
