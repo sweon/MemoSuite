@@ -1479,13 +1479,16 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
     let touchStartX = 0;
     let touchStartY = 0;
     let isTap = false;
+    let touchActive = false;
     let blockNextClick = false;
+    let lastTouchEndTime = 0;
 
     const handleTouchStart = (e: TouchEvent) => {
       const touch = e.touches[0];
       touchStartX = touch.clientX;
       touchStartY = touch.clientY;
       isTap = true;
+      touchActive = true;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -1499,7 +1502,20 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       }
     };
 
+    // CRITICAL: Intercept mousedown (synthetic from touch) to prevent
+    // the browser from focusing the contenteditable via user gesture.
+    // On quick taps, mousedown fires BEFORE touchend and triggers the keyboard.
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!touchActive) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('[contenteditable="true"]')) {
+        e.preventDefault();
+      }
+    };
+
     const handleTouchEnd = (e: TouchEvent) => {
+      touchActive = false;
+
       if (!isTap) return;
 
       const target = e.target as HTMLElement;
@@ -1510,6 +1526,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       // the contenteditable and triggering the virtual keyboard
       e.preventDefault();
       blockNextClick = true;
+      lastTouchEndTime = Date.now();
 
       // Manually place the caret at the touch position
       const touch = e.changedTouches[0];
@@ -1545,16 +1562,44 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       }
     };
 
+    // Last-resort safety net: if focus somehow gets triggered by touch,
+    // blur immediately and re-place the caret programmatically
+    const handleFocus = (e: FocusEvent) => {
+      const timeSinceTouch = Date.now() - lastTouchEndTime;
+      // Only intercept if focus happened very shortly after a touch (within 300ms)
+      if (timeSinceTouch > 300) return;
+
+      const target = e.target as HTMLElement;
+      if (!target.matches || !target.matches('[contenteditable="true"]')) return;
+
+      // Blur immediately to dismiss any keyboard that might have appeared
+      target.blur();
+
+      // Re-set selection in the next frame (focus via Selection API = no keyboard)
+      requestAnimationFrame(() => {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0).cloneRange();
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      });
+    };
+
     container.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
     container.addEventListener('touchmove', handleTouchMove, { passive: true, capture: true });
+    container.addEventListener('mousedown', handleMouseDown, { capture: true });
     container.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
     container.addEventListener('click', handleClick, { capture: true });
+    container.addEventListener('focus', handleFocus, { capture: true });
 
     return () => {
       container.removeEventListener('touchstart', handleTouchStart, { capture: true } as any);
       container.removeEventListener('touchmove', handleTouchMove, { capture: true } as any);
+      container.removeEventListener('mousedown', handleMouseDown, { capture: true } as any);
       container.removeEventListener('touchend', handleTouchEnd, { capture: true } as any);
       container.removeEventListener('click', handleClick, { capture: true } as any);
+      container.removeEventListener('focus', handleFocus, { capture: true } as any);
     };
   }, [isPhysicalKeyboard]);
 
