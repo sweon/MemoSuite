@@ -39,7 +39,7 @@ import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { HorizontalRuleNode, $createHorizontalRuleNode, $isHorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { MemoSuiteTheme } from "./themes/MemoSuiteTheme";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import React, { useEffect, useRef, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import styled from "styled-components";
 import {
   $nodesOfType,
@@ -745,17 +745,11 @@ function CodeHighlightPlugin(): null {
 
 // Plugin: suppresses virtual keyboard when physical keyboard is detected
 // 
-// STRATEGY: Dynamic inputmode toggling
-// - On Android, `inputmode="none"` is the ONLY reliable way to prevent the
-//   virtual keyboard from appearing when the user touches a contenteditable.
-//   (pointerdown.preventDefault() does NOT work on Android Chrome.)
-// - However, `inputmode="none"` also disables IME, breaking Korean/CJK input
-//   even from physical keyboards.
-// - Solution: Toggle `inputmode` dynamically:
-//   1. On touch (pointerdown) → set inputmode="none" BEFORE browser processes focus
-//   2. On physical keydown → remove inputmode to re-enable IME
-//   3. On next touch → set inputmode="none" again
-function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null {
+// STRATEGY: Dynamic inputmode toggling + disconnect detection
+// - On touch: set inputmode="none" to suppress virtual keyboard
+// - On keydown: remove inputmode to re-enable IME (Korean input)
+// - After touch: start 1.5s timer. If no keydown → BT disconnected → reset
+function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { active: boolean; onPhysicalKeyboardLost?: () => void }): null {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -764,34 +758,45 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
     let cleanupFns: (() => void)[] = [];
 
     const setupOnRoot = (rootElement: HTMLElement) => {
-      // Track whether inputmode is currently suppressing
       let inputModeSuppressed = false;
+      let confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
-      // On touch: set inputmode="none" to prevent virtual keyboard
-      // This must happen on pointerdown (BEFORE focus) so the browser
-      // sees the attribute when deciding whether to show the keyboard.
+      // On touch: set inputmode="none" to prevent virtual keyboard.
+      // Also start a timer to detect if BT keyboard was disconnected.
       const handlePointerDown = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
         if (editor.isComposing()) return;
 
-        if (!inputModeSuppressed) {
-          rootElement.setAttribute('inputmode', 'none');
-          inputModeSuppressed = true;
-        }
+        // Set inputmode to suppress keyboard
+        rootElement.setAttribute('inputmode', 'none');
+        inputModeSuppressed = true;
+
+        // Start confirmation timer: if no keydown within 1.5s,
+        // physical keyboard is likely disconnected
+        if (confirmTimer) clearTimeout(confirmTimer);
+        confirmTimer = setTimeout(() => {
+          // No key was pressed after touch → BT keyboard disconnected
+          rootElement.removeAttribute('inputmode');
+          inputModeSuppressed = false;
+          confirmTimer = null;
+          onPhysicalKeyboardLost?.();
+        }, 1500);
       };
 
-      // On physical keydown: remove inputmode to re-enable IME for Korean input.
-      // The browser will re-associate the IME with the element, allowing
-      // composition for the current and subsequent keystrokes.
+      // On keydown: cancel disconnect timer + remove inputmode for IME
       const handleKeyDown = (_e: KeyboardEvent) => {
+        // Key was pressed → physical keyboard is connected
+        if (confirmTimer) {
+          clearTimeout(confirmTimer);
+          confirmTimer = null;
+        }
         if (inputModeSuppressed) {
           rootElement.removeAttribute('inputmode');
           inputModeSuppressed = false;
         }
       };
 
-      // Also handle tap-to-place-caret manually since the browser's
-      // default caret placement may be disrupted
+      // Handle tap-to-place-caret
       let pDownX = 0, pDownY = 0;
       const handlePointerDownForCaret = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
@@ -804,9 +809,8 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
         if (editor.isComposing()) return;
         const dx = Math.abs(e.clientX - pDownX);
         const dy = Math.abs(e.clientY - pDownY);
-        if (dx > 10 || dy > 10) return; // scroll, not tap
+        if (dx > 10 || dy > 10) return;
 
-        // Manually place caret at tap position
         let range: Range | null = null;
         if (document.caretRangeFromPoint) {
           range = document.caretRangeFromPoint(e.clientX, e.clientY);
@@ -830,6 +834,7 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
       rootElement.addEventListener('keydown', handleKeyDown, { capture: true });
 
       cleanupFns.push(() => {
+        if (confirmTimer) clearTimeout(confirmTimer);
         rootElement.removeAttribute('inputmode');
         rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
         rootElement.removeEventListener('pointerdown', handlePointerDownForCaret, { capture: true } as any);
@@ -853,7 +858,7 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
       cleanupFns.forEach(fn => fn());
       cleanupFns = [];
     };
-  }, [editor, active]);
+  }, [editor, active, onPhysicalKeyboardLost]);
 
   return null;
 }
@@ -1539,6 +1544,12 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
 
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
+  // Callback when the plugin detects BT keyboard was disconnected
+  const handlePhysicalKeyboardLost = useCallback(() => {
+    setIsPhysicalKeyboard(false);
+    localStorage.removeItem('lexical_physical_keyboard');
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -1630,7 +1641,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
           customButtons={customButtons}
         />
         <div className="editor-inner" style={{ position: 'relative' }}>
-          <VirtualKeyboardSuppressorPlugin active={isPhysicalKeyboard} />
+          <VirtualKeyboardSuppressorPlugin active={isPhysicalKeyboard} onPhysicalKeyboardLost={handlePhysicalKeyboardLost} />
           <RichTextPlugin
             contentEditable={
               <Content
