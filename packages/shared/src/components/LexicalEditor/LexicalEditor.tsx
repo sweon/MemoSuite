@@ -1421,6 +1421,8 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
     return false;
   });
 
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -1437,6 +1439,12 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       if (isPhysical && !isPhysicalKeyboard) {
         setIsPhysicalKeyboard(true);
         sessionStorage.setItem('lexical_physical_keyboard', 'true');
+
+        // Use VirtualKeyboard API if available (Chromium-based browsers)
+        if ('virtualKeyboard' in navigator) {
+          (navigator as any).virtualKeyboard.overlaysContent = true;
+          try { (navigator as any).virtualKeyboard.hide(); } catch (_) { }
+        }
       }
     };
 
@@ -1458,6 +1466,43 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       if (mediaQuery.removeEventListener) {
         mediaQuery.removeEventListener('change', handlePointerChange);
       }
+    };
+  }, [isPhysicalKeyboard]);
+
+  // Suppress virtual keyboard on touch for the contentEditable area
+  useEffect(() => {
+    if (!isPhysicalKeyboard || typeof window === 'undefined') return;
+
+    const container = editorContainerRef.current;
+    if (!container) return;
+
+    const suppressVirtualKeyboard = (e: TouchEvent) => {
+      const target = e.target as HTMLElement;
+      // Only suppress on editable elements within the editor
+      if (!target.closest('[contenteditable="true"]')) return;
+
+      // Temporarily set readOnly to prevent keyboard popup, then remove it
+      const editableEl = target.closest('[contenteditable="true"]') as HTMLElement;
+      if (!editableEl) return;
+
+      // Blur briefly then refocus without triggering keyboard
+      editableEl.setAttribute('contenteditable', 'false');
+      requestAnimationFrame(() => {
+        editableEl.setAttribute('contenteditable', 'true');
+        // Restore selection/cursor position using manual range
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      });
+    };
+
+    container.addEventListener('touchstart', suppressVirtualKeyboard, { passive: false, capture: true });
+
+    return () => {
+      container.removeEventListener('touchstart', suppressVirtualKeyboard, { capture: true } as any);
     };
   }, [isPhysicalKeyboard]);
 
@@ -1490,7 +1535,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   }), []);
 
   return (
-    <EditorContainer className={className}>
+    <EditorContainer className={className} ref={editorContainerRef}>
       <LexicalComposer initialConfig={initialConfig}>
         <ToolbarPlugin
           onToggleSidebar={onToggleSidebar}
@@ -1513,6 +1558,9 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
                 $tabSize={tabSize}
                 $fontSize={fontSize}
                 inputMode={isPhysicalKeyboard ? 'none' : undefined}
+                enterKeyHint={isPhysicalKeyboard ? undefined : 'enter'}
+                autoComplete='off'
+                {...(isPhysicalKeyboard ? { virtualkeyboardpolicy: 'manual' } : {})}
               />
             }
             placeholder={
