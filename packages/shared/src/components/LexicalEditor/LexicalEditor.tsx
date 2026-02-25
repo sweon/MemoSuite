@@ -744,11 +744,17 @@ function CodeHighlightPlugin(): null {
 }
 
 // Plugin: suppresses virtual keyboard when physical keyboard is detected
-// IMPORTANT: On Android, Korean/CJK IME is tightly coupled to the virtual keyboard
-// subsystem. Using inputmode="none", virtualkeyboardpolicy="manual", or
-// navigator.virtualKeyboard API will disable IME, breaking Korean input even
-// from physical keyboards. The ONLY safe approach is intercepting touch-triggered
-// focus via pointerdown preventDefault().
+// 
+// STRATEGY: Dynamic inputmode toggling
+// - On Android, `inputmode="none"` is the ONLY reliable way to prevent the
+//   virtual keyboard from appearing when the user touches a contenteditable.
+//   (pointerdown.preventDefault() does NOT work on Android Chrome.)
+// - However, `inputmode="none"` also disables IME, breaking Korean/CJK input
+//   even from physical keyboards.
+// - Solution: Toggle `inputmode` dynamically:
+//   1. On touch (pointerdown) → set inputmode="none" BEFORE browser processes focus
+//   2. On physical keydown → remove inputmode to re-enable IME
+//   3. On next touch → set inputmode="none" again
 function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null {
   const [editor] = useLexicalComposerContext();
 
@@ -758,17 +764,37 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
     let cleanupFns: (() => void)[] = [];
 
     const setupOnRoot = (rootElement: HTMLElement) => {
-      // Intercept touch-triggered focus on the contenteditable element.
-      // preventDefault() on pointerdown for touch events prevents the browser
-      // from focusing the element via user gesture, which prevents the virtual
-      // keyboard from appearing. Physical keyboard input is unaffected because
-      // it doesn't use pointer events.
-      let pDownX = 0, pDownY = 0;
+      // Track whether inputmode is currently suppressing
+      let inputModeSuppressed = false;
+
+      // On touch: set inputmode="none" to prevent virtual keyboard
+      // This must happen on pointerdown (BEFORE focus) so the browser
+      // sees the attribute when deciding whether to show the keyboard.
       const handlePointerDown = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
-        // Don't suppress during active IME composition (e.g. Korean input)
         if (editor.isComposing()) return;
-        e.preventDefault();
+
+        if (!inputModeSuppressed) {
+          rootElement.setAttribute('inputmode', 'none');
+          inputModeSuppressed = true;
+        }
+      };
+
+      // On physical keydown: remove inputmode to re-enable IME for Korean input.
+      // The browser will re-associate the IME with the element, allowing
+      // composition for the current and subsequent keystrokes.
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (inputModeSuppressed) {
+          rootElement.removeAttribute('inputmode');
+          inputModeSuppressed = false;
+        }
+      };
+
+      // Also handle tap-to-place-caret manually since the browser's
+      // default caret placement may be disrupted
+      let pDownX = 0, pDownY = 0;
+      const handlePointerDownForCaret = (e: PointerEvent) => {
+        if (e.pointerType !== 'touch') return;
         pDownX = e.clientX;
         pDownY = e.clientY;
       };
@@ -780,7 +806,7 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
         const dy = Math.abs(e.clientY - pDownY);
         if (dx > 10 || dy > 10) return; // scroll, not tap
 
-        // Manually place caret at tap position without triggering keyboard
+        // Manually place caret at tap position
         let range: Range | null = null;
         if (document.caretRangeFromPoint) {
           range = document.caretRangeFromPoint(e.clientX, e.clientY);
@@ -799,11 +825,16 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
       };
 
       rootElement.addEventListener('pointerdown', handlePointerDown, { capture: true });
+      rootElement.addEventListener('pointerdown', handlePointerDownForCaret, { capture: true });
       rootElement.addEventListener('pointerup', handlePointerUp, { capture: true });
+      rootElement.addEventListener('keydown', handleKeyDown, { capture: true });
 
       cleanupFns.push(() => {
+        rootElement.removeAttribute('inputmode');
         rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
+        rootElement.removeEventListener('pointerdown', handlePointerDownForCaret, { capture: true } as any);
         rootElement.removeEventListener('pointerup', handlePointerUp, { capture: true } as any);
+        rootElement.removeEventListener('keydown', handleKeyDown, { capture: true } as any);
       });
     };
 
