@@ -1470,72 +1470,51 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   }, [isPhysicalKeyboard]);
 
   // Suppress virtual keyboard on touch for the contentEditable area
+  // Strategy: Use Pointer Events API. Per spec, calling preventDefault() on
+  // pointerdown prevents focus and compatibility mouse events, while the browser
+  // still handles scrolling independently via touch-action CSS.
+  // This catches ALL touch-initiated interactions at the earliest possible point.
   useEffect(() => {
     if (!isPhysicalKeyboard || typeof window === 'undefined') return;
 
     const container = editorContainerRef.current;
     if (!container) return;
 
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let isTap = false;
-    let touchActive = false;
-    let blockNextClick = false;
-    let lastTouchEndTime = 0;
+    let pointerDownX = 0;
+    let pointerDownY = 0;
+    let pointerDownOnEditable = false;
 
-    const handleTouchStart = (e: TouchEvent) => {
-      const touch = e.touches[0];
-      touchStartX = touch.clientX;
-      touchStartY = touch.clientY;
-      isTap = true;
-      touchActive = true;
-    };
+    const handlePointerDown = (e: PointerEvent) => {
+      // Only intercept touch, not mouse/pen (physical keyboard uses these)
+      if (e.pointerType !== 'touch') return;
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isTap) return;
-      const touch = e.touches[0];
-      const dx = Math.abs(touch.clientX - touchStartX);
-      const dy = Math.abs(touch.clientY - touchStartY);
-      // If finger moved more than 10px, it's a scroll, not a tap
-      if (dx > 10 || dy > 10) {
-        isTap = false;
-      }
-    };
-
-    // CRITICAL: Intercept mousedown (synthetic from touch) to prevent
-    // the browser from focusing the contenteditable via user gesture.
-    // On quick taps, mousedown fires BEFORE touchend and triggers the keyboard.
-    const handleMouseDown = (e: MouseEvent) => {
-      if (!touchActive) return;
       const target = e.target as HTMLElement;
       if (target.closest('[contenteditable="true"]')) {
+        // CRITICAL: This prevents focus (and thus virtual keyboard) from the
+        // user gesture, while touch-action CSS still handles scrolling separately.
         e.preventDefault();
+        pointerDownOnEditable = true;
+        pointerDownX = e.clientX;
+        pointerDownY = e.clientY;
       }
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      touchActive = false;
+    const handlePointerUp = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch' || !pointerDownOnEditable) return;
+      pointerDownOnEditable = false;
 
-      if (!isTap) return;
+      // Check if this was a tap (not a scroll)
+      const dx = Math.abs(e.clientX - pointerDownX);
+      const dy = Math.abs(e.clientY - pointerDownY);
+      if (dx > 10 || dy > 10) return; // Was a scroll gesture
 
-      const target = e.target as HTMLElement;
-      const editableEl = target.closest('[contenteditable="true"]') as HTMLElement;
-      if (!editableEl) return;
-
-      // CRITICAL: Prevent default to stop the browser from focusing
-      // the contenteditable and triggering the virtual keyboard
-      e.preventDefault();
-      blockNextClick = true;
-      lastTouchEndTime = Date.now();
-
-      // Manually place the caret at the touch position
-      const touch = e.changedTouches[0];
+      // Manually place the caret at the tap position
       let range: Range | null = null;
 
       if (document.caretRangeFromPoint) {
-        range = document.caretRangeFromPoint(touch.clientX, touch.clientY);
+        range = document.caretRangeFromPoint(e.clientX, e.clientY);
       } else if ((document as any).caretPositionFromPoint) {
-        const pos = (document as any).caretPositionFromPoint(touch.clientX, touch.clientY);
+        const pos = (document as any).caretPositionFromPoint(e.clientX, e.clientY);
         if (pos) {
           range = document.createRange();
           range.setStart(pos.offsetNode, pos.offset);
@@ -1552,54 +1531,24 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       }
     };
 
+    // Also prevent any click events from touch (safety net)
     const handleClick = (e: MouseEvent) => {
-      if (!blockNextClick) return;
-      blockNextClick = false;
+      // Only block clicks that are synthetic from touch
       const target = e.target as HTMLElement;
-      if (target.closest('[contenteditable="true"]')) {
+      if (target.closest('[contenteditable="true"]') && e.detail === 0) {
         e.preventDefault();
         e.stopPropagation();
       }
     };
 
-    // Last-resort safety net: if focus somehow gets triggered by touch,
-    // blur immediately and re-place the caret programmatically
-    const handleFocus = (e: FocusEvent) => {
-      const timeSinceTouch = Date.now() - lastTouchEndTime;
-      // Only intercept if focus happened very shortly after a touch (within 300ms)
-      if (timeSinceTouch > 300) return;
-
-      const target = e.target as HTMLElement;
-      if (!target.matches || !target.matches('[contenteditable="true"]')) return;
-
-      // Blur immediately to dismiss any keyboard that might have appeared
-      target.blur();
-
-      // Re-set selection in the next frame (focus via Selection API = no keyboard)
-      requestAnimationFrame(() => {
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0).cloneRange();
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      });
-    };
-
-    container.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
-    container.addEventListener('touchmove', handleTouchMove, { passive: true, capture: true });
-    container.addEventListener('mousedown', handleMouseDown, { capture: true });
-    container.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+    container.addEventListener('pointerdown', handlePointerDown, { capture: true });
+    container.addEventListener('pointerup', handlePointerUp, { capture: true });
     container.addEventListener('click', handleClick, { capture: true });
-    container.addEventListener('focus', handleFocus, { capture: true });
 
     return () => {
-      container.removeEventListener('touchstart', handleTouchStart, { capture: true } as any);
-      container.removeEventListener('touchmove', handleTouchMove, { capture: true } as any);
-      container.removeEventListener('mousedown', handleMouseDown, { capture: true } as any);
-      container.removeEventListener('touchend', handleTouchEnd, { capture: true } as any);
+      container.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
+      container.removeEventListener('pointerup', handlePointerUp, { capture: true } as any);
       container.removeEventListener('click', handleClick, { capture: true } as any);
-      container.removeEventListener('focus', handleFocus, { capture: true } as any);
     };
   }, [isPhysicalKeyboard]);
 
