@@ -1476,33 +1476,85 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
     const container = editorContainerRef.current;
     if (!container) return;
 
-    const suppressVirtualKeyboard = (e: TouchEvent) => {
-      const target = e.target as HTMLElement;
-      // Only suppress on editable elements within the editor
-      if (!target.closest('[contenteditable="true"]')) return;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isTap = false;
+    let blockNextClick = false;
 
-      // Temporarily set readOnly to prevent keyboard popup, then remove it
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      isTap = true;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isTap) return;
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - touchStartX);
+      const dy = Math.abs(touch.clientY - touchStartY);
+      // If finger moved more than 10px, it's a scroll, not a tap
+      if (dx > 10 || dy > 10) {
+        isTap = false;
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!isTap) return;
+
+      const target = e.target as HTMLElement;
       const editableEl = target.closest('[contenteditable="true"]') as HTMLElement;
       if (!editableEl) return;
 
-      // Blur briefly then refocus without triggering keyboard
-      editableEl.setAttribute('contenteditable', 'false');
-      requestAnimationFrame(() => {
-        editableEl.setAttribute('contenteditable', 'true');
-        // Restore selection/cursor position using manual range
+      // CRITICAL: Prevent default to stop the browser from focusing
+      // the contenteditable and triggering the virtual keyboard
+      e.preventDefault();
+      blockNextClick = true;
+
+      // Manually place the caret at the touch position
+      const touch = e.changedTouches[0];
+      let range: Range | null = null;
+
+      if (document.caretRangeFromPoint) {
+        range = document.caretRangeFromPoint(touch.clientX, touch.clientY);
+      } else if ((document as any).caretPositionFromPoint) {
+        const pos = (document as any).caretPositionFromPoint(touch.clientX, touch.clientY);
+        if (pos) {
+          range = document.createRange();
+          range.setStart(pos.offsetNode, pos.offset);
+          range.collapse(true);
+        }
+      }
+
+      if (range) {
         const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
+        if (selection) {
           selection.removeAllRanges();
           selection.addRange(range);
         }
-      });
+      }
     };
 
-    container.addEventListener('touchstart', suppressVirtualKeyboard, { passive: false, capture: true });
+    const handleClick = (e: MouseEvent) => {
+      if (!blockNextClick) return;
+      blockNextClick = false;
+      const target = e.target as HTMLElement;
+      if (target.closest('[contenteditable="true"]')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+    container.addEventListener('touchmove', handleTouchMove, { passive: true, capture: true });
+    container.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true });
+    container.addEventListener('click', handleClick, { capture: true });
 
     return () => {
-      container.removeEventListener('touchstart', suppressVirtualKeyboard, { capture: true } as any);
+      container.removeEventListener('touchstart', handleTouchStart, { capture: true } as any);
+      container.removeEventListener('touchmove', handleTouchMove, { capture: true } as any);
+      container.removeEventListener('touchend', handleTouchEnd, { capture: true } as any);
+      container.removeEventListener('click', handleClick, { capture: true } as any);
     };
   }, [isPhysicalKeyboard]);
 
