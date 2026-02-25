@@ -755,7 +755,6 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
       (navigator as any).virtualKeyboard.overlaysContent = true;
     }
 
-    let currentRoot: HTMLElement | null = null;
     let cleanupFns: (() => void)[] = [];
 
     const setupOnRoot = (rootElement: HTMLElement) => {
@@ -862,10 +861,7 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
       }
       // Set up new root
       if (rootElement) {
-        currentRoot = rootElement;
         setupOnRoot(rootElement);
-      } else {
-        currentRoot = null;
       }
     });
 
