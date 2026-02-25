@@ -750,104 +750,129 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
   useEffect(() => {
     if (!active || typeof window === 'undefined') return;
 
-    const rootElement = editor.getRootElement();
-    if (!rootElement) return;
-
-    // Layer 1: Set inputmode directly on the actual contenteditable DOM element
-    rootElement.setAttribute('inputmode', 'none');
-    rootElement.setAttribute('virtualkeyboardpolicy', 'manual');
-
     // Use VirtualKeyboard API if available (Chromium-based browsers)
     if ('virtualKeyboard' in navigator) {
       (navigator as any).virtualKeyboard.overlaysContent = true;
     }
 
-    // Layer 2: Intercept pointerdown directly on the contenteditable element
-    let pDownX = 0, pDownY = 0;
-    const handlePointerDown = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch') return;
-      e.preventDefault();
-      pDownX = e.clientX;
-      pDownY = e.clientY;
-    };
+    let currentRoot: HTMLElement | null = null;
+    let cleanupFns: (() => void)[] = [];
 
-    const handlePointerUp = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch') return;
-      const dx = Math.abs(e.clientX - pDownX);
-      const dy = Math.abs(e.clientY - pDownY);
-      if (dx > 10 || dy > 10) return; // scroll, not tap
+    const setupOnRoot = (rootElement: HTMLElement) => {
+      // Layer 1: Set inputmode directly on the actual contenteditable DOM element
+      rootElement.setAttribute('inputmode', 'none');
+      rootElement.setAttribute('virtualkeyboardpolicy', 'manual');
 
-      // Manually place caret at tap position
-      let range: Range | null = null;
-      if (document.caretRangeFromPoint) {
-        range = document.caretRangeFromPoint(e.clientX, e.clientY);
-      } else if ((document as any).caretPositionFromPoint) {
-        const pos = (document as any).caretPositionFromPoint(e.clientX, e.clientY);
-        if (pos) {
-          range = document.createRange();
-          range.setStart(pos.offsetNode, pos.offset);
-          range.collapse(true);
-        }
-      }
-      if (range) {
-        const sel = window.getSelection();
-        if (sel) { sel.removeAllRanges(); sel.addRange(range); }
-      }
-    };
+      // Layer 2: Intercept pointerdown directly on the contenteditable element
+      let pDownX = 0, pDownY = 0;
+      const handlePointerDown = (e: PointerEvent) => {
+        if (e.pointerType !== 'touch') return;
+        e.preventDefault();
+        pDownX = e.clientX;
+        pDownY = e.clientY;
+      };
 
-    rootElement.addEventListener('pointerdown', handlePointerDown, { capture: true });
-    rootElement.addEventListener('pointerup', handlePointerUp, { capture: true });
+      const handlePointerUp = (e: PointerEvent) => {
+        if (e.pointerType !== 'touch') return;
+        const dx = Math.abs(e.clientX - pDownX);
+        const dy = Math.abs(e.clientY - pDownY);
+        if (dx > 10 || dy > 10) return; // scroll, not tap
 
-    // Layer 3: Reactive — detect keyboard appearance via visualViewport and dismiss
-    const vv = window.visualViewport;
-    let initialHeight = vv ? vv.height : window.innerHeight;
-    let savedRange: Range | null = null;
-
-    const handleViewportResize = () => {
-      if (!vv) return;
-      const currentHeight = vv.height;
-      // If viewport shrank significantly (keyboard appeared)
-      if (currentHeight < initialHeight * 0.85) {
-        // Save current selection before blur
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount > 0) {
-          savedRange = sel.getRangeAt(0).cloneRange();
-        }
-
-        // Try VirtualKeyboard API first
-        if ('virtualKeyboard' in navigator) {
-          try { (navigator as any).virtualKeyboard.hide(); } catch (_) { }
-        }
-
-        // Blur to dismiss keyboard
-        rootElement.blur();
-
-        // Restore caret after keyboard dismisses
-        requestAnimationFrame(() => {
-          if (savedRange) {
-            const sel = window.getSelection();
-            if (sel) { sel.removeAllRanges(); sel.addRange(savedRange); }
-            savedRange = null;
+        // Manually place caret at tap position
+        let range: Range | null = null;
+        if (document.caretRangeFromPoint) {
+          range = document.caretRangeFromPoint(e.clientX, e.clientY);
+        } else if ((document as any).caretPositionFromPoint) {
+          const pos = (document as any).caretPositionFromPoint(e.clientX, e.clientY);
+          if (pos) {
+            range = document.createRange();
+            range.setStart(pos.offsetNode, pos.offset);
+            range.collapse(true);
           }
-        });
-      } else {
-        // Viewport returned to normal size — update baseline
-        initialHeight = currentHeight;
+        }
+        if (range) {
+          const sel = window.getSelection();
+          if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+        }
+      };
+
+      rootElement.addEventListener('pointerdown', handlePointerDown, { capture: true });
+      rootElement.addEventListener('pointerup', handlePointerUp, { capture: true });
+
+      // Layer 3: Reactive — detect keyboard appearance via visualViewport and dismiss
+      const vv = window.visualViewport;
+      let initialHeight = vv ? vv.height : window.innerHeight;
+      let savedRange: Range | null = null;
+      let suppressionCooldown = false;
+
+      const handleViewportResize = () => {
+        if (!vv || suppressionCooldown) return;
+        const currentHeight = vv.height;
+        if (currentHeight < initialHeight * 0.85) {
+          suppressionCooldown = true;
+
+          // Save current selection before blur
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount > 0) {
+            savedRange = sel.getRangeAt(0).cloneRange();
+          }
+
+          // Try VirtualKeyboard API first
+          if ('virtualKeyboard' in navigator) {
+            try { (navigator as any).virtualKeyboard.hide(); } catch (_) { }
+          }
+
+          // Blur to dismiss keyboard
+          rootElement.blur();
+
+          // Restore caret after keyboard dismisses
+          setTimeout(() => {
+            if (savedRange) {
+              const sel = window.getSelection();
+              if (sel) { sel.removeAllRanges(); sel.addRange(savedRange); }
+              savedRange = null;
+            }
+            suppressionCooldown = false;
+          }, 300);
+        } else {
+          initialHeight = Math.max(initialHeight, currentHeight);
+        }
+      };
+
+      if (vv) {
+        vv.addEventListener('resize', handleViewportResize);
       }
+
+      cleanupFns.push(() => {
+        rootElement.removeAttribute('inputmode');
+        rootElement.removeAttribute('virtualkeyboardpolicy');
+        rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
+        rootElement.removeEventListener('pointerup', handlePointerUp, { capture: true } as any);
+        if (vv) {
+          vv.removeEventListener('resize', handleViewportResize);
+        }
+      });
     };
 
-    if (vv) {
-      vv.addEventListener('resize', handleViewportResize);
-    }
+    const unregister = editor.registerRootListener((rootElement, prevRootElement) => {
+      // Clean up previous root
+      if (prevRootElement) {
+        cleanupFns.forEach(fn => fn());
+        cleanupFns = [];
+      }
+      // Set up new root
+      if (rootElement) {
+        currentRoot = rootElement;
+        setupOnRoot(rootElement);
+      } else {
+        currentRoot = null;
+      }
+    });
 
     return () => {
-      rootElement.removeAttribute('inputmode');
-      rootElement.removeAttribute('virtualkeyboardpolicy');
-      rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
-      rootElement.removeEventListener('pointerup', handlePointerUp, { capture: true } as any);
-      if (vv) {
-        vv.removeEventListener('resize', handleViewportResize);
-      }
+      unregister();
+      cleanupFns.forEach(fn => fn());
+      cleanupFns = [];
     };
   }, [editor, active]);
 
@@ -1522,7 +1547,8 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
 }) => {
   const [isPhysicalKeyboard, setIsPhysicalKeyboard] = useState(() => {
     if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('lexical_physical_keyboard');
+      // Use localStorage for persistence across sessions
+      const saved = localStorage.getItem('lexical_physical_keyboard');
       if (saved) return saved === 'true';
       // Heuristic: If device has a fine pointer (mouse/trackpad) on a mobile device, it likely has a keyboard
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -1549,12 +1575,29 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
 
       if (isPhysical && !isPhysicalKeyboard) {
         setIsPhysicalKeyboard(true);
-        sessionStorage.setItem('lexical_physical_keyboard', 'true');
+        localStorage.setItem('lexical_physical_keyboard', 'true');
 
-        // Use VirtualKeyboard API if available (Chromium-based browsers)
+        // Immediately dismiss any visible virtual keyboard
         if ('virtualKeyboard' in navigator) {
           (navigator as any).virtualKeyboard.overlaysContent = true;
           try { (navigator as any).virtualKeyboard.hide(); } catch (_) { }
+        }
+        // Also blur active element to dismiss keyboard right now
+        if (document.activeElement instanceof HTMLElement) {
+          const activeEl = document.activeElement;
+          const sel = window.getSelection();
+          let savedRange: Range | null = null;
+          if (sel && sel.rangeCount > 0) {
+            savedRange = sel.getRangeAt(0).cloneRange();
+          }
+          activeEl.blur();
+          // Restore cursor after keyboard dismisses
+          setTimeout(() => {
+            if (savedRange) {
+              const sel = window.getSelection();
+              if (sel) { sel.removeAllRanges(); sel.addRange(savedRange); }
+            }
+          }, 100);
         }
       }
     };
@@ -1563,7 +1606,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
     const handlePointerChange = (e: MediaQueryListEvent) => {
       if (e.matches && !isPhysicalKeyboard) {
         setIsPhysicalKeyboard(true);
-        sessionStorage.setItem('lexical_physical_keyboard', 'true');
+        localStorage.setItem('lexical_physical_keyboard', 'true');
       }
     };
 
