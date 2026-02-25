@@ -755,6 +755,12 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
   useEffect(() => {
     if (!active || typeof window === 'undefined') return;
 
+    // Galaxy Tab handles physical keyboard suppression natively.
+    // This plugin interferes with virtual keyboard re-appearance on Tab
+    // when the physical keyboard is removed, so skip it entirely.
+    const ua = navigator.userAgent || '';
+    if (/SM-[TX]\d/i.test(ua)) return;
+
     let cleanupFns: (() => void)[] = [];
 
     const setupOnRoot = (rootElement: HTMLElement) => {
@@ -774,7 +780,6 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       // Also start a timer to detect if BT keyboard was disconnected.
       const handlePointerDown = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
-        if (editor.isComposing()) return;
 
         // Set inputmode to suppress keyboard
         rootElement.setAttribute('inputmode', 'none');
@@ -815,7 +820,6 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
 
       const handlePointerUp = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
-        if (editor.isComposing()) return;
         const dx = Math.abs(e.clientX - pDownX);
         const dy = Math.abs(e.clientY - pDownY);
         if (dx > 10 || dy > 10) return;
