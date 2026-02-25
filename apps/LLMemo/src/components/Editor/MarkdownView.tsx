@@ -1625,7 +1625,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
                   src={previewUrl}
                   width="100%"
                   height="100%"
-                  style={{ border: '1px solid #ddd', borderRadius: '8px' }}
+                  style={{ border: '1px solid #ddd', borderRadius: '8px', pointerEvents: 'none' }}
                   allow="autoplay"
                   title={alt}
                 />

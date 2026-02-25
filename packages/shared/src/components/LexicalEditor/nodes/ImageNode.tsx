@@ -110,7 +110,7 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
                         src={drivePreviewUrl}
                         width="100%"
                         height="100%"
-                        style={{ border: '1px solid #ddd', borderRadius: '8px' }}
+                        style={{ border: '1px solid #ddd', borderRadius: '8px', pointerEvents: 'none' }}
                         allow="autoplay"
                         title={this.__altText}
                     />
