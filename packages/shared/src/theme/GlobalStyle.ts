@@ -207,5 +207,26 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
       height: auto !important;
       max-height: none !important;
     }
+
+    /* iframes don't print (cross-origin content is blank) - hide them */
+    iframe {
+      display: none !important;
+    }
+
+    /* Show print-fallback images (hidden on screen) */
+    .print-fallback-img {
+      display: block !important;
+      max-width: 100% !important;
+      height: auto !important;
+    }
+
+    /* Remove aspect-ratio / max-height constraints from iframe containers
+       so the fallback image is not clipped */
+    *:has(> .print-fallback-img) {
+      aspect-ratio: unset !important;
+      max-height: none !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
   }
 `;

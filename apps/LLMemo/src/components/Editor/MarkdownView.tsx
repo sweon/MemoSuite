@@ -1618,6 +1618,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
           const fileIdMatch = src.match(/\/file\/d\/([^\/]+)/) || src.match(/[?&]id=([^&]+)/);
           if (fileIdMatch && (src.includes('drive.google.com') || src.includes('docs.google.com'))) {
             const previewUrl = `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+            const directImgUrl = `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`;
             return (
               <div style={{ width: '100%', aspectRatio: '16/9', maxHeight: '500px', margin: '1em 0' }}>
                 <iframe
@@ -1628,6 +1629,7 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({ content,
                   allow="autoplay"
                   title={alt}
                 />
+                <img className="print-fallback-img" src={directImgUrl} alt={alt} style={{ display: 'none', maxWidth: '100%', height: 'auto' }} />
               </div>
             );
           }

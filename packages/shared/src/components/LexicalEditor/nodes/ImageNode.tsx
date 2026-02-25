@@ -102,6 +102,8 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
         const drivePreviewUrl = getGoogleDrivePreviewLink(this.__src);
 
         if (drivePreviewUrl) {
+            const fileId = this.__src.match(/\/file\/d\/([^\/]+)/) || this.__src.match(/[?&]id=([^&]+)/);
+            const directImgUrl = fileId ? `https://lh3.googleusercontent.com/d/${fileId[1]}` : this.__src;
             return (
                 <ImageWrapper style={{ width: '100%', aspectRatio: '16/9', maxHeight: '500px' }}>
                     <iframe
@@ -111,6 +113,12 @@ export class ImageNode extends DecoratorNode<React.ReactNode> {
                         style={{ border: '1px solid #ddd', borderRadius: '8px' }}
                         allow="autoplay"
                         title={this.__altText}
+                    />
+                    <img
+                        className="print-fallback-img"
+                        src={directImgUrl}
+                        alt={this.__altText}
+                        style={{ display: 'none', maxWidth: '100%', height: 'auto' }}
                     />
                 </ImageWrapper>
             );
