@@ -744,27 +744,25 @@ function CodeHighlightPlugin(): null {
 }
 
 // Plugin: suppresses virtual keyboard when physical keyboard is detected
+// IMPORTANT: On Android, Korean/CJK IME is tightly coupled to the virtual keyboard
+// subsystem. Using inputmode="none", virtualkeyboardpolicy="manual", or
+// navigator.virtualKeyboard API will disable IME, breaking Korean input even
+// from physical keyboards. The ONLY safe approach is intercepting touch-triggered
+// focus via pointerdown preventDefault().
 function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
     if (!active || typeof window === 'undefined') return;
 
-    // Use VirtualKeyboard API if available (Chromium-based browsers)
-    if ('virtualKeyboard' in navigator) {
-      (navigator as any).virtualKeyboard.overlaysContent = true;
-    }
-
     let cleanupFns: (() => void)[] = [];
 
     const setupOnRoot = (rootElement: HTMLElement) => {
-      // Note: We intentionally do NOT set inputmode="none" because it
-      // disables IME entirely, preventing Korean/Japanese/Chinese input.
-      // Instead we use virtualkeyboardpolicy="manual" which only controls
-      // the virtual keyboard without affecting IME processing.
-      rootElement.setAttribute('virtualkeyboardpolicy', 'manual');
-
-      // Layer 2: Intercept pointerdown directly on the contenteditable element
+      // Intercept touch-triggered focus on the contenteditable element.
+      // preventDefault() on pointerdown for touch events prevents the browser
+      // from focusing the element via user gesture, which prevents the virtual
+      // keyboard from appearing. Physical keyboard input is unaffected because
+      // it doesn't use pointer events.
       let pDownX = 0, pDownY = 0;
       const handlePointerDown = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
@@ -777,13 +775,12 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
 
       const handlePointerUp = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
-        // Don't interfere during active composition
         if (editor.isComposing()) return;
         const dx = Math.abs(e.clientX - pDownX);
         const dy = Math.abs(e.clientY - pDownY);
         if (dx > 10 || dy > 10) return; // scroll, not tap
 
-        // Manually place caret at tap position
+        // Manually place caret at tap position without triggering keyboard
         let range: Range | null = null;
         if (document.caretRangeFromPoint) {
           range = document.caretRangeFromPoint(e.clientX, e.clientY);
@@ -804,69 +801,17 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
       rootElement.addEventListener('pointerdown', handlePointerDown, { capture: true });
       rootElement.addEventListener('pointerup', handlePointerUp, { capture: true });
 
-      // Layer 3: Reactive — detect keyboard appearance via visualViewport and dismiss
-      const vv = window.visualViewport;
-      let initialHeight = vv ? vv.height : window.innerHeight;
-      let savedRange: Range | null = null;
-      let suppressionCooldown = false;
-
-      const handleViewportResize = () => {
-        if (!vv || suppressionCooldown) return;
-        // Never suppress during active IME composition
-        if (editor.isComposing()) return;
-        const currentHeight = vv.height;
-        if (currentHeight < initialHeight * 0.85) {
-          suppressionCooldown = true;
-
-          // Save current selection before blur
-          const sel = window.getSelection();
-          if (sel && sel.rangeCount > 0) {
-            savedRange = sel.getRangeAt(0).cloneRange();
-          }
-
-          // Try VirtualKeyboard API first
-          if ('virtualKeyboard' in navigator) {
-            try { (navigator as any).virtualKeyboard.hide(); } catch (_) { }
-          }
-
-          // Blur to dismiss keyboard
-          rootElement.blur();
-
-          // Restore caret after keyboard dismisses
-          setTimeout(() => {
-            if (savedRange) {
-              const sel = window.getSelection();
-              if (sel) { sel.removeAllRanges(); sel.addRange(savedRange); }
-              savedRange = null;
-            }
-            suppressionCooldown = false;
-          }, 300);
-        } else {
-          initialHeight = Math.max(initialHeight, currentHeight);
-        }
-      };
-
-      if (vv) {
-        vv.addEventListener('resize', handleViewportResize);
-      }
-
       cleanupFns.push(() => {
-        rootElement.removeAttribute('virtualkeyboardpolicy');
         rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
         rootElement.removeEventListener('pointerup', handlePointerUp, { capture: true } as any);
-        if (vv) {
-          vv.removeEventListener('resize', handleViewportResize);
-        }
       });
     };
 
     const unregister = editor.registerRootListener((rootElement, prevRootElement) => {
-      // Clean up previous root
       if (prevRootElement) {
         cleanupFns.forEach(fn => fn());
         cleanupFns = [];
       }
-      // Set up new root
       if (rootElement) {
         setupOnRoot(rootElement);
       }
@@ -1579,29 +1524,10 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       if (isPhysical && !isPhysicalKeyboard) {
         setIsPhysicalKeyboard(true);
         localStorage.setItem('lexical_physical_keyboard', 'true');
-
-        // Immediately dismiss any visible virtual keyboard
-        if ('virtualKeyboard' in navigator) {
-          (navigator as any).virtualKeyboard.overlaysContent = true;
-          try { (navigator as any).virtualKeyboard.hide(); } catch (_) { }
-        }
-        // Also blur active element to dismiss keyboard right now
-        if (document.activeElement instanceof HTMLElement) {
-          const activeEl = document.activeElement;
-          const sel = window.getSelection();
-          let savedRange: Range | null = null;
-          if (sel && sel.rangeCount > 0) {
-            savedRange = sel.getRangeAt(0).cloneRange();
-          }
-          activeEl.blur();
-          // Restore cursor after keyboard dismisses
-          setTimeout(() => {
-            if (savedRange) {
-              const sel = window.getSelection();
-              if (sel) { sel.removeAllRanges(); sel.addRange(savedRange); }
-            }
-          }, 100);
-        }
+        // The VirtualKeyboardSuppressorPlugin will activate on next render
+        // and handle touch suppression via pointerdown interception.
+        // We do NOT call blur() or use navigator.virtualKeyboard here
+        // because those actions disrupt the IME pipeline for Korean input.
       }
     };
 
