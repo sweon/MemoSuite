@@ -758,14 +758,18 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
     let cleanupFns: (() => void)[] = [];
 
     const setupOnRoot = (rootElement: HTMLElement) => {
-      // Layer 1: Set inputmode directly on the actual contenteditable DOM element
-      rootElement.setAttribute('inputmode', 'none');
+      // Note: We intentionally do NOT set inputmode="none" because it
+      // disables IME entirely, preventing Korean/Japanese/Chinese input.
+      // Instead we use virtualkeyboardpolicy="manual" which only controls
+      // the virtual keyboard without affecting IME processing.
       rootElement.setAttribute('virtualkeyboardpolicy', 'manual');
 
       // Layer 2: Intercept pointerdown directly on the contenteditable element
       let pDownX = 0, pDownY = 0;
       const handlePointerDown = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
+        // Don't suppress during active IME composition (e.g. Korean input)
+        if (editor.isComposing()) return;
         e.preventDefault();
         pDownX = e.clientX;
         pDownY = e.clientY;
@@ -773,6 +777,8 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
 
       const handlePointerUp = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
+        // Don't interfere during active composition
+        if (editor.isComposing()) return;
         const dx = Math.abs(e.clientX - pDownX);
         const dy = Math.abs(e.clientY - pDownY);
         if (dx > 10 || dy > 10) return; // scroll, not tap
@@ -806,6 +812,8 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
 
       const handleViewportResize = () => {
         if (!vv || suppressionCooldown) return;
+        // Never suppress during active IME composition
+        if (editor.isComposing()) return;
         const currentHeight = vv.height;
         if (currentHeight < initialHeight * 0.85) {
           suppressionCooldown = true;
@@ -843,7 +851,6 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
       }
 
       cleanupFns.push(() => {
-        rootElement.removeAttribute('inputmode');
         rootElement.removeAttribute('virtualkeyboardpolicy');
         rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
         rootElement.removeEventListener('pointerup', handlePointerUp, { capture: true } as any);
