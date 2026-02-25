@@ -783,7 +783,7 @@ function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null 
       // On physical keydown: remove inputmode to re-enable IME for Korean input.
       // The browser will re-associate the IME with the element, allowing
       // composition for the current and subsequent keystrokes.
-      const handleKeyDown = (e: KeyboardEvent) => {
+      const handleKeyDown = (_e: KeyboardEvent) => {
         if (inputModeSuppressed) {
           rootElement.removeAttribute('inputmode');
           inputModeSuppressed = false;
