@@ -766,6 +766,7 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
     const setupOnRoot = (rootElement: HTMLElement) => {
       let inputModeSuppressed = false;
       let confirmTimer: ReturnType<typeof setTimeout> | null = null;
+      let touchGuardTimer: ReturnType<typeof setTimeout> | null = null;
 
       // Proactively dismiss any currently visible virtual keyboard.
       // This handles BT keyboard reconnection: the plugin re-activates
@@ -785,6 +786,16 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         rootElement.setAttribute('inputmode', 'none');
         inputModeSuppressed = true;
 
+        // Guard: prevent handleKeyDown from removing inputmode for 300ms.
+        // When Korean (한글) IME composition is active and the user touches
+        // the screen, the composition ends and fires a synthetic keydown
+        // (keyCode 229). Without this guard, handleKeyDown would immediately
+        // remove inputmode="none", undoing the suppression we just set.
+        if (touchGuardTimer) clearTimeout(touchGuardTimer);
+        touchGuardTimer = setTimeout(() => {
+          touchGuardTimer = null;
+        }, 300);
+
         // Start confirmation timer: if no keydown within 1.5s,
         // physical keyboard is likely disconnected
         if (confirmTimer) clearTimeout(confirmTimer);
@@ -799,6 +810,10 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
 
       // On keydown: cancel disconnect timer + remove inputmode for IME
       const handleKeyDown = (_e: KeyboardEvent) => {
+        // Skip if within touch guard period (prevents IME composition-end
+        // keydown from undoing the suppression set by handlePointerDown)
+        if (touchGuardTimer) return;
+
         // Key was pressed → physical keyboard is connected
         if (confirmTimer) {
           clearTimeout(confirmTimer);
@@ -848,6 +863,7 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
 
       cleanupFns.push(() => {
         if (confirmTimer) clearTimeout(confirmTimer);
+        if (touchGuardTimer) clearTimeout(touchGuardTimer);
         rootElement.removeAttribute('inputmode');
         rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
         rootElement.removeEventListener('pointerdown', handlePointerDownForCaret, { capture: true } as any);
