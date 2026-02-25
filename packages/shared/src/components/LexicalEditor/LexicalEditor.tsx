@@ -743,6 +743,117 @@ function CodeHighlightPlugin(): null {
   return null;
 }
 
+// Plugin: suppresses virtual keyboard when physical keyboard is detected
+function VirtualKeyboardSuppressorPlugin({ active }: { active: boolean }): null {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    if (!active || typeof window === 'undefined') return;
+
+    const rootElement = editor.getRootElement();
+    if (!rootElement) return;
+
+    // Layer 1: Set inputmode directly on the actual contenteditable DOM element
+    rootElement.setAttribute('inputmode', 'none');
+    rootElement.setAttribute('virtualkeyboardpolicy', 'manual');
+
+    // Use VirtualKeyboard API if available (Chromium-based browsers)
+    if ('virtualKeyboard' in navigator) {
+      (navigator as any).virtualKeyboard.overlaysContent = true;
+    }
+
+    // Layer 2: Intercept pointerdown directly on the contenteditable element
+    let pDownX = 0, pDownY = 0;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      e.preventDefault();
+      pDownX = e.clientX;
+      pDownY = e.clientY;
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      const dx = Math.abs(e.clientX - pDownX);
+      const dy = Math.abs(e.clientY - pDownY);
+      if (dx > 10 || dy > 10) return; // scroll, not tap
+
+      // Manually place caret at tap position
+      let range: Range | null = null;
+      if (document.caretRangeFromPoint) {
+        range = document.caretRangeFromPoint(e.clientX, e.clientY);
+      } else if ((document as any).caretPositionFromPoint) {
+        const pos = (document as any).caretPositionFromPoint(e.clientX, e.clientY);
+        if (pos) {
+          range = document.createRange();
+          range.setStart(pos.offsetNode, pos.offset);
+          range.collapse(true);
+        }
+      }
+      if (range) {
+        const sel = window.getSelection();
+        if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+      }
+    };
+
+    rootElement.addEventListener('pointerdown', handlePointerDown, { capture: true });
+    rootElement.addEventListener('pointerup', handlePointerUp, { capture: true });
+
+    // Layer 3: Reactive — detect keyboard appearance via visualViewport and dismiss
+    const vv = window.visualViewport;
+    let initialHeight = vv ? vv.height : window.innerHeight;
+    let savedRange: Range | null = null;
+
+    const handleViewportResize = () => {
+      if (!vv) return;
+      const currentHeight = vv.height;
+      // If viewport shrank significantly (keyboard appeared)
+      if (currentHeight < initialHeight * 0.85) {
+        // Save current selection before blur
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          savedRange = sel.getRangeAt(0).cloneRange();
+        }
+
+        // Try VirtualKeyboard API first
+        if ('virtualKeyboard' in navigator) {
+          try { (navigator as any).virtualKeyboard.hide(); } catch (_) { }
+        }
+
+        // Blur to dismiss keyboard
+        rootElement.blur();
+
+        // Restore caret after keyboard dismisses
+        requestAnimationFrame(() => {
+          if (savedRange) {
+            const sel = window.getSelection();
+            if (sel) { sel.removeAllRanges(); sel.addRange(savedRange); }
+            savedRange = null;
+          }
+        });
+      } else {
+        // Viewport returned to normal size — update baseline
+        initialHeight = currentHeight;
+      }
+    };
+
+    if (vv) {
+      vv.addEventListener('resize', handleViewportResize);
+    }
+
+    return () => {
+      rootElement.removeAttribute('inputmode');
+      rootElement.removeAttribute('virtualkeyboardpolicy');
+      rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
+      rootElement.removeEventListener('pointerup', handlePointerUp, { capture: true } as any);
+      if (vv) {
+        vv.removeEventListener('resize', handleViewportResize);
+      }
+    };
+  }, [editor, active]);
+
+  return null;
+}
+
 // Plugin: detects markdown table input in real-time and converts to Lexical
 function MarkdownTablePlugin(): null {
   const [editor] = useLexicalComposerContext();
@@ -1469,88 +1580,7 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
     };
   }, [isPhysicalKeyboard]);
 
-  // Suppress virtual keyboard on touch for the contentEditable area
-  // Strategy: Use Pointer Events API. Per spec, calling preventDefault() on
-  // pointerdown prevents focus and compatibility mouse events, while the browser
-  // still handles scrolling independently via touch-action CSS.
-  // This catches ALL touch-initiated interactions at the earliest possible point.
-  useEffect(() => {
-    if (!isPhysicalKeyboard || typeof window === 'undefined') return;
-
-    const container = editorContainerRef.current;
-    if (!container) return;
-
-    let pointerDownX = 0;
-    let pointerDownY = 0;
-    let pointerDownOnEditable = false;
-
-    const handlePointerDown = (e: PointerEvent) => {
-      // Only intercept touch, not mouse/pen (physical keyboard uses these)
-      if (e.pointerType !== 'touch') return;
-
-      const target = e.target as HTMLElement;
-      if (target.closest('[contenteditable="true"]')) {
-        // CRITICAL: This prevents focus (and thus virtual keyboard) from the
-        // user gesture, while touch-action CSS still handles scrolling separately.
-        e.preventDefault();
-        pointerDownOnEditable = true;
-        pointerDownX = e.clientX;
-        pointerDownY = e.clientY;
-      }
-    };
-
-    const handlePointerUp = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch' || !pointerDownOnEditable) return;
-      pointerDownOnEditable = false;
-
-      // Check if this was a tap (not a scroll)
-      const dx = Math.abs(e.clientX - pointerDownX);
-      const dy = Math.abs(e.clientY - pointerDownY);
-      if (dx > 10 || dy > 10) return; // Was a scroll gesture
-
-      // Manually place the caret at the tap position
-      let range: Range | null = null;
-
-      if (document.caretRangeFromPoint) {
-        range = document.caretRangeFromPoint(e.clientX, e.clientY);
-      } else if ((document as any).caretPositionFromPoint) {
-        const pos = (document as any).caretPositionFromPoint(e.clientX, e.clientY);
-        if (pos) {
-          range = document.createRange();
-          range.setStart(pos.offsetNode, pos.offset);
-          range.collapse(true);
-        }
-      }
-
-      if (range) {
-        const selection = window.getSelection();
-        if (selection) {
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      }
-    };
-
-    // Also prevent any click events from touch (safety net)
-    const handleClick = (e: MouseEvent) => {
-      // Only block clicks that are synthetic from touch
-      const target = e.target as HTMLElement;
-      if (target.closest('[contenteditable="true"]') && e.detail === 0) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-
-    container.addEventListener('pointerdown', handlePointerDown, { capture: true });
-    container.addEventListener('pointerup', handlePointerUp, { capture: true });
-    container.addEventListener('click', handleClick, { capture: true });
-
-    return () => {
-      container.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
-      container.removeEventListener('pointerup', handlePointerUp, { capture: true } as any);
-      container.removeEventListener('click', handleClick, { capture: true } as any);
-    };
-  }, [isPhysicalKeyboard]);
+  // Virtual keyboard suppression is handled by VirtualKeyboardSuppressorPlugin below
 
   const initialConfig = useMemo(() => ({
     namespace: "MemoSuiteEditor",
@@ -1597,16 +1627,13 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
           customButtons={customButtons}
         />
         <div className="editor-inner" style={{ position: 'relative' }}>
+          <VirtualKeyboardSuppressorPlugin active={isPhysicalKeyboard} />
           <RichTextPlugin
             contentEditable={
               <Content
                 spellCheck={spellCheck}
                 $tabSize={tabSize}
                 $fontSize={fontSize}
-                inputMode={isPhysicalKeyboard ? 'none' : undefined}
-                enterKeyHint={isPhysicalKeyboard ? undefined : 'enter'}
-                autoComplete='off'
-                {...(isPhysicalKeyboard ? { virtualkeyboardpolicy: 'manual' } : {})}
               />
             }
             placeholder={
