@@ -761,6 +761,15 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       let inputModeSuppressed = false;
       let confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
+      // Proactively dismiss any currently visible virtual keyboard.
+      // This handles BT keyboard reconnection: the plugin re-activates
+      // and we need to close the virtual keyboard that appeared while
+      // the physical keyboard was disconnected.
+      // The keydown handler below will remove inputmode on the next
+      // physical keypress to allow IME (Korean) input.
+      rootElement.setAttribute('inputmode', 'none');
+      inputModeSuppressed = true;
+
       // On touch: set inputmode="none" to prevent virtual keyboard.
       // Also start a timer to detect if BT keyboard was disconnected.
       const handlePointerDown = (e: PointerEvent) => {
@@ -1555,21 +1564,29 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Physical keyboard detection heuristic
-      const isPhysical = (
+      // Method 1: Non-IME keys (English chars, nav keys, modifiers)
+      const isPhysicalByKey = (
         e.key === 'Tab' ||
         e.key === 'Escape' ||
         e.key.startsWith('Arrow') ||
         e.metaKey || e.ctrlKey || e.altKey ||
         (e.key.length === 1 && e.keyCode !== 229 && !e.isComposing)
       );
+      // Method 2: Physical keyboards send non-empty e.code (e.g. 'KeyA')
+      // even during Korean IME composition (keyCode === 229).
+      // Virtual keyboards on Android send empty e.code or 'Unidentified'.
+      const isPhysicalByCode = (
+        typeof e.code === 'string' && e.code !== '' && e.code !== 'Unidentified'
+      );
+
+      const isPhysical = isPhysicalByKey || isPhysicalByCode;
 
       if (isPhysical && !isPhysicalKeyboard) {
         setIsPhysicalKeyboard(true);
         localStorage.setItem('lexical_physical_keyboard', 'true');
         // The VirtualKeyboardSuppressorPlugin will activate on next render
-        // and handle touch suppression via pointerdown interception.
-        // We do NOT call blur() or use navigator.virtualKeyboard here
-        // because those actions disrupt the IME pipeline for Korean input.
+        // and dismiss the virtual keyboard via inputmode="none".
+        // We do NOT call blur() here as it disrupts the IME pipeline.
       }
     };
 
