@@ -74,6 +74,11 @@ export const GlobalStyle = createGlobalStyle<{ theme: Theme }>`
   }
 
   @media print {
+    @page {
+      margin-top: 15mm;
+      margin-bottom: 15mm;
+    }
+
     /* 1. Global Reset: Remove all viewport and sizing constraints */
     html, body {
       display: block !important;
