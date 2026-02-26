@@ -5562,18 +5562,31 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const viewW = canvas.getWidth();
                 const viewH = canvas.getHeight();
 
+                // Convert viewport coordinates to world coordinates to find visible area
+                const left = -panX / zoom;
+                const top = -panY / zoom;
+                const width = viewW / zoom;
+                const height = viewH / zoom;
+
+                // Actual page dimensions
+                const pageWidth = pageWidthRef.current || 2000;
+                const pageHeight = pageHeightRef.current || 5000;
+
+                // Calculate the intersection of the visible viewport and the actual page
+                const fillLeft = Math.max(0, left);
+                const fillTop = Math.max(0, top);
+                const fillRight = Math.min(pageWidth, left + width);
+                const fillBottom = Math.min(pageHeight, top + height);
+
                 ctx.transform(zoom, vpt[1], vpt[2], vpt[3], panX, panY);
 
                 if (!cachedLivePattern) {
                     cachedLivePattern = (pattern as any).toLive(ctx);
                 }
-                if (cachedLivePattern) {
+                if (cachedLivePattern && fillRight > fillLeft && fillBottom > fillTop) {
                     ctx.fillStyle = cachedLivePattern;
-                    // Reset transform temporarily to draw in screen space or 
-                    // stay in world space but only fill the rect. 
-                    // ctx.transform above is already world-scaled.
-                    ctx.setTransform(1, 0, 0, 1, 0, 0);
-                    ctx.fillRect(0, 0, viewW, viewH); // Simplest: fill visible screen area
+                    // Draw in world coordinates (after ctx.transform)
+                    ctx.fillRect(fillLeft, fillTop, fillRight - fillLeft, fillBottom - fillTop);
                 }
 
                 ctx.restore();
