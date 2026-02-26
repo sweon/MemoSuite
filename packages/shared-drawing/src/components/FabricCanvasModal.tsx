@@ -2353,6 +2353,17 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         setCanRedo(false);
     }, []);
 
+    // Debounced undo/redo state update to avoid React re-renders during rapid drawing
+    const undoRedoUpdateTimerRef = useRef<any>(null);
+    const updateUndoRedoState = React.useCallback(() => {
+        if (undoRedoUpdateTimerRef.current) return; // Already scheduled
+        undoRedoUpdateTimerRef.current = setTimeout(() => {
+            undoRedoUpdateTimerRef.current = null;
+            setCanUndo(historyIndexRef.current > 0);
+            setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
+        }, 200);
+    }, []);
+
     // Add action to history (incremental - much faster than full JSON)
     const addHistoryAction = React.useCallback((action: HistoryAction) => {
         if (isUndoRedoRef.current) return;
@@ -2367,21 +2378,15 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         // Limit history size - but keep initial snapshot
         if (historyRef.current.length > 100) {
-            // Compact: Create new snapshot from current state periodically
-            const canvas = fabricCanvasRef.current;
-            if (canvas && historyRef.current.length > 150) {
-                const snapshot = JSON.stringify(canvas.toJSON());
-                historyRef.current = [{ type: 'snapshot', snapshot }];
-                historyIndexRef.current = 0;
-            } else {
-                historyRef.current.shift();
-                historyIndexRef.current--;
-            }
+            // Compact: just trim the oldest entry. Avoid canvas.toJSON() here
+            // as it blocks the main thread during drawing.
+            historyRef.current.shift();
+            historyIndexRef.current--;
         }
 
-        setCanUndo(historyIndexRef.current > 0);
-        setCanRedo(false);
-    }, []);
+        // Debounced state update instead of immediate setState
+        updateUndoRedoState();
+    }, [updateUndoRedoState]);
 
     // Handle object added - save just the new object
     // Use a pending queue for history actions to avoid blocking the main thread
@@ -2395,11 +2400,20 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         }
 
         historyProcessingRef.current = true;
-        const { obj, type } = historyQueueRef.current.shift()!;
-        const id = getObjectId(obj);
 
-        // Serialize one object in a separate task
-        setTimeout(() => {
+        // Use requestIdleCallback to serialize objects ONLY when the browser is idle,
+        // preventing any interference with pen input during active drawing.
+        const scheduleNext = typeof requestIdleCallback !== 'undefined'
+            ? (cb: () => void) => requestIdleCallback(cb, { timeout: 2000 })
+            : (cb: () => void) => setTimeout(cb, 100);
+
+        scheduleNext(() => {
+            if (historyQueueRef.current.length === 0) {
+                historyProcessingRef.current = false;
+                return;
+            }
+            const { obj, type } = historyQueueRef.current.shift()!;
+            const id = getObjectId(obj);
             try {
                 const objectJson = JSON.stringify(obj.toJSON());
                 addHistoryAction({ type, objectJson, objectId: id });
@@ -2408,7 +2422,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
             // Continue processing the queue
             processHistoryQueue();
-        }, 50); // Small interval to keep UI responsive
+        });
     }, [addHistoryAction, getObjectId]);
 
     const handleObjectAddedForHistory = React.useCallback((e: any) => {
@@ -4607,6 +4621,19 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     useEffect(() => {
         const interval = setInterval(() => {
             if (onAutosaveRef.current) {
+                // CRITICAL: Skip autosave while user is actively drawing.
+                // canvas.toJSON() serializes ALL objects and blocks the main thread,
+                // causing progressive pen input delay as object count grows.
+                const canvas = fabricCanvasRef.current;
+                if (canvas && (canvas as any)._isCurrentlyDrawing) {
+                    return; // Skip this tick, will try again in 7s
+                }
+
+                // Also skip if there are pending history items being processed
+                if (historyQueueRef.current.length > 0) {
+                    return;
+                }
+
                 const json = getCanvasJson();
                 if (json) {
                     onAutosaveRef.current(json);
@@ -5358,7 +5385,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 break;
         }
 
-    }, [activeTool, color, brushSize, shapeStyles, brushType, fontFamily, fontWeight, fontStyle, handleShapeMouseDown, handleShapeMouseMove, handleShapeMouseUp, background, backgroundColor, currentBackgroundColor, lineOpacity, backgroundSize, backgroundBundleGap, backgroundImage, backgroundImageOpacity, saveHistory]);
+        // NOTE: background-related states were previously in this dep array by mistake.
+        // They are NOT used in this effect body. Including them caused expensive
+        // canvas.forEachObject() iterations every time background settings changed.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTool, color, brushSize, shapeStyles, brushType, fontFamily, fontWeight, fontStyle, handleShapeMouseDown, handleShapeMouseMove, handleShapeMouseUp, saveHistory]);
 
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
@@ -5429,6 +5460,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         // 3. Attach Hole-Filling Rendering Hook
         // This draws the background ONLY where pixels are transparent (erased area)
+        // Pre-create the native CanvasPattern ONCE here instead of on every frame.
+        let cachedLivePattern: CanvasPattern | null = null;
         const renderHook = () => {
             const ctx = canvas.getContext();
             const pattern = persistentBackgroundPatternRef.current;
@@ -5461,9 +5494,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const w = pageWidthRef.current || canvas.getWidth() || 5000;
                 const h = pageHeightRef.current || canvas.getHeight() || 10000;
 
-                const livePattern = (pattern as any).toLive(ctx);
-                if (livePattern) {
-                    ctx.fillStyle = livePattern;
+                // Use cached pattern to avoid recreating CanvasPattern every frame
+                if (!cachedLivePattern) {
+                    cachedLivePattern = (pattern as any).toLive(ctx);
+                }
+                if (cachedLivePattern) {
+                    ctx.fillStyle = cachedLivePattern;
                     ctx.fillRect(0, 0, w, h);
                 }
 
@@ -5527,7 +5563,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         return () => {
             canvas.off('after:render', (canvas as any).afterRenderHandler);
         };
-    }, [background, currentBackgroundColor, lineOpacity, backgroundSize, backgroundBundleGap, pageHeightState, pageWidthState, backgroundImage, backgroundImageOpacity, brushSize]);
+        // NOTE: brushSize was previously in this dep array by mistake — it is NOT used in this effect.
+        // Including it caused needless background rebuilds + full re-renders on every brush size change.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [background, currentBackgroundColor, lineOpacity, backgroundSize, backgroundBundleGap, pageHeightState, pageWidthState, backgroundImage, backgroundImageOpacity]);
 
     const handleVerticalScroll = (e: React.UIEvent<HTMLDivElement>) => {
         if (isInternalScrollRef.current) return;
