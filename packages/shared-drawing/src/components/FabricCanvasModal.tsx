@@ -2943,7 +2943,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     e.stopPropagation();
 
                     // Only trigger barrel toggle if recent pen activity (not mouse right-click)
-                    if (penPointerId !== -1 || Date.now() - lastPenTime < 500) {
+                    if (penPointerId !== -1 || Date.now() - lastPenTime < 1000) {
                         toggleBarrelEraserRef.current();
                     }
 
@@ -3116,6 +3116,27 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             const onPointerMove = (e: any) => {
                 const id = e.pointerId;
                 const isPen = isPenEvent(e);
+
+                // --- Barrel Button Toggle Detection (Hover) ---
+                // For non-Galaxy Book 360 devices that support hover button events.
+                if (isPen && !activePointers.has(id)) {
+                    // Update hover activity timestamp so oncontextmenu can identify the pen
+                    lastPenTime = Date.now();
+
+                    const isBarrelPressed =
+                        (e.buttons & 32) === 32 ||   // Standard barrel button
+                        (e.buttons & 2) === 2 ||     // Right-click barrel
+                        (e.buttons & 1) === 1;       // S Pen barrel variant
+
+                    if (isBarrelPressed && !barrelButtonStateRef.current) {
+                        // Transition: released → pressed → TOGGLE!
+                        barrelButtonStateRef.current = true;
+                        toggleBarrelEraserRef.current();
+                    } else if (!isBarrelPressed && barrelButtonStateRef.current) {
+                        // Transition: pressed → released
+                        barrelButtonStateRef.current = false;
+                    }
+                }
 
                 if (activePointers.has(id)) {
                     activePointers.set(id, getEvtPos(e));
