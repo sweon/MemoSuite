@@ -3008,7 +3008,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             setInterval(() => {
                 const now = performance.now();
-                const elapsed = (now - perfLastUpdate) / 1000;
                 const objCount = canvas.getObjects().length;
                 const moveAvg = perfMoveCount > 0 ? (perfMoveTotal / perfMoveCount).toFixed(1) : '0';
                 const renderAvg = perfRenderCount > 0 ? (perfRenderTotal / perfRenderCount).toFixed(1) : '0';
