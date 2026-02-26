@@ -2884,9 +2884,19 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 (overlay.style as any).webkitTouchCallout = 'none';
 
                 // Block context menu (Galaxy Tab / Android long-press popup)
+                // Galaxy Book 360 / Windows: S Pen barrel button fires contextmenu
+                // instead of pointerdown(button=2). Use this as additional barrel toggle signal.
+                // The 300ms cooldown in toggleBarrelEraser prevents double-toggle on devices
+                // where both pointerdown and contextmenu fire.
                 overlay.oncontextmenu = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
+
+                    // Only trigger barrel toggle if recent pen activity (not mouse right-click)
+                    if (penPointerId !== -1 || Date.now() - lastPenTime < 500) {
+                        toggleBarrelEraserRef.current();
+                    }
+
                     return false;
                 };
 
