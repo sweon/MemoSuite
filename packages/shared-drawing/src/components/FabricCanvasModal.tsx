@@ -3022,6 +3022,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         e.stopPropagation();
                         return; // Absorb - don't start drawing
                     }
+                } else if (e.button === 2 && Date.now() - lastPenTime < 1000) {
+                    // Galaxy Book 360 / Windows: barrel button during hover may fire as
+                    // pointerType='mouse' instead of 'pen'. Detect by checking button===2
+                    // with recent pen hover activity.
+                    toggleBarrelEraserRef.current();
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
                 }
 
                 activePointers.set(id, getEvtPos(e));
@@ -3072,6 +3080,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 // On standard pens: buttons & 32 or button === 5.
                 // We detect the TRANSITION from not-pressed to pressed to trigger toggle once.
                 if (isPen && !activePointers.has(id)) {
+                    // Track pen hover activity for Galaxy Book 360 barrel detection
+                    lastPenTime = Date.now();
+
                     const isBarrelPressed =
                         (e.buttons & 1) === 1 ||    // S Pen barrel during hover
                         (e.buttons & 32) === 32 ||   // Standard barrel button
