@@ -2648,6 +2648,18 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
 
             (this as any)._lastInsidePtr = ptr;
+
+            // 🚀 CRITICAL PERFORMANCE FIX: Bypass findTarget() during drawing mode.
+            // Fabric's original __onMouseMove calls _cacheTransformEventData() which
+            // internally calls findTarget() — iterating ALL objects (O(n)) to find
+            // what's under the pointer. During drawing, this is completely unnecessary
+            // and causes progressive slowdown as more objects are added.
+            // Instead, call _onMouseMoveInDrawingMode directly.
+            if (this.isDrawingMode && this._isCurrentlyDrawing) {
+                this._onMouseMoveInDrawingMode(e);
+                return;
+            }
+
             original__onMouseMove(e);
         };
 
