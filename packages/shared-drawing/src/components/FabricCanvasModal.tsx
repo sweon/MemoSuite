@@ -1407,6 +1407,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     handleActualClose.current = propsOnClose;
 
     // --- Barrel Button Toggle State ---
+    const isGalaxyBook = React.useMemo(() => {
+        const userAgent = navigator.userAgent.toLowerCase();
+        return userAgent.includes('windows') && navigator.maxTouchPoints > 1;
+    }, []);
+
     const [defaultEraserType, setDefaultEraserType] = useState<'eraser_pixel' | 'eraser_object'>(() => {
         return (localStorage.getItem('fabric_default_eraser_type') as any) || 'eraser_pixel';
     });
@@ -2836,9 +2841,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             return false;
         };
 
-        // Helper to detect if event is from a stylus/pen
+        // Helper to detect if event is from a stylus/pen (Stylus/Eraser/S-Pen)
         const isPenEvent = (e: any): boolean => {
-            if (e.pointerType === 'pen') return true;
+            if (e.pointerType === 'pen' || e.pointerType === 'eraser') return true;
             if (e.pointerType === 'touch' || e.pointerType === 'mouse') return false;
             if (e.tiltX || e.tiltY) return true;
             if (e.pressure > 0 && e.pressure !== 0.5 && e.pressure !== 1) return true;
@@ -2993,15 +2998,17 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     penPointerId = id;
                     lastPenTime = Date.now();
 
-                    // --- Barrel Button Toggle on PointerDown ---
+                    // --- Barrel Button Toggle on PointerDown (Galaxy Book / S Pen / Surface) ---
                     // If the pointerdown event itself is from the barrel button (not the pen tip),
                     // toggle the eraser and absorb the event (don't start a stroke).
                     // On S Pen: button === 2 (right-click-like) during pen pointerdown
-                    // On standard pens: button === 5 or buttons & 32
+                    // On Galaxy Book / Windows: buttons & 2 or buttons & 32
                     const isBarrelDown =
                         e.button === 5 ||
                         e.button === 2 ||
-                        (e.buttons & 32) === 32;
+                        (e.buttons & 32) === 32 ||
+                        (e.buttons & 2) === 2 ||
+                        e.pointerType === 'eraser';
 
                     if (isBarrelDown) {
                         if (!barrelButtonStateRef.current) {
@@ -3063,9 +3070,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 // We detect the TRANSITION from not-pressed to pressed to trigger toggle once.
                 if (isPen && !activePointers.has(id)) {
                     const isBarrelPressed =
-                        (e.buttons & 1) === 1 ||    // S Pen barrel during hover
-                        (e.buttons & 32) === 32 ||   // Standard barrel button
-                        (e.buttons & 2) === 2;        // Right-click barrel
+                        (e.buttons & 1) === 1 ||    // S Pen barrel during hover (some drivers)
+                        (e.buttons & 32) === 32 ||   // Standard eraser button
+                        (e.buttons & 2) === 2 ||     // Standard barrel button
+                        e.pointerType === 'eraser';  // Eraser pointer type (flipped pen)
 
                     if (isBarrelPressed && !barrelButtonStateRef.current) {
                         // Transition: not-pressed → pressed → TOGGLE!
@@ -6051,7 +6059,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                                     />
                                 </DashOption>
 
-                                {isMobileDevice() && (
+                                {(isMobileDevice() || isGalaxyBook) && (
                                     <>
                                         <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }}></div>
 
