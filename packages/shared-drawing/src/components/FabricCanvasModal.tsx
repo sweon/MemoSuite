@@ -3229,58 +3229,75 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             overlay.addEventListener('pointercancel', onPointerUp, { passive: false });
             overlay.addEventListener('wheel', onWheel, { passive: false });
 
-            // --- 🔍 DEBUG: Visual event logger for barrel button diagnosis ---
+            // --- 🔍 DEBUG: Comprehensive event logger for barrel button diagnosis ---
             const debugDiv = document.createElement('div');
             debugDiv.id = 'barrel-debug-log';
-            debugDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;width:420px;max-height:300px;overflow-y:auto;background:rgba(0,0,0,0.85);color:#0f0;font:11px monospace;padding:8px;z-index:99999;border-radius:8px;pointer-events:none;';
+            debugDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;width:450px;max-height:350px;overflow-y:auto;background:rgba(0,0,0,0.9);color:#0f0;font:11px monospace;padding:8px;z-index:99999;border-radius:8px;pointer-events:none;';
             document.body.appendChild(debugDiv);
             const debugLines: string[] = [];
             const debugLog = (msg: string) => {
                 debugLines.push(msg);
-                if (debugLines.length > 15) debugLines.shift();
+                if (debugLines.length > 20) debugLines.shift();
                 debugDiv.innerHTML = debugLines.map(l => `<div>${l}</div>`).join('');
                 debugDiv.scrollTop = debugDiv.scrollHeight;
             };
-            debugLog('🔍 Barrel Debug Active');
+            debugLog('🔍 Barrel Debug v3 - ALL events');
 
-            // Log ALL pointer events on overlay (not just pen)
-            const debugPointerHandler = (e: PointerEvent) => {
-                // Skip pointermove unless buttons > 0 or it's a pen hover
-                if (e.type === 'pointermove' && e.buttons === 0 && e.pointerType !== 'pen') return;
-                const t = (e.target as HTMLElement)?.className?.substring(0, 20) || 'unknown';
-                debugLog(`OVL ${e.type} pType=${e.pointerType} btn=${e.button} btns=${e.buttons} id=${e.pointerId} tgt=${t}`);
-            };
-            overlay.addEventListener('pointerdown', debugPointerHandler, { capture: true });
-            overlay.addEventListener('pointerup', debugPointerHandler, { capture: true });
-            overlay.addEventListener('pointermove', debugPointerHandler, { capture: true });
+            // Catch EVERY possible event type on document (capture phase)
+            const allEventTypes = [
+                'pointerdown', 'pointerup', 'pointermove', 'pointerenter', 'pointerleave',
+                'pointerover', 'pointerout', 'pointerrawupdate',
+                'mousedown', 'mouseup', 'mousemove',
+                'click', 'auxclick', 'dblclick', 'contextmenu',
+                'keydown', 'keyup', 'keypress',
+                'beforeinput', 'input'
+            ];
 
-            // Log ALL pointer/mouse events on document
-            const debugDocHandler = (e: Event) => {
-                const pe = e as PointerEvent;
+            const debugAllHandler = (e: Event) => {
+                const type = e.type;
+
+                // Skip high-frequency events with no actionable info
+                if (type === 'pointermove' || type === 'pointerrawupdate' || type === 'mousemove') {
+                    const pe = e as PointerEvent;
+                    // Only log if buttons > 0 (potential barrel press) or pen hover
+                    if (pe.buttons === 0 && pe.pointerType !== 'pen') return;
+                    // For pen hover, only log if buttons changed (non-zero)
+                    if (pe.pointerType === 'pen' && pe.buttons === 0) return;
+                    debugLog(`${type} pType=${pe.pointerType} btn=${pe.button} btns=${pe.buttons}`);
+                    return;
+                }
+                if (type === 'pointerenter' || type === 'pointerleave' || type === 'pointerover' || type === 'pointerout') {
+                    return; // Skip hover boundary events
+                }
+
+                // Keyboard events
+                if (type === 'keydown' || type === 'keyup' || type === 'keypress') {
+                    const ke = e as KeyboardEvent;
+                    debugLog(`⌨ ${type} key=${ke.key} code=${ke.code} kc=${ke.keyCode}`);
+                    return;
+                }
+
+                // Mouse/Pointer events
                 const me = e as MouseEvent;
-                const t = (e.target as HTMLElement)?.className?.substring(0, 20) || 'unknown';
-                if (e.type === 'pointermove' && (pe.buttons === 0 && pe.pointerType !== 'pen')) return;
-                if (e.type === 'mousemove') return;
+                const pe = e as PointerEvent;
                 const pType = pe.pointerType || 'N/A';
-                debugLog(`DOC ${e.type} pType=${pType} btn=${me.button} btns=${me.buttons} tgt=${t}`);
+                const tgt = (e.target as HTMLElement)?.tagName || '?';
+                debugLog(`🔴 ${type} pType=${pType} btn=${me.button} btns=${me.buttons} tgt=${tgt}`);
             };
-            document.addEventListener('pointerdown', debugDocHandler, { capture: true });
-            document.addEventListener('pointerup', debugDocHandler, { capture: true });
-            document.addEventListener('pointermove', debugDocHandler, { capture: true });
-            document.addEventListener('mousedown', debugDocHandler, { capture: true });
-            document.addEventListener('mouseup', debugDocHandler, { capture: true });
-            document.addEventListener('contextmenu', debugDocHandler, { capture: true });
+
+            for (const evtType of allEventTypes) {
+                document.addEventListener(evtType, debugAllHandler, { capture: true });
+            }
+            // Also listen on window for events that might not bubble to document
+            window.addEventListener('keydown', debugAllHandler, { capture: true });
+            window.addEventListener('keyup', debugAllHandler, { capture: true });
 
             (canvas as any).__debugCleanup = () => {
-                overlay.removeEventListener('pointerdown', debugPointerHandler, { capture: true } as EventListenerOptions);
-                overlay.removeEventListener('pointerup', debugPointerHandler, { capture: true } as EventListenerOptions);
-                overlay.removeEventListener('pointermove', debugPointerHandler, { capture: true } as EventListenerOptions);
-                document.removeEventListener('pointerdown', debugDocHandler, { capture: true } as EventListenerOptions);
-                document.removeEventListener('pointerup', debugDocHandler, { capture: true } as EventListenerOptions);
-                document.removeEventListener('pointermove', debugDocHandler, { capture: true } as EventListenerOptions);
-                document.removeEventListener('mousedown', debugDocHandler, { capture: true } as EventListenerOptions);
-                document.removeEventListener('mouseup', debugDocHandler, { capture: true } as EventListenerOptions);
-                document.removeEventListener('contextmenu', debugDocHandler, { capture: true } as EventListenerOptions);
+                for (const evtType of allEventTypes) {
+                    document.removeEventListener(evtType, debugAllHandler, { capture: true } as EventListenerOptions);
+                }
+                window.removeEventListener('keydown', debugAllHandler, { capture: true } as EventListenerOptions);
+                window.removeEventListener('keyup', debugAllHandler, { capture: true } as EventListenerOptions);
                 debugDiv.remove();
             };
             // --- END DEBUG ---
