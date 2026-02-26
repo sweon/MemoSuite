@@ -2546,57 +2546,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // Set properties that might not be in types but exist in runtime
         (canvas as any).subTargetCheck = false;
 
-        // 🚀 GLOBAL PERFORMANCE OVERRIDE: Strict Viewport Culling
-        // Only render objects that are within the visible viewport + 1 screen buffer.
-        // This is CRITICAL — without it, Fabric renders ALL objects on every renderAll(),
-        // causing progressive slowdown as more paths are added (even off-screen ones).
-        const originalRenderObjects = (canvas as any)._renderObjects.bind(canvas);
-        (canvas as any)._renderObjects = function (ctx: CanvasRenderingContext2D, objects: fabric.Object[]) {
-            const vpt = canvas.viewportTransform;
-            if (!vpt) return originalRenderObjects(ctx, objects);
-
-            const zoom = vpt[0];
-            const panY = vpt[5];
-
-            const viewportHeight = canvas.getHeight();
-            const visibleTop = -panY / zoom;
-            const visibleBottom = (viewportHeight - panY) / zoom;
-
-            // Buffer: 1 screen height above and below
-            const bufferHeight = (visibleBottom - visibleTop);
-            const renderTop = visibleTop - bufferHeight;
-            const renderBottom = visibleBottom + bufferHeight;
-
-            const visibleObjects = [];
-            for (let i = 0, len = objects.length; i < len; i++) {
-                const obj = objects[i];
-                if (!obj) continue;
-
-                // Always render the page background to avoid gray screen
-                if ((obj as any).isPageBackground) {
-                    visibleObjects.push(obj);
-                    continue;
-                }
-
-                const top = obj.top || 0;
-                const height = (obj.height || 0) * (obj.scaleY || 1);
-                const bottom = top + height;
-
-                if (bottom > renderTop && top < renderBottom) {
-                    visibleObjects.push(obj);
-                }
-            }
-
-            originalRenderObjects(ctx, visibleObjects);
-        };
-
-        // Set properties that might not be in types but exist in runtime
-        (canvas as any).subTargetCheck = false;
-
-        // Additional global performance settings
-        // Disable object caching globally — viewport culling makes caching less beneficial
-        // since culled objects don't need caches, and cache creation itself has overhead.
-        fabric.Object.prototype.objectCaching = false;
+        // Global performance settings
+        // Enable object caching globally — essential for complex pencil paths
+        fabric.Object.prototype.objectCaching = true;
         (fabric.Object.prototype as any).statefullCache = false;
         (fabric.Object.prototype as any).statefulCache = false;
         fabric.Object.prototype.noScaleCache = true;
@@ -2604,7 +2556,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // Conditional caching: Don't cache very small paths to save VRAM on mobile
         fabric.Object.prototype.needsItsOwnCache = function () {
             if (this.type === 'path') {
-                if (this.width! * this.scaleX! < 10 || this.height! * this.scaleY! < 10) return false;
+                const width = this.width || 0;
+                const height = this.height || 0;
+                const scaleX = this.scaleX || 1;
+                const scaleY = this.scaleY || 1;
+                if (width * scaleX < 5 || height * scaleY < 5) return false;
             }
             return true;
         };
@@ -2613,8 +2569,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const brush = new fabric.PencilBrush(canvas);
         brush.width = brushSize;
         brush.color = color;
-        // Low decimate for high accuracy: 0.5 follows the pen much more closely
-        brush.decimate = 0.5;
+        // Moderate decimate for balance between accuracy and performance.
+        // 1.2 follows the pen closely without creating excessive point counts.
+        brush.decimate = 1.2;
         canvas.freeDrawingBrush = brush;
         canvas.allowTouchScrolling = false; // Disable Fabric's internal touch scrolling
 
@@ -5072,7 +5029,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     ? brushSize * 2 : brushSize;
                 // Reduce path simplification for more accurate pen following
                 if (canvas.freeDrawingBrush instanceof fabric.PencilBrush) {
-                    (canvas.freeDrawingBrush as any).decimate = 0.5;
+                    (canvas.freeDrawingBrush as any).decimate = 1.2;
                 }
 
                 // PERFORMANCE BOOST: Disable events on all objects and state tracking
@@ -5104,7 +5061,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 // @ts-ignore
                 brush.globalCompositeOperation = 'source-over';
                 canvas.freeDrawingBrush = brush;
-                (brush as any).decimate = 0.5;
+                (brush as any).decimate = 1.2;
 
                 // --- TOUCH-ONLY COMPATIBILITY LAYER ---
                 const upperCanvasEl = (canvas as any).upperCanvasEl as HTMLCanvasElement;
