@@ -2384,6 +2384,33 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     }, []);
 
     // Handle object added - save just the new object
+    // Use a pending queue for history actions to avoid blocking the main thread
+    const historyQueueRef = useRef<{ obj: fabric.Object; type: 'add' | 'remove' }[]>([]);
+    const historyProcessingRef = useRef<boolean>(false);
+
+    const processHistoryQueue = useCallback(() => {
+        if (historyQueueRef.current.length === 0 || isUndoRedoRef.current) {
+            historyProcessingRef.current = false;
+            return;
+        }
+
+        historyProcessingRef.current = true;
+        const { obj, type } = historyQueueRef.current.shift()!;
+        const id = getObjectId(obj);
+
+        // Serialize one object in a separate task
+        setTimeout(() => {
+            try {
+                const objectJson = JSON.stringify(obj.toJSON());
+                addHistoryAction({ type, objectJson, objectId: id });
+            } catch (err) {
+                console.error('History serialization failed:', err);
+            }
+            // Continue processing the queue
+            processHistoryQueue();
+        }, 50); // Small interval to keep UI responsive
+    }, [addHistoryAction, getObjectId]);
+
     const handleObjectAddedForHistory = React.useCallback((e: any) => {
         if (isUndoRedoRef.current) return;
         const obj = e.target;
@@ -2393,16 +2420,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         lastAddedObjectRef.current = obj;
         lastAddedObjectTimeRef.current = Date.now();
 
-        const id = getObjectId(obj);
-        // Defer serialization to avoid blocking the main thread during drawing.
-        // toJSON() + JSON.stringify() on complex paths can take 10-50ms.
-        setTimeout(() => {
-            try {
-                const objectJson = JSON.stringify(obj.toJSON());
-                addHistoryAction({ type: 'add', objectJson, objectId: id });
-            } catch { /* object may have been removed */ }
-        }, 0);
-    }, [getObjectId, addHistoryAction]);
+        // Queue for background processing
+        historyQueueRef.current.push({ obj, type: 'add' });
+        if (!historyProcessingRef.current) {
+            processHistoryQueue();
+        }
+    }, [processHistoryQueue]);
 
     // Handle object removed - save the removed object for potential undo
     const handleObjectRemovedForHistory = React.useCallback((e: any) => {
@@ -2411,10 +2434,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         if (!obj) return;
 
         const id = (obj as any).__historyId || getObjectId(obj);
-        // Defer serialization to avoid blocking the main thread
-        const objectJson = JSON.stringify(obj.toJSON());
-        addHistoryAction({ type: 'remove', objectJson, objectId: id });
-    }, [getObjectId, addHistoryAction]);
+
+        // For removal, we still need immediate serialization if it's not a path,
+        // but let's try queueing it as well to be consistent.
+        historyQueueRef.current.push({ obj, type: 'remove' });
+        if (!historyProcessingRef.current) {
+            processHistoryQueue();
+        }
+    }, [processHistoryQueue, getObjectId]);
 
     // Debounced modify handler - only saves after user stops modifying
     const modifyTimeoutRef = useRef<any | null>(null);
@@ -2504,56 +2531,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             canvas.renderAll();
         }, 100);
 
-        // 🚀 GLOBAL PERFORMANCE OVERRIDE: Strict Viewport Culling
-        // This stops Fabric from even THINKING about objects that are not visible.
-        const originalRenderObjects = (canvas as any)._renderObjects.bind(canvas);
-        (canvas as any)._renderObjects = function (ctx: CanvasRenderingContext2D, objects: fabric.Object[]) {
-            const vpt = canvas.viewportTransform;
-            if (!vpt) return originalRenderObjects(ctx, objects);
-
-            // Use Fabric's internal viewport transform to calculate valid area
-            // transform is [scaleX, skewY, skewX, scaleY, translateX, translateY]
-            const zoom = vpt[0];
-            const panY = vpt[5];
-
-            // Calculate visible area in canvas coordinates (absolute object coordinates)
-            // Visible Top: -panY / zoom
-            // Visible Bottom: (CanvasHeight - panY) / zoom
-            const viewportHeight = canvas.getHeight();
-            const visibleTop = -panY / zoom;
-            const visibleBottom = (viewportHeight - panY) / zoom;
-
-            // Buffer: 1 screen height
-            const bufferHeight = (visibleBottom - visibleTop);
-            const renderTop = visibleTop - bufferHeight;
-            const renderBottom = visibleBottom + bufferHeight;
-
-            // High-speed manual loop
-            const visibleObjects = [];
-            for (let i = 0, len = objects.length; i < len; i++) {
-                const obj = objects[i];
-                if (!obj) continue;
-
-                // 🚀 CRITICAL: Always render the page background.
-                // Do not apply culling to the background rect to avoid the 'gray screen' issue.
-                if ((obj as any).isPageBackground) {
-                    visibleObjects.push(obj);
-                    continue;
-                }
-
-                const top = obj.top || 0;
-                // Simple height estimation (scaled)
-                const height = (obj.height || 0) * (obj.scaleY || 1);
-                const bottom = top + height;
-
-                // Check intersection
-                if (bottom > renderTop && top < renderBottom) {
-                    visibleObjects.push(obj);
-                }
-            }
-
-            originalRenderObjects(ctx, visibleObjects);
-        };
         // Set properties that might not be in types but exist in runtime
         (canvas as any).subTargetCheck = false;
 
@@ -2563,8 +2540,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // then reuse that cached image on subsequent frames — critical for
         // preventing progressive slowdown as more paths are added.
         fabric.Object.prototype.objectCaching = true;
-        (fabric.Object.prototype as any).statefullCache = false;
-        (fabric.Object.prototype as any).statefulCache = false;
+        (fabric.Object.prototype as any).statefulCache = true;
         fabric.Object.prototype.noScaleCache = true;
 
         // Set initial brush with optimized settings
