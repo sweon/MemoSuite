@@ -2546,32 +2546,65 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // Set properties that might not be in types but exist in runtime
         (canvas as any).subTargetCheck = false;
 
+        // 🚀 GLOBAL PERFORMANCE OVERRIDE: Ultra-Fast Viewport Culling
+        // Re-implements the culling to filter objects BEFORE Fabric's O(n) rendering loop.
+        // This is essential when thousands of pen strokes exist on multiple pages.
+        const originalRenderObjects = (canvas as any)._renderObjects.bind(canvas);
+        (canvas as any)._renderObjects = function (ctx: CanvasRenderingContext2D, objects: fabric.Object[]) {
+            const vpt = this.viewportTransform;
+            if (!vpt) return originalRenderObjects(ctx, objects);
+
+            const zoom = vpt[0];
+            const panY = vpt[5];
+            const viewportHeight = this.getHeight();
+
+            // Buffer: 1/2 screen height above and below the visible area
+            const visibleTop = -panY / zoom;
+            const visibleBottom = (viewportHeight - panY) / zoom;
+            const buffer = (visibleBottom - visibleTop) * 0.5;
+            const renderTop = visibleTop - buffer;
+            const renderBottom = visibleBottom + buffer;
+
+            const visibleObjects = [];
+            for (let i = 0, len = objects.length; i < len; i++) {
+                const obj = objects[i];
+                if (!obj) continue;
+
+                // Always render the page background or objects marked for permanent visibility
+                if ((obj as any).isPageBackground || (obj as any).alwaysRender) {
+                    visibleObjects.push(obj);
+                    continue;
+                }
+
+                // Quick boundary check using pre-calculated object properties
+                const top = obj.top || 0;
+                const height = (obj.height || 0) * (obj.scaleY || 1);
+                if (top + height > renderTop && top < renderBottom) {
+                    visibleObjects.push(obj);
+                }
+            }
+            originalRenderObjects(ctx, visibleObjects);
+        };
+
         // Global performance settings
-        // Enable object caching globally — essential for complex pencil paths
+        // Enable object caching. For complex paths (decimate 0.5), caching is 
+        // essential to avoid point-by-point redraw on every frame.
         fabric.Object.prototype.objectCaching = true;
         (fabric.Object.prototype as any).statefullCache = false;
         (fabric.Object.prototype as any).statefulCache = false;
         fabric.Object.prototype.noScaleCache = true;
 
-        // Conditional caching: Don't cache very small paths to save VRAM on mobile
-        fabric.Object.prototype.needsItsOwnCache = function () {
-            if (this.type === 'path') {
-                const width = this.width || 0;
-                const height = this.height || 0;
-                const scaleX = this.scaleX || 1;
-                const scaleY = this.scaleY || 1;
-                if (width * scaleX < 5 || height * scaleY < 5) return false;
-            }
-            return true;
-        };
+        // Ensure no pixel-perfect finding is active unless needed (O(N) cost)
+        fabric.Object.prototype.perPixelTargetFind = false;
 
-        // Set initial brush with optimized settings
+        // Skip offscreen internally too, as a second layer of defense
+        canvas.skipOffscreen = true;
+
+        // Set initial brush with high-precision (user-requested)
         const brush = new fabric.PencilBrush(canvas);
         brush.width = brushSize;
         brush.color = color;
-        // Moderate decimate for balance between accuracy and performance.
-        // 1.2 follows the pen closely without creating excessive point counts.
-        brush.decimate = 1.2;
+        brush.decimate = 0.5;
         canvas.freeDrawingBrush = brush;
         canvas.allowTouchScrolling = false; // Disable Fabric's internal touch scrolling
 
@@ -2610,6 +2643,15 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const original__onMouseDown = (canvas as any).__onMouseDown.bind(canvas);
         (canvas as any).__onMouseDown = function (e: Event) {
             const ptr = this.getPointer(e);
+
+            // 🚀 CRITICAL PERFORMANCE FIX: Bypass findTarget() during drawing mode.
+            // OnMouseDown normally iterates all objects to find a target.
+            if (this.isDrawingMode) {
+                this._resetTransformEventData();
+                this._onMouseDownInDrawingMode(e);
+                return;
+            }
+
             if (!checkIsInside(ptr) && activeToolRef.current !== 'select') {
                 (this as any)._boundaryBlocked = true;
                 return;
@@ -2660,16 +2702,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             (this as any)._lastInsidePtr = ptr;
 
-            // 🚀 CRITICAL PERFORMANCE FIX: Bypass findTarget() during drawing mode.
-            // Fabric's original __onMouseMove calls _cacheTransformEventData() which
-            // internally calls findTarget() — iterating ALL objects (O(n)) to find
-            // what's under the pointer. During drawing, this is completely unnecessary
-            // and causes progressive slowdown as more objects are added.
-            // Instead, reset pointer cache (required for getPointer to recalculate)
-            // and call _onMouseMoveInDrawingMode directly.
+            // 🚀 CRITICAL: Bypass O(N) findTarget() during move
             if (this.isDrawingMode && this._isCurrentlyDrawing) {
-                // Reset cached pointer so getPointer() recalculates from the new event.
-                // Without this, getPointer() returns stale coordinates from the previous frame.
                 this._resetTransformEventData();
                 this._onMouseMoveInDrawingMode(e);
                 return;
@@ -3229,16 +3263,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     evented: false,
                     strokeUniform: true,
                     globalCompositeOperation: 'destination-out',
-                    objectCaching: false // CRITICAL: Required for transparency-based paths
+                    objectCaching: false
                 });
             } else if ((canvas.freeDrawingBrush as any).isLaser) {
+                // Laser logic preserved...
                 opt.path.set({
                     isLaserObject: true,
                     selectable: false,
                     evented: false,
                     objectCaching: true
                 });
-
                 setTimeout(() => {
                     if (opt.path.canvas) {
                         opt.path.animate('opacity', 0, {
@@ -3255,8 +3289,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 }, 1000);
                 return;
             } else {
+                // Enable caching for finished paths to keep lower-canvas rendering fast
                 opt.path.set({
-                    objectCaching: true
+                    objectCaching: true,
+                    selectable: false, // Default to non-selectable for pen paths
+                    evented: true,
+                    perPixelTargetFind: false
                 });
             }
             canvas.requestRenderAll();
@@ -5029,7 +5067,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     ? brushSize * 2 : brushSize;
                 // Reduce path simplification for more accurate pen following
                 if (canvas.freeDrawingBrush instanceof fabric.PencilBrush) {
-                    (canvas.freeDrawingBrush as any).decimate = 1.2;
+                    (canvas.freeDrawingBrush as any).decimate = 0.5;
                 }
 
                 // PERFORMANCE BOOST: Disable events on all objects and state tracking
@@ -5061,7 +5099,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 // @ts-ignore
                 brush.globalCompositeOperation = 'source-over';
                 canvas.freeDrawingBrush = brush;
-                (brush as any).decimate = 1.2;
+                (brush as any).decimate = 0.5;
 
                 // --- TOUCH-ONLY COMPATIBILITY LAYER ---
                 const upperCanvasEl = (canvas as any).upperCanvasEl as HTMLCanvasElement;
@@ -5756,7 +5794,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         <CompactActionButton
                             $primary
                             onClick={handleSave}
-                            disabled={isSaving}
+                            disabled={isSaving || historyIndexRef.current === lastSavedIndexRef.current}
                             title={isSaving ? t.drawing?.saving : (t.drawing?.insert || 'Insert')}
                         >
                             {isSaving ? (
