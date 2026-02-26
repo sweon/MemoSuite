@@ -2433,8 +2433,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const obj = e.target;
         if (!obj) return;
 
-        const id = (obj as any).__historyId || getObjectId(obj);
-
         // For removal, we still need immediate serialization if it's not a path,
         // but let's try queueing it as well to be consistent.
         historyQueueRef.current.push({ obj, type: 'remove' });
