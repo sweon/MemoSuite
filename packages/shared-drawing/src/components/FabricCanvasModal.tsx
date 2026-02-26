@@ -189,15 +189,10 @@ const ModalOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  /* Use viewport units for modern mobile awareness */
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
   background: rgba(0, 0, 0, 0.7);
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: stretch;
+  align-items: center;
+  justify-content: center;
   z-index: 9999;
   touch-action: none !important;
   overscroll-behavior: none !important;
@@ -206,7 +201,6 @@ const ModalOverlay = styled.div`
 const ModalContainer = styled.div`
   width: 100%;
   height: 100%;
-  flex: 1;
   background: #ffffff;
   display: flex;
   flex-direction: column;
@@ -863,8 +857,6 @@ interface ToolbarConfiguratorProps {
     onDefaultZoomLockedChange: (val: boolean) => void;
     onSaveItems: (items: ToolbarItem[]) => void;
     onClose: () => void;
-    defaultEraserType: 'eraser_pixel' | 'eraser_object';
-    onDefaultEraserTypeChange: (val: 'eraser_pixel' | 'eraser_object') => void;
     language: Language;
     t: TranslationKeys;
 }
@@ -873,7 +865,6 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
     currentItems, allItems, onSaveItems, onClose, colors, brushSizes,
     scrollbarSide, onScrollbarSideChange, maxPages, onMaxPagesChange,
     defaultZoomLocked, onDefaultZoomLockedChange,
-    defaultEraserType, onDefaultEraserTypeChange,
     language, t
 }) => {
     // Section 1: Scrollbar
@@ -891,9 +882,6 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
     // Section 4: Default Zoom Lock
     const [tempDefaultZoomLocked, setTempDefaultZoomLocked] = useState(defaultZoomLocked);
 
-    // Section 5: Default Eraser
-    const [tempDefaultEraserType, setTempDefaultEraserType] = useState(defaultEraserType);
-
     const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
 
     const handleCancelClick = () => {
@@ -901,7 +889,6 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
             JSON.stringify(tempActiveItems) !== JSON.stringify(currentItems) ||
             tempScrollbarSide !== scrollbarSide ||
             tempMaxPages !== maxPages ||
-            tempDefaultEraserType !== defaultEraserType ||
             tempDefaultZoomLocked !== defaultZoomLocked;
 
         if (hasChanges) {
@@ -1137,81 +1124,6 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
                             </div>
                         </section>
 
-                        {/* Section 2.5: Default Eraser for Barrel Button */}
-                        <section style={{ paddingBottom: '24px', borderBottom: '1px solid #f3f4f6' }}>
-                            <h4 style={{ margin: '0 0 4px 0', fontSize: '0.9rem', fontWeight: 600, color: '#1f2937', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                {t.drawing?.barrel_eraser_title || 'Stylus Barrel Eraser'}
-                            </h4>
-                            <p style={{ margin: '0 0 12px 0', fontSize: '0.75rem', color: '#6b7280', lineHeight: '1.4' }}>
-                                {t.drawing?.barrel_eraser_desc || 'Choose eraser type for pen button'}
-                            </p>
-                            <div style={{ display: 'flex', gap: '12px' }}>
-                                <div
-                                    onClick={() => setTempDefaultEraserType('eraser_pixel')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '12px',
-                                        borderRadius: '10px',
-                                        border: `2px solid ${tempDefaultEraserType === 'eraser_pixel' ? '#111827' : '#e5e7eb'}`,
-                                        background: tempDefaultEraserType === 'eraser_pixel' ? '#f3f4f6' : '#ffffff',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s'
-                                    }}
-                                >
-                                    <PixelEraserIcon />
-                                    <span style={{ fontSize: '0.9rem', fontWeight: tempDefaultEraserType === 'eraser_pixel' ? 600 : 500, color: tempDefaultEraserType === 'eraser_pixel' ? '#111827' : '#4b5563' }}>
-                                        {t.drawing?.tool_eraser_pixel || 'Pixel'}
-                                    </span>
-                                </div>
-                                <div
-                                    onClick={() => setTempDefaultEraserType('eraser_object')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '12px',
-                                        borderRadius: '10px',
-                                        border: `2px solid ${tempDefaultEraserType === 'eraser_object' ? '#111827' : '#e5e7eb'}`,
-                                        background: tempDefaultEraserType === 'eraser_object' ? '#f3f4f6' : '#ffffff',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s'
-                                    }}
-                                >
-                                    <ObjectEraserIcon />
-                                    <span style={{ fontSize: '0.9rem', fontWeight: tempDefaultEraserType === 'eraser_object' ? 600 : 500, color: tempDefaultEraserType === 'eraser_object' ? '#111827' : '#4b5563' }}>
-                                        {t.drawing?.tool_eraser_object || 'Object'}
-                                    </span>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px', alignItems: 'center' }}>
-                                <span
-                                    onClick={() => setTempDefaultEraserType('eraser_pixel')}
-                                    style={{ marginRight: 'auto', fontSize: '0.7rem', color: '#6b7280', cursor: 'pointer', textDecoration: 'underline' }}
-                                >
-                                    {t.drawing?.reset_each}
-                                </span>
-                                <CompactModalButton onClick={handleCancelClick} style={{ fontSize: '0.75rem', padding: '6px 12px' }}>
-                                    {t.drawing?.cancel}
-                                </CompactModalButton>
-                                <CompactModalButton
-                                    $variant="primary"
-                                    onClick={() => {
-                                        onDefaultEraserTypeChange(tempDefaultEraserType);
-                                        onClose();
-                                    }}
-                                    style={{ fontSize: '0.75rem', padding: '6px 12px' }}
-                                >
-                                    {t.drawing?.save_apply}
-                                </CompactModalButton>
-                            </div>
-                        </section>
-
                         {/* Section 3: Scrollbar Side Selection */}
                         <section style={{ paddingBottom: '24px', borderBottom: '1px solid #f3f4f6' }}>
                             <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', fontWeight: 600, color: '#1f2937', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -1406,33 +1318,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const touchEraserCursorRef = useRef<SVGSVGElement | null>(null);
     handleActualClose.current = propsOnClose;
 
-    // --- Barrel Button Toggle State ---
-    const [defaultEraserType, setDefaultEraserType] = useState<'eraser_pixel' | 'eraser_object'>(() => {
-        return (localStorage.getItem('fabric_default_eraser_type') as any) || 'eraser_pixel';
-    });
-    // Remembers the last non-eraser tool so we can restore it when toggling back
-    const lastNonEraserToolRef = useRef<{ toolType: ToolType; itemId: string | null; penSlot?: string } | null>(null);
-    // Remembers the last eraser tool used (initialize from setting)
-    const lastEraserToolRef = useRef<{ toolType: 'eraser_pixel' | 'eraser_object'; itemId: string | null }>({ toolType: defaultEraserType, itemId: defaultEraserType });
-
-    useEffect(() => {
-        localStorage.setItem('fabric_default_eraser_type', defaultEraserType);
-        // Sync ref with setting if it's still at the default state
-        if (lastEraserToolRef.current.itemId === 'eraser_pixel' || lastEraserToolRef.current.itemId === 'eraser_object') {
-            lastEraserToolRef.current = { toolType: defaultEraserType, itemId: defaultEraserType };
-        }
-    }, [defaultEraserType]);
-    // Tracks previous barrel button state to detect transitions (press/release)
-    const barrelButtonStateRef = useRef(false);
-    // Whether we are currently in eraser mode via barrel toggle
-    const isInEraserModeViaBarrelRef = useRef(false);
-    // Debounce flag to prevent multiple toggles from rapid events
-    const barrelToggleCooldownRef = useRef(0);
-
     const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
     const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
     const [isPaletteResetConfirmOpen, setIsPaletteResetConfirmOpen] = useState(false);
     const [paletteResetIndex, setPaletteResetIndex] = useState<number | null>(null);
+    const [savedToastVisible, setSavedToastVisible] = useState(false);
 
     // Wrapper for onClose to handle history safe closing
     const onClose = () => {
@@ -2130,80 +2020,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     setBrushSize(settings.size);
                 }
                 setActiveTool('pen');
-                // Track as last non-eraser tool for barrel toggle
-                lastNonEraserToolRef.current = { toolType: 'pen', itemId, penSlot: slotId };
             } else {
                 setActiveTool(toolId);
-                // Track for barrel toggle
-                if (toolId === 'eraser_pixel' || toolId === 'eraser_object') {
-                    lastEraserToolRef.current = { toolType: toolId, itemId };
-                } else if (toolId !== 'select') {
-                    lastNonEraserToolRef.current = { toolType: toolId, itemId };
-                }
             }
         }
     }, [penSlotSettings, setActivePenSlot, setBrushType, setColor, setBrushSize, setActiveTool, setActiveToolItemId]);
-
-    // --- Barrel Button Toggle Handler ---
-    // Called when barrel button state transitions from not-pressed to pressed.
-    // Toggles between eraser and last non-eraser tool.
-    const toggleBarrelEraser = React.useCallback(() => {
-        const now = Date.now();
-        // Cooldown to prevent rapid double-toggles from event noise
-        if (now - barrelToggleCooldownRef.current < 300) return;
-        barrelToggleCooldownRef.current = now;
-
-        const currentTool = activeToolRef.current;
-        const isCurrentlyEraser = currentTool === 'eraser_pixel' || currentTool === 'eraser_object';
-
-        if (isCurrentlyEraser) {
-            // --- Switch back to last non-eraser tool ---
-            isInEraserModeViaBarrelRef.current = false;
-            const saved = lastNonEraserToolRef.current;
-            if (saved) {
-                // Find the toolbar item to use handleToolSelect for proper toolbar sync
-                const item = toolbarItems.find(i => i.id === saved.itemId);
-                if (item) {
-                    handleToolSelect(item.id, item.type, item.toolId);
-                } else {
-                    // Fallback: directly set tool
-                    setActiveTool(saved.toolType);
-                    setActiveToolItemId(saved.itemId);
-                }
-            } else {
-                // No saved tool - select the first pen slot (leftmost brush)
-                const firstPenItem = toolbarItems.find(i => i.toolId === 'pen');
-                if (firstPenItem) {
-                    handleToolSelect(firstPenItem.id, firstPenItem.type, firstPenItem.toolId);
-                } else {
-                    setActiveTool('pen');
-                    setActiveToolItemId('pen_1');
-                }
-            }
-        } else {
-            // --- Switch to eraser ---
-            isInEraserModeViaBarrelRef.current = true;
-            // Save current non-eraser tool state
-            lastNonEraserToolRef.current = {
-                toolType: currentTool,
-                itemId: activeToolItemId,
-                penSlot: activePenSlot
-            };
-            // Switch to last used eraser
-            const eraser = lastEraserToolRef.current;
-            const eraserItem = toolbarItems.find(i => i.toolId === eraser.toolType);
-            if (eraserItem) {
-                handleToolSelect(eraserItem.id, eraserItem.type, eraserItem.toolId);
-            } else {
-                setActiveTool(eraser.toolType);
-                setActiveToolItemId(eraser.itemId);
-            }
-        }
-    }, [toolbarItems, handleToolSelect, setActiveTool, setActiveToolItemId, activeToolItemId, activePenSlot]);
-
-    // Ref to always point to latest toggleBarrelEraser for the overlay event handler closure
-    const toggleBarrelEraserRef = useRef(toggleBarrelEraser);
-    useEffect(() => { toggleBarrelEraserRef.current = toggleBarrelEraser; }, [toggleBarrelEraser]);
 
     // Shape drawing refs
     const isDrawingRef = useRef(false);
@@ -2552,14 +2373,18 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         (canvas as any).subTargetCheck = false;
 
         // Additional global performance settings
-        // Enable object caching for all objects by default.
-        // This makes Fabric render each object to an off-screen canvas once,
-        // then reuse that cached image on subsequent frames — critical for
-        // preventing progressive slowdown as more paths are added.
-        fabric.Object.prototype.objectCaching = true;
+        fabric.Object.prototype.objectCaching = false;
         (fabric.Object.prototype as any).statefullCache = false;
         (fabric.Object.prototype as any).statefulCache = false;
         fabric.Object.prototype.noScaleCache = true;
+
+        // Conditional caching: Don't cache very small paths to save VRAM on mobile
+        fabric.Object.prototype.needsItsOwnCache = function () {
+            if (this.type === 'path') {
+                if (this.width! * this.scaleX! < 10 || this.height! * this.scaleY! < 10) return false;
+            }
+            return true;
+        };
 
         // Set initial brush with optimized settings
         const brush = new fabric.PencilBrush(canvas);
@@ -2710,7 +2535,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             // Only set initial height if not already set (e.g. from initialData parsing)
             if (pageHeightRef.current <= 0) {
                 // Default to a reasonable size if starting fresh, or fill viewport if small
-                const defaultHeight = height || window.innerHeight;
+                const defaultHeight = Math.min(height, 500);
                 pageHeightRef.current = defaultHeight;
                 setPageHeightState(defaultHeight);
             }
@@ -2880,19 +2705,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 (overlay.style as any).webkitTouchCallout = 'none';
 
                 // Block context menu (Galaxy Tab / Android long-press popup)
-                // Galaxy Book 360 / Windows: S Pen barrel button fires contextmenu
-                // instead of pointerdown(button=2). Use this as additional barrel toggle signal.
-                // The 300ms cooldown in toggleBarrelEraser prevents double-toggle on devices
-                // where both pointerdown and contextmenu fire.
                 overlay.oncontextmenu = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-
-                    // Only trigger barrel toggle if recent pen activity (not mouse right-click)
-                    if (penPointerId !== -1 || Date.now() - lastPenTime < 500) {
-                        toggleBarrelEraserRef.current();
-                    }
-
                     return false;
                 };
 
@@ -2987,9 +2802,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     brush._points = [];
                     if (brush._reset) brush._reset();
                 }
-                // Note: No requestRenderAll() here — this is called before starting
-                // a new stroke, and the subsequent __onMouseDown will trigger its own render.
-                // Avoiding a full render here prevents expensive redraws with many objects.
+
+                canvas.requestRenderAll();
             };
 
             const onPointerDown = (e: any) => {
@@ -2999,26 +2813,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 if (isPen) {
                     penPointerId = id;
                     lastPenTime = Date.now();
-
-                    // --- Barrel Button Toggle on PointerDown ---
-                    // If the pointerdown event itself is from the barrel button (not the pen tip),
-                    // toggle the eraser and absorb the event (don't start a stroke).
-                    // On S Pen: button === 2 (right-click-like) during pen pointerdown
-                    // On standard pens: button === 5 or buttons & 32
-                    const isBarrelDown =
-                        e.button === 5 ||
-                        e.button === 2 ||
-                        (e.buttons & 32) === 32;
-
-                    if (isBarrelDown) {
-                        if (!barrelButtonStateRef.current) {
-                            barrelButtonStateRef.current = true;
-                            toggleBarrelEraserRef.current();
-                        }
-                        e.preventDefault();
-                        e.stopPropagation();
-                        return; // Absorb - don't start drawing
-                    }
                 }
 
                 activePointers.set(id, getEvtPos(e));
@@ -3139,8 +2933,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 if (id === penPointerId) {
                     penPointerId = -1;
                     lastPenTime = Date.now();
-                    // Reset barrel button state when pen lifts off
-                    barrelButtonStateRef.current = false;
                 }
 
                 activePointers.delete(id);
@@ -3336,22 +3128,22 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     // Ensure page height covers at least the content
                     const viewportHeight = viewportHeightRef.current || canvas.getHeight() || 500;
 
-                    // Use original saved height — do NOT crop. Only use viewport height for empty canvases.
+                    // Tight Crop Implementation (Unified with Preview)
+                    const PADDING_BOTTOM = 40;
+                    const MIN_HEIGHT = 100;
                     const isNewDrawing = objects.length === 0 || (objects.length === 1 && (objects[0] as any).isPageBackground);
-                    const savedHeight = json.height || viewportHeight;
-                    const contentMinHeight = maxTop > 0 ? Math.max(savedHeight, maxTop + 40) : savedHeight;
-                    const finalHeight = isNewDrawing ? viewportHeight : contentMinHeight;
+                    const tightHeight = isNewDrawing ? viewportHeight : Math.max(MIN_HEIGHT, maxTop + PADDING_BOTTOM);
 
-                    pageHeightRef.current = finalHeight;
-                    setPageHeightState(finalHeight);
+                    pageHeightRef.current = tightHeight;
+                    setPageHeightState(tightHeight);
                     if (pageRectRef.current) {
-                        pageRectRef.current.set('height', finalHeight).setCoords();
+                        pageRectRef.current.set('height', tightHeight).setCoords();
                     }
 
                     // Force update total pages based on potentially new height
                     if (viewportHeight > 0) {
-                        const h = pageHeightRef.current;
-                        setTotalPages(Math.max(1, Math.ceil(h / viewportHeight)));
+                        const finalHeight = pageHeightRef.current;
+                        setTotalPages(Math.max(1, Math.ceil(finalHeight / viewportHeight)));
                     }
 
                     // Reset/Sync viewport transform
@@ -4668,6 +4460,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 await onSaveRef.current(json);
 
                 lastSavedIndexRef.current = savedIndex;
+                setSavedToastVisible(true);
+                setTimeout(() => setSavedToastVisible(false), 500);
                 return true;
             }
             return false;
@@ -6928,8 +6722,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         onScrollbarSideChange={setScrollbarSide}
                         maxPages={maxPages}
                         onMaxPagesChange={setMaxPages}
-                        defaultEraserType={defaultEraserType}
-                        onDefaultEraserTypeChange={setDefaultEraserType}
                         defaultZoomLocked={(() => {
                             const saved = localStorage.getItem('fabric_default_zoom_locked');
                             if (saved !== null) return saved === 'true';
@@ -6942,6 +6734,43 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         language={language as Language}
                         t={t}
                     />
+                )
+            }
+            {
+                savedToastVisible && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        background: 'rgba(0,0,0,0.8)',
+                        color: 'white',
+                        padding: '16px 32px',
+                        borderRadius: '12px',
+                        zIndex: 12000,
+                        pointerEvents: 'none',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '12px',
+                        backdropFilter: 'blur(4px)',
+                        boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+                        animation: 'fadeInOut 0.3s ease'
+                    }}>
+                        <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '50%',
+                            background: '#20c997',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <FiCheck size={28} color="white" />
+                        </div>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>{'Saved!'}</span>
+                    </div>
                 )
             }
         </ModalOverlay >
