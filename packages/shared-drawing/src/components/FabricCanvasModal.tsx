@@ -2402,10 +2402,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         historyProcessingRef.current = true;
 
         // Use requestIdleCallback to serialize objects ONLY when the browser is idle,
-        // preventing any interference with pen input during active drawing.
+        // and NEVER while the user is actively drawing.
+        const canvas = fabricCanvasRef.current;
+        if (canvas && (canvas as any)._isCurrentlyDrawing) {
+            historyProcessingRef.current = false;
+            return;
+        }
+
         const scheduleNext = typeof requestIdleCallback !== 'undefined'
             ? (cb: () => void) => requestIdleCallback(cb, { timeout: 2000 })
-            : (cb: () => void) => setTimeout(cb, 100);
+            : (cb: () => void) => setTimeout(cb, 200);
 
         scheduleNext(() => {
             if (historyQueueRef.current.length === 0) {
@@ -2663,6 +2669,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         const original__onMouseMove = (canvas as any).__onMouseMove.bind(canvas);
         (canvas as any).__onMouseMove = function (e: Event) {
+            // 🚀 CRITICAL: Fully bypass findTarget() when in drawing mode.
+            // Even when not drawing (hovering), findTarget() is O(N) and causes lag.
+            if (this.isDrawingMode) {
+                this._resetTransformEventData();
+                if (this._isCurrentlyDrawing) {
+                    this._onMouseMoveInDrawingMode(e);
+                }
+                return;
+            }
+
             if (activeToolRef.current === 'select') {
                 return original__onMouseMove(e);
             }
@@ -2670,26 +2686,18 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             const ptr = this.getPointer(e);
             const isInside = checkIsInside(ptr);
-
             if (!isInside) {
-                // Terminate interaction if we exit the paper
+                // ... boundary termination logic ...
                 const isInteracting = (this as any)._isCurrentlyDrawing || (this as any)._isMouseDown;
                 if (isInteracting && (this as any)._lastInsidePtr) {
-                    // FAST STROKE COMPATIBILITY: Interpolate the exact intersection point with the boundary
                     const boundaryPtr = getBoundaryPoint((this as any)._lastInsidePtr, ptr);
-
-                    // Temporarily override getPointer to guide the brush to the edge
                     const realGetPointer = this.getPointer;
                     this.getPointer = () => boundaryPtr;
                     original__onMouseMove(e);
                     this.getPointer = realGetPointer;
-
                     this._onMouseUp(e);
                     const brush = this.freeDrawingBrush as any;
-                    if (brush && brush._points) {
-                        brush._points = [];
-                        if (brush._reset) brush._reset();
-                    }
+                    if (brush && brush._points) { brush._points = []; if (brush._reset) brush._reset(); }
                     (this as any)._isCurrentlyDrawing = false;
                     (this as any)._isMouseDown = false;
                     (this as any)._boundaryBlocked = true;
@@ -2699,16 +2707,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 (this as any)._boundaryBlocked = true;
                 return;
             }
-
             (this as any)._lastInsidePtr = ptr;
-
-            // 🚀 CRITICAL: Bypass O(N) findTarget() during move
-            if (this.isDrawingMode && this._isCurrentlyDrawing) {
-                this._resetTransformEventData();
-                this._onMouseMoveInDrawingMode(e);
-                return;
-            }
-
             original__onMouseMove(e);
         };
 
@@ -5550,22 +5549,37 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 ctx.save();
                 ctx.globalCompositeOperation = 'destination-over';
 
-                // Synchronize background rendering with current zoom and scroll
+                // 🚀 PERFORMANCE FIX: Draw background ONLY for the visible viewport.
+                // As the page grows to 10,000px+, filling the entire area kills FPS on mobile.
                 const vpt = canvas.viewportTransform;
-                ctx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+                if (!vpt) {
+                    ctx.restore();
+                    return;
+                }
+                const zoom = vpt[0];
+                const panX = vpt[4];
+                const panY = vpt[5];
+                const viewW = canvas.getWidth();
+                const viewH = canvas.getHeight();
 
-                // Draw background in world space to enable scrolling.
-                // We use logical page dimensions to cover entire surface.
-                const w = pageWidthRef.current || canvas.getWidth() || 5000;
-                const h = pageHeightRef.current || canvas.getHeight() || 10000;
+                // Convert viewport coordinates to world coordinates
+                const left = -panX / zoom;
+                const top = -panY / zoom;
+                const width = viewW / zoom;
+                const height = viewH / zoom;
 
-                // Use cached pattern to avoid recreating CanvasPattern every frame
+                ctx.transform(zoom, vpt[1], vpt[2], vpt[3], panX, panY);
+
                 if (!cachedLivePattern) {
                     cachedLivePattern = (pattern as any).toLive(ctx);
                 }
                 if (cachedLivePattern) {
                     ctx.fillStyle = cachedLivePattern;
-                    ctx.fillRect(0, 0, w, h);
+                    // Reset transform temporarily to draw in screen space or 
+                    // stay in world space but only fill the rect. 
+                    // ctx.transform above is already world-scaled.
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.fillRect(0, 0, viewW, viewH); // Simplest: fill visible screen area
                 }
 
                 ctx.restore();
