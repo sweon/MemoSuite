@@ -3214,6 +3214,62 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             overlay.addEventListener('pointercancel', onPointerUp, { passive: false });
             overlay.addEventListener('wheel', onWheel, { passive: false });
 
+            // --- 🔍 DEBUG: Visual event logger for barrel button diagnosis ---
+            const debugDiv = document.createElement('div');
+            debugDiv.id = 'barrel-debug-log';
+            debugDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;width:420px;max-height:300px;overflow-y:auto;background:rgba(0,0,0,0.85);color:#0f0;font:11px monospace;padding:8px;z-index:99999;border-radius:8px;pointer-events:none;';
+            document.body.appendChild(debugDiv);
+            const debugLines: string[] = [];
+            const debugLog = (msg: string) => {
+                debugLines.push(msg);
+                if (debugLines.length > 15) debugLines.shift();
+                debugDiv.innerHTML = debugLines.map(l => `<div>${l}</div>`).join('');
+                debugDiv.scrollTop = debugDiv.scrollHeight;
+            };
+            debugLog('🔍 Barrel Debug Active');
+
+            // Log ALL pointer events on overlay (not just pen)
+            const debugPointerHandler = (e: PointerEvent) => {
+                // Skip pointermove unless buttons > 0 or it's a pen hover
+                if (e.type === 'pointermove' && e.buttons === 0 && e.pointerType !== 'pen') return;
+                const t = (e.target as HTMLElement)?.className?.substring(0, 20) || 'unknown';
+                debugLog(`OVL ${e.type} pType=${e.pointerType} btn=${e.button} btns=${e.buttons} id=${e.pointerId} tgt=${t}`);
+            };
+            overlay.addEventListener('pointerdown', debugPointerHandler, { capture: true });
+            overlay.addEventListener('pointerup', debugPointerHandler, { capture: true });
+            overlay.addEventListener('pointermove', debugPointerHandler, { capture: true });
+
+            // Log ALL pointer/mouse events on document
+            const debugDocHandler = (e: Event) => {
+                const pe = e as PointerEvent;
+                const me = e as MouseEvent;
+                const t = (e.target as HTMLElement)?.className?.substring(0, 20) || 'unknown';
+                if (e.type === 'pointermove' && (pe.buttons === 0 && pe.pointerType !== 'pen')) return;
+                if (e.type === 'mousemove') return;
+                const pType = pe.pointerType || 'N/A';
+                debugLog(`DOC ${e.type} pType=${pType} btn=${me.button} btns=${me.buttons} tgt=${t}`);
+            };
+            document.addEventListener('pointerdown', debugDocHandler, { capture: true });
+            document.addEventListener('pointerup', debugDocHandler, { capture: true });
+            document.addEventListener('pointermove', debugDocHandler, { capture: true });
+            document.addEventListener('mousedown', debugDocHandler, { capture: true });
+            document.addEventListener('mouseup', debugDocHandler, { capture: true });
+            document.addEventListener('contextmenu', debugDocHandler, { capture: true });
+
+            (canvas as any).__debugCleanup = () => {
+                overlay.removeEventListener('pointerdown', debugPointerHandler, { capture: true } as EventListenerOptions);
+                overlay.removeEventListener('pointerup', debugPointerHandler, { capture: true } as EventListenerOptions);
+                overlay.removeEventListener('pointermove', debugPointerHandler, { capture: true } as EventListenerOptions);
+                document.removeEventListener('pointerdown', debugDocHandler, { capture: true } as EventListenerOptions);
+                document.removeEventListener('pointerup', debugDocHandler, { capture: true } as EventListenerOptions);
+                document.removeEventListener('pointermove', debugDocHandler, { capture: true } as EventListenerOptions);
+                document.removeEventListener('mousedown', debugDocHandler, { capture: true } as EventListenerOptions);
+                document.removeEventListener('mouseup', debugDocHandler, { capture: true } as EventListenerOptions);
+                document.removeEventListener('contextmenu', debugDocHandler, { capture: true } as EventListenerOptions);
+                debugDiv.remove();
+            };
+            // --- END DEBUG ---
+
             // --- Document-level barrel button detection for hover state ---
             // During pen hover, barrel button events (contextmenu, mousedown button=2)
             // may fire on document-level elements instead of the overlay.
@@ -3454,6 +3510,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
             if ((canvas as any).__docBarrelCleanup) {
                 (canvas as any).__docBarrelCleanup();
+            }
+            if ((canvas as any).__debugCleanup) {
+                (canvas as any).__debugCleanup();
             }
 
             resizeObserver.disconnect();
