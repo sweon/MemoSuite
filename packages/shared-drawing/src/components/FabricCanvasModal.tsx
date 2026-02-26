@@ -2884,19 +2884,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 (overlay.style as any).webkitTouchCallout = 'none';
 
                 // Block context menu (Galaxy Tab / Android long-press popup)
-                // Galaxy Book 360 / Windows: S Pen barrel button fires contextmenu
-                // instead of pointerdown(button=2). Use this as additional barrel toggle signal.
-                // The 300ms cooldown in toggleBarrelEraser prevents double-toggle on devices
-                // where both pointerdown and contextmenu fire.
+                // Barrel button toggle is now handled by document-level capture listeners
+                // to support both overlay-targeted and non-overlay-targeted events during hover.
                 overlay.oncontextmenu = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-
-                    // Only trigger barrel toggle if recent pen activity (not mouse right-click)
-                    if (penPointerId !== -1 || Date.now() - lastPenTime < 500) {
-                        toggleBarrelEraserRef.current();
-                    }
-
                     return false;
                 };
 
@@ -3222,6 +3214,48 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             overlay.addEventListener('pointercancel', onPointerUp, { passive: false });
             overlay.addEventListener('wheel', onWheel, { passive: false });
 
+            // --- Document-level barrel button detection for hover state ---
+            // During pen hover, barrel button events (contextmenu, mousedown button=2)
+            // may fire on document-level elements instead of the overlay.
+            // We listen at document level to catch these events.
+            const onDocumentContextMenu = (e: MouseEvent) => {
+                // Only intercept if recent pen hover activity (within 1s)
+                if (Date.now() - lastPenTime < 1000) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleBarrelEraserRef.current();
+                }
+            };
+
+            const onDocumentMouseDown = (e: MouseEvent) => {
+                // Barrel button during hover fires as button=2 (right-click)
+                // Only intercept if recent pen hover activity and not from the overlay itself
+                if (e.button === 2 && Date.now() - lastPenTime < 1000 && e.target !== overlay) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleBarrelEraserRef.current();
+                }
+            };
+
+            const onDocumentPointerDown = (e: PointerEvent) => {
+                // Catch barrel button that fires as pointerType='mouse' button=2 on document
+                if (e.button === 2 && e.pointerType === 'mouse' && Date.now() - lastPenTime < 1000 && e.target !== overlay) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleBarrelEraserRef.current();
+                }
+            };
+
+            document.addEventListener('contextmenu', onDocumentContextMenu, { capture: true });
+            document.addEventListener('mousedown', onDocumentMouseDown, { capture: true });
+            document.addEventListener('pointerdown', onDocumentPointerDown, { capture: true });
+
+            (canvas as any).__docBarrelCleanup = () => {
+                document.removeEventListener('contextmenu', onDocumentContextMenu, { capture: true } as EventListenerOptions);
+                document.removeEventListener('mousedown', onDocumentMouseDown, { capture: true } as EventListenerOptions);
+                document.removeEventListener('pointerdown', onDocumentPointerDown, { capture: true } as EventListenerOptions);
+            };
+
             (canvas as any).__overlayEl = overlay;
         };
 
@@ -3417,6 +3451,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
             if ((canvas as any)._contextMenuCleanup) {
                 (canvas as any)._contextMenuCleanup();
+            }
+            if ((canvas as any).__docBarrelCleanup) {
+                (canvas as any).__docBarrelCleanup();
             }
 
             resizeObserver.disconnect();
