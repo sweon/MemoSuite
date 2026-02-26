@@ -2884,11 +2884,19 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 (overlay.style as any).webkitTouchCallout = 'none';
 
                 // Block context menu (Galaxy Tab / Android long-press popup)
-                // Barrel button toggle is now handled by document-level capture listeners
-                // to support both overlay-targeted and non-overlay-targeted events during hover.
+                // Galaxy Book 360 / Windows: S Pen barrel button fires contextmenu
+                // instead of pointerdown(button=2). Use this as additional barrel toggle signal.
+                // The 300ms cooldown in toggleBarrelEraser prevents double-toggle on devices
+                // where both pointerdown and contextmenu fire.
                 overlay.oncontextmenu = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
+
+                    // Only trigger barrel toggle if recent pen activity (not mouse right-click)
+                    if (penPointerId !== -1 || Date.now() - lastPenTime < 500) {
+                        toggleBarrelEraserRef.current();
+                    }
+
                     return false;
                 };
 
@@ -2991,40 +2999,31 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const id = e.pointerId;
                 const isPen = isPenEvent(e);
 
-                // 🔍 DEBUG: Log every pointerdown
-                debugLog(`⬇ pDown isPen=${isPen} btn=${e.button} btns=${e.buttons} pType=${e.pointerType} id=${id} hasAP=${activePointers.has(id)}`);
-
                 if (isPen) {
                     penPointerId = id;
                     lastPenTime = Date.now();
 
                     // --- Barrel Button Toggle on PointerDown ---
+                    // If the pointerdown event itself is from the barrel button (not the pen tip),
+                    // toggle the eraser and absorb the event (don't start a stroke).
+                    // On S Pen: button === 2 (right-click-like) during pen pointerdown
+                    // On standard pens: button === 5 or buttons & 32
                     const isBarrelDown =
                         e.button === 5 ||
                         e.button === 2 ||
                         (e.buttons & 32) === 32;
 
-                    debugLog(`⬇ isPen=true isBarrelDown=${isBarrelDown} barrelState=${barrelButtonStateRef.current}`);
-
                     if (isBarrelDown) {
                         if (!barrelButtonStateRef.current) {
                             barrelButtonStateRef.current = true;
-                            debugLog(`🎯 BARREL TOGGLE via pointerDown!`);
                             toggleBarrelEraserRef.current();
                         }
                         e.preventDefault();
                         e.stopPropagation();
-                        return;
+                        return; // Absorb - don't start drawing
                     }
-                } else if (e.button === 2 && Date.now() - lastPenTime < 1000) {
-                    debugLog(`🎯 BARREL TOGGLE via mouse-btn2 pointerDown!`);
-                    toggleBarrelEraserRef.current();
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return;
                 }
 
-                debugLog(`⬇ Adding to activePointers id=${id}`);
                 activePointers.set(id, getEvtPos(e));
 
                 // 1. Zoom/Pan Tracking (Multi-touch)
@@ -3070,37 +3069,20 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 // --- Barrel Button Toggle Detection ---
                 // Detect barrel button during hover (pen not touching screen).
                 // On S Pen: barrel button causes buttons=1 during hover (no activePointers).
+                // On standard pens: buttons & 32 or button === 5.
                 // We detect the TRANSITION from not-pressed to pressed to trigger toggle once.
-
-                // 🔍 DEBUG: Log pointermove with buttons > 0 (barrel candidate)
-                if (e.buttons > 0) {
-                    debugLog(`➡ pMove isPen=${isPen} btn=${e.button} btns=${e.buttons} id=${id} hasAP=${activePointers.has(id)} barrelSt=${barrelButtonStateRef.current}`);
-                }
-
                 if (isPen && !activePointers.has(id)) {
-                    lastPenTime = Date.now();
-
                     const isBarrelPressed =
                         (e.buttons & 1) === 1 ||    // S Pen barrel during hover
                         (e.buttons & 32) === 32 ||   // Standard barrel button
                         (e.buttons & 2) === 2;        // Right-click barrel
 
                     if (isBarrelPressed && !barrelButtonStateRef.current) {
+                        // Transition: not-pressed → pressed → TOGGLE!
                         barrelButtonStateRef.current = true;
-                        debugLog(`🎯 BARREL TOGGLE via pointermove hover! btns=${e.buttons}`);
                         toggleBarrelEraserRef.current();
                     } else if (!isBarrelPressed && barrelButtonStateRef.current) {
-                        barrelButtonStateRef.current = false;
-                        debugLog(`🔓 Barrel released via pointermove`);
-                    }
-                } else if (!isPen && e.buttons > 0 && Date.now() - lastPenTime < 1000) {
-                    // Galaxy Book 360: barrel during hover may fire as pointerType='mouse'
-                    const isBarrelPressed = (e.buttons & 2) === 2 || (e.buttons & 1) === 1;
-                    if (isBarrelPressed && !barrelButtonStateRef.current) {
-                        barrelButtonStateRef.current = true;
-                        debugLog(`🎯 BARREL TOGGLE via mouse-pointermove! btns=${e.buttons}`);
-                        toggleBarrelEraserRef.current();
-                    } else if (!isBarrelPressed && barrelButtonStateRef.current) {
+                        // Transition: pressed → not-pressed (button released)
                         barrelButtonStateRef.current = false;
                     }
                 }
@@ -3228,121 +3210,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             overlay.addEventListener('pointerup', onPointerUp, { passive: false });
             overlay.addEventListener('pointercancel', onPointerUp, { passive: false });
             overlay.addEventListener('wheel', onWheel, { passive: false });
-
-            // --- 🔍 DEBUG: Comprehensive event logger for barrel button diagnosis ---
-            const debugDiv = document.createElement('div');
-            debugDiv.id = 'barrel-debug-log';
-            debugDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;width:450px;max-height:350px;overflow-y:auto;background:rgba(0,0,0,0.9);color:#0f0;font:11px monospace;padding:8px;z-index:99999;border-radius:8px;pointer-events:none;';
-            document.body.appendChild(debugDiv);
-            const debugLines: string[] = [];
-            const debugLog = (msg: string) => {
-                debugLines.push(msg);
-                if (debugLines.length > 20) debugLines.shift();
-                debugDiv.innerHTML = debugLines.map(l => `<div>${l}</div>`).join('');
-                debugDiv.scrollTop = debugDiv.scrollHeight;
-            };
-            debugLog('🔍 Barrel Debug v3 - ALL events');
-
-            // Catch EVERY possible event type on document (capture phase)
-            const allEventTypes = [
-                'pointerdown', 'pointerup', 'pointermove', 'pointerenter', 'pointerleave',
-                'pointerover', 'pointerout', 'pointerrawupdate',
-                'mousedown', 'mouseup', 'mousemove',
-                'click', 'auxclick', 'dblclick', 'contextmenu',
-                'keydown', 'keyup', 'keypress',
-                'beforeinput', 'input'
-            ];
-
-            const debugAllHandler = (e: Event) => {
-                const type = e.type;
-
-                // Skip high-frequency events with no actionable info
-                if (type === 'pointermove' || type === 'pointerrawupdate' || type === 'mousemove') {
-                    const pe = e as PointerEvent;
-                    // Only log if buttons > 0 (potential barrel press) or pen hover
-                    if (pe.buttons === 0 && pe.pointerType !== 'pen') return;
-                    // For pen hover, only log if buttons changed (non-zero)
-                    if (pe.pointerType === 'pen' && pe.buttons === 0) return;
-                    debugLog(`${type} pType=${pe.pointerType} btn=${pe.button} btns=${pe.buttons}`);
-                    return;
-                }
-                if (type === 'pointerenter' || type === 'pointerleave' || type === 'pointerover' || type === 'pointerout') {
-                    return; // Skip hover boundary events
-                }
-
-                // Keyboard events
-                if (type === 'keydown' || type === 'keyup' || type === 'keypress') {
-                    const ke = e as KeyboardEvent;
-                    debugLog(`⌨ ${type} key=${ke.key} code=${ke.code} kc=${ke.keyCode}`);
-                    return;
-                }
-
-                // Mouse/Pointer events
-                const me = e as MouseEvent;
-                const pe = e as PointerEvent;
-                const pType = pe.pointerType || 'N/A';
-                const tgt = (e.target as HTMLElement)?.tagName || '?';
-                debugLog(`🔴 ${type} pType=${pType} btn=${me.button} btns=${me.buttons} tgt=${tgt}`);
-            };
-
-            for (const evtType of allEventTypes) {
-                document.addEventListener(evtType, debugAllHandler, { capture: true });
-            }
-            // Also listen on window for events that might not bubble to document
-            window.addEventListener('keydown', debugAllHandler, { capture: true });
-            window.addEventListener('keyup', debugAllHandler, { capture: true });
-
-            (canvas as any).__debugCleanup = () => {
-                for (const evtType of allEventTypes) {
-                    document.removeEventListener(evtType, debugAllHandler, { capture: true } as EventListenerOptions);
-                }
-                window.removeEventListener('keydown', debugAllHandler, { capture: true } as EventListenerOptions);
-                window.removeEventListener('keyup', debugAllHandler, { capture: true } as EventListenerOptions);
-                debugDiv.remove();
-            };
-            // --- END DEBUG ---
-
-            // --- Document-level barrel button detection for hover state ---
-            // During pen hover, barrel button events (contextmenu, mousedown button=2)
-            // may fire on document-level elements instead of the overlay.
-            // We listen at document level to catch these events.
-            const onDocumentContextMenu = (e: MouseEvent) => {
-                // Only intercept if recent pen hover activity (within 1s)
-                if (Date.now() - lastPenTime < 1000) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleBarrelEraserRef.current();
-                }
-            };
-
-            const onDocumentMouseDown = (e: MouseEvent) => {
-                // Barrel button during hover fires as button=2 (right-click)
-                // Only intercept if recent pen hover activity and not from the overlay itself
-                if (e.button === 2 && Date.now() - lastPenTime < 1000 && e.target !== overlay) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleBarrelEraserRef.current();
-                }
-            };
-
-            const onDocumentPointerDown = (e: PointerEvent) => {
-                // Catch barrel button that fires as pointerType='mouse' button=2 on document
-                if (e.button === 2 && e.pointerType === 'mouse' && Date.now() - lastPenTime < 1000 && e.target !== overlay) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleBarrelEraserRef.current();
-                }
-            };
-
-            document.addEventListener('contextmenu', onDocumentContextMenu, { capture: true });
-            document.addEventListener('mousedown', onDocumentMouseDown, { capture: true });
-            document.addEventListener('pointerdown', onDocumentPointerDown, { capture: true });
-
-            (canvas as any).__docBarrelCleanup = () => {
-                document.removeEventListener('contextmenu', onDocumentContextMenu, { capture: true } as EventListenerOptions);
-                document.removeEventListener('mousedown', onDocumentMouseDown, { capture: true } as EventListenerOptions);
-                document.removeEventListener('pointerdown', onDocumentPointerDown, { capture: true } as EventListenerOptions);
-            };
 
             (canvas as any).__overlayEl = overlay;
         };
@@ -3539,12 +3406,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             }
             if ((canvas as any)._contextMenuCleanup) {
                 (canvas as any)._contextMenuCleanup();
-            }
-            if ((canvas as any).__docBarrelCleanup) {
-                (canvas as any).__docBarrelCleanup();
-            }
-            if ((canvas as any).__debugCleanup) {
-                (canvas as any).__debugCleanup();
             }
 
             resizeObserver.disconnect();
