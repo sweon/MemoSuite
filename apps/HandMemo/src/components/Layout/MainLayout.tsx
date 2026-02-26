@@ -107,6 +107,13 @@ const quoteText = (text: string): string => {
   return text.split('\n').map(line => `> ${line}`).join('\n');
 };
 
+const determineInitialIconType = (text: string): 'text' | 'drawing' | 'spreadsheet' | 'youtube' => {
+  if (text.includes('```spreadsheet')) return 'spreadsheet';
+  if (text.includes('```fabric')) return 'drawing';
+  if (/youtube\.com|youtu\.be/.test(text)) return 'youtube';
+  return 'text';
+};
+
 const parseHtmlTableToFortuneSheet = (html: string) => {
   try {
     const parser = new DOMParser();
@@ -917,7 +924,8 @@ export const MainLayout: React.FC = () => {
         tags: [],
         createdAt: now,
         updatedAt: now,
-        type: 'normal'
+        type: 'normal',
+        iconType: determineInitialIconType(content)
       });
 
       await db.autosaves.where('originalId').equals(newId).delete();
@@ -1045,7 +1053,8 @@ export const MainLayout: React.FC = () => {
           tags: [],
           createdAt: now,
           updatedAt: now,
-          type: 'normal'
+          type: 'normal',
+          iconType: determineInitialIconType(finalContent)
         });
 
         // Cleanup any stale autosave for this ID (extra safety)
@@ -1178,7 +1187,8 @@ export const MainLayout: React.FC = () => {
               tags: [],
               createdAt: now,
               updatedAt: now,
-              type: 'normal'
+              type: 'normal',
+              iconType: determineInitialIconType(content)
             });
             await db.autosaves.where('originalId').equals(newId).delete();
             navigate(`/memo/${newId}`);
@@ -1293,7 +1303,8 @@ export const MainLayout: React.FC = () => {
           tags: [],
           createdAt: now,
           updatedAt: now,
-          type: 'normal'
+          type: 'normal',
+          iconType: determineInitialIconType(content)
         });
 
         // Cleanup any stale autosave for this ID (extra safety)
@@ -1404,7 +1415,8 @@ export const MainLayout: React.FC = () => {
           tags: [],
           createdAt: now,
           updatedAt: now,
-          type: 'normal'
+          type: 'normal',
+          iconType: determineInitialIconType(content)
         });
 
         // Cleanup any stale autosave for this ID (extra safety)

@@ -945,14 +945,23 @@ export const MemoDetail: React.FC = () => {
             memoCreatedAt = new Date();
         }
 
+        const determineInitialIconType = (text: string): 'text' | 'drawing' | 'spreadsheet' | 'youtube' => {
+            if (text.includes('```spreadsheet')) return 'spreadsheet';
+            if (text.includes('```fabric')) return 'drawing';
+            if (/youtube\.com|youtu\.be/.test(text)) return 'youtube';
+            return 'text';
+        };
+
         if (id) {
+            const existingIconType = memo?.iconType || determineInitialIconType(memo?.content || "");
             await db.memos.update(Number(id), {
                 title: finalTitle,
                 content: currentContent,
                 tags: tagArray,
                 createdAt: memoCreatedAt,
                 updatedAt: now,
-                type: finalType
+                type: finalType,
+                iconType: existingIconType
             });
 
             // Cleanup autosaves for this memo
@@ -984,7 +993,8 @@ export const MemoDetail: React.FC = () => {
                 updatedAt: now,
                 type: finalType,
                 threadId: threadContext?.threadId,
-                threadOrder: threadContext?.threadOrder
+                threadOrder: threadContext?.threadOrder,
+                iconType: determineInitialIconType(currentContent)
             });
 
             // Cleanup all new memo autosaves
@@ -1048,7 +1058,8 @@ export const MemoDetail: React.FC = () => {
                 updatedAt: now,
                 type: memo.type,
                 threadId: context.threadId,
-                threadOrder: context.threadOrder
+                threadOrder: context.threadOrder,
+                iconType: memo.iconType
             });
 
             // Copy comments

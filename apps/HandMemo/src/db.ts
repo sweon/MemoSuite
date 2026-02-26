@@ -27,6 +27,7 @@ export interface Memo {
     threadOrder?: number;
     type?: 'normal' | 'progress';
     pinnedAt?: Date;
+    iconType?: 'text' | 'drawing' | 'spreadsheet' | 'youtube';
 }
 
 export interface Comment {

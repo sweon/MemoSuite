@@ -1104,7 +1104,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                     tags: [],
                     createdAt: now,
                     updatedAt: now,
-                    type: 'normal'
+                    type: 'normal',
+                    iconType: 'drawing'
                   });
                   navigate(`/memo/${newMemoId}?drawing=true&t=${Date.now()}`, { replace: true, state: { isGuard: true, editing: true } });
                   onCloseMobile(true);
@@ -1130,7 +1131,8 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                     tags: [],
                     createdAt: now,
                     updatedAt: now,
-                    type: 'normal'
+                    type: 'normal',
+                    iconType: 'spreadsheet'
                   });
                   navigate(`/memo/${newMemoId}?spreadsheet=true&t=${Date.now()}`, { replace: true, state: { isGuard: true, editing: true } });
                   onCloseMobile(true);

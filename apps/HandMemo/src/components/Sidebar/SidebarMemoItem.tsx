@@ -73,9 +73,9 @@ export const SidebarMemoItem: React.FC<Props> = ({
     onTogglePin
 }) => {
 
-    const isDrawing = memo.content.includes('```fabric');
-    const isSpreadsheet = memo.content.includes('```spreadsheet');
-    const isYoutube = /youtube\.com|youtu\.be/.test(memo.content);
+    const isDrawing = memo.iconType ? memo.iconType === 'drawing' : memo.content.includes('```fabric');
+    const isSpreadsheet = memo.iconType ? memo.iconType === 'spreadsheet' : memo.content.includes('```spreadsheet');
+    const isYoutube = memo.iconType ? memo.iconType === 'youtube' : /youtube\.com|youtu\.be/.test(memo.content);
 
     return (
         <div
