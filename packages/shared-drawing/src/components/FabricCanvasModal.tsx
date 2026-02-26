@@ -2971,10 +2971,68 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
             const getEvtPos = (e: any) => ({ x: e.clientX, y: e.clientY });
 
+            // 🔍 PERF: Performance profiling HUD
+            const perfDiv = document.createElement('div');
+            perfDiv.id = 'perf-hud';
+            perfDiv.style.cssText = 'position:fixed;top:10px;left:10px;width:350px;background:rgba(0,0,0,0.85);color:#0f0;font:12px monospace;padding:8px;z-index:99999;border-radius:6px;pointer-events:none;';
+            document.body.appendChild(perfDiv);
+            let perfMoveCount = 0;
+            let perfMoveTotal = 0;
+            let perfMoveMax = 0;
+            let perfRenderCount = 0;
+            let perfRenderTotal = 0;
+            let perfRenderMax = 0;
+            let perfLastUpdate = performance.now();
+
+            // Wrap requestRenderAll to measure render time
+            const origRequestRenderAll = canvas.requestRenderAll.bind(canvas);
+            canvas.requestRenderAll = function (this: fabric.Canvas) {
+                const t0 = performance.now();
+                origRequestRenderAll();
+                const dt = performance.now() - t0;
+                perfRenderCount++;
+                perfRenderTotal += dt;
+                if (dt > perfRenderMax) perfRenderMax = dt;
+            } as any;
+
+            const origRenderAll = canvas.renderAll.bind(canvas);
+            canvas.renderAll = function () {
+                const t0 = performance.now();
+                origRenderAll();
+                const dt = performance.now() - t0;
+                perfRenderCount++;
+                perfRenderTotal += dt;
+                if (dt > perfRenderMax) perfRenderMax = dt;
+                return canvas;
+            };
+
+            setInterval(() => {
+                const now = performance.now();
+                const elapsed = (now - perfLastUpdate) / 1000;
+                const objCount = canvas.getObjects().length;
+                const moveAvg = perfMoveCount > 0 ? (perfMoveTotal / perfMoveCount).toFixed(1) : '0';
+                const renderAvg = perfRenderCount > 0 ? (perfRenderTotal / perfRenderCount).toFixed(1) : '0';
+                perfDiv.innerHTML = [
+                    `<b>Objects: ${objCount}</b>`,
+                    `Move: ${perfMoveCount}calls ${moveAvg}ms avg ${perfMoveMax.toFixed(1)}ms max`,
+                    `Render: ${perfRenderCount}calls ${renderAvg}ms avg ${perfRenderMax.toFixed(1)}ms max`,
+                ].join('<br>');
+                perfMoveCount = perfMoveTotal = perfMoveMax = 0;
+                perfRenderCount = perfRenderTotal = perfRenderMax = 0;
+                perfLastUpdate = now;
+            }, 1000);
+
             const forwardToFabric = (methodName: string, e: any) => {
+                const t0 = performance.now();
                 const handler = (canvas as any)[methodName];
                 if (handler) {
                     handler.call(canvas, e);
+                }
+                const dt = performance.now() - t0;
+                if (methodName === '__onMouseMove') {
+                    perfMoveCount++;
+                    perfMoveTotal += dt;
+                    if (dt > perfMoveMax) perfMoveMax = dt;
                 }
             };
 
