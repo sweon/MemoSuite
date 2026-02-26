@@ -2654,8 +2654,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             // internally calls findTarget() — iterating ALL objects (O(n)) to find
             // what's under the pointer. During drawing, this is completely unnecessary
             // and causes progressive slowdown as more objects are added.
-            // Instead, call _onMouseMoveInDrawingMode directly.
+            // Instead, reset pointer cache (required for getPointer to recalculate)
+            // and call _onMouseMoveInDrawingMode directly.
             if (this.isDrawingMode && this._isCurrentlyDrawing) {
+                // Reset cached pointer so getPointer() recalculates from the new event.
+                // Without this, getPointer() returns stale coordinates from the previous frame.
+                this._resetTransformEventData();
                 this._onMouseMoveInDrawingMode(e);
                 return;
             }
