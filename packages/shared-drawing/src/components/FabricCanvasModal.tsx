@@ -2552,18 +2552,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         (canvas as any).subTargetCheck = false;
 
         // Additional global performance settings
-        fabric.Object.prototype.objectCaching = false;
+        // Enable object caching for all objects by default.
+        // This makes Fabric render each object to an off-screen canvas once,
+        // then reuse that cached image on subsequent frames — critical for
+        // preventing progressive slowdown as more paths are added.
+        fabric.Object.prototype.objectCaching = true;
         (fabric.Object.prototype as any).statefullCache = false;
         (fabric.Object.prototype as any).statefulCache = false;
         fabric.Object.prototype.noScaleCache = true;
-
-        // Conditional caching: Don't cache very small paths to save VRAM on mobile
-        fabric.Object.prototype.needsItsOwnCache = function () {
-            if (this.type === 'path') {
-                if (this.width! * this.scaleX! < 10 || this.height! * this.scaleY! < 10) return false;
-            }
-            return true;
-        };
 
         // Set initial brush with optimized settings
         const brush = new fabric.PencilBrush(canvas);
@@ -2991,8 +2987,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     brush._points = [];
                     if (brush._reset) brush._reset();
                 }
-
-                canvas.requestRenderAll();
+                // Note: No requestRenderAll() here — this is called before starting
+                // a new stroke, and the subsequent __onMouseDown will trigger its own render.
+                // Avoiding a full render here prevents expensive redraws with many objects.
             };
 
             const onPointerDown = (e: any) => {
