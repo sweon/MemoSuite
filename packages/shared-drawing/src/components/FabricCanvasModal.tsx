@@ -2546,14 +2546,68 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // Set properties that might not be in types but exist in runtime
         (canvas as any).subTargetCheck = false;
 
+        // 🚀 GLOBAL PERFORMANCE OVERRIDE: Strict Viewport Culling
+        // Only render objects that are within the visible viewport + 1 screen buffer.
+        // This is CRITICAL — without it, Fabric renders ALL objects on every renderAll(),
+        // causing progressive slowdown as more paths are added (even off-screen ones).
+        const originalRenderObjects = (canvas as any)._renderObjects.bind(canvas);
+        (canvas as any)._renderObjects = function (ctx: CanvasRenderingContext2D, objects: fabric.Object[]) {
+            const vpt = canvas.viewportTransform;
+            if (!vpt) return originalRenderObjects(ctx, objects);
+
+            const zoom = vpt[0];
+            const panY = vpt[5];
+
+            const viewportHeight = canvas.getHeight();
+            const visibleTop = -panY / zoom;
+            const visibleBottom = (viewportHeight - panY) / zoom;
+
+            // Buffer: 1 screen height above and below
+            const bufferHeight = (visibleBottom - visibleTop);
+            const renderTop = visibleTop - bufferHeight;
+            const renderBottom = visibleBottom + bufferHeight;
+
+            const visibleObjects = [];
+            for (let i = 0, len = objects.length; i < len; i++) {
+                const obj = objects[i];
+                if (!obj) continue;
+
+                // Always render the page background to avoid gray screen
+                if ((obj as any).isPageBackground) {
+                    visibleObjects.push(obj);
+                    continue;
+                }
+
+                const top = obj.top || 0;
+                const height = (obj.height || 0) * (obj.scaleY || 1);
+                const bottom = top + height;
+
+                if (bottom > renderTop && top < renderBottom) {
+                    visibleObjects.push(obj);
+                }
+            }
+
+            originalRenderObjects(ctx, visibleObjects);
+        };
+
+        // Set properties that might not be in types but exist in runtime
+        (canvas as any).subTargetCheck = false;
+
         // Additional global performance settings
-        // Enable object caching for all objects by default.
-        // This makes Fabric render each object to an off-screen canvas once,
-        // then reuse that cached image on subsequent frames — critical for
-        // preventing progressive slowdown as more paths are added.
-        fabric.Object.prototype.objectCaching = true;
-        (fabric.Object.prototype as any).statefulCache = true;
+        // Disable object caching globally — viewport culling makes caching less beneficial
+        // since culled objects don't need caches, and cache creation itself has overhead.
+        fabric.Object.prototype.objectCaching = false;
+        (fabric.Object.prototype as any).statefullCache = false;
+        (fabric.Object.prototype as any).statefulCache = false;
         fabric.Object.prototype.noScaleCache = true;
+
+        // Conditional caching: Don't cache very small paths to save VRAM on mobile
+        fabric.Object.prototype.needsItsOwnCache = function () {
+            if (this.type === 'path') {
+                if (this.width! * this.scaleX! < 10 || this.height! * this.scaleY! < 10) return false;
+            }
+            return true;
+        };
 
         // Set initial brush with optimized settings
         const brush = new fabric.PencilBrush(canvas);
