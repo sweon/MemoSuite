@@ -2991,39 +2991,40 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const id = e.pointerId;
                 const isPen = isPenEvent(e);
 
+                // 🔍 DEBUG: Log every pointerdown
+                debugLog(`⬇ pDown isPen=${isPen} btn=${e.button} btns=${e.buttons} pType=${e.pointerType} id=${id} hasAP=${activePointers.has(id)}`);
+
                 if (isPen) {
                     penPointerId = id;
                     lastPenTime = Date.now();
 
                     // --- Barrel Button Toggle on PointerDown ---
-                    // If the pointerdown event itself is from the barrel button (not the pen tip),
-                    // toggle the eraser and absorb the event (don't start a stroke).
-                    // On S Pen: button === 2 (right-click-like) during pen pointerdown
-                    // On standard pens: button === 5 or buttons & 32
                     const isBarrelDown =
                         e.button === 5 ||
                         e.button === 2 ||
                         (e.buttons & 32) === 32;
 
+                    debugLog(`⬇ isPen=true isBarrelDown=${isBarrelDown} barrelState=${barrelButtonStateRef.current}`);
+
                     if (isBarrelDown) {
                         if (!barrelButtonStateRef.current) {
                             barrelButtonStateRef.current = true;
+                            debugLog(`🎯 BARREL TOGGLE via pointerDown!`);
                             toggleBarrelEraserRef.current();
                         }
                         e.preventDefault();
                         e.stopPropagation();
-                        return; // Absorb - don't start drawing
+                        return;
                     }
                 } else if (e.button === 2 && Date.now() - lastPenTime < 1000) {
-                    // Galaxy Book 360 / Windows: barrel button during hover may fire as
-                    // pointerType='mouse' instead of 'pen'. Detect by checking button===2
-                    // with recent pen hover activity.
+                    debugLog(`🎯 BARREL TOGGLE via mouse-btn2 pointerDown!`);
                     toggleBarrelEraserRef.current();
                     e.preventDefault();
                     e.stopPropagation();
                     return;
                 }
 
+                debugLog(`⬇ Adding to activePointers id=${id}`);
                 activePointers.set(id, getEvtPos(e));
 
                 // 1. Zoom/Pan Tracking (Multi-touch)
@@ -3069,10 +3070,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 // --- Barrel Button Toggle Detection ---
                 // Detect barrel button during hover (pen not touching screen).
                 // On S Pen: barrel button causes buttons=1 during hover (no activePointers).
-                // On standard pens: buttons & 32 or button === 5.
                 // We detect the TRANSITION from not-pressed to pressed to trigger toggle once.
+
+                // 🔍 DEBUG: Log pointermove with buttons > 0 (barrel candidate)
+                if (e.buttons > 0) {
+                    debugLog(`➡ pMove isPen=${isPen} btn=${e.button} btns=${e.buttons} id=${id} hasAP=${activePointers.has(id)} barrelSt=${barrelButtonStateRef.current}`);
+                }
+
                 if (isPen && !activePointers.has(id)) {
-                    // Track pen hover activity for Galaxy Book 360 barrel detection
                     lastPenTime = Date.now();
 
                     const isBarrelPressed =
@@ -3081,11 +3086,21 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         (e.buttons & 2) === 2;        // Right-click barrel
 
                     if (isBarrelPressed && !barrelButtonStateRef.current) {
-                        // Transition: not-pressed → pressed → TOGGLE!
                         barrelButtonStateRef.current = true;
+                        debugLog(`🎯 BARREL TOGGLE via pointermove hover! btns=${e.buttons}`);
                         toggleBarrelEraserRef.current();
                     } else if (!isBarrelPressed && barrelButtonStateRef.current) {
-                        // Transition: pressed → not-pressed (button released)
+                        barrelButtonStateRef.current = false;
+                        debugLog(`🔓 Barrel released via pointermove`);
+                    }
+                } else if (!isPen && e.buttons > 0 && Date.now() - lastPenTime < 1000) {
+                    // Galaxy Book 360: barrel during hover may fire as pointerType='mouse'
+                    const isBarrelPressed = (e.buttons & 2) === 2 || (e.buttons & 1) === 1;
+                    if (isBarrelPressed && !barrelButtonStateRef.current) {
+                        barrelButtonStateRef.current = true;
+                        debugLog(`🎯 BARREL TOGGLE via mouse-pointermove! btns=${e.buttons}`);
+                        toggleBarrelEraserRef.current();
+                    } else if (!isBarrelPressed && barrelButtonStateRef.current) {
                         barrelButtonStateRef.current = false;
                     }
                 }
