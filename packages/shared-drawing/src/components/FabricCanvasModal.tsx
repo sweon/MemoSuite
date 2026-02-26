@@ -2982,7 +2982,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             let perfRenderCount = 0;
             let perfRenderTotal = 0;
             let perfRenderMax = 0;
-            let perfLastUpdate = performance.now();
 
             // Wrap requestRenderAll to measure render time
             const origRequestRenderAll = canvas.requestRenderAll.bind(canvas);
@@ -3007,7 +3006,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             };
 
             setInterval(() => {
-                const now = performance.now();
                 const objCount = canvas.getObjects().length;
                 const moveAvg = perfMoveCount > 0 ? (perfMoveTotal / perfMoveCount).toFixed(1) : '0';
                 const renderAvg = perfRenderCount > 0 ? (perfRenderTotal / perfRenderCount).toFixed(1) : '0';
@@ -3018,7 +3016,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 ].join('<br>');
                 perfMoveCount = perfMoveTotal = perfMoveMax = 0;
                 perfRenderCount = perfRenderTotal = perfRenderMax = 0;
-                perfLastUpdate = now;
             }, 1000);
 
             const forwardToFabric = (methodName: string, e: any) => {
