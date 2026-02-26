@@ -5562,12 +5562,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const viewW = canvas.getWidth();
                 const viewH = canvas.getHeight();
 
-                // Convert viewport coordinates to world coordinates
-                const left = -panX / zoom;
-                const top = -panY / zoom;
-                const width = viewW / zoom;
-                const height = viewH / zoom;
-
                 ctx.transform(zoom, vpt[1], vpt[2], vpt[3], panX, panY);
 
                 if (!cachedLivePattern) {
