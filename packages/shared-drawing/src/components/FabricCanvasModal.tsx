@@ -3066,27 +3066,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const id = e.pointerId;
                 const isPen = isPenEvent(e);
 
-                // --- Barrel Button Toggle Detection ---
-                // Detect barrel button during hover (pen not touching screen).
-                // On S Pen: barrel button causes buttons=1 during hover (no activePointers).
-                // On standard pens: buttons & 32 or button === 5.
-                // We detect the TRANSITION from not-pressed to pressed to trigger toggle once.
-                if (isPen && !activePointers.has(id)) {
-                    const isBarrelPressed =
-                        (e.buttons & 1) === 1 ||    // S Pen barrel during hover
-                        (e.buttons & 32) === 32 ||   // Standard barrel button
-                        (e.buttons & 2) === 2;        // Right-click barrel
-
-                    if (isBarrelPressed && !barrelButtonStateRef.current) {
-                        // Transition: not-pressed → pressed → TOGGLE!
-                        barrelButtonStateRef.current = true;
-                        toggleBarrelEraserRef.current();
-                    } else if (!isBarrelPressed && barrelButtonStateRef.current) {
-                        // Transition: pressed → not-pressed (button released)
-                        barrelButtonStateRef.current = false;
-                    }
-                }
-
                 if (activePointers.has(id)) {
                     activePointers.set(id, getEvtPos(e));
                 }
