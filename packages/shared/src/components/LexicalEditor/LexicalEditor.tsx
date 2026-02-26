@@ -1271,8 +1271,7 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
       // 1B. Pre-process page breaks
       const withPageBreaks = normalized
         .replace(/<div(?: class="page-break")? style="page-break-after: always;"><\/div>/g, '\\newpage')
-        .replace(/\\newpage/g, '\n\n\\newpage\n\n')
-        .replace(/\n\n\n+/g, '\n\n');
+        .replace(/\\newpage/g, '\n\n\\newpage\n\n');
 
       const alignmentCleaned = withPageBreaks.replace(/<(p|h[1-6]|blockquote) align="(\w+)">([\s\S]*?)<\/\1>/gi, '<$1 align="$2">$3');
 
@@ -1485,8 +1484,8 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
 
       editorState.read(() => {
         let markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
-        // Strip any leftover ZWSP format-break characters
-        markdown = markdown.replace(/\u200B/g, '');
+        // We preserve \u200B because it is used as a marker for empty paragraphs
+        // to prevent them from being lost during Markdown round-trips.
 
         // Safety: Prevent accidental wipe on empty initialization before import
         if (markdown === "" && lastNormalizedValueRef.current !== "" && !tags.has('import')) {

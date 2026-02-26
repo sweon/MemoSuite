@@ -1450,13 +1450,13 @@ export const MemoDetail: React.FC = () => {
                                     }
                                 }
                                 if (!found && !content.includes('```fabric')) {
-                                    newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                    newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                                 }
                             } else if (!content.includes('```fabric')) {
-                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                             } else {
                                 // Safe fallback: Append if we can't be sure which one to replace
-                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                             }
                             setContent(newContent);
                             setEditingDrawingData(json);
@@ -1520,17 +1520,17 @@ export const MemoDetail: React.FC = () => {
                                     if (matches && matches.length === 1) {
                                         newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
                                     } else { // Fallback: if multiple or no fabric blocks, append
-                                        newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                        newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                                     }
                                 }
-                            } else if (searchParams.get('drawing') === 'true' || content.trim().startsWith('```fabric')) {
+                            } else if (searchParams.get('drawing') === 'true' || content.startsWith('```fabric')) {
                                 if (content.includes('```fabric')) {
                                     newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
                                 } else {
-                                    newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                    newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                                 }
                             } else {
-                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                             }
                             if (newContent !== content) {
                                 setContent(newContent);
@@ -1573,8 +1573,8 @@ export const MemoDetail: React.FC = () => {
                         } else if (content.includes('```spreadsheet')) {
                             newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
                             originalSpreadsheetJsonRef.current = json;
-                        } else if (content.trim()) {
-                            newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        } else if (content) {
+                            newContent = (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`spreadsheet\n${json}\n\`\`\``;
                             originalSpreadsheetJsonRef.current = json;
                         }
 
@@ -1638,8 +1638,8 @@ export const MemoDetail: React.FC = () => {
                             newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
                             originalSpreadsheetJsonRef.current = json;
                             setContent(newContent);
-                        } else if (content.trim()) {
-                            newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
+                        } else if (content) {
+                            newContent = (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`spreadsheet\n${json}\n\`\`\``;
                             originalSpreadsheetJsonRef.current = json;
                             setContent(newContent);
                         } else {
