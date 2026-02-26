@@ -1335,14 +1335,14 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
         }
       );
 
-      // 2C. Pre-process native code blocks
+      // 2C. Pre-process native code blocks - use placeholders to avoid regex slowdown in convertFromMarkdownString
       const realCodeBlocks: Array<{ lang: string, content: string }> = [];
       const withCodeBlocks = withCollapses.replace(
-        /^```(\w*)\n([\s\S]*?)\n```$/gm,
+        /```(\w*)\s*\n([\s\S]*?)\n```/g,
         (_: any, lang: string, content: string) => {
           const idx = realCodeBlocks.length;
           realCodeBlocks.push({ lang, content });
-          return '```__real_code_' + idx + '\n' + content + '\n```';
+          return '```__real_code_' + idx + '\n__BLOCK_PLACEHOLDER_' + idx + '__\n```';
         }
       );
 
@@ -1443,9 +1443,15 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
           const idx = parseInt(lang.substring('__real_code_'.length));
           const block = realCodeBlocks[idx];
           if (block) {
-            const codeNode = $createCodeNode(block.lang);
-            codeNode.append($createTextNode(block.content));
-            node.replace(codeNode);
+            if (block.lang === 'fabric') {
+              node.replace($createHandwritingNode(block.content));
+            } else if (block.lang === 'spreadsheet') {
+              node.replace($createSpreadsheetNode(block.content));
+            } else {
+              const codeNode = $createCodeNode(block.lang);
+              codeNode.append($createTextNode(block.content));
+              node.replace(codeNode);
+            }
           }
         } else if (lang === "fabric") {
           const data = node.getTextContent();

@@ -399,6 +399,12 @@ const CompactActionButton = styled.button<{ $primary?: boolean }>`
   &:active {
     transform: scale(0.9);
   }
+
+  &:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    cursor: default;
+  }
 `;
 
 const DashPreview = styled.div<{ $dash: number[] | null }>`
@@ -1508,6 +1514,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     });
 
     const [isSaving, setIsSaving] = useState(false);
+    const [isCanvasDirty, setIsCanvasDirty] = useState(false);
 
     useEffect(() => {
         localStorage.setItem('fabric_palettes', JSON.stringify(palettes));
@@ -2401,11 +2408,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         historyProcessingRef.current = true;
 
-        // Use requestIdleCallback to serialize objects ONLY when the browser is idle,
-        // and NEVER while the user is actively drawing.
         const canvas = fabricCanvasRef.current;
+        // If currently drawing, wait and retry later
         if (canvas && (canvas as any)._isCurrentlyDrawing) {
-            historyProcessingRef.current = false;
+            setTimeout(processHistoryQueue, 500);
             return;
         }
 
@@ -2421,6 +2427,13 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             const { obj, type } = historyQueueRef.current.shift()!;
             const id = getObjectId(obj);
             try {
+                // Check drawing status again just before expensive serialization
+                if (canvas && (canvas as any)._isCurrentlyDrawing) {
+                    historyQueueRef.current.unshift({ obj, type });
+                    // Keep historyProcessingRef.current = true to block other callers
+                    setTimeout(processHistoryQueue, 500);
+                    return;
+                }
                 const objectJson = JSON.stringify(obj.toJSON());
                 addHistoryAction({ type, objectJson, objectId: id });
             } catch (err) {
@@ -2442,6 +2455,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         // Queue for background processing
         historyQueueRef.current.push({ obj, type: 'add' });
+        setIsCanvasDirty(true);
         if (!historyProcessingRef.current) {
             processHistoryQueue();
         }
@@ -2456,6 +2470,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // For removal, we still need immediate serialization if it's not a path,
         // but let's try queueing it as well to be consistent.
         historyQueueRef.current.push({ obj, type: 'remove' });
+        setIsCanvasDirty(true);
         if (!historyProcessingRef.current) {
             processHistoryQueue();
         }
@@ -2478,6 +2493,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // Store the previous state if not already captured
         if (!pendingModifyRef.current || pendingModifyRef.current.obj !== obj) {
             pendingModifyRef.current = { obj, prevJson: JSON.stringify(obj.toJSON()) };
+            setIsCanvasDirty(true);
         }
 
         // Debounce - save after 500ms of no modifications
@@ -2889,7 +2905,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // Helper to detect if event is from a stylus/pen
         const isPenEvent = (e: any): boolean => {
             if (e.pointerType === 'pen') return true;
-            if (e.pointerType === 'touch' || e.pointerType === 'mouse') return false;
+            // Allow mouse events on desktops (like Mac) to enable drawing
+            if (e.pointerType === 'mouse') return true;
+            if (e.pointerType === 'touch') return false;
             if (e.tiltX || e.tiltY) return true;
             if (e.pressure > 0 && e.pressure !== 0.5 && e.pressure !== 1) return true;
             return false;
@@ -4180,6 +4198,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const handleClear = () => {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
+        setIsCanvasDirty(true);
 
         // Remove all objects but preserve background
         // iterating backwards or using a copy is safer when removing
@@ -4370,6 +4389,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const handleUndo = React.useCallback(() => {
         const canvas = fabricCanvasRef.current;
         if (!canvas || historyIndexRef.current <= 0) return;
+        setIsCanvasDirty(true);
 
         isUndoRedoRef.current = true;
         const currentAction = historyRef.current[historyIndexRef.current];
@@ -4413,6 +4433,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const handleRedo = React.useCallback(() => {
         const canvas = fabricCanvasRef.current;
         if (!canvas || historyIndexRef.current >= historyRef.current.length - 1) return;
+        setIsCanvasDirty(true);
 
         isUndoRedoRef.current = true;
         historyIndexRef.current++;
@@ -4758,7 +4779,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 const savedIndex = historyIndexRef.current;
 
                 await onSaveRef.current(json);
-
+                setIsCanvasDirty(false);
                 lastSavedIndexRef.current = savedIndex;
                 return true;
             }
@@ -5836,7 +5857,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         <CompactActionButton
                             $primary
                             onClick={handleSave}
-                            disabled={isSaving || historyIndexRef.current === lastSavedIndexRef.current}
+                            disabled={isSaving || !isCanvasDirty}
                             title={isSaving ? t.drawing?.saving : (t.drawing?.insert || 'Insert')}
                         >
                             {isSaving ? (

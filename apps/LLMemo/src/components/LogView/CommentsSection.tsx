@@ -464,12 +464,14 @@ export const CommentsSection: React.FC<{
                     initialData={editingDrawingData}
                     onSave={async (json: string) => {
                         const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                        const normalize = (s: string) => s.replace(/\r\n/g, '\n').trim();
                         let found = false;
+                        const targetData = editingDrawingData ? normalize(editingDrawingData) : '';
 
                         if (editingId === activeCommentId) {
                             const updatedContent = editingDrawingData
                                 ? editContent.replace(fabricRegex, (match, p1) => {
-                                    if (!found && p1.trim() === editingDrawingData.trim()) {
+                                    if (!found && normalize(p1) === targetData) {
                                         found = true;
                                         return `\`\`\`fabric\n${json}\n\`\`\``;
                                     }
@@ -480,7 +482,7 @@ export const CommentsSection: React.FC<{
                         } else if (isAdding && activeCommentId === -1) {
                             const updatedContent = editingDrawingData
                                 ? newContent.replace(fabricRegex, (match, p1) => {
-                                    if (!found && p1.trim() === editingDrawingData.trim()) {
+                                    if (!found && normalize(p1) === targetData) {
                                         found = true;
                                         return `\`\`\`fabric\n${json}\n\`\`\``;
                                     }
@@ -493,7 +495,7 @@ export const CommentsSection: React.FC<{
                             if (comment) {
                                 const finalContent = editingDrawingData
                                     ? comment.content.replace(fabricRegex, (match, p1) => {
-                                        if (!found && p1.trim() === editingDrawingData.trim()) {
+                                        if (!found && normalize(p1) === targetData) {
                                             found = true;
                                             return `\`\`\`fabric\n${json}\n\`\`\``;
                                         }
@@ -514,12 +516,14 @@ export const CommentsSection: React.FC<{
                     }}
                     onAutosave={async (json: string) => {
                         const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                        const normalize = (s: string) => s.replace(/\r\n/g, '\n').trim();
                         let found = false;
+                        const targetData = editingDrawingData ? normalize(editingDrawingData) : '';
 
                         if (editingId === activeCommentId) {
                             const updatedContent = editingDrawingData
                                 ? editContent.replace(fabricRegex, (match, p1) => {
-                                    if (!found && p1.trim() === editingDrawingData.trim()) {
+                                    if (!found && normalize(p1) === targetData) {
                                         found = true;
                                         return `\`\`\`fabric\n${json}\n\`\`\``;
                                     }
@@ -530,7 +534,7 @@ export const CommentsSection: React.FC<{
                         } else if (isAdding && activeCommentId === -1) {
                             const updatedContent = editingDrawingData
                                 ? newContent.replace(fabricRegex, (match, p1) => {
-                                    if (!found && p1.trim() === editingDrawingData.trim()) {
+                                    if (!found && normalize(p1) === targetData) {
                                         found = true;
                                         return `\`\`\`fabric\n${json}\n\`\`\``;
                                     }
@@ -543,7 +547,7 @@ export const CommentsSection: React.FC<{
                             if (comment) {
                                 const finalContent = editingDrawingData
                                     ? comment.content.replace(fabricRegex, (match, p1) => {
-                                        if (!found && p1.trim() === editingDrawingData.trim()) {
+                                        if (!found && normalize(p1) === targetData) {
                                             found = true;
                                             return `\`\`\`fabric\n${json}\n\`\`\``;
                                         }

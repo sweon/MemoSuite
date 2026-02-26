@@ -622,9 +622,11 @@ export const MemoDetail: React.FC = () => {
         [bookId, memo]
     );
 
+    const normalizeForCompare = (s: string) => s.replace(/\r\n/g, '\n').trim();
+
     const isCurrentlyDirty = !!(
         (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
-        (content || "") !== (lastSavedState.current.content || "") ||
+        normalizeForCompare(content || "") !== normalizeForCompare(lastSavedState.current.content || "") ||
         (tags || "").trim() !== (lastSavedState.current.tags || "").trim() ||
         (quote || "").trim() !== (lastSavedState.current.quote || "").trim() ||
         (pageNumber || "").trim() !== (lastSavedState.current.pageNumber || "").trim() ||
@@ -981,6 +983,8 @@ export const MemoDetail: React.FC = () => {
             setCommentDraft(null);
 
             setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+            setTitle(finalTitle);
+            setTags(tagArray.join(", "));
             lastSavedState.current = {
                 title: finalTitle,
                 content: currentContent,
@@ -1458,20 +1462,27 @@ export const MemoDetail: React.FC = () => {
                     onSave={async (json) => {
                         let newContent = content;
                         const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                        const normalize = (s: string) => s.replace(/\r\n/g, '\n').trim();
+                        let found = false;
 
                         if (editingDrawingData) {
-                            let found = false;
+                            const targetData = normalize(editingDrawingData);
                             newContent = content.replace(fabricRegex, (match, p1) => {
-                                if (!found && p1.trim() === editingDrawingData.trim()) {
+                                if (!found && normalize(p1) === targetData) {
                                     found = true;
                                     return `\`\`\`fabric\n${json}\n\`\`\``;
                                 }
                                 return match;
                             });
-                        } else if (content.trim().startsWith('```fabric')) {
-                            newContent = `\`\`\`fabric\n${json}\n\`\`\``;
-                        } else {
-                            newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
+                        }
+
+                        if (!found) {
+                            const matches = content.match(fabricRegex);
+                            if (matches && matches.length === 1) {
+                                newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
+                            } else {
+                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                            }
                         }
 
                         setContent(newContent);

@@ -661,9 +661,11 @@ export const MemoDetail: React.FC = () => {
       setMovingWordId?: (id: number | null) => void;
     }>() || {};
 
+  const normalizeForCompare = (s: string) => s.replace(/\r\n/g, '\n').trim();
+
   const isCurrentlyDirty = !!(
     (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
-    (content || "") !== (lastSavedState.current.content || "") ||
+    normalizeForCompare(content || "") !== normalizeForCompare(lastSavedState.current.content || "") ||
     (tags || "").trim() !== (lastSavedState.current.tags || "").trim() ||
     (sourceId || null) !== (lastSavedState.current.sourceId || null) ||
     JSON.stringify(commentDraft) !==
@@ -1094,6 +1096,8 @@ export const MemoDetail: React.FC = () => {
       });
 
       setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+      setTitle(derivedTitle);
+      setTags(tagArray.join(", "));
       lastSavedState.current = {
         title: derivedTitle,
         content: currentContent,
@@ -1757,9 +1761,11 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
               const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
               let found = false;
               let newContent = content;
+              const normalize = (s: string) => s.replace(/\r\n/g, '\n').trim();
               if (editingDrawingData) {
+                const targetData = normalize(editingDrawingData);
                 newContent = content.replace(fabricRegex, (match, p1) => {
-                  if (!found && p1.trim() === editingDrawingData.trim()) {
+                  if (!found && normalize(p1) === targetData) {
                     found = true;
                     return `\`\`\`fabric\n${json}\n\`\`\``;
                   }
@@ -1775,7 +1781,8 @@ Please respond in Korean. Skip any introductory or concluding remarks (e.g., "Of
                     `\`\`\`fabric\n${json}\n\`\`\``,
                   );
                   found = true;
-                } else if (!content.includes("```fabric")) {
+                } else {
+                  // If we didn't find the specific block, or multiple exist, append safely
                   newContent = content.trim()
                     ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\``
                     : `\`\`\`fabric\n${json}\n\`\`\``;

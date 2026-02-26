@@ -622,9 +622,11 @@ export const MemoDetail: React.FC = () => {
         }
     };
 
+    const normalizeForCompare = (s: string) => s.replace(/\r\n/g, '\n').trim();
+
     const isCurrentlyDirty = !!(
         (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
-        (content || "") !== (lastSavedState.current.content || "") ||
+        normalizeForCompare(content || "") !== normalizeForCompare(lastSavedState.current.content || "") ||
         (tags || "").trim() !== (lastSavedState.current.tags || "").trim() ||
         JSON.stringify(commentDraft) !== JSON.stringify(lastSavedState.current.commentDraft)
     );
@@ -960,6 +962,8 @@ export const MemoDetail: React.FC = () => {
             setCommentDraft(null);
 
             setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+            setTitle(finalTitle);
+            setTags(tagArray.join(", "));
             lastSavedState.current = {
                 title: finalTitle,
                 content: currentContent,
@@ -1415,11 +1419,13 @@ export const MemoDetail: React.FC = () => {
                         onSave={async (json) => {
                             let newContent = content;
                             const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                            const normalize = (s: string) => s.replace(/\r\n/g, '\n').trim();
 
                             if (editingDrawingData) {
                                 let found = false;
+                                const targetData = normalize(editingDrawingData);
                                 newContent = content.replace(fabricRegex, (match: any, p1: any) => {
-                                    if (!found && p1.trim() === editingDrawingData.trim()) {
+                                    if (!found && normalize(p1) === targetData) {
                                         found = true;
                                         return `\`\`\`fabric\n${json}\n\`\`\``;
                                     }
@@ -1433,12 +1439,13 @@ export const MemoDetail: React.FC = () => {
                                     }
                                 }
                                 if (!found && !content.includes('```fabric')) {
-                                    newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\n\n\`\`\`fabric\n${json}\n\`\`\`\n\n`;
+                                    newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                                 }
-                            } else if (content.includes('```fabric')) {
-                                newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
+                            } else if (!content.includes('```fabric')) {
+                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                             } else {
-                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\n\n\`\`\`fabric\n${json}\n\`\`\`\n\n`;
+                                // Safe fallback: Append if we can't be sure which one to replace
+                                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                             }
                             setContent(newContent);
                             setEditingDrawingData(json);

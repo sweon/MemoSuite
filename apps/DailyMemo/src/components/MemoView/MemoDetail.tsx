@@ -686,9 +686,11 @@ export const MemoDetail: React.FC = () => {
     }
   };
 
+  const normalizeForCompare = (s: string) => s.replace(/\r\n/g, '\n').trim();
+
   const isCurrentlyDirty = !!(
     (title || "").trim() !== (lastSavedState.current.title || "").trim() ||
-    (content || "") !== (lastSavedState.current.content || "") ||
+    normalizeForCompare(content || "") !== normalizeForCompare(lastSavedState.current.content || "") ||
     (tags || "").trim() !== (lastSavedState.current.tags || "").trim() ||
     JSON.stringify(commentDraft) !==
     JSON.stringify(lastSavedState.current.commentDraft)
@@ -1107,6 +1109,8 @@ export const MemoDetail: React.FC = () => {
       restoredIdRef.current = null;
 
       setToastMessage(language === "ko" ? "저장되었습니다!" : "Saved!");
+      setTitle(finalTitle);
+      setTags(tagArray.join(", "));
       setCommentDraft(null);
       lastSavedState.current = {
         title: finalTitle,
@@ -1715,11 +1719,13 @@ export const MemoDetail: React.FC = () => {
             onSave={async (json) => {
               let newContent = content;
               const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+              const normalize = (s: string) => s.replace(/\r\n/g, '\n').trim();
 
               if (editingDrawingData) {
                 let found = false;
+                const targetData = normalize(editingDrawingData);
                 newContent = content.replace(fabricRegex, (match, p1) => {
-                  if (!found && p1.trim() === editingDrawingData.trim()) {
+                  if (!found && normalize(p1) === targetData) {
                     found = true;
                     return `\`\`\`fabric\n${json}\n\`\`\``;
                   }
@@ -1740,16 +1746,14 @@ export const MemoDetail: React.FC = () => {
                     ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\``
                     : `\`\`\`fabric\n${json}\n\`\`\``;
                 }
-              } else if (content.includes("```fabric")) {
-                // Replace the only block if we have one, or the first one if multiple
-                newContent = content.replace(
-                  fabricRegex,
-                  `\`\`\`fabric\n${json}\n\`\`\``,
-                );
-              } else {
+              } else if (!content.includes("```fabric")) {
                 newContent = content.trim()
                   ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\``
-                  : `\n\n\`\`\`fabric\n${json}\n\`\`\`\n\n`;
+                  : `\`\`\`fabric\n${json}\n\`\`\``;
+              } else {
+                // Fallback: If we can't find the original but we know what we were editing,
+                // or if it's a new drawing but some code block already exists, append safely.
+                newContent = content.trim() ? `${content}\n\n\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
               }
 
               setContent(newContent);
