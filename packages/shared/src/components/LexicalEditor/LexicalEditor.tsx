@@ -797,6 +797,15 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         touchDownTime = Date.now();
         isTouchMoving = false;
 
+        // CRITICAL FOR KOREAN IME (100% SUPPRESSION):
+        // If the element is actively focused (especially during Korean IME composition),
+        // Android Chrome completely ignores dynamic changes to `inputmode`.
+        // We MUST blur the element to physically commit the composition and 
+        // destroy the OS text context BEFORE applying `inputmode="none"`.
+        if (document.activeElement === rootElement) {
+          rootElement.blur();
+        }
+
         // Force inputmode none on touch start
         ensureSuppressed();
 
