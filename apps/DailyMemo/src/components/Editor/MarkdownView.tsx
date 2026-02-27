@@ -633,8 +633,6 @@ const SpreadsheetPreview = React.memo(({ json, onClick }: { json: string; onClic
       <MobileObjectGuard onClick={onClick}>
         <div
           style={{
-            overflow: 'auto',
-            maxHeight: '400px',
             margin: '0',
             border: 'none',
             cursor: onClick ? 'pointer' : 'default',

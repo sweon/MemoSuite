@@ -50,8 +50,8 @@ const EditOverlay = styled.div`
 `;
 
 const TableContainer = styled.div`
-  overflow: auto;
-  max-height: 400px;
+  width: 100%;
+  overflow: hidden;
   background-color: transparent;
   margin: 0 !important;
   padding: 0 !important;

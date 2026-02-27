@@ -619,8 +619,6 @@ const SpreadsheetPreview = React.memo(({ json, onClick }: { json: string; onClic
           onClick?.();
         }}
         style={{
-          overflow: 'auto',
-          maxHeight: '400px',
           margin: '16px 0',
           border: '1px solid #d1d5db',
           borderRadius: '4px',
