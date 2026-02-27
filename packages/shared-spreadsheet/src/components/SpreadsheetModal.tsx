@@ -91,6 +91,14 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'danger' }>`
       background-color: #e9ecef;
     }
   `}
+
+  &:disabled {
+    opacity: 0.5;
+    filter: grayscale(0.5);
+    cursor: not-allowed;
+    pointer-events: none;
+    box-shadow: none;
+  }
 `;
 
 const EditorContainer = styled.div`
@@ -531,7 +539,7 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
               <Button onClick={handleVirtualKeyboard} $variant="secondary" title={labels.keyboard}>
                 <KeyboardIcon size={18} />
               </Button>
-              <Button onClick={handleSave} $variant="primary" disabled={isSaving}>
+              <Button onClick={handleSave} $variant="primary" disabled={isSaving || !isDirty}>
                 {/* @ts-ignore */}
                 {isSaving ? (
                   <div style={{ width: '18px', height: '18px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginRight: '6px' }} />
