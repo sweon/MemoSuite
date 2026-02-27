@@ -183,7 +183,7 @@ export const SpreadsheetPreviewWidget: React.FC<SpreadsheetPreviewWidgetProps> =
                     <StyledTable>
                         <thead>
                             <tr>
-                                <Th style={{ width: "32px" }}>#</Th>
+                                <Th style={{ width: "36px", minWidth: "36px" }}>#</Th>
                                 {Array.from({ length: preview.maxCol + 1 }).map((_, c) => (
                                     <Th key={c}>{String.fromCharCode(65 + c)}</Th>
                                 ))}
@@ -192,7 +192,7 @@ export const SpreadsheetPreviewWidget: React.FC<SpreadsheetPreviewWidgetProps> =
                         <tbody>
                             {preview.grid.map((row, r) => (
                                 <tr key={r}>
-                                    <Td style={{ background: "#f8f9fa", textAlign: "center", fontSize: "11px", color: "#666" }}>{r + 1}</Td>
+                                    <Td style={{ background: "#f8f9fa", textAlign: "center", fontSize: "11px", color: "#666", width: "36px", minWidth: "36px" }}>{r + 1}</Td>
                                     {row.map((val, c) => (
                                         <Td key={c}>{val}</Td>
                                     ))}
