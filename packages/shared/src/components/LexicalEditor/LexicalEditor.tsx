@@ -802,9 +802,18 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       const handlePointerDown = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
 
-        if (!inputModeSuppressed) {
+        if (!inputModeSuppressed || isComposing) {
+          // CRITICAL FIX FOR 100% SUPPRESSION:
+          // If the element is focused (especially during Korean IME composition),
+          // Android Chrome outright ignores dynamic changes to `inputmode`.
+          // We MUST blur the element to physically commit the composition and 
+          // destroy the OS text context BEFORE applying `inputmode="none"`.
+          if (document.activeElement === rootElement) {
+            rootElement.blur();
+          }
           rootElement.setAttribute('inputmode', 'none');
           inputModeSuppressed = true;
+          isComposing = false;
         }
 
         if ('virtualKeyboard' in navigator) {
@@ -879,6 +888,11 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         const dy = Math.abs(e.clientY - pDownY);
         if (dx > 10 || dy > 10) return;
 
+        // Ensure focus is restored since we might have blurred it in pointerdown
+        if (document.activeElement !== rootElement) {
+          rootElement.focus({ preventScroll: true });
+        }
+
         let range: Range | null = null;
         if (document.caretRangeFromPoint) {
           range = document.caretRangeFromPoint(e.clientX, e.clientY);
@@ -891,8 +905,15 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
           }
         }
         if (range) {
-          const sel = window.getSelection();
-          if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+          // Delay selection setting specifically to override Lexical's own 
+          // async focus-restore behavior which might jump the cursor.
+          setTimeout(() => {
+            const sel = window.getSelection();
+            if (sel) {
+              sel.removeAllRanges();
+              sel.addRange(range!);
+            }
+          }, 10);
         }
       };
 
