@@ -767,24 +767,49 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       let inputModeSuppressed = false;
       let confirmTimer: ReturnType<typeof setTimeout> | null = null;
       let touchGuardTimer: ReturnType<typeof setTimeout> | null = null;
+      let idleTimer: ReturnType<typeof setTimeout> | null = null;
+      let isComposing = false;
+
+      // Ensure inputmode="none" is active when idle, so fast taps don't race
+      const restoreInputMode = () => {
+        if (isComposing || inputModeSuppressed) return;
+        rootElement.setAttribute('inputmode', 'none');
+        inputModeSuppressed = true;
+        if ('virtualKeyboard' in navigator) {
+          (navigator as any).virtualKeyboard.hide();
+        }
+      };
+
+      const resetIdleTimer = () => {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          restoreInputMode();
+        }, 800);
+      };
 
       // Proactively dismiss any currently visible virtual keyboard.
       // This handles BT keyboard reconnection: the plugin re-activates
       // and we need to close the virtual keyboard that appeared while
       // the physical keyboard was disconnected.
-      // The keydown handler below will remove inputmode on the next
-      // physical keypress to allow IME (Korean) input.
       rootElement.setAttribute('inputmode', 'none');
       inputModeSuppressed = true;
+      if ('virtualKeyboard' in navigator) {
+        (navigator as any).virtualKeyboard.hide();
+      }
 
-      // On touch: set inputmode="none" to prevent virtual keyboard.
+      // On touch: ensure inputmode="none" is set. If the idle timer already set it, this is a no-op.
       // Also start a timer to detect if BT keyboard was disconnected.
       const handlePointerDown = (e: PointerEvent) => {
         if (e.pointerType !== 'touch') return;
 
-        // Set inputmode to suppress keyboard
-        rootElement.setAttribute('inputmode', 'none');
-        inputModeSuppressed = true;
+        if (!inputModeSuppressed) {
+          rootElement.setAttribute('inputmode', 'none');
+          inputModeSuppressed = true;
+        }
+
+        if ('virtualKeyboard' in navigator) {
+          (navigator as any).virtualKeyboard.hide();
+        }
 
         // Guard: prevent handleKeyDown from removing inputmode for 300ms.
         // When Korean (한글) IME composition is active and the user touches
@@ -823,6 +848,21 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
           rootElement.removeAttribute('inputmode');
           inputModeSuppressed = false;
         }
+        resetIdleTimer();
+      };
+
+      const handleKeyUp = () => {
+        resetIdleTimer();
+      };
+
+      const handleCompositionStart = () => {
+        isComposing = true;
+        if (idleTimer) clearTimeout(idleTimer);
+      };
+
+      const handleCompositionEnd = () => {
+        isComposing = false;
+        resetIdleTimer();
       };
 
       // Handle tap-to-place-caret
@@ -860,15 +900,22 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       rootElement.addEventListener('pointerdown', handlePointerDownForCaret, { capture: true });
       rootElement.addEventListener('pointerup', handlePointerUp, { capture: true });
       rootElement.addEventListener('keydown', handleKeyDown, { capture: true });
+      rootElement.addEventListener('keyup', handleKeyUp, { capture: true });
+      rootElement.addEventListener('compositionstart', handleCompositionStart, { capture: true });
+      rootElement.addEventListener('compositionend', handleCompositionEnd, { capture: true });
 
       cleanupFns.push(() => {
         if (confirmTimer) clearTimeout(confirmTimer);
         if (touchGuardTimer) clearTimeout(touchGuardTimer);
+        if (idleTimer) clearTimeout(idleTimer);
         rootElement.removeAttribute('inputmode');
         rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
         rootElement.removeEventListener('pointerdown', handlePointerDownForCaret, { capture: true } as any);
         rootElement.removeEventListener('pointerup', handlePointerUp, { capture: true } as any);
         rootElement.removeEventListener('keydown', handleKeyDown, { capture: true } as any);
+        rootElement.removeEventListener('keyup', handleKeyUp, { capture: true } as any);
+        rootElement.removeEventListener('compositionstart', handleCompositionStart, { capture: true } as any);
+        rootElement.removeEventListener('compositionend', handleCompositionEnd, { capture: true } as any);
       });
     };
 
