@@ -764,77 +764,45 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
     let cleanupFns: (() => void)[] = [];
 
     const setupOnRoot = (rootElement: HTMLElement) => {
-      let inputModeSuppressed = false;
       let confirmTimer: ReturnType<typeof setTimeout> | null = null;
-      let touchGuardTimer: ReturnType<typeof setTimeout> | null = null;
-      let idleTimer: ReturnType<typeof setTimeout> | null = null;
-      let isComposing = false;
+      let inputModeSuppressed = false;
 
-      // Ensure inputmode="none" is active when idle, so fast taps don't race
-      const restoreInputMode = () => {
-        if (isComposing || inputModeSuppressed) return;
-        rootElement.setAttribute('inputmode', 'none');
-        inputModeSuppressed = true;
-        if ('virtualKeyboard' in navigator) {
-          (navigator as any).virtualKeyboard.hide();
-        }
-      };
-
-      const resetIdleTimer = () => {
-        if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => {
-          restoreInputMode();
-        }, 800);
-      };
-
-      // Proactively dismiss any currently visible virtual keyboard.
-      // This handles BT keyboard reconnection: the plugin re-activates
-      // and we need to close the virtual keyboard that appeared while
-      // the physical keyboard was disconnected.
+      // Ensure we start with inputmode="none" to be safe
       rootElement.setAttribute('inputmode', 'none');
       inputModeSuppressed = true;
       if ('virtualKeyboard' in navigator) {
         (navigator as any).virtualKeyboard.hide();
       }
 
-      // On touch: ensure inputmode="none" is set. If the idle timer already set it, this is a no-op.
-      // Also start a timer to detect if BT keyboard was disconnected.
-      const handlePointerDown = (e: PointerEvent) => {
-        if (e.pointerType !== 'touch') return;
-
-        if (!inputModeSuppressed || isComposing) {
-          // CRITICAL FIX FOR 100% SUPPRESSION:
-          // If the element is focused (especially during Korean IME composition),
-          // Android Chrome outright ignores dynamic changes to `inputmode`.
-          // We MUST blur the element to physically commit the composition and 
-          // destroy the OS text context BEFORE applying `inputmode="none"`.
-          if (document.activeElement === rootElement) {
-            rootElement.blur();
-          }
+      const ensureSuppressed = () => {
+        if (!inputModeSuppressed) {
           rootElement.setAttribute('inputmode', 'none');
           inputModeSuppressed = true;
-          isComposing = false;
         }
-
         if ('virtualKeyboard' in navigator) {
           (navigator as any).virtualKeyboard.hide();
         }
+      };
 
-        // Guard: prevent handleKeyDown from removing inputmode for 300ms.
-        // When Korean (한글) IME composition is active and the user touches
-        // the screen, the composition ends and fires a synthetic keydown
-        // (keyCode 229). Without this guard, handleKeyDown would immediately
-        // remove inputmode="none", undoing the suppression we just set.
-        if (touchGuardTimer) clearTimeout(touchGuardTimer);
-        touchGuardTimer = setTimeout(() => {
-          touchGuardTimer = null;
-        }, 300);
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchDownTime = 0;
+      let isTouchMoving = false;
 
-        // Start confirmation timer: if no keydown within 1.5s,
-        // physical keyboard is likely disconnected
+      const handleTouchStart = (e: TouchEvent) => {
+        if (e.touches.length > 1) return;
+
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchDownTime = Date.now();
+        isTouchMoving = false;
+
+        // Force inputmode none on touch start
+        ensureSuppressed();
+
+        // Start confirmation timer to monitor physical keyboard disconnect
         if (confirmTimer) clearTimeout(confirmTimer);
         confirmTimer = setTimeout(() => {
-          // No key was pressed after touch → BT keyboard disconnected
           rootElement.removeAttribute('inputmode');
           inputModeSuppressed = false;
           confirmTimer = null;
@@ -842,101 +810,97 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         }, 1500);
       };
 
-      // On keydown: cancel disconnect timer + remove inputmode for IME
-      const handleKeyDown = (_e: KeyboardEvent) => {
-        // Skip if within touch guard period (prevents IME composition-end
-        // keydown from undoing the suppression set by handlePointerDown)
-        if (touchGuardTimer) return;
+      const handleTouchMove = (e: TouchEvent) => {
+        if (e.touches.length > 1) return;
+        const dx = Math.abs(e.touches[0].clientX - touchStartX);
+        const dy = Math.abs(e.touches[0].clientY - touchStartY);
+        if (dx > 10 || dy > 10) {
+          isTouchMoving = true;
+        }
+      };
 
-        // Key was pressed → physical keyboard is connected
+      const handleTouchEnd = (e: TouchEvent) => {
+        if (e.changedTouches.length === 0) return;
+
+        // Check if it was a fast tap (under 300ms) and didn't move much
+        const touchDuration = Date.now() - touchDownTime;
+        const isTap = !isTouchMoving && touchDuration < 300;
+
+        if (isTap) {
+          // CRITICAL: Stop the browser's default click & focus-handling behavior.
+          // This absolutely prevents the OS from deciding to popup the keyboard.
+          // By consuming touchend, we prevent mousedown/mouseup/click events.
+          if (e.cancelable) e.preventDefault();
+
+          const touch = e.changedTouches[0];
+
+          ensureSuppressed();
+
+          // Force focus silently
+          if (document.activeElement !== rootElement) {
+            rootElement.focus({ preventScroll: true });
+          }
+
+          // Manually place the cursor because we prevented the default behavior
+          let range: Range | null = null;
+          if (document.caretRangeFromPoint) {
+            range = document.caretRangeFromPoint(touch.clientX, touch.clientY);
+          } else if ((document as any).caretPositionFromPoint) {
+            const pos = (document as any).caretPositionFromPoint(touch.clientX, touch.clientY);
+            if (pos) {
+              range = document.createRange();
+              range.setStart(pos.offsetNode, pos.offset);
+              range.collapse(true);
+            }
+          }
+
+          if (range) {
+            // Give Lexical's internal state a tiny moment to settle before we force the visual selection
+            setTimeout(() => {
+              const sel = window.getSelection();
+              if (sel) {
+                sel.removeAllRanges();
+                sel.addRange(range!);
+              }
+            }, 10);
+          }
+        }
+      };
+
+      const handlePointerDown = (e: PointerEvent) => {
+        // Redundancy check - if a pointer event sneaks through, catch it
+        if (e.pointerType === 'touch') {
+          ensureSuppressed();
+        }
+      };
+
+      const handleKeyDown = (_e: KeyboardEvent) => {
         if (confirmTimer) {
           clearTimeout(confirmTimer);
           confirmTimer = null;
         }
+
         if (inputModeSuppressed) {
           rootElement.removeAttribute('inputmode');
           inputModeSuppressed = false;
         }
-        resetIdleTimer();
       };
 
-      const handleKeyUp = () => {
-        resetIdleTimer();
-      };
-
-      const handleCompositionStart = () => {
-        isComposing = true;
-        if (idleTimer) clearTimeout(idleTimer);
-      };
-
-      const handleCompositionEnd = () => {
-        isComposing = false;
-        resetIdleTimer();
-      };
-
-      // Handle tap-to-place-caret
-      let pDownX = 0, pDownY = 0;
-      const handlePointerDownForCaret = (e: PointerEvent) => {
-        if (e.pointerType !== 'touch') return;
-        pDownX = e.clientX;
-        pDownY = e.clientY;
-      };
-
-      const handlePointerUp = (e: PointerEvent) => {
-        if (e.pointerType !== 'touch') return;
-        const dx = Math.abs(e.clientX - pDownX);
-        const dy = Math.abs(e.clientY - pDownY);
-        if (dx > 10 || dy > 10) return;
-
-        // Ensure focus is restored since we might have blurred it in pointerdown
-        if (document.activeElement !== rootElement) {
-          rootElement.focus({ preventScroll: true });
-        }
-
-        let range: Range | null = null;
-        if (document.caretRangeFromPoint) {
-          range = document.caretRangeFromPoint(e.clientX, e.clientY);
-        } else if ((document as any).caretPositionFromPoint) {
-          const pos = (document as any).caretPositionFromPoint(e.clientX, e.clientY);
-          if (pos) {
-            range = document.createRange();
-            range.setStart(pos.offsetNode, pos.offset);
-            range.collapse(true);
-          }
-        }
-        if (range) {
-          // Delay selection setting specifically to override Lexical's own 
-          // async focus-restore behavior which might jump the cursor.
-          setTimeout(() => {
-            const sel = window.getSelection();
-            if (sel) {
-              sel.removeAllRanges();
-              sel.addRange(range!);
-            }
-          }, 10);
-        }
-      };
-
+      // These capture true listeners ensure we intercept before Lexical
+      rootElement.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+      rootElement.addEventListener('touchmove', handleTouchMove, { passive: true, capture: true });
+      rootElement.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true }); // MUST NOT BE PASSIVE
       rootElement.addEventListener('pointerdown', handlePointerDown, { capture: true });
-      rootElement.addEventListener('pointerdown', handlePointerDownForCaret, { capture: true });
-      rootElement.addEventListener('pointerup', handlePointerUp, { capture: true });
       rootElement.addEventListener('keydown', handleKeyDown, { capture: true });
-      rootElement.addEventListener('keyup', handleKeyUp, { capture: true });
-      rootElement.addEventListener('compositionstart', handleCompositionStart, { capture: true });
-      rootElement.addEventListener('compositionend', handleCompositionEnd, { capture: true });
 
       cleanupFns.push(() => {
         if (confirmTimer) clearTimeout(confirmTimer);
-        if (touchGuardTimer) clearTimeout(touchGuardTimer);
-        if (idleTimer) clearTimeout(idleTimer);
         rootElement.removeAttribute('inputmode');
+        rootElement.removeEventListener('touchstart', handleTouchStart, { capture: true } as any);
+        rootElement.removeEventListener('touchmove', handleTouchMove, { capture: true } as any);
+        rootElement.removeEventListener('touchend', handleTouchEnd, { capture: true } as any);
         rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
-        rootElement.removeEventListener('pointerdown', handlePointerDownForCaret, { capture: true } as any);
-        rootElement.removeEventListener('pointerup', handlePointerUp, { capture: true } as any);
         rootElement.removeEventListener('keydown', handleKeyDown, { capture: true } as any);
-        rootElement.removeEventListener('keyup', handleKeyUp, { capture: true } as any);
-        rootElement.removeEventListener('compositionstart', handleCompositionStart, { capture: true } as any);
-        rootElement.removeEventListener('compositionend', handleCompositionEnd, { capture: true } as any);
       });
     };
 
