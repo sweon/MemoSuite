@@ -1099,7 +1099,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                   const now = new Date();
                   const newMemoId = await db.memos.add({
                     folderId: currentFolderId ?? undefined,
-                    title: '',
+                    title: t.sidebar.untitled,
                     content: '\n\n```fabric\n\n```\n\n',
                     tags: [],
                     createdAt: now,
@@ -1126,7 +1126,7 @@ export const Sidebar = forwardRef<SidebarRef, SidebarProps>(({
                   const now = new Date();
                   const newMemoId = await db.memos.add({
                     folderId: currentFolderId ?? undefined,
-                    title: '',
+                    title: t.sidebar.untitled,
                     content: '\n\n```spreadsheet\n\n```\n\n',
                     tags: [],
                     createdAt: now,

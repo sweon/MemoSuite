@@ -133,15 +133,16 @@ const CommentsWrapper = styled.div`
   }
 `;
 
-const TitleInput = styled.input`
+const TitleInput = styled.input<{ $isUntitledValue?: boolean }>`
   font-size: 1.75rem;
-  font-weight: 800;
+  font-weight: ${({ $isUntitledValue }) => ($isUntitledValue ? '400' : '800')};
   width: 100%;
   border: none;
   background: transparent;
   color: ${({ theme }) => theme.colors.text};
   margin-bottom: 2px;
   letter-spacing: -0.04em;
+  opacity: ${({ $isUntitledValue }) => ($isUntitledValue ? 0.6 : 1)};
   
   &:focus {
     outline: none;
@@ -152,15 +153,18 @@ const TitleInput = styled.input`
   }
 `;
 
-const TitleDisplay = styled.h1`
+const TitleDisplay = styled.h1<{ $isUntitledValue?: boolean }>`
   font-size: 1.75rem;
-  font-weight: 900;
+  font-weight: ${({ $isUntitledValue }) => ($isUntitledValue ? '400' : '900')};
   margin: 0 0 2px 0;
   color: ${({ theme }) => theme.colors.text};
   letter-spacing: -0.04em;
-  background: ${({ theme }) => `linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary})`};
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  ${({ $isUntitledValue, theme }) => !$isUntitledValue && `
+    background: linear-gradient(135deg, ${theme.colors.text}, ${theme.colors.primary});
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  `}
+  opacity: ${({ $isUntitledValue }) => ($isUntitledValue ? 0.6 : 1)};
 `;
 
 const MetaRow = styled.div`
@@ -886,7 +890,7 @@ export const MemoDetail: React.FC = () => {
         const tagArray = tags.split(',').map((t: any) => t.trim()).filter(Boolean);
         const now = new Date();
         const currentContent = overrideContent !== undefined ? overrideContent : content;
-        const currentTitle = (overrideTitle !== undefined ? overrideTitle : title).trim();
+        const currentTitle = (overrideTitle !== undefined ? overrideTitle : title).replace(/\u200B/g, '').trim();
         const untitled = t.memo_detail.untitled;
 
         // Treat as untitled if empty OR matches the placeholder
@@ -898,9 +902,10 @@ export const MemoDetail: React.FC = () => {
             let contentFallback = '';
 
             if (contentText) {
-                // Filter out markdown code blocks for title generation
+                // Filter out markdown code blocks and zero-width spaces for title generation
                 const filteredText = contentText
                     .replace(/```[\s\S]*?```/g, () => '') // Remove code blocks
+                    .replace(/\u200B/g, '') // Remove zero-width spaces
                     .trim();
 
                 if (filteredText) {
@@ -1187,11 +1192,32 @@ export const MemoDetail: React.FC = () => {
                     {isEditing ? (
                         <TitleInput
                             value={title}
-                            onChange={e => setTitle(e.target.value)}
+                            onChange={e => {
+                                let newVal = e.target.value;
+                                const untitled = t.memo_detail.untitled;
+                                // 만약 기존 값이 '제목 없음'이고 새로운 입력이 들어왔다면 (커서가 맨 앞이었으므로)
+                                // 기존 '제목 없음' 부분을 지우고 입력된 값만 남김
+                                if (title === untitled && newVal !== untitled) {
+                                    if (newVal.endsWith(untitled)) {
+                                        newVal = newVal.replace(untitled, '');
+                                    }
+                                }
+                                setTitle(newVal);
+                            }}
                             placeholder={t.memo_detail.title_placeholder}
+                            $isUntitledValue={title === t.memo_detail.untitled}
+                            onFocus={e => {
+                                if (title === t.memo_detail.untitled) {
+                                    // 커서를 맨 앞으로 보냄 (timeout을 주어 브라우저 기본 동작 이후에 실행)
+                                    const target = e.target;
+                                    setTimeout(() => target.setSelectionRange(0, 0), 0);
+                                }
+                            }}
                         />
                     ) : (
-                        <TitleDisplay>{memo?.title}</TitleDisplay>
+                        <TitleDisplay $isUntitledValue={!memo?.title || memo?.title === t.memo_detail.untitled}>
+                            {memo?.title || t.memo_detail.untitled}
+                        </TitleDisplay>
                     )}
 
                     <HeaderRow>
