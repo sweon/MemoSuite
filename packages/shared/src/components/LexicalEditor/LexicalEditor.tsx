@@ -764,7 +764,6 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
     let cleanupFns: (() => void)[] = [];
 
     const setupOnRoot = (rootElement: HTMLElement) => {
-      let confirmTimer: ReturnType<typeof setTimeout> | null = null;
       let inputModeSuppressed = false;
 
       // Ensure we start with inputmode="none" to be safe
@@ -798,25 +797,16 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         isTouchMoving = false;
 
         // CRITICAL FOR KOREAN IME (100% SUPPRESSION):
-        // If the element is actively focused (especially during Korean IME composition),
-        // Android Chrome completely ignores dynamic changes to `inputmode`.
-        // We MUST blur the element to physically commit the composition and 
+        // If the element is actively focused and we are transitioning from
+        // physical typing (where inputmode was removed) back to touch,
+        // we MUST blur the element to physically commit the composition and 
         // destroy the OS text context BEFORE applying `inputmode="none"`.
-        if (document.activeElement === rootElement) {
-          rootElement.blur();
+        if (!inputModeSuppressed && document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
         }
 
         // Force inputmode none on touch start
         ensureSuppressed();
-
-        // Start confirmation timer to monitor physical keyboard disconnect
-        if (confirmTimer) clearTimeout(confirmTimer);
-        confirmTimer = setTimeout(() => {
-          rootElement.removeAttribute('inputmode');
-          inputModeSuppressed = false;
-          confirmTimer = null;
-          onPhysicalKeyboardLost?.();
-        }, 1500);
       };
 
       const handleTouchMove = (e: TouchEvent) => {
@@ -884,11 +874,6 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       };
 
       const handleKeyDown = (_e: KeyboardEvent) => {
-        if (confirmTimer) {
-          clearTimeout(confirmTimer);
-          confirmTimer = null;
-        }
-
         if (inputModeSuppressed) {
           rootElement.removeAttribute('inputmode');
           inputModeSuppressed = false;
@@ -903,7 +888,6 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       rootElement.addEventListener('keydown', handleKeyDown, { capture: true });
 
       cleanupFns.push(() => {
-        if (confirmTimer) clearTimeout(confirmTimer);
         rootElement.removeAttribute('inputmode');
         rootElement.removeEventListener('touchstart', handleTouchStart, { capture: true } as any);
         rootElement.removeEventListener('touchmove', handleTouchMove, { capture: true } as any);
