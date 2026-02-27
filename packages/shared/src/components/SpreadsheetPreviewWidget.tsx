@@ -8,11 +8,12 @@ interface SpreadsheetPreviewWidgetProps {
 }
 
 const WidgetContainer = styled.div<{ $interactive: boolean }>`
-  background: #fcfcfd;
+  background: transparent;
   border: 1px solid #edf2f7;
   border-left: 4px solid #00acc1;
   border-radius: 8px;
   margin: 12px 0;
+  padding: 0 !important;
   cursor: ${props => props.$interactive ? 'pointer' : 'default'};
   user-select: none;
   transition: all 0.2s ease;
@@ -51,7 +52,9 @@ const EditOverlay = styled.div`
 const TableContainer = styled.div`
   overflow: auto;
   max-height: 400px;
-  background-color: #fff;
+  background-color: transparent;
+  margin: 0 !important;
+  padding: 0 !important;
 `;
 
 const StyledTable = styled.table`
@@ -60,6 +63,8 @@ const StyledTable = styled.table`
   font-size: 13px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: normal;
+  margin: 0 !important;
+  padding: 0 !important;
 `;
 
 const Th = styled.th`
