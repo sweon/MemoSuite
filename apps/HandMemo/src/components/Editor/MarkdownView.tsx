@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLanguage, metadataCache } from '@memosuite/shared';
+import { useLanguage, metadataCache, SpreadsheetPreviewWidget } from '@memosuite/shared';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Comment } from '../../db';
 
@@ -715,140 +715,15 @@ const FabricPreview = React.memo(({ json, onClick }: { json: string; onClick?: (
 
 const SpreadsheetPreview = React.memo(({ json, onClick }: { json: string; onClick?: () => void }) => {
   const { language } = useLanguage();
-  try {
-    const data = JSON.parse(json);
-    if (!Array.isArray(data) || data.length === 0) return null;
-
-    const sheet = data[0];
-    const celldata = sheet.celldata || [];
-    const matrixData = sheet.data; // 2D array format
-
-    // Check if we have data in either format
-    const hasCelldata = Array.isArray(celldata) && celldata.length > 0;
-    const hasMatrixData = Array.isArray(matrixData) && matrixData.length > 0;
-
-    if (!hasCelldata && !hasMatrixData) {
-      return (
-        <div
-          onClick={onClick}
-          style={{
-            background: '#fcfcfd',
-            border: '1px solid #d1d5db',
-            borderLeft: '4px solid #00acc1',
-            borderRadius: '6px',
-            padding: '16px 20px',
-            margin: '16px 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            cursor: onClick ? 'pointer' : 'default',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-          }}
-        >
-          <div style={{ fontSize: '20px' }}>📊</div>
-          <div>
-            <div style={{ fontWeight: 600, color: '#343a40' }}>{language === 'ko' ? '스프레드시트 (비어 있음)' : 'Spreadsheet (Empty)'}</div>
-            <div style={{ fontSize: '13px', color: '#868e96' }}>{onClick ? (language === 'ko' ? '클릭하여 편집' : 'Click to open editor') : (language === 'ko' ? '데이터 없음' : 'No data')}</div>
-          </div>
-        </div>
-      );
-    }
-
-    let maxRow = 0;
-    let maxCol = 0;
-    const grid: any[][] = [];
-
-    // Handle 2D matrix data format
-    if (hasMatrixData) {
-      maxRow = Math.min(matrixData.length - 1, 100);
-      for (let r = 0; r <= maxRow; r++) {
-        grid[r] = [];
-        const row = matrixData[r] || [];
-        maxCol = Math.max(maxCol, row.length - 1);
-        for (let c = 0; c < row.length && c <= 20; c++) {
-          const cell = row[c];
-          if (cell) {
-            grid[r][c] = cell.m || cell.v || "";
-          } else {
-            grid[r][c] = "";
-          }
-        }
-      }
-      maxCol = Math.min(maxCol, 20);
-    }
-    // Handle celldata (sparse) format
-    else if (hasCelldata) {
-      celldata.forEach((cell: any) => {
-        if (cell.r > maxRow) maxRow = cell.r;
-        if (cell.c > maxCol) maxCol = cell.c;
-      });
-
-      const displayMaxRow = Math.min(maxRow, 100);
-      const displayMaxCol = Math.min(maxCol, 20);
-
-      for (let r = 0; r <= displayMaxRow; r++) {
-        grid[r] = [];
-        for (let c = 0; c <= displayMaxCol; c++) {
-          grid[r][c] = "";
-        }
-      }
-
-      celldata.forEach((cell: any) => {
-        if (cell.r <= displayMaxRow && cell.c <= displayMaxCol) {
-          const val = cell.v?.m || cell.v?.v || "";
-          grid[cell.r][cell.c] = val;
-        }
-      });
-
-      maxCol = displayMaxCol;
-    }
-
-    return (
-      <MobileObjectGuard onClick={onClick}>
-        <div
-          style={{
-            overflow: 'auto',
-            maxHeight: '400px',
-            margin: '0',
-            border: 'none',
-            cursor: onClick ? 'pointer' : 'default',
-            backgroundColor: '#fff'
-          }}
-        >
-          <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '13px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', lineHeight: '20px' }}>
-            <thead>
-              <tr>
-                <th style={{ background: '#f8f9fa', border: '1px solid #d1d5db', width: '32px', height: '20px', textAlign: 'center', color: '#666', padding: '0 4px', fontWeight: 500 }}>#</th>
-                {Array.from({ length: maxCol + 1 }).map((_, c) => (
-                  <th key={c} style={{ background: '#f8f9fa', border: '1px solid #d1d5db', height: '20px', padding: '0 8px', fontWeight: 500, color: '#666', textAlign: 'center' }}>
-                    {String.fromCharCode(65 + c)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {grid.map((row, r) => (
-                <tr key={r}>
-                  <td style={{ background: '#f8f9fa', border: '1px solid #d1d5db', textAlign: 'center', color: '#666', fontSize: '11px', padding: '0 4px', height: '20px' }}>{r + 1}</td>
-                  {row.map((val, c) => (
-                    <td key={c} style={{ border: '1px solid #d1d5db', height: '20px', padding: '0 6px', minWidth: '60px', color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px', verticalAlign: 'middle' }}>{val}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {(maxRow >= 100 || maxCol >= 20) && (
-            <div style={{ padding: '8px', textAlign: 'center', color: '#666', fontSize: '13px', background: '#f8f9fa', borderTop: '1px solid #d1d5db', position: 'sticky', bottom: 0, left: 0, width: '100%', boxSizing: 'border-box' }}>
-              {language === 'ko' ? '... 항목 더 있음 (편집기에서 확인 가능) ...' : '... more data available in editor ...'}
-            </div>
-          )}
-        </div>
-      </MobileObjectGuard>
-    );
-  } catch (e) {
-    return <div style={{ color: 'red', fontSize: '13px' }}>Failed to render spreadsheet preview</div>;
-  }
+  return (
+    <MobileObjectGuard onClick={onClick}>
+      <SpreadsheetPreviewWidget
+        data={json}
+        onClick={onClick}
+        language={language}
+      />
+    </MobileObjectGuard>
+  );
 });
 
 const WebPreview = React.memo(({ url }: { url: string }) => {
@@ -2449,7 +2324,10 @@ export const MarkdownView: React.FC<MarkdownViewProps> = React.memo(({
       try {
         const match = /language-(\w+)/.exec(className || '');
         const language = match ? match[1] : '';
-        const json = String(children).replace(/\n$/, '');
+        const rawContent = Array.isArray(children)
+          ? children.map(child => (typeof child === 'string' ? child : '')).join('')
+          : String(children);
+        const json = rawContent.replace(/\u200B/g, '').trim();
 
         if (!inline && language === 'fabric') {
           return <FabricPreview json={json} onClick={!stateRef.current.isReadOnly && stateRef.current.onEditDrawing ? () => stateRef.current.onEditDrawing?.(json) : undefined} />;

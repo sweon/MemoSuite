@@ -27,6 +27,7 @@ export * from './components/PrintSettingsModal';
 export * from './components/CopyModeOverlay';
 export * from './components/Tooltip';
 export * from './components/SortSelect';
+export * from './components/SpreadsheetPreviewWidget';
 export * from './components/LexicalEditor/LexicalEditor';
 
 // Auto Backup

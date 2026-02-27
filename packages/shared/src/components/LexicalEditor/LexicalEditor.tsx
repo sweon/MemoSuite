@@ -1484,8 +1484,12 @@ function MarkdownSyncPlugin({ value, onChange }: { value: string, onChange: (val
 
       editorState.read(() => {
         let markdown = $convertToMarkdownString(EXPORT_TRANSFORMERS);
-        // We preserve \u200B because it is used as a marker for empty paragraphs
-        // to prevent them from being lost during Markdown round-trips.
+        // We preserve \u200B ONLY as standalone markers for truly empty paragraphs.
+        // This prevents Lexical from losing empty lines while ensuring JSON/Text data isn't corrupted.
+        markdown = markdown
+          .replace(/^(\u200B)$/gm, '__ZWSP_PARAGRAPH__')
+          .replace(/\u200B/g, '')
+          .replace(/__ZWSP_PARAGRAPH__/g, '\u200B');
 
         // Safety: Prevent accidental wipe on empty initialization before import
         if (markdown === "" && lastNormalizedValueRef.current !== "" && !tags.has('import')) {
