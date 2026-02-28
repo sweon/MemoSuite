@@ -851,19 +851,13 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
 
           ensureSuppressed();
 
-          // Force focus silently
-          if (document.activeElement !== rootElement) {
-            // Use setTimeout to ensure the OS has processed the sacrificial 
-            // focus/blur from touchstart before we re-focus for real.
-            setTimeout(() => {
-              rootElement.focus({ preventScroll: true });
-              if ('virtualKeyboard' in navigator) {
-                (navigator as any).virtualKeyboard.hide();
-              }
-            }, 0);
-          }
+          // CRITICAL: DO NOT call rootElement.focus() here on the first interaction.
+          // In Android, calling focus() on a contenteditable is the smoking gun that
+          // triggers the OS to show the virtual keyboard, regardless of inputmode.
+          // Instead, we manually place the selection range. Lexical will still see the
+          // selection change. We will only perform a "Real Focus" when the user
+          // actually presses a key on their physical keyboard.
 
-          // Manually place the cursor because we prevented the default behavior
           let range: Range | null = null;
           if (document.caretRangeFromPoint) {
             range = document.caretRangeFromPoint(touch.clientX, touch.clientY);
@@ -877,14 +871,11 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
           }
 
           if (range) {
-            // Give Lexical's internal state a tiny moment to settle before we force the visual selection
-            setTimeout(() => {
-              const sel = window.getSelection();
-              if (sel) {
-                sel.removeAllRanges();
-                sel.addRange(range!);
-              }
-            }, 10);
+            const sel = window.getSelection();
+            if (sel) {
+              sel.removeAllRanges();
+              sel.addRange(range);
+            }
           }
         }
       };
@@ -896,7 +887,13 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         }
       };
 
-      const handleKeyDown = (_e: KeyboardEvent) => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // If we haven't given "real" focus to the editor yet, do it now.
+        // This ensures Lexical receives the key events.
+        if (document.activeElement !== rootElement) {
+          rootElement.focus({ preventScroll: true });
+        }
+
         if (inputModeSuppressed) {
           rootElement.removeAttribute('inputmode');
           rootElement.removeAttribute('virtualkeyboardpolicy');
