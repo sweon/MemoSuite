@@ -3438,16 +3438,20 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         if (bottom > maxTop) maxTop = bottom;
                     });
 
-                    // Ensure page height covers at least the content
-                    // Use the visible area as reference viewport height
+                    // CRITICAL: Determine actual visible area (viewport) dimensions.
+                    // This must be used for the canvas element size to enable scrolling.
                     const currentViewH = viewportHeightRef.current || canvasViewportRef.current?.clientHeight || window.innerHeight || 600;
-                    const viewportHeight = currentViewH;
+                    const currentViewW = canvasViewportRef.current?.clientWidth || window.innerWidth || 800;
 
-                    // Use original saved height if present — do NOT crop it even if drawing is empty (e.g. recovered background).
-                    const isNewDrawing = objects.length === 0 || (objects.length === 1 && (objects[0] as any).isPageBackground);
-                    const savedHeight = json.height || viewportHeight;
-                    const contentMinHeight = maxTop > 0 ? Math.max(savedHeight, maxTop + 40) : savedHeight;
-                    const finalHeight = (isNewDrawing && !json.height) ? viewportHeight : contentMinHeight;
+                    // Enforce that the physical canvas element matches the viewport, NOT the page height.
+                    // If the canvas element is as tall as the page, Fabric's viewport logic 
+                    // will think no scrolling is needed and block pan/zoom inputs.
+                    canvas.setDimensions({ width: currentViewW, height: currentViewH });
+
+                    // Virtual page height: Must cover the saved height, content, and at least one viewport.
+                    const savedHeight = json.height || 0;
+                    const contentHeight = maxTop > 0 ? maxTop + 40 : 0;
+                    const finalHeight = Math.max(savedHeight, contentHeight, currentViewH);
 
                     pageHeightRef.current = finalHeight;
                     setPageHeightState(finalHeight);
@@ -3456,15 +3460,15 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     }
 
                     // Force update total pages based on potentially new height
-                    if (viewportHeight > 0) {
-                        const h = pageHeightRef.current;
-                        setTotalPages(Math.max(1, Math.ceil(h / viewportHeight)));
+                    if (currentViewH > 0) {
+                        setTotalPages(Math.max(1, Math.ceil(finalHeight / currentViewH)));
                     }
 
                     // Reset/Sync viewport transform
                     const zoom = canvas.getZoom();
                     const vpt = canvas.viewportTransform || [zoom, 0, 0, zoom, 0, 0];
-                    if (typeof (canvas as any).clampVpt === 'function') (canvas as any).clampVpt(vpt);
+                    // Use the local component clampVpt function
+                    clampVpt(vpt);
                     canvas.setViewportTransform(vpt);
 
                     canvas.renderAll();
