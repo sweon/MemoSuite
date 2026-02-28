@@ -389,22 +389,47 @@ export const SpreadsheetModal: React.FC<SpreadsheetModalProps> = ({
   // Autosave logic
   const onAutosaveRef = useRef(onAutosave);
   useEffect(() => { onAutosaveRef.current = onAutosave; }, [onAutosave]);
+  const lastAutosaveJsonRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    const interval = setInterval(() => {
+    let idleCallbackId: number;
+    let intervalId: ReturnType<typeof setInterval>;
+
+    const performAutosave = () => {
       if (workbookRef.current && onAutosaveRef.current) {
         try {
           const allSheets = workbookRef.current.getAllSheets();
           if (allSheets && allSheets.length > 0) {
+            // Skip if data is identical to last autosave
+            const json = JSON.stringify(allSheets);
+            if (json === lastAutosaveJsonRef.current) return;
             onAutosaveRef.current(allSheets);
+            lastAutosaveJsonRef.current = json;
           }
         } catch (e) { }
       }
-    }, 7000); // 7 seconds
+    };
 
-    return () => clearInterval(interval);
+    const scheduleAutosave = () => {
+      if (typeof requestIdleCallback !== 'undefined') {
+        idleCallbackId = requestIdleCallback(() => {
+          performAutosave();
+        }, { timeout: 15000 });
+      } else {
+        performAutosave();
+      }
+    };
+
+    intervalId = setInterval(scheduleAutosave, 7000);
+
+    return () => {
+      clearInterval(intervalId);
+      if (typeof cancelIdleCallback !== 'undefined' && idleCallbackId) {
+        cancelIdleCallback(idleCallbackId);
+      }
+    };
   }, [isOpen]);
 
   const handleSave = useCallback(async (e?: React.MouseEvent) => {

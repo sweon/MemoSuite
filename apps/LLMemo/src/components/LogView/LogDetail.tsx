@@ -750,7 +750,10 @@ export const LogDetail: React.FC = () => {
     const isEditingAnything = isEditing || !!commentDraft;
     if (!isEditingAnything) return;
 
-    const interval = setInterval(async () => {
+    let idleCallbackId: number;
+    let intervalId: ReturnType<typeof setInterval>;
+
+    const performAutosave = async () => {
       const {
         title: cTitle,
         content: cContent,
@@ -809,9 +812,26 @@ export const LogDetail: React.FC = () => {
         const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
         await db.autosaves.bulkDelete(toDelete.map((a) => a.id!));
       }
-    }, 7000);
+    };
 
-    return () => clearInterval(interval);
+    const scheduleAutosave = () => {
+      if (typeof requestIdleCallback !== 'undefined') {
+        idleCallbackId = requestIdleCallback(() => {
+          performAutosave();
+        }, { timeout: 15000 });
+      } else {
+        performAutosave();
+      }
+    };
+
+    intervalId = setInterval(scheduleAutosave, 7000);
+
+    return () => {
+      clearInterval(intervalId);
+      if (typeof cancelIdleCallback !== 'undefined' && idleCallbackId) {
+        cancelIdleCallback(idleCallbackId);
+      }
+    };
   }, [id, isEditing, !!commentDraft]);
 
   const handleSave = async (

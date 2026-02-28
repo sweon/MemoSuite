@@ -936,7 +936,10 @@ export const MemoDetail: React.FC = () => {
       !!commentDraft;
     if (!isEditingAnything) return;
 
-    const interval = setInterval(async () => {
+    let idleCallbackId: number;
+    let intervalId: ReturnType<typeof setInterval>;
+
+    const performAutosave = async () => {
       const {
         title: cTitle,
         content: cContent,
@@ -993,9 +996,26 @@ export const MemoDetail: React.FC = () => {
         const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
         await db.autosaves.bulkDelete(toDelete.map((a) => a.id!));
       }
-    }, 7000); // 7 seconds
+    };
 
-    return () => clearInterval(interval);
+    const scheduleAutosave = () => {
+      if (typeof requestIdleCallback !== 'undefined') {
+        idleCallbackId = requestIdleCallback(() => {
+          performAutosave();
+        }, { timeout: 15000 });
+      } else {
+        performAutosave();
+      }
+    };
+
+    intervalId = setInterval(scheduleAutosave, 7000);
+
+    return () => {
+      clearInterval(intervalId);
+      if (typeof cancelIdleCallback !== 'undefined' && idleCallbackId) {
+        cancelIdleCallback(idleCallbackId);
+      }
+    };
   }, [
     id,
     isEditing,
@@ -1828,8 +1848,10 @@ export const MemoDetail: React.FC = () => {
                 }
               }
               if (newContent !== content) {
-                setContent(newContent);
+                // PERFORMANCE: Update ref only (no React re-render)
+                currentStateRef.current = { ...currentStateRef.current, content: newContent };
                 setEditingDrawingData(json);
+                fabricCheckpointRef.current = newContent;
               }
             }}
           />
@@ -1931,10 +1953,11 @@ export const MemoDetail: React.FC = () => {
                 }
                 return match;
               });
-              // Update ref for subsequent autosaves
+              // PERFORMANCE: Update ref only (no React re-render)
               if (found && newContent !== content) {
                 originalSpreadsheetJsonRef.current = json;
-                setContent(newContent);
+                currentStateRef.current = { ...currentStateRef.current, content: newContent };
+                spreadsheetCheckpointRef.current = newContent;
               }
             } else if (content.includes("```spreadsheet")) {
               newContent = content.replace(
@@ -1943,7 +1966,8 @@ export const MemoDetail: React.FC = () => {
               );
               if (newContent !== content) {
                 originalSpreadsheetJsonRef.current = json;
-                setContent(newContent);
+                currentStateRef.current = { ...currentStateRef.current, content: newContent };
+                spreadsheetCheckpointRef.current = newContent;
               }
             } else if (
               searchParams.get("spreadsheet") === "true" ||
@@ -1951,15 +1975,18 @@ export const MemoDetail: React.FC = () => {
             ) {
               newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
               originalSpreadsheetJsonRef.current = json;
-              setContent(newContent);
+              currentStateRef.current = { ...currentStateRef.current, content: newContent };
+              spreadsheetCheckpointRef.current = newContent;
             } else if (content.trim()) {
               newContent = `${content}\n\n\`\`\`spreadsheet\n${json}\n\`\`\``;
               originalSpreadsheetJsonRef.current = json;
-              setContent(newContent);
+              currentStateRef.current = { ...currentStateRef.current, content: newContent };
+              spreadsheetCheckpointRef.current = newContent;
             } else {
               newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
               originalSpreadsheetJsonRef.current = json;
-              setContent(newContent);
+              currentStateRef.current = { ...currentStateRef.current, content: newContent };
+              spreadsheetCheckpointRef.current = newContent;
             }
           }}
           initialData={editingSpreadsheetData}

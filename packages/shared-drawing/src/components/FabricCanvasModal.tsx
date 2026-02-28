@@ -4828,36 +4828,67 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const onCloseRef = useRef(propsOnClose);
     useEffect(() => { onCloseRef.current = propsOnClose; }, [propsOnClose]);
 
+    // Track last autosave JSON to deduplicate
+    const lastAutosaveJsonRef = useRef<string | null>(null);
+
     useEffect(() => {
-        const interval = setInterval(() => {
-            if (onAutosaveRef.current) {
-                // CRITICAL: Skip autosave while user is actively drawing.
-                // canvas.toJSON() serializes ALL objects and blocks the main thread,
-                // causing progressive pen input delay as object count grows.
-                const canvas = fabricCanvasRef.current;
-                if (canvas && (canvas as any)._isCurrentlyDrawing) {
-                    return; // Skip this tick, will try again in 7s
-                }
+        // Use requestIdleCallback to run autosave only during browser idle time,
+        // preventing main-thread blocking during active user interaction.
+        let idleCallbackId: number;
+        let intervalId: ReturnType<typeof setInterval>;
 
-                // Also skip if there are pending history items being processed
-                if (historyQueueRef.current.length > 0) {
-                    return;
-                }
-
-                // Skip if canvas hasn't changed since last autosave
-                if (!autosaveDirtyRef.current) {
-                    return;
-                }
-
-                const json = getCanvasJson();
-                if (json) {
-                    onAutosaveRef.current(json);
-                    autosaveDirtyRef.current = false;
-                }
+        const scheduleAutosave = () => {
+            if (typeof requestIdleCallback !== 'undefined') {
+                idleCallbackId = requestIdleCallback((deadline) => {
+                    performAutosave();
+                }, { timeout: 15000 }); // Max 15s wait before forcing
+            } else {
+                // Fallback for browsers without requestIdleCallback
+                performAutosave();
             }
-        }, 7000); // 7 seconds
+        };
 
-        return () => clearInterval(interval);
+        const performAutosave = () => {
+            if (!onAutosaveRef.current) return;
+
+            // CRITICAL: Skip autosave while user is actively drawing.
+            const canvas = fabricCanvasRef.current;
+            if (canvas && (canvas as any)._isCurrentlyDrawing) {
+                return; // Skip this tick, will try again next interval
+            }
+
+            // Also skip if there are pending history items being processed
+            if (historyQueueRef.current.length > 0) {
+                return;
+            }
+
+            // Skip if canvas hasn't changed since last autosave
+            if (!autosaveDirtyRef.current) {
+                return;
+            }
+
+            const json = getCanvasJson();
+            if (json) {
+                // Skip if JSON is identical to last autosave
+                if (json === lastAutosaveJsonRef.current) {
+                    autosaveDirtyRef.current = false;
+                    return;
+                }
+                onAutosaveRef.current(json);
+                lastAutosaveJsonRef.current = json;
+                autosaveDirtyRef.current = false;
+            }
+        };
+
+        // Schedule autosave via idle callback every 7 seconds
+        intervalId = setInterval(scheduleAutosave, 7000);
+
+        return () => {
+            clearInterval(intervalId);
+            if (typeof cancelIdleCallback !== 'undefined' && idleCallbackId) {
+                cancelIdleCallback(idleCallbackId);
+            }
+        };
     }, [getCanvasJson]);
 
     const handleSaveAndExit = async () => {

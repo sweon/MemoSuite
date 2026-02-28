@@ -838,7 +838,10 @@ export const MemoDetail: React.FC = () => {
         const isEditingAnything = isEditing || isFabricModalOpen || isSpreadsheetModalOpen || !!commentDraft;
         if (!isEditingAnything) return;
 
-        const interval = setInterval(async () => {
+        let idleCallbackId: number;
+        let intervalId: ReturnType<typeof setInterval>;
+
+        const performAutosave = async () => {
             const { title: cTitle, content: cContent, tags: cTags, commentDraft: cCommentDraft } = currentStateRef.current;
             const currentTagArray = cTags.split(',').map((t: any) => t.trim()).filter(Boolean);
             const lastTagArray = lastSavedState.current.tags.split(',').map((t: any) => t.trim()).filter(Boolean);
@@ -879,9 +882,26 @@ export const MemoDetail: React.FC = () => {
                 const toDelete = allAutosaves.slice(0, allAutosaves.length - 20);
                 await db.autosaves.bulkDelete(toDelete.map(a => a.id!));
             }
-        }, 7000); // 7 seconds
+        };
 
-        return () => clearInterval(interval);
+        const scheduleAutosave = () => {
+            if (typeof requestIdleCallback !== 'undefined') {
+                idleCallbackId = requestIdleCallback(() => {
+                    performAutosave();
+                }, { timeout: 15000 });
+            } else {
+                performAutosave();
+            }
+        };
+
+        intervalId = setInterval(scheduleAutosave, 7000);
+
+        return () => {
+            clearInterval(intervalId);
+            if (typeof cancelIdleCallback !== 'undefined' && idleCallbackId) {
+                cancelIdleCallback(idleCallbackId);
+            }
+        };
     }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft]); // Removed memo dependency to prevent interval reset on DB updates
 
     // Ensure we only trigger auto-modal when BOTH id and memo are available,
@@ -1591,6 +1611,11 @@ export const MemoDetail: React.FC = () => {
                             }
                         }}
                         onAutosave={(json) => {
+                            // PERFORMANCE: Do NOT call setContent() here.
+                            // setContent triggers a full React re-render with regex processing,
+                            // blocking the main thread every 7 seconds.
+                            // Instead, build the new content string and update only the ref
+                            // so the MemoDetail autosave interval picks it up without re-rendering.
                             let newContent = content;
                             const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
                             const normalize = (s: string) => s.replace(/\r\n/g, '\n').trim();
@@ -1637,9 +1662,10 @@ export const MemoDetail: React.FC = () => {
                             }
 
                             if (newContent !== content) {
-                                setContent(newContent);
+                                // Update ref only (no React re-render)
+                                currentStateRef.current = { ...currentStateRef.current, content: newContent };
                                 setEditingDrawingData(json);
-                                fabricCheckpointRef.current = newContent; // Update checkpoint for next onClose
+                                fabricCheckpointRef.current = newContent;
                             }
                         }}
                     />
@@ -1728,10 +1754,10 @@ export const MemoDetail: React.FC = () => {
                                 }
                                 return match;
                             });
-                            // Update ref and checkpoint for subsequent autosaves/onClose
+                            // PERFORMANCE: Update ref only (no React re-render)
                             if (found && newContent !== content) {
                                 originalSpreadsheetJsonRef.current = json;
-                                setContent(newContent);
+                                currentStateRef.current = { ...currentStateRef.current, content: newContent };
                                 spreadsheetCheckpointRef.current = newContent;
                             }
                         } else {
@@ -1752,7 +1778,7 @@ export const MemoDetail: React.FC = () => {
 
                             if (newContent !== content) {
                                 originalSpreadsheetJsonRef.current = json;
-                                setContent(newContent);
+                                currentStateRef.current = { ...currentStateRef.current, content: newContent };
                                 spreadsheetCheckpointRef.current = newContent;
                             }
                         }
