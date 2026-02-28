@@ -1515,6 +1515,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
     const [isSaving, setIsSaving] = useState(false);
     const [isCanvasDirty, setIsCanvasDirty] = useState(false);
+    const isCanvasDirtyRef = useRef(false);
+    const autosaveDirtyRef = useRef(false); // Separate flag: tracks changes since last autosave
 
     useEffect(() => {
         localStorage.setItem('fabric_palettes', JSON.stringify(palettes));
@@ -2455,7 +2457,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         // Queue for background processing
         historyQueueRef.current.push({ obj, type: 'add' });
-        setIsCanvasDirty(true);
+        setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
         if (!historyProcessingRef.current) {
             processHistoryQueue();
         }
@@ -2470,7 +2472,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // For removal, we still need immediate serialization if it's not a path,
         // but let's try queueing it as well to be consistent.
         historyQueueRef.current.push({ obj, type: 'remove' });
-        setIsCanvasDirty(true);
+        setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
         if (!historyProcessingRef.current) {
             processHistoryQueue();
         }
@@ -2493,7 +2495,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         // Store the previous state if not already captured
         if (!pendingModifyRef.current || pendingModifyRef.current.obj !== obj) {
             pendingModifyRef.current = { obj, prevJson: JSON.stringify(obj.toJSON()) };
-            setIsCanvasDirty(true);
+            setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
         }
 
         // Debounce - save after 500ms of no modifications
@@ -4212,7 +4214,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const handleClear = () => {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
-        setIsCanvasDirty(true);
+        setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
 
         // Remove all objects but preserve background
         // iterating backwards or using a copy is safer when removing
@@ -4403,7 +4405,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const handleUndo = React.useCallback(() => {
         const canvas = fabricCanvasRef.current;
         if (!canvas || historyIndexRef.current <= 0) return;
-        setIsCanvasDirty(true);
+        setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
 
         isUndoRedoRef.current = true;
         const currentAction = historyRef.current[historyIndexRef.current];
@@ -4447,7 +4449,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const handleRedo = React.useCallback(() => {
         const canvas = fabricCanvasRef.current;
         if (!canvas || historyIndexRef.current >= historyRef.current.length - 1) return;
-        setIsCanvasDirty(true);
+        setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
 
         isUndoRedoRef.current = true;
         historyIndexRef.current++;
@@ -4707,11 +4709,15 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const canvas = fabricCanvasRef.current;
         if (!canvas) return null;
 
+        // Only include custom properties needed for restoration
         const jsonObj = canvas.toJSON([
-            'id', 'selectable', 'evented', 'lockMovementX', 'lockMovementY',
-            'lockScalingX', 'lockScalingY', 'lockRotation', 'hasControls', 'hasBorders',
             'isPageBackground', 'isPixelEraser', 'isObjectEraser', 'excludeFromExport', '__historyId'
         ]) as any;
+
+        // Filter out pageBackground objects — they are recreated on load
+        if (jsonObj.objects) {
+            jsonObj.objects = jsonObj.objects.filter((obj: any) => !obj.isPageBackground);
+        }
 
         jsonObj.width = pageWidthRef.current;
         jsonObj.height = pageHeightRef.current;
@@ -4727,7 +4733,34 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             imageData: (background === 'image' && backgroundImage instanceof HTMLImageElement) ? backgroundImage.src : undefined
         };
 
-        return JSON.stringify(jsonObj);
+        // Use replacer to strip Fabric default values, reducing JSON size significantly
+        const FABRIC_DEFAULTS: Record<string, any> = {
+            angle: 0, skewX: 0, skewY: 0, flipX: false, flipY: false,
+            opacity: 1, shadow: null, visible: true, backgroundColor: '',
+            fillRule: 'nonzero', paintFirst: 'fill', globalCompositeOperation: 'source-over',
+            strokeDashArray: null, strokeDashOffset: 0, strokeLineCap: 'butt',
+            strokeLineJoin: 'miter', strokeMiterLimit: 4, strokeUniform: false,
+            originX: 'left', originY: 'top',
+            // UI state props that don't need saving
+            selectable: true, evented: true,
+            lockMovementX: false, lockMovementY: false,
+            lockScalingX: false, lockScalingY: false, lockRotation: false,
+            hasControls: true, hasBorders: true,
+            hoverCursor: null, moveCursor: null,
+            perPixelTargetFind: false,
+        };
+        return JSON.stringify(jsonObj, (key, value) => {
+            // Strip properties that match Fabric defaults
+            if (key in FABRIC_DEFAULTS) {
+                const def = FABRIC_DEFAULTS[key];
+                if (value === def) return undefined;
+                // Also strip null defaults
+                if (def === null && value === null) return undefined;
+            }
+            // Strip empty arrays (e.g. empty strokeDashArray being [])
+            if (Array.isArray(value) && value.length === 0 && key !== 'objects' && key !== 'path') return undefined;
+            return value;
+        });
     }, [background, backgroundSize, backgroundBundleGap, backgroundColorIntensity, backgroundColorType, lineOpacity, backgroundImageOpacity, backgroundImage]);
 
     // Callback refs to handle stale closures during async operations
@@ -4754,9 +4787,15 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     return;
                 }
 
+                // Skip if canvas hasn't changed since last autosave
+                if (!autosaveDirtyRef.current) {
+                    return;
+                }
+
                 const json = getCanvasJson();
                 if (json) {
                     onAutosaveRef.current(json);
+                    autosaveDirtyRef.current = false;
                 }
             }
         }, 7000); // 7 seconds
@@ -4794,6 +4833,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 await onSaveRef.current(json);
                 setIsCanvasDirty(false);
+                isCanvasDirtyRef.current = false;
+                autosaveDirtyRef.current = false;
                 lastSavedIndexRef.current = savedIndex;
                 return true;
             }
