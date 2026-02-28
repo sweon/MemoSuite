@@ -2531,8 +2531,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             fabricCanvasRef.current.dispose();
         }
 
-        const width = containerRef.current.clientWidth || pageWidthRef.current || 800;
-        const height = containerRef.current.clientHeight || pageHeightRef.current || 600;
+        // CRITICAL: Viewport dimensions must be based on visible container, NOT total page height.
+        // Falling back to pageHeightRef.current causes the canvas viewport to match the document height,
+        // which breaks clampVpt scrolling logic (it thinks the whole drawing is already visible).
+        const width = containerRef.current.clientWidth || window.innerWidth || 800;
+        const height = containerRef.current.clientHeight || window.innerHeight || 600;
         viewportHeightRef.current = height; // Store viewport height for canvas extension
 
         const canvas = new fabric.Canvas(canvasRef.current, {
@@ -2761,6 +2764,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 canvas.setHeight(newHeight);
                 viewportHeightRef.current = newHeight;
                 changed = true;
+
+                // Recalculate total pages based on new viewport height
+                if (pageHeightRef.current > 0 && newHeight > 0) {
+                    setTotalPages(Math.max(1, Math.ceil(pageHeightRef.current / newHeight)));
+                }
             }
 
             // Protect dimensions in image mode to prevent loops or jumping
@@ -3410,10 +3418,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     // Recalculate content height to ensure scrollbars appear
                     // This handles cases where height wasn't saved or content exceeds saved height
                     let maxTop = 0;
+                    const objects = canvas.getObjects();
 
                     // Update pageRectRef to point to the newly loaded background object
                     // loadFromJSON replaces all objects, so the old ref is stale (pointing to disposed object)
-                    const objects = canvas.getObjects();
                     const loadedBg = objects.find((o: any) => o.isPageBackground) as fabric.Rect;
                     if (loadedBg) {
                         pageRectRef.current = loadedBg;
@@ -3431,13 +3439,15 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     });
 
                     // Ensure page height covers at least the content
-                    const viewportHeight = viewportHeightRef.current || canvas.getHeight() || 500;
+                    // Use the visible area as reference viewport height
+                    const currentViewH = viewportHeightRef.current || canvasViewportRef.current?.clientHeight || window.innerHeight || 600;
+                    const viewportHeight = currentViewH;
 
-                    // Use original saved height — do NOT crop. Only use viewport height for empty canvases.
+                    // Use original saved height if present — do NOT crop it even if drawing is empty (e.g. recovered background).
                     const isNewDrawing = objects.length === 0 || (objects.length === 1 && (objects[0] as any).isPageBackground);
                     const savedHeight = json.height || viewportHeight;
                     const contentMinHeight = maxTop > 0 ? Math.max(savedHeight, maxTop + 40) : savedHeight;
-                    const finalHeight = isNewDrawing ? viewportHeight : contentMinHeight;
+                    const finalHeight = (isNewDrawing && !json.height) ? viewportHeight : contentMinHeight;
 
                     pageHeightRef.current = finalHeight;
                     setPageHeightState(finalHeight);

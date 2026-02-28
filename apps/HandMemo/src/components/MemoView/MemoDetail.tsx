@@ -743,13 +743,16 @@ export const MemoDetail: React.FC = () => {
                             setCommentDraft(draft.commentDraft); setCommentRestorationVersion(v => v + 1);
                         }
 
-                        // Also update lastSavedState to match the restored draft
+                        // Also update lastSavedState and modal checkpoints to match the restored draft
                         lastSavedState.current = {
                             title: draft.title,
                             content: draft.content,
                             tags: tagsStr,
                             commentDraft: draft.commentDraft || null
                         };
+                        // Synchronize checkpoints if modals are opened later
+                        fabricCheckpointRef.current = draft.content;
+                        spreadsheetCheckpointRef.current = draft.content;
                     }
                 }
                 if (isEditing) restoredIdRef.current = id || null;
@@ -808,13 +811,16 @@ export const MemoDetail: React.FC = () => {
                             setCommentDraft(draft.commentDraft); setCommentRestorationVersion(v => v + 1);
                         }
 
-                        // Also update lastSavedState to match the restored draft
+                        // Also update lastSavedState and modal checkpoints to match the restored draft
                         lastSavedState.current = {
                             title: draft.title,
                             content: draft.content,
                             tags: tagsStr,
                             commentDraft: draft.commentDraft || null
                         };
+                        // Synchronize checkpoints if modals are opened later
+                        fabricCheckpointRef.current = draft.content;
+                        spreadsheetCheckpointRef.current = draft.content;
                     }
                 }
             };

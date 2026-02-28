@@ -182,6 +182,7 @@ export default function HandwritingComponent({
                 <FabricCanvasModal
                     initialData={data}
                     onSave={handleSave}
+                    onAutosave={handleSave}
                     onClose={handleClose}
                     language={language as any}
                 />

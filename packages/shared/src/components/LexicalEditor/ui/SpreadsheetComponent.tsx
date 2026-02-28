@@ -54,6 +54,7 @@ export default function SpreadsheetComponent({
                         try { return data ? JSON.parse(data) : undefined; } catch { return undefined; }
                     })()}
                     onSave={handleSave}
+                    onAutosave={handleSave}
                     onClose={handleClose}
                     language={language as any}
                 />
