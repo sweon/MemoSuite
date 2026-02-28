@@ -1615,9 +1615,6 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
 }) => {
   const [isPhysicalKeyboard, setIsPhysicalKeyboard] = useState(() => {
     if (typeof window !== 'undefined') {
-      // Use localStorage for persistence across sessions
-      const saved = localStorage.getItem('lexical_physical_keyboard');
-      if (saved) return saved === 'true';
       // Heuristic: If device has a fine pointer (mouse/trackpad) on a mobile device, it likely has a keyboard
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
         ('maxTouchPoints' in navigator && navigator.maxTouchPoints > 0 && window.matchMedia('(max-width: 1600px)').matches);
@@ -1631,7 +1628,6 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   // Callback when the plugin detects BT keyboard was disconnected
   const handlePhysicalKeyboardLost = useCallback(() => {
     setIsPhysicalKeyboard(false);
-    localStorage.removeItem('lexical_physical_keyboard');
   }, []);
 
   useEffect(() => {
@@ -1658,7 +1654,6 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
 
       if (isPhysical && !isPhysicalKeyboard) {
         setIsPhysicalKeyboard(true);
-        localStorage.setItem('lexical_physical_keyboard', 'true');
         // The VirtualKeyboardSuppressorPlugin will activate on next render
         // and dismiss the virtual keyboard via inputmode="none".
         // We do NOT call blur() here as it disrupts the IME pipeline.
@@ -1669,17 +1664,30 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
     const handlePointerChange = (e: MediaQueryListEvent) => {
       if (e.matches && !isPhysicalKeyboard) {
         setIsPhysicalKeyboard(true);
-        localStorage.setItem('lexical_physical_keyboard', 'true');
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handlePhysicalKeyboardLost();
+      }
+    };
+
+    const handleWindowBlur = () => {
+      handlePhysicalKeyboardLost();
+    };
+
     window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('blur', handleWindowBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     if (mediaQuery.addEventListener) {
       mediaQuery.addEventListener('change', handlePointerChange);
     }
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (mediaQuery.removeEventListener) {
         mediaQuery.removeEventListener('change', handlePointerChange);
       }
