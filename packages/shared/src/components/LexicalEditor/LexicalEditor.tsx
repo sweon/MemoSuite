@@ -880,6 +880,13 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         }
       };
 
+      const handleMouseDown = (e: MouseEvent) => {
+        // PREVENT NATIVE FOCUS: Browsers automatically focus contenteditable on mousedown.
+        // On Android, this focus is the smoking gun for showing the virtual keyboard.
+        // We prevent this so we can control focus via physical keyboard keydown ONLY.
+        if (e.cancelable) e.preventDefault();
+      };
+
       const handlePointerDown = (e: PointerEvent) => {
         // Redundancy check - if a pointer event sneaks through, catch it
         if (e.pointerType === 'touch') {
@@ -888,8 +895,8 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       };
 
       const handleKeyDown = (_e: KeyboardEvent) => {
-        // If we haven't given "real" focus to the editor yet, do it now.
-        // This ensures Lexical receives the key events.
+        // REAL FOCUS: We only give the editor real focus when a physical key is pressed.
+        // This keeps the virtual keyboard suppressed during tap-to-place-cursor.
         if (document.activeElement !== rootElement) {
           rootElement.focus({ preventScroll: true });
         }
@@ -906,6 +913,7 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       rootElement.addEventListener('touchmove', handleTouchMove, { passive: true, capture: true });
       rootElement.addEventListener('touchend', handleTouchEnd, { passive: false, capture: true }); // MUST NOT BE PASSIVE
       rootElement.addEventListener('pointerdown', handlePointerDown, { capture: true });
+      rootElement.addEventListener('mousedown', handleMouseDown, { capture: true });
       rootElement.addEventListener('keydown', handleKeyDown, { capture: true });
 
       cleanupFns.push(() => {
@@ -915,6 +923,7 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         rootElement.removeEventListener('touchmove', handleTouchMove, { capture: true } as any);
         rootElement.removeEventListener('touchend', handleTouchEnd, { capture: true } as any);
         rootElement.removeEventListener('pointerdown', handlePointerDown, { capture: true } as any);
+        rootElement.removeEventListener('mousedown', handleMouseDown, { capture: true } as any);
         rootElement.removeEventListener('keydown', handleKeyDown, { capture: true } as any);
       });
     };
