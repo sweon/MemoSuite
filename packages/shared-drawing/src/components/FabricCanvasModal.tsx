@@ -1592,7 +1592,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const [activeTool, setActiveTool] = useState<ToolType>('pen');
     const [activeToolItemId, setActiveToolItemId] = useState<string | null>('pen_1');
     const activeToolRef = useRef(activeTool);
-    useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
+    // activeToolRef is now updated directly in the main tool-handling useEffect below to ensure zero-lag synchronization for the MutationObserver/Compatibility Layer.
     const [color, setColor] = useState('#000000');
     const [brushSize, setBrushSize] = useState(2);
     const savedBg = JSON.parse(localStorage.getItem('fabric_default_background_v2') || '{}');
@@ -5057,11 +5057,21 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
 
+        // 🚀 SYNC: Update the ref immediately so MutationObservers and events
+        // see the correct activeTool value during this render cycle's effects.
+        activeToolRef.current = activeTool;
+
         // Reset default states
         canvas.isDrawingMode = false;
         canvas.selection = false;
         canvas.defaultCursor = 'default';
         canvas.hoverCursor = 'default';
+
+        const upperCanvas = (canvas as any).upperCanvasEl as HTMLElement;
+        const overlay = (canvas as any).__overlayEl as HTMLElement;
+
+        if (upperCanvas) upperCanvas.style.cursor = 'default';
+        if (overlay) overlay.style.cursor = 'default';
 
         // Disable selection on all objects by default
         // But preserve pixel eraser marks' evented: false state
@@ -5102,7 +5112,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         // Stealth Eraser UI: Hide the brush trail on upper canvas while drawing
         // We'll project it manually in renderHook to avoid white streaks.
-        const upperCanvas = (canvas as any).upperCanvasEl;
         if (upperCanvas) {
             // Use 0.01 instead of 0 to ensure the browser continues to update the canvas content 
             // even if hidden, while still being invisible to the user.
@@ -5115,6 +5124,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 canvas.selection = true;
                 canvas.defaultCursor = 'default';
                 canvas.hoverCursor = 'default';
+                if (upperCanvas) upperCanvas.style.cursor = 'default';
+                if (overlay) overlay.style.cursor = 'default';
                 canvas.forEachObject((obj) => {
                     const isProtected = (obj as any).isPixelEraser || (obj as any).isPageBackground;
                     if (isProtected) {
@@ -5250,6 +5261,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 canvas.freeDrawingCursor = 'crosshair';
                 canvas.defaultCursor = 'crosshair';
+                if (upperCanvas) upperCanvas.style.cursor = 'crosshair';
+                if (overlay) overlay.style.cursor = 'crosshair';
                 break;
 
             case 'eraser_pixel': {
@@ -5257,7 +5270,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 canvas.isDrawingMode = true;
                 canvas.freeDrawingCursor = 'none';
-                const overlay = (canvas as any).__overlayEl;
                 if (overlay) overlay.style.cursor = 'none';
 
                 const brush = new fabric.PencilBrush(canvas);
@@ -5319,7 +5331,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                         // CRITICAL: Hide the system cursor globally while using the tool
                         canvas.freeDrawingCursor = 'none';
-                        const overlay = (canvas as any).__overlayEl;
                         if (overlay && overlay.style.cursor !== 'none') {
                             overlay.style.cursor = 'none';
                         }
@@ -5330,7 +5341,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         }
                     };
 
-                    const overlay = (canvas as any).__overlayEl;
                     const eventTarget = overlay || upperCanvasEl;
 
                     eventTarget.addEventListener('pointerdown', handlePointer);
@@ -5376,7 +5386,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 canvas.isDrawingMode = false;
                 canvas.defaultCursor = 'none';
                 canvas.hoverCursor = 'none';
-                const overlay = (canvas as any).__overlayEl;
                 if (overlay) overlay.style.cursor = 'none';
 
                 // Create Touch overlay for Object Eraser too
@@ -5427,13 +5436,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                         // CRITICAL: Hide the system cursor globally while using the tool
                         canvas.defaultCursor = 'none';
                         canvas.hoverCursor = 'none';
-                        const overlay = (canvas as any).__overlayEl;
+                        if (upperCanvasEl) upperCanvasEl.style.cursor = 'none';
                         if (overlay && overlay.style.cursor !== 'none') {
                             overlay.style.cursor = 'none';
                         }
                     };
 
-                    const overlay = (canvas as any).__overlayEl;
                     const eventTarget = overlay || upperCanvasEl;
 
                     eventTarget.addEventListener('pointerdown', handlePointer);
@@ -5541,6 +5549,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 canvas.selection = true;
                 canvas.defaultCursor = 'text';
                 canvas.hoverCursor = 'text';
+                if (upperCanvas) upperCanvas.style.cursor = 'text';
+                if (overlay) overlay.style.cursor = 'text';
 
                 // Set objects to be interactive so they can be selected/edited
                 canvas.forEachObject((obj) => {
@@ -5596,6 +5606,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 canvas.freeDrawingBrush = laserBrush;
                 canvas.defaultCursor = 'crosshair';
                 canvas.hoverCursor = 'crosshair';
+                if (upperCanvas) upperCanvas.style.cursor = 'crosshair';
+                if (overlay) overlay.style.cursor = 'crosshair';
                 break;
 
             case 'line':
@@ -5610,6 +5622,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             case 'octagon':
             case 'star':
                 canvas.defaultCursor = 'crosshair';
+                if (upperCanvas) upperCanvas.style.cursor = 'crosshair';
+                if (overlay) overlay.style.cursor = 'crosshair';
                 // Attach shape drawing handlers
                 canvas.on('mouse:down', handleShapeMouseDown);
                 canvas.on('mouse:move', handleShapeMouseMove);
