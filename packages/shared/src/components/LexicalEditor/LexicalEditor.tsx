@@ -887,7 +887,7 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         }
       };
 
-      const handleKeyDown = (e: KeyboardEvent) => {
+      const handleKeyDown = (_e: KeyboardEvent) => {
         // If we haven't given "real" focus to the editor yet, do it now.
         // This ensures Lexical receives the key events.
         if (document.activeElement !== rootElement) {
