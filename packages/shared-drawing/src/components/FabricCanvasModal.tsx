@@ -2812,7 +2812,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                 // Recalculate total pages based on new viewport height
                 if (pageHeightRef.current > 0 && newHeight > 0) {
-                    setTotalPages(Math.max(1, Math.ceil(pageHeightRef.current / newHeight)));
+                    setTotalPages(Math.max(1, Math.ceil((pageHeightRef.current - 5) / newHeight)));
                 }
             }
 
@@ -3429,7 +3429,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     pageHeightRef.current = json.height;
                     setPageHeightState(json.height);
                     if (viewportHeightRef.current > 0) {
-                        setTotalPages(Math.max(1, Math.ceil(json.height / viewportHeightRef.current)));
+                        setTotalPages(Math.max(1, Math.ceil((json.height - 5) / viewportHeightRef.current)));
                     }
                 }
 
@@ -3506,7 +3506,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                     // Force update total pages based on potentially new height
                     if (currentViewH > 0) {
-                        setTotalPages(Math.max(1, Math.ceil(finalHeight / currentViewH)));
+                        setTotalPages(Math.max(1, Math.ceil((finalHeight - 5) / currentViewH)));
                     }
 
                     // Reset/Sync viewport transform
@@ -4592,7 +4592,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         }
 
         // Update total pages count
-        setTotalPages(Math.min(maxPagesRef.current, Math.ceil(newHeight / viewportHeight)));
+        setTotalPages(Math.min(maxPagesRef.current, Math.ceil((newHeight - 5) / viewportHeight)));
 
         // Note: Background Rect height is handled via useEffect dependency on pageHeightState
 
@@ -4713,7 +4713,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         if (canvas) {
             const viewportHeight = viewportHeightRef.current || vScroll.clientHeight || 400;
             const docHeight = pageHeightRef.current;
-            setTotalPages(Math.max(1, Math.ceil(docHeight / viewportHeight)));
+            setTotalPages(Math.max(1, Math.ceil((docHeight - 10) / viewportHeight)));
         }
         vScroll.addEventListener('scroll', handleScroll, { passive: true });
         return () => {
