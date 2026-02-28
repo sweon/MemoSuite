@@ -1635,13 +1635,14 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Physical keyboard detection heuristic
-      // Method 1: Non-IME keys (English chars, nav keys, modifiers)
+      // Method 1: Non-IME keys (nav keys, modifiers)
       const isPhysicalByKey = (
         e.key === 'Tab' ||
         e.key === 'Escape' ||
         e.key.startsWith('Arrow') ||
-        e.metaKey || e.ctrlKey || e.altKey ||
-        (e.key.length === 1 && e.keyCode !== 229 && !e.isComposing)
+        e.key === 'PageUp' || e.key === 'PageDown' ||
+        e.key === 'Home' || e.key === 'End' ||
+        e.metaKey || e.ctrlKey || e.altKey
       );
       // Method 2: Physical keyboards send non-empty e.code (e.g. 'KeyA')
       // even during Korean IME composition (keyCode === 229).
@@ -1664,6 +1665,8 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
     const handlePointerChange = (e: MediaQueryListEvent) => {
       if (e.matches && !isPhysicalKeyboard) {
         setIsPhysicalKeyboard(true);
+      } else if (!e.matches && isPhysicalKeyboard) {
+        handlePhysicalKeyboardLost();
       }
     };
 
@@ -1677,11 +1680,24 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       handlePhysicalKeyboardLost();
     };
 
+    const handleVKChange = (e: Event) => {
+      const { height } = (e.target as any).boundingRect || { height: 0 };
+      if (height > 0 && isPhysicalKeyboard) {
+        // If the virtual keyboard forcibly popped up (e.g., from an edge-case 
+        // touch or an OS intercept), then the user clearly needs it. 
+        // Assume the physical keyboard is inactive/disconnected.
+        handlePhysicalKeyboardLost();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('blur', handleWindowBlur);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     if (mediaQuery.addEventListener) {
       mediaQuery.addEventListener('change', handlePointerChange);
+    }
+    if ('virtualKeyboard' in navigator) {
+      (navigator as any).virtualKeyboard.addEventListener('geometrychange', handleVKChange);
     }
 
     return () => {
@@ -1690,6 +1706,9 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (mediaQuery.removeEventListener) {
         mediaQuery.removeEventListener('change', handlePointerChange);
+      }
+      if ('virtualKeyboard' in navigator) {
+        (navigator as any).virtualKeyboard.removeEventListener('geometrychange', handleVKChange);
       }
     };
   }, [isPhysicalKeyboard]);
