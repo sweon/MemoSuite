@@ -766,6 +766,12 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
     const setupOnRoot = (rootElement: HTMLElement) => {
       let inputModeSuppressed = false;
 
+      if (!active) {
+        rootElement.removeAttribute('inputmode');
+        rootElement.removeAttribute('virtualkeyboardpolicy');
+        return;
+      }
+
       // Ensure we start with inputmode="none" to be safe
       rootElement.setAttribute('inputmode', 'none');
       rootElement.setAttribute('virtualkeyboardpolicy', 'manual');
@@ -925,6 +931,11 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       }
       if (rootElement) {
         setupOnRoot(rootElement);
+
+        // If we just lost physical keyboard, explicitly try to show VK on next focus
+        if (!active && 'virtualKeyboard' in navigator) {
+          (navigator as any).virtualKeyboard.show();
+        }
       }
     });
 
@@ -1628,12 +1639,19 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
   // Callback when the plugin detects BT keyboard was disconnected
   const handlePhysicalKeyboardLost = useCallback(() => {
     setIsPhysicalKeyboard(false);
+    (window as any)._lexicalLostKeyboardTime = Date.now();
   }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't re-detect physical keyboard for 5s after losing it (prevents VKeyboard typing from re-triggering it)
+      const lastLost = (window as any)._lexicalLostKeyboardTime || 0;
+      if (Date.now() - lastLost < 5000) {
+        return;
+      }
+
       // If virtual keyboard is visible, don't trigger physical mode
       if ('virtualKeyboard' in navigator && (navigator as any).virtualKeyboard.boundingRect.height > 0) {
         return;
