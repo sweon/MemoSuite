@@ -462,15 +462,7 @@ export const MemoDetail: React.FC = () => {
         commentDraft: null as CommentDraft | null,
     });
 
-    useEffect(() => {
-        if (id && searchParams.get('drawing') === 'true') {
-            fabricCheckpointRef.current = content;
-            setIsFabricModalOpen(true);
-        }
-        if (id && searchParams.get('spreadsheet') === 'true') {
-            setIsSpreadsheetModalOpen(true);
-        }
-    }, [id]);
+
 
     const [prevScrollRatio, setPrevScrollRatio] = useState<number | undefined>(undefined);
     const fabricCheckpointRef = useRef<string | null>(null);
@@ -885,6 +877,48 @@ export const MemoDetail: React.FC = () => {
 
         return () => clearInterval(interval);
     }, [id, isEditing, isFabricModalOpen, isSpreadsheetModalOpen, !!commentDraft]); // Removed memo dependency to prevent interval reset on DB updates
+
+    // Ensure we only trigger auto-modal when BOTH id and memo are available,
+    // and content state has been correctly synchronized with memo from DB.
+    useEffect(() => {
+        if (!id || !memo || memo.id !== Number(id) || content !== memo.content) return;
+
+        if (searchParams.get('drawing') === 'true' && !isFabricModalOpen) {
+            fabricCheckpointRef.current = content;
+
+            // Extract first fabric block for initial editing session if not already set.
+            // This ensures onSave replaces the correct block instead of appending.
+            if (!editingDrawingData) {
+                const match = content.match(/```fabric\s*([\s\S]*?)\s*```/);
+                if (match) setEditingDrawingData(match[1]);
+            }
+
+            setIsFabricModalOpen(true);
+        }
+
+        if (searchParams.get('spreadsheet') === 'true' && !isSpreadsheetModalOpen) {
+            spreadsheetCheckpointRef.current = content;
+
+            // Extract first spreadsheet block data if not already set
+            if (!editingSpreadsheetData) {
+                const match = content.match(/```spreadsheet\s*([\s\S]*?)\s*```/);
+                if (match) {
+                    try {
+                        const json = match[1].trim();
+                        if (json) {
+                            setEditingSpreadsheetData(JSON.parse(json));
+                            originalSpreadsheetJsonRef.current = json;
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse initial spreadsheet JSON", e);
+                    }
+                }
+            }
+
+            setIsSpreadsheetModalOpen(true);
+        }
+    }, [id, memo, content, searchParams, isFabricModalOpen, isSpreadsheetModalOpen, editingDrawingData, editingSpreadsheetData]);
+
 
     const handleSave = async (overrideTitle?: string, overrideContent?: string, _overrideSearch?: string, overrideState?: any) => {
         const tagArray = tags.split(',').map((t: any) => t.trim()).filter(Boolean);
@@ -1475,14 +1509,36 @@ export const MemoDetail: React.FC = () => {
                                         found = true;
                                     }
                                 }
+                                if (!found) {
+                                    // As a fallback, if we still didn't find it but it's a fresh sidebar memo, 
+                                    // replace the FIRST available fabric block if it's empty or placeholder-ish.
+                                    newContent = content.replace(fabricRegex, (match: any, p1: any) => {
+                                        if (!found && !normalize(p1)) {
+                                            found = true;
+                                            return `\`\`\`fabric\n${json}\n\`\`\``;
+                                        }
+                                        return match;
+                                    });
+                                }
                                 if (!found && !content.includes('```fabric')) {
                                     newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                                 }
                             } else if (!content.includes('```fabric')) {
                                 newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                             } else {
-                                // Safe fallback: Append if we can't be sure which one to replace
-                                newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                // Safe fallback for initial save: If there's only ONE fabric block and it's empty, replace it.
+                                let replaced = false;
+                                newContent = content.replace(fabricRegex, (match: any, p1: any) => {
+                                    if (!replaced && !normalize(p1)) {
+                                        replaced = true;
+                                        return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    }
+                                    return match;
+                                });
+                                if (!replaced) {
+                                    // Append if we can't be sure which one to replace
+                                    newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                }
                             }
                             setContent(newContent);
                             setEditingDrawingData(json);
@@ -1531,36 +1587,53 @@ export const MemoDetail: React.FC = () => {
                         onAutosave={(json) => {
                             let newContent = content;
                             const fabricRegex = /```fabric\s*([\s\S]*?)\s*```/g;
+                            const normalize = (s: string) => s.replace(/\r\n/g, '\n').trim();
 
                             if (editingDrawingData) {
                                 let found = false;
+                                const targetData = normalize(editingDrawingData);
                                 newContent = content.replace(fabricRegex, (match: any, p1: any) => {
-                                    if (!found && p1.trim() === editingDrawingData.trim()) {
+                                    if (!found && normalize(p1) === targetData) {
                                         found = true;
                                         return `\`\`\`fabric\n${json}\n\`\`\``;
                                     }
                                     return match;
                                 });
                                 if (!found) {
+                                    newContent = content.replace(fabricRegex, (match: any, p1: any) => {
+                                        if (!found && !normalize(p1)) {
+                                            found = true;
+                                            return `\`\`\`fabric\n${json}\n\`\`\``;
+                                        }
+                                        return match;
+                                    });
+                                }
+                                if (!found) {
                                     const matches = content.match(fabricRegex);
                                     if (matches && matches.length === 1) {
                                         newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
-                                    } else { // Fallback: if multiple or no fabric blocks, append
-                                        newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
+                                        found = true;
                                     }
                                 }
-                            } else if (searchParams.get('drawing') === 'true' || content.startsWith('```fabric')) {
-                                if (content.includes('```fabric')) {
-                                    newContent = content.replace(fabricRegex, `\`\`\`fabric\n${json}\n\`\`\``);
-                                } else {
+                            } else {
+                                // Safe fallback: replace first empty block or append
+                                let replaced = false;
+                                newContent = content.replace(fabricRegex, (match: any, p1: any) => {
+                                    if (!replaced && !normalize(p1)) {
+                                        replaced = true;
+                                        return `\`\`\`fabric\n${json}\n\`\`\``;
+                                    }
+                                    return match;
+                                });
+                                if (!replaced && !content.includes('```fabric')) {
                                     newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                                 }
-                            } else {
-                                newContent = content ? (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`fabric\n${json}\n\`\`\`` : `\`\`\`fabric\n${json}\n\`\`\``;
                             }
+
                             if (newContent !== content) {
                                 setContent(newContent);
                                 setEditingDrawingData(json);
+                                fabricCheckpointRef.current = newContent; // Update checkpoint for next onClose
                             }
                         }}
                     />
@@ -1649,29 +1722,33 @@ export const MemoDetail: React.FC = () => {
                                 }
                                 return match;
                             });
-                            // Update ref for subsequent autosaves
+                            // Update ref and checkpoint for subsequent autosaves/onClose
                             if (found && newContent !== content) {
                                 originalSpreadsheetJsonRef.current = json;
                                 setContent(newContent);
+                                spreadsheetCheckpointRef.current = newContent;
                             }
-                        } else if (content.includes('```spreadsheet')) {
-                            newContent = content.replace(spreadsheetRegex, `\`\`\`spreadsheet\n${json}\n\`\`\``);
+                        } else {
+                            // Initial autosave or no direct match
+                            let replaced = false;
+                            newContent = content.replace(spreadsheetRegex, (match: any, p1: any) => {
+                                if (!replaced && !p1.trim()) {
+                                    replaced = true;
+                                    return `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                                }
+                                return match;
+                            });
+
+                            if (!replaced && !content.includes('```spreadsheet')) {
+                                newContent = (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`spreadsheet\n${json}\n\`\`\``;
+                                replaced = true;
+                            }
+
                             if (newContent !== content) {
                                 originalSpreadsheetJsonRef.current = json;
                                 setContent(newContent);
+                                spreadsheetCheckpointRef.current = newContent;
                             }
-                        } else if (searchParams.get('spreadsheet') === 'true' || content.trim().startsWith('```spreadsheet')) {
-                            newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                            originalSpreadsheetJsonRef.current = json;
-                            setContent(newContent);
-                        } else if (content) {
-                            newContent = (content.endsWith('\n') ? (content.endsWith('\n\n') ? content : content + '\n') : content + '\n\n') + `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                            originalSpreadsheetJsonRef.current = json;
-                            setContent(newContent);
-                        } else {
-                            newContent = `\`\`\`spreadsheet\n${json}\n\`\`\``;
-                            originalSpreadsheetJsonRef.current = json;
-                            setContent(newContent);
                         }
                     }}
                     initialData={editingSpreadsheetData}
