@@ -768,6 +768,7 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
 
       // Ensure we start with inputmode="none" to be safe
       rootElement.setAttribute('inputmode', 'none');
+      rootElement.setAttribute('virtualkeyboardpolicy', 'manual');
       inputModeSuppressed = true;
       if ('virtualKeyboard' in navigator) {
         (navigator as any).virtualKeyboard.hide();
@@ -776,6 +777,7 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       const ensureSuppressed = () => {
         if (!inputModeSuppressed) {
           rootElement.setAttribute('inputmode', 'none');
+          rootElement.setAttribute('virtualkeyboardpolicy', 'manual');
           inputModeSuppressed = true;
         }
         if ('virtualKeyboard' in navigator) {
@@ -838,6 +840,9 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
           // Force focus silently
           if (document.activeElement !== rootElement) {
             rootElement.focus({ preventScroll: true });
+            if ('virtualKeyboard' in navigator) {
+              (navigator as any).virtualKeyboard.hide();
+            }
           }
 
           // Manually place the cursor because we prevented the default behavior
@@ -876,6 +881,7 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       const handleKeyDown = (_e: KeyboardEvent) => {
         if (inputModeSuppressed) {
           rootElement.removeAttribute('inputmode');
+          rootElement.removeAttribute('virtualkeyboardpolicy');
           inputModeSuppressed = false;
         }
       };
@@ -889,6 +895,7 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
 
       cleanupFns.push(() => {
         rootElement.removeAttribute('inputmode');
+        rootElement.removeAttribute('virtualkeyboardpolicy');
         rootElement.removeEventListener('touchstart', handleTouchStart, { capture: true } as any);
         rootElement.removeEventListener('touchmove', handleTouchMove, { capture: true } as any);
         rootElement.removeEventListener('touchend', handleTouchEnd, { capture: true } as any);
