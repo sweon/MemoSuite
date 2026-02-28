@@ -789,6 +789,7 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
       let touchStartY = 0;
       let touchDownTime = 0;
       let isTouchMoving = false;
+      let hasReceivedFirstFocus = false;
 
       const handleTouchStart = (e: TouchEvent) => {
         if (e.touches.length > 1) return;
@@ -840,6 +841,19 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
           // Force focus silently
           if (document.activeElement !== rootElement) {
             rootElement.focus({ preventScroll: true });
+
+            // CRITICAL HACK FOR FIRST KOREAN IME FOCUS:
+            // The VERY FIRST TIME a contenteditable is focused in an Android session,
+            // the Korean IME will aggressively force the keyboard open, utterly
+            // ignoring `inputmode="none"`. To defeat this, we focus the element,
+            // instantly blur it to destroy the just-created rebellious OS text context,
+            // and then re-focus it. The second focus correctly respects inputmode="none".
+            if (!hasReceivedFirstFocus) {
+              hasReceivedFirstFocus = true;
+              rootElement.blur();
+              rootElement.focus({ preventScroll: true });
+            }
+
             if ('virtualKeyboard' in navigator) {
               (navigator as any).virtualKeyboard.hide();
             }
