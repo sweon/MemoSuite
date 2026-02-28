@@ -892,7 +892,7 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
     });
 
     // Section 3: Max Pages
-    const [tempMaxPages, setTempMaxPages] = useState(maxPages);
+    const [tempMaxPages, setTempMaxPages] = useState<number | string>(maxPages);
 
     // Section 4: Default Zoom Lock
     const [tempDefaultZoomLocked, setTempDefaultZoomLocked] = useState(defaultZoomLocked);
@@ -1300,7 +1300,14 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
                                     min="1"
                                     max="100"
                                     value={tempMaxPages}
-                                    onChange={(e) => setTempMaxPages(Math.max(1, parseInt(e.target.value) || 1))}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setTempMaxPages(val === '' ? '' : parseInt(val));
+                                    }}
+                                    onBlur={() => {
+                                        if (typeof tempMaxPages === 'number' && tempMaxPages < 1) setTempMaxPages(1);
+                                        if (tempMaxPages === '') setTempMaxPages(1);
+                                    }}
                                     style={{
                                         width: '80px',
                                         padding: '10px',
@@ -1317,7 +1324,7 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
                                 </div>
                             </div>
 
-                            {tempMaxPages > 5 && (
+                            {Number(tempMaxPages) > 5 && (
                                 <div style={{
                                     padding: '10px',
                                     background: '#fff9db',
@@ -1335,7 +1342,7 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
                             {/* Section Buttons */}
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
                                 <span
-                                    onClick={() => setTempMaxPages(5)}
+                                    onClick={() => setTempMaxPages(3)}
                                     style={{ marginRight: 'auto', fontSize: '0.7rem', color: '#6b7280', cursor: 'pointer', textDecoration: 'underline' }}
                                 >
                                     {t.drawing?.reset_each}
@@ -1346,7 +1353,8 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
                                 <CompactModalButton
                                     $variant="primary"
                                     onClick={() => {
-                                        onMaxPagesChange(tempMaxPages);
+                                        const finalMax = Math.max(1, typeof tempMaxPages === 'string' ? 1 : (tempMaxPages || 1));
+                                        onMaxPagesChange(finalMax);
                                         onClose();
                                     }}
                                     style={{ fontSize: '0.75rem', padding: '6px 12px' }}
@@ -1857,7 +1865,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
     const [maxPages, setMaxPages] = useState<number>(() => {
         const saved = localStorage.getItem('fabric_max_pages');
-        return saved ? parseInt(saved) : 5;
+        return saved ? parseInt(saved) : 3;
     });
 
     useEffect(() => {
