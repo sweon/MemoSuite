@@ -806,12 +806,11 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         isTouchMoving = false;
 
         // CRITICAL FOR KOREAN IME (100% SUPPRESSION):
-        // If the element is actively focused and we are transitioning from
-        // physical typing (where inputmode was removed) back to touch,
-        // we MUST blur the element to physically commit the composition and 
-        // destroy the OS text context BEFORE applying `inputmode="none"`.
-        if (!inputModeSuppressed && document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur();
+        // If the element is focused (especially during Korean IME composition),
+        // we MUST blur it to physically commit the composition and 
+        // destroy the OS text context BEFORE any further focus attempts.
+        if (document.activeElement === rootElement) {
+          rootElement.blur();
         }
 
         // Force inputmode none on touch start
@@ -1801,6 +1800,9 @@ export const LexicalEditor: React.FC<LexicalEditorProps> = ({
                 spellCheck={spellCheck}
                 $tabSize={tabSize}
                 $fontSize={fontSize}
+                inputMode={isPhysicalKeyboard ? "none" : undefined}
+                // @ts-ignore
+                virtualkeyboardpolicy={isPhysicalKeyboard ? "manual" : undefined}
               />
             }
             placeholder={
