@@ -2376,6 +2376,27 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         if (cached) return cached;
 
         const raw = (obj as any).toObject(SAVE_CUSTOM_PROPS);
+
+        // ── PERFORMANCE: Reduce JSON size & precision ──
+        // 1. Array path rounding
+        if (raw.path && Array.isArray(raw.path)) {
+            for (let i = 0; i < raw.path.length; i++) {
+                const cmd = raw.path[i];
+                for (let j = 1; j < cmd.length; j++) {
+                    if (typeof cmd[j] === 'number') cmd[j] = Math.round(cmd[j] * 10) / 10;
+                }
+            }
+        }
+
+        // 2. Round coordinates and dimensions to 1 decimal place
+        if (typeof raw.left === 'number') raw.left = Math.round(raw.left * 10) / 10;
+        if (typeof raw.top === 'number') raw.top = Math.round(raw.top * 10) / 10;
+        if (typeof raw.width === 'number') raw.width = Math.round(raw.width * 10) / 10;
+        if (typeof raw.height === 'number') raw.height = Math.round(raw.height * 10) / 10;
+        if (typeof raw.scaleX === 'number') raw.scaleX = Math.round(raw.scaleX * 1000) / 1000;
+        if (typeof raw.scaleY === 'number') raw.scaleY = Math.round(raw.scaleY * 1000) / 1000;
+
+
         // Strip default Fabric values in-place to reduce JSON size
         for (let i = 0; i < FABRIC_DEFAULTS_KEYS.length; i++) {
             const key = FABRIC_DEFAULTS_KEYS[i];
@@ -2447,56 +2468,6 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         updateUndoRedoState();
     }, [updateUndoRedoState]);
 
-    // Handle object added - save just the new object
-    // Use a pending queue for history actions to avoid blocking the main thread
-    const historyQueueRef = useRef<{ obj: fabric.Object; type: 'add' | 'remove' }[]>([]);
-    const historyProcessingRef = useRef<boolean>(false);
-
-    const processHistoryQueue = useCallback(() => {
-        if (historyQueueRef.current.length === 0 || isUndoRedoRef.current) {
-            historyProcessingRef.current = false;
-            return;
-        }
-
-        historyProcessingRef.current = true;
-
-        const canvas = fabricCanvasRef.current;
-        // If currently drawing, wait and retry later
-        if (canvas && (canvas as any)._isCurrentlyDrawing) {
-            setTimeout(processHistoryQueue, 500);
-            return;
-        }
-
-        const scheduleNext = typeof requestIdleCallback !== 'undefined'
-            ? (cb: () => void) => requestIdleCallback(cb, { timeout: 2000 })
-            : (cb: () => void) => setTimeout(cb, 200);
-
-        scheduleNext(() => {
-            if (historyQueueRef.current.length === 0) {
-                historyProcessingRef.current = false;
-                return;
-            }
-            const { obj, type } = historyQueueRef.current.shift()!;
-            const id = getObjectId(obj);
-            try {
-                // Check drawing status again just before expensive serialization
-                if (canvas && (canvas as any)._isCurrentlyDrawing) {
-                    historyQueueRef.current.unshift({ obj, type });
-                    // Keep historyProcessingRef.current = true to block other callers
-                    setTimeout(processHistoryQueue, 500);
-                    return;
-                }
-                // Use cache-aware serialization (also populates save cache)
-                const objectJson = serializeObjectForSave(obj);
-                addHistoryAction({ type, objectJson, objectId: id });
-            } catch (err) {
-                console.error('History serialization failed:', err);
-            }
-            // Continue processing the queue
-            processHistoryQueue();
-        });
-    }, [addHistoryAction, getObjectId, serializeObjectForSave]);
-
     const handleObjectAddedForHistory = React.useCallback((e: any) => {
         if (isUndoRedoRef.current) return;
         const obj = e.target;
@@ -2506,13 +2477,18 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         lastAddedObjectRef.current = obj;
         lastAddedObjectTimeRef.current = Date.now();
 
-        // Queue for background processing
-        historyQueueRef.current.push({ obj, type: 'add' });
-        setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
-        if (!historyProcessingRef.current) {
-            processHistoryQueue();
+        // ── PERFORMANCE: Synchronous serialize to populate caching ──
+        // Instead of a background queue, serialize the newly drawn object immediately (< 1ms).
+        try {
+            const objectJson = serializeObjectForSave(obj);
+            const id = getObjectId(obj);
+            addHistoryAction({ type: 'add', objectJson, objectId: id });
+        } catch (err) {
+            console.error('History serialization failed:', err);
         }
-    }, [processHistoryQueue]);
+
+        setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
+    }, [addHistoryAction, getObjectId, serializeObjectForSave]);
 
     // Handle object removed - save the removed object for potential undo
     const handleObjectRemovedForHistory = React.useCallback((e: any) => {
@@ -2520,14 +2496,16 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const obj = e.target;
         if (!obj) return;
 
-        // For removal, we still need immediate serialization if it's not a path,
-        // but let's try queueing it as well to be consistent.
-        historyQueueRef.current.push({ obj, type: 'remove' });
-        setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
-        if (!historyProcessingRef.current) {
-            processHistoryQueue();
+        try {
+            const objectJson = serializeObjectForSave(obj);
+            const id = getObjectId(obj);
+            addHistoryAction({ type: 'remove', objectJson, objectId: id });
+        } catch (err) {
+            console.error('History serialization fallback failed:', err);
         }
-    }, [processHistoryQueue, getObjectId]);
+
+        setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
+    }, [addHistoryAction, getObjectId, serializeObjectForSave]);
 
     // Debounced modify handler - only saves after user stops modifying
     const modifyTimeoutRef = useRef<any | null>(null);
@@ -4857,10 +4835,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 return; // Skip this tick, will try again next interval
             }
 
-            // Also skip if there are pending history items being processed
-            if (historyQueueRef.current.length > 0) {
-                return;
-            }
+
 
             // Skip if canvas hasn't changed since last autosave
             if (!autosaveDirtyRef.current) {
