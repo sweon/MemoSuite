@@ -806,10 +806,18 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
         isTouchMoving = false;
 
         // CRITICAL FOR KOREAN IME (100% SUPPRESSION):
-        // If the element is focused (especially during Korean IME composition),
-        // we MUST blur it to physically commit the composition and 
-        // destroy the OS text context BEFORE any further focus attempts.
-        if (document.activeElement === rootElement) {
+        // 1. Forcefully blur ANY active element. This kills any existing OS IME context.
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+
+        // 2. Perform a "Sacrificial Focus/Blur" on the FIRST touch only. 
+        // Android's Korean IME is extremely aggressive on the very first programmatic focus.
+        // By doing it in touchstart (before the real caret-positioning focus in touchend),
+        // we "exhaust" the IME's initial-popup urge while the OS is still busy with the touch.
+        if (!hasReceivedFirstFocus) {
+          hasReceivedFirstFocus = true;
+          rootElement.focus({ preventScroll: true });
           rootElement.blur();
         }
 
@@ -845,23 +853,14 @@ function VirtualKeyboardSuppressorPlugin({ active, onPhysicalKeyboardLost }: { a
 
           // Force focus silently
           if (document.activeElement !== rootElement) {
-            rootElement.focus({ preventScroll: true });
-
-            // CRITICAL HACK FOR FIRST KOREAN IME FOCUS:
-            // The VERY FIRST TIME a contenteditable is focused in an Android session,
-            // the Korean IME will aggressively force the keyboard open, utterly
-            // ignoring `inputmode="none"`. To defeat this, we focus the element,
-            // instantly blur it to destroy the just-created rebellious OS text context,
-            // and then re-focus it. The second focus correctly respects inputmode="none".
-            if (!hasReceivedFirstFocus) {
-              hasReceivedFirstFocus = true;
-              rootElement.blur();
+            // Use setTimeout to ensure the OS has processed the sacrificial 
+            // focus/blur from touchstart before we re-focus for real.
+            setTimeout(() => {
               rootElement.focus({ preventScroll: true });
-            }
-
-            if ('virtualKeyboard' in navigator) {
-              (navigator as any).virtualKeyboard.hide();
-            }
+              if ('virtualKeyboard' in navigator) {
+                (navigator as any).virtualKeyboard.hide();
+              }
+            }, 0);
           }
 
           // Manually place the cursor because we prevented the default behavior
