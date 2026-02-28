@@ -3140,8 +3140,9 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     // toggle the eraser and absorb the event (don't start a stroke).
                     // On S Pen: button === 2 (right-click-like) during pen pointerdown
                     // On standard pens: button === 5 or buttons & 32
+                    const isMouse = e.pointerType === 'mouse';
                     const isBarrelDown =
-                        e.button === 5 ||
+                        (!isMouse && e.button === 5) ||
                         e.button === 2 ||
                         (e.buttons & 32) === 32;
 
@@ -3204,10 +3205,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     // Update hover activity timestamp so oncontextmenu can identify the pen
                     lastPenTime = Date.now();
 
+                    const isMouse = e.pointerType === 'mouse';
                     const isBarrelPressed =
                         (e.buttons & 32) === 32 ||   // Standard barrel button
                         (e.buttons & 2) === 2 ||     // Right-click barrel
-                        (e.buttons & 1) === 1;       // S Pen barrel variant
+                        (!isMouse && (e.buttons & 1) === 1); // Stylus-specific barrel variant
 
                     if (isBarrelPressed && !barrelButtonStateRef.current) {
                         // Transition: released → pressed → TOGGLE!
