@@ -4839,7 +4839,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         const scheduleAutosave = () => {
             if (typeof requestIdleCallback !== 'undefined') {
-                idleCallbackId = requestIdleCallback((deadline) => {
+                idleCallbackId = requestIdleCallback(() => {
                     performAutosave();
                 }, { timeout: 15000 }); // Max 15s wait before forcing
             } else {
