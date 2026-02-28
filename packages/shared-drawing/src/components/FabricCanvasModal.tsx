@@ -1387,6 +1387,24 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
     );
 };
 
+// ── Module-level constants for per-object JSON caching ──
+const SAVE_CUSTOM_PROPS = ['isPixelEraser', 'isObjectEraser', 'excludeFromExport', '__historyId'];
+const FABRIC_DEFAULTS_TO_STRIP: Record<string, any> = {
+    angle: 0, skewX: 0, skewY: 0, flipX: false, flipY: false,
+    opacity: 1, shadow: null, visible: true, backgroundColor: '',
+    fillRule: 'nonzero', paintFirst: 'fill', globalCompositeOperation: 'source-over',
+    strokeDashArray: null, strokeDashOffset: 0, strokeLineCap: 'butt',
+    strokeLineJoin: 'miter', strokeMiterLimit: 4, strokeUniform: false,
+    originX: 'left', originY: 'top',
+    selectable: true, evented: true,
+    lockMovementX: false, lockMovementY: false,
+    lockScalingX: false, lockScalingY: false, lockRotation: false,
+    hasControls: true, hasBorders: true,
+    hoverCursor: null, moveCursor: null,
+    perPixelTargetFind: false,
+};
+const FABRIC_DEFAULTS_KEYS = Object.keys(FABRIC_DEFAULTS_TO_STRIP);
+
 export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialData, onSave, onAutosave, onClose: propsOnClose, language = 'en' }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -2235,6 +2253,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
     const isUndoRedoRef = useRef(false); // Prevent saving during undo/redo
     const objectIdMapRef = useRef<WeakMap<fabric.Object, string>>(new WeakMap()); // Track object IDs
     const nextObjectIdRef = useRef(1); // Counter for unique IDs
+    // Per-object JSON cache: avoids re-serializing unchanged objects on save
+    const objJsonCacheRef = useRef<WeakMap<fabric.Object, string>>(new WeakMap());
 
     const lastTapMapRef = useRef<{ [key: string]: number }>({});
     const openedTimeRef = useRef<number>(0);
@@ -2349,6 +2369,36 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         return id;
     }, []);
 
+    // Serialize a single object for save, stripping Fabric defaults and caching the result.
+    // Returns the cached string if the object hasn't changed.
+    const serializeObjectForSave = React.useCallback((obj: fabric.Object): string => {
+        const cached = objJsonCacheRef.current.get(obj);
+        if (cached) return cached;
+
+        const raw = (obj as any).toObject(SAVE_CUSTOM_PROPS);
+        // Strip default Fabric values in-place to reduce JSON size
+        for (let i = 0; i < FABRIC_DEFAULTS_KEYS.length; i++) {
+            const key = FABRIC_DEFAULTS_KEYS[i];
+            if (key in raw) {
+                const def = FABRIC_DEFAULTS_TO_STRIP[key];
+                if (raw[key] === def || (def === null && raw[key] === null)) {
+                    delete raw[key];
+                }
+            }
+        }
+        // Strip empty arrays (except critical ones)
+        const keys = Object.keys(raw);
+        for (let i = 0; i < keys.length; i++) {
+            const k = keys[i];
+            if (k !== 'objects' && k !== 'path' && Array.isArray(raw[k]) && raw[k].length === 0) {
+                delete raw[k];
+            }
+        }
+        const json = JSON.stringify(raw);
+        objJsonCacheRef.current.set(obj, json);
+        return json;
+    }, []);
+
     // Save initial snapshot (full JSON) - only called once on init
     const saveInitialSnapshot = React.useCallback(() => {
         const canvas = fabricCanvasRef.current;
@@ -2436,7 +2486,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     setTimeout(processHistoryQueue, 500);
                     return;
                 }
-                const objectJson = JSON.stringify(obj.toJSON());
+                // Use cache-aware serialization (also populates save cache)
+                const objectJson = serializeObjectForSave(obj);
                 addHistoryAction({ type, objectJson, objectId: id });
             } catch (err) {
                 console.error('History serialization failed:', err);
@@ -2444,7 +2495,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             // Continue processing the queue
             processHistoryQueue();
         });
-    }, [addHistoryAction, getObjectId]);
+    }, [addHistoryAction, getObjectId, serializeObjectForSave]);
 
     const handleObjectAddedForHistory = React.useCallback((e: any) => {
         if (isUndoRedoRef.current) return;
@@ -2494,16 +2545,22 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
         // Store the previous state if not already captured
         if (!pendingModifyRef.current || pendingModifyRef.current.obj !== obj) {
-            pendingModifyRef.current = { obj, prevJson: JSON.stringify(obj.toJSON()) };
+            // Use cached JSON as prevJson if available (state before modification)
+            const prevJson = objJsonCacheRef.current.get(obj) || JSON.stringify((obj as any).toObject(SAVE_CUSTOM_PROPS));
+            pendingModifyRef.current = { obj, prevJson };
             setIsCanvasDirty(true); isCanvasDirtyRef.current = true; autosaveDirtyRef.current = true;
         }
+
+        // Invalidate save cache since object changed
+        objJsonCacheRef.current.delete(obj);
 
         // Debounce - save after 500ms of no modifications
         modifyTimeoutRef.current = setTimeout(() => {
             if (pendingModifyRef.current) {
                 const { obj: modObj } = pendingModifyRef.current;
                 const id = (modObj as any).__historyId || getObjectId(modObj);
-                const objectJson = JSON.stringify(modObj.toJSON());
+                // Re-serialize & cache the new state
+                const objectJson = serializeObjectForSave(modObj);
                 addHistoryAction({
                     type: 'modify',
                     objectJson,
@@ -2513,7 +2570,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 pendingModifyRef.current = null;
             }
         }, 500);
-    }, [getObjectId, addHistoryAction]);
+    }, [getObjectId, addHistoryAction, serializeObjectForSave]);
 
     // Legacy saveHistory for compatibility with extend height etc (uses snapshot)
     const saveHistory = React.useCallback(() => {
@@ -3479,6 +3536,32 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
                     // Mark as clean/saved after initial load
                     lastSavedIndexRef.current = historyIndexRef.current;
+
+                    // Pre-populate per-object JSON cache in idle time
+                    // so the first save is also fast.
+                    const loadedObjects = canvas.getObjects();
+                    let cacheIdx = 0;
+                    const populateCacheBatch = () => {
+                        const batchEnd = Math.min(cacheIdx + 20, loadedObjects.length);
+                        for (; cacheIdx < batchEnd; cacheIdx++) {
+                            const o = loadedObjects[cacheIdx];
+                            if (!(o as any).isPageBackground && !objJsonCacheRef.current.has(o)) {
+                                serializeObjectForSave(o);
+                            }
+                        }
+                        if (cacheIdx < loadedObjects.length) {
+                            if (typeof requestIdleCallback !== 'undefined') {
+                                requestIdleCallback(populateCacheBatch, { timeout: 5000 });
+                            } else {
+                                setTimeout(populateCacheBatch, 100);
+                            }
+                        }
+                    };
+                    if (typeof requestIdleCallback !== 'undefined') {
+                        requestIdleCallback(populateCacheBatch, { timeout: 5000 });
+                    } else {
+                        setTimeout(populateCacheBatch, 200);
+                    }
                 });
             } catch (e) {
                 console.error("Failed to load fabric JSON", e);
@@ -4709,20 +4792,20 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
         const canvas = fabricCanvasRef.current;
         if (!canvas) return null;
 
-        // Only include custom properties needed for restoration
-        const jsonObj = canvas.toJSON([
-            'isPageBackground', 'isPixelEraser', 'isObjectEraser', 'excludeFromExport', '__historyId'
-        ]) as any;
-
-        // Filter out pageBackground objects — they are recreated on load
-        if (jsonObj.objects) {
-            jsonObj.objects = jsonObj.objects.filter((obj: any) => !obj.isPageBackground);
+        // ── PERFORMANCE: Assemble JSON from per-object cache ──
+        // Instead of canvas.toJSON() which deep-clones EVERY object (O(n)),
+        // we use cached serialized strings and just concatenate them.
+        const objects = canvas.getObjects();
+        const objectJsons: string[] = [];
+        for (let i = 0, len = objects.length; i < len; i++) {
+            const obj = objects[i];
+            // Skip page background (recreated on load)
+            if ((obj as any).isPageBackground) continue;
+            objectJsons.push(serializeObjectForSave(obj));
         }
 
-        jsonObj.width = pageWidthRef.current;
-        jsonObj.height = pageHeightRef.current;
-
-        jsonObj.backgroundConfig = {
+        // Build backgroundConfig as a small JSON fragment
+        const bgConfig = JSON.stringify({
             type: background,
             size: backgroundSize,
             bundleGap: backgroundBundleGap,
@@ -4731,37 +4814,11 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             opacity: lineOpacity,
             imageOpacity: backgroundImageOpacity,
             imageData: (background === 'image' && backgroundImage instanceof HTMLImageElement) ? backgroundImage.src : undefined
-        };
-
-        // Use replacer to strip Fabric default values, reducing JSON size significantly
-        const FABRIC_DEFAULTS: Record<string, any> = {
-            angle: 0, skewX: 0, skewY: 0, flipX: false, flipY: false,
-            opacity: 1, shadow: null, visible: true, backgroundColor: '',
-            fillRule: 'nonzero', paintFirst: 'fill', globalCompositeOperation: 'source-over',
-            strokeDashArray: null, strokeDashOffset: 0, strokeLineCap: 'butt',
-            strokeLineJoin: 'miter', strokeMiterLimit: 4, strokeUniform: false,
-            originX: 'left', originY: 'top',
-            // UI state props that don't need saving
-            selectable: true, evented: true,
-            lockMovementX: false, lockMovementY: false,
-            lockScalingX: false, lockScalingY: false, lockRotation: false,
-            hasControls: true, hasBorders: true,
-            hoverCursor: null, moveCursor: null,
-            perPixelTargetFind: false,
-        };
-        return JSON.stringify(jsonObj, (key, value) => {
-            // Strip properties that match Fabric defaults
-            if (key in FABRIC_DEFAULTS) {
-                const def = FABRIC_DEFAULTS[key];
-                if (value === def) return undefined;
-                // Also strip null defaults
-                if (def === null && value === null) return undefined;
-            }
-            // Strip empty arrays (e.g. empty strokeDashArray being [])
-            if (Array.isArray(value) && value.length === 0 && key !== 'objects' && key !== 'path') return undefined;
-            return value;
         });
-    }, [background, backgroundSize, backgroundBundleGap, backgroundColorIntensity, backgroundColorType, lineOpacity, backgroundImageOpacity, backgroundImage]);
+
+        // Assemble final JSON by string concatenation (avoids re-serializing cached objects)
+        return `{"version":"${(canvas as any).version || '5.3.0'}","objects":[${objectJsons.join(',')}],"width":${pageWidthRef.current},"height":${pageHeightRef.current},"backgroundConfig":${bgConfig}}`;
+    }, [background, backgroundSize, backgroundBundleGap, backgroundColorIntensity, backgroundColorType, lineOpacity, backgroundImageOpacity, backgroundImage, serializeObjectForSave]);
 
     // Callback refs to handle stale closures during async operations
     const onSaveRef = useRef(onSave);
