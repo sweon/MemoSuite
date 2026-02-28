@@ -750,8 +750,8 @@ const INITIAL_TOOLBAR_ITEMS: ToolbarItem[] = [
     { id: 'ellipse', type: 'tool', toolId: 'ellipse' },
     { id: 'triangle', type: 'tool', toolId: 'triangle' },
     { id: 'text', type: 'tool', toolId: 'text' },
-    { id: 'eraser_pixel', type: 'tool', toolId: 'eraser_pixel' },
     { id: 'eraser_object', type: 'tool', toolId: 'eraser_object' },
+    { id: 'eraser_pixel', type: 'tool', toolId: 'eraser_pixel' },
     { id: 'undo', type: 'action', actionId: 'undo' },
     { id: 'redo', type: 'action', actionId: 'redo' },
     { id: 'download_png', type: 'action', actionId: 'download_png' },
@@ -1153,27 +1153,6 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
                             </p>
                             <div style={{ display: 'flex', gap: '12px' }}>
                                 <div
-                                    onClick={() => setTempDefaultEraserType('eraser_pixel')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '12px',
-                                        borderRadius: '10px',
-                                        border: `2px solid ${tempDefaultEraserType === 'eraser_pixel' ? '#111827' : '#e5e7eb'}`,
-                                        background: tempDefaultEraserType === 'eraser_pixel' ? '#f3f4f6' : '#ffffff',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '8px',
-                                        transition: 'all 0.2s'
-                                    }}
-                                >
-                                    <PixelEraserIcon />
-                                    <span style={{ fontSize: '0.9rem', fontWeight: tempDefaultEraserType === 'eraser_pixel' ? 600 : 500, color: tempDefaultEraserType === 'eraser_pixel' ? '#111827' : '#4b5563' }}>
-                                        {t.drawing?.tool_eraser_pixel || 'Pixel'}
-                                    </span>
-                                </div>
-                                <div
                                     onClick={() => setTempDefaultEraserType('eraser_object')}
                                     style={{
                                         flex: 1,
@@ -1194,10 +1173,31 @@ const ToolbarConfigurator: React.FC<ToolbarConfiguratorProps> = ({
                                         {t.drawing?.tool_eraser_object || 'Object'}
                                     </span>
                                 </div>
+                                <div
+                                    onClick={() => setTempDefaultEraserType('eraser_pixel')}
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px',
+                                        borderRadius: '10px',
+                                        border: `2px solid ${tempDefaultEraserType === 'eraser_pixel' ? '#111827' : '#e5e7eb'}`,
+                                        background: tempDefaultEraserType === 'eraser_pixel' ? '#f3f4f6' : '#ffffff',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <PixelEraserIcon />
+                                    <span style={{ fontSize: '0.9rem', fontWeight: tempDefaultEraserType === 'eraser_pixel' ? 600 : 500, color: tempDefaultEraserType === 'eraser_pixel' ? '#111827' : '#4b5563' }}>
+                                        {t.drawing?.tool_eraser_pixel || 'Pixel'}
+                                    </span>
+                                </div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px', alignItems: 'center' }}>
                                 <span
-                                    onClick={() => setTempDefaultEraserType('eraser_pixel')}
+                                    onClick={() => setTempDefaultEraserType('eraser_object')}
                                     style={{ marginRight: 'auto', fontSize: '0.7rem', color: '#6b7280', cursor: 'pointer', textDecoration: 'underline' }}
                                 >
                                     {t.drawing?.reset_each}
@@ -1440,7 +1440,7 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
 
     // --- Barrel Button Toggle State ---
     const [defaultEraserType, setDefaultEraserType] = useState<'eraser_pixel' | 'eraser_object'>(() => {
-        return (localStorage.getItem('fabric_default_eraser_type') as any) || 'eraser_pixel';
+        return (localStorage.getItem('fabric_default_eraser_type') as any) || 'eraser_object';
     });
     // Remembers the last non-eraser tool so we can restore it when toggling back
     const lastNonEraserToolRef = useRef<{ toolType: ToolType; itemId: string | null; penSlot?: string } | null>(null);
@@ -1578,16 +1578,26 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
             !parsed.some(parsedItem => parsedItem.id === initialItem.id)
         );
 
+        let finalItems = [...parsed];
         if (missingItems.length > 0) {
             // Insert missing items at their intended position
-            const newItems = [...parsed];
             missingItems.forEach(item => {
                 const intendedIndex = INITIAL_TOOLBAR_ITEMS.findIndex(i => i.id === item.id);
-                newItems.splice(intendedIndex, 0, item);
+                finalItems.splice(intendedIndex, 0, item);
             });
-            return newItems;
         }
-        return parsed;
+
+        // --- FORCED MIGRATION: Ensure object eraser is always to the left of pixel eraser ---
+        const objectIdx = finalItems.findIndex(i => i.id === 'eraser_object');
+        const pixelIdx = finalItems.findIndex(i => i.id === 'eraser_pixel');
+        if (objectIdx !== -1 && pixelIdx !== -1 && pixelIdx < objectIdx) {
+            // Move pixel eraser to be after object eraser
+            const [pixelItem] = finalItems.splice(pixelIdx, 1);
+            const newObjectIdx = finalItems.findIndex(i => i.id === 'eraser_object');
+            finalItems.splice(newObjectIdx + 1, 0, pixelItem);
+        }
+
+        return finalItems;
     });
     const [activeTool, setActiveTool] = useState<ToolType>('pen');
     const [activeToolItemId, setActiveToolItemId] = useState<string | null>('pen_1');
@@ -4975,12 +4985,12 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 case 't': // Text
                     selectToolById('text');
                     break;
-                case 'e': // Eraser (pixel)
-                    selectToolById('eraser_pixel');
-                    break;
-                case 'd': // Delete eraser (object)
-                case 'x': // Alternative for object eraser
+                case 'e': // Eraser (object)
                     selectToolById('eraser_object');
+                    break;
+                case 'd': // Delete eraser (pixel) 
+                case 'x': // Alternative for pixel eraser
+                    selectToolById('eraser_pixel');
                     break;
                 case 'z': // Undo / Redo
                     if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
