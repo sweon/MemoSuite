@@ -3034,6 +3034,8 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                 wrapperEl.appendChild(overlay);
             }
 
+            let lastSingleTouchMidpoint: { x: number, y: number } | null = null;
+
             // --- Cursor Synchronization ---
             // Since the overlay is on top of the upperCanvas, we must sync the cursor
             // style manually so tool-specific cursors (like the eraser) are visible.
@@ -3182,6 +3184,14 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     return; // Absorb event
                 }
 
+                // 1.5 Single-finger Panning (when drawWithFinger is off)
+                if (e.pointerType === 'touch' && activePointers.size === 1 && !drawWithFingerRef.current && !isPalmEvent(e)) {
+                    lastSingleTouchMidpoint = getEvtPos(e);
+                    // Do not preventDefault here yet to allow potential long-press etc, 
+                    // but we will absorb the move events.
+                    return;
+                }
+
                 // 2. Decision: Forward to Fabric or Absorb?
                 const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen() && !isPalmEvent(e);
                 if (isPen || allowTouch) {
@@ -3280,6 +3290,28 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     return;
                 }
 
+                // 1.5 Single-finger Panning (when drawWithFinger is off)
+                if (e.pointerType === 'touch' && activePointers.size === 1 && !drawWithFingerRef.current && lastSingleTouchMidpoint) {
+                    const pos = getEvtPos(e);
+                    const dx = pos.x - lastSingleTouchMidpoint.x;
+                    const dy = pos.y - lastSingleTouchMidpoint.y;
+
+                    const vpt = canvas.viewportTransform;
+                    if (vpt) {
+                        vpt[4] += dx;
+                        vpt[5] += dy;
+                        clampVpt(vpt);
+                        canvas.setViewportTransform(vpt);
+                        canvas.requestRenderAll();
+                        syncScrollToViewport();
+                    }
+
+                    lastSingleTouchMidpoint = pos;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+
                 const allowTouch = drawWithFingerRef.current && !shouldBlockNonPen() && !isPalmEvent(e);
                 if (isPen || (allowTouch && !isMultiTouching)) {
                     forwardToFabric('__onMouseMove', e);
@@ -3299,6 +3331,10 @@ export const FabricCanvasModal: React.FC<FabricCanvasModalProps> = ({ initialDat
                     lastPenTime = Date.now();
                     // Reset barrel button state when pen lifts off
                     barrelButtonStateRef.current = false;
+                }
+
+                if (e.pointerType === 'touch') {
+                    lastSingleTouchMidpoint = null;
                 }
 
                 activePointers.delete(id);
